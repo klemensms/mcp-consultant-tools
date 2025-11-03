@@ -1,0 +1,223 @@
+Getting all flows...
+
+Found flow:
+Name: Contact | When contact membership status changes then sync portal identity
+ID: bc4ee80d-b53f-ef11-a316-6045bdfbfa5a
+State: 0
+Owner ID: N/A
+Primary Entity: none
+Modified: 2025-09-15T14:34:00Z
+
+
+Getting flow definition...
+
+=== FLOW DEFINITION ===
+{
+  "workflowid": "bc4ee80d-b53f-ef11-a316-6045bdfbfa5a",
+  "name": "Contact | When contact membership status changes then sync portal identity",
+  "description": null,
+  "state": "Draft",
+  "statecode": 0,
+  "statuscode": 1,
+  "type": "Definition",
+  "category": 5,
+  "primaryEntity": "none",
+  "isManaged": false,
+  "createdOn": "2024-09-25T06:56:40Z",
+  "createdBy": "# ado-smartimpact-dataverse-deployer-prod",
+  "modifiedOn": "2025-09-15T14:34:00Z",
+  "modifiedBy": "# Klemens Stelk- Smartimpact",
+  "flowDefinition": {
+    "properties": {
+      "connectionReferences": {
+        "shared_commondataserviceforapps": {
+          "runtimeSource": "embedded",
+          "connection": {
+            "connectionReferenceLogicalName": "sic_sharedcommondataserviceforapps_faf5c"
+          },
+          "api": {
+            "name": "shared_commondataserviceforapps"
+          }
+        }
+      },
+      "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "contentVersion": "1.0.0.0",
+        "parameters": {
+          "$connections": {
+            "defaultValue": {},
+            "type": "Object"
+          },
+          "$authentication": {
+            "defaultValue": {},
+            "type": "SecureObject"
+          }
+        },
+        "triggers": {
+          "When_the_membership_status_changes,_sync_External_Identity": {
+            "metadata": {
+              "operationMetadataId": "49854cd2-eee6-4c89-b7d9-84b7fb1d131d"
+            },
+            "type": "OpenApiConnectionWebhook",
+            "inputs": {
+              "host": {
+                "connectionName": "shared_commondataserviceforapps",
+                "operationId": "SubscribeWebhookTrigger",
+                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+              },
+              "parameters": {
+                "subscriptionRequest/message": 4,
+                "subscriptionRequest/entityname": "contact",
+                "subscriptionRequest/scope": 4,
+                "subscriptionRequest/filteringattributes": "si_membershipstatus"
+              },
+              "authentication": "@parameters('$authentication')"
+            }
+          }
+        },
+        "actions": {
+          "Check_if_membership_status_is_Active,_Pending,_Leave_of_Absence_or_Guest": {
+            "actions": {
+              "Condition_2": {
+                "actions": {
+                  "Update_a_row_2": {
+                    "runAfter": {},
+                    "metadata": {
+                      "operationMetadataId": "57fb522b-1008-4b5a-9fa0-827004415971"
+                    },
+                    "type": "OpenApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connectionName": "shared_commondataserviceforapps",
+                        "operationId": "UpdateOnlyRecord",
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                      },
+                      "parameters": {
+                        "entityName": "si_externalidentities",
+                        "recordId": "@triggerOutputs()?['body/_si_externalidentityid_value']",
+                        "item/si_blocksignin": false
+                      },
+                      "authentication": "@parameters('$authentication')"
+                    }
+                  }
+                },
+                "runAfter": {},
+                "expression": {
+                  "not": {
+                    "equals": [
+                      "@triggerOutputs()?['body/_si_externalidentityid_value']",
+                      "@null"
+                    ]
+                  }
+                },
+                "metadata": {
+                  "operationMetadataId": "69f72d04-d212-46c2-a423-5bc96bff39b1"
+                },
+                "type": "If"
+              },
+              "Call_sync_External_Identity_from_Contact_custom_api": {
+                "runAfter": {
+                  "Condition_2": [
+                    "Succeeded"
+                  ]
+                },
+                "metadata": {
+                  "operationMetadataId": "0a02d6b1-0c93-41f0-beed-b6ec560045bf"
+                },
+                "type": "OpenApiConnection",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_commondataserviceforapps",
+                    "operationId": "PerformUnboundAction",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                  },
+                  "parameters": {
+                    "actionName": "si_ExternalIdentitySyncFromContact",
+                    "item/contactid": "@triggerBody()?['contactid']"
+                  },
+                  "authentication": "@parameters('$authentication')"
+                }
+              }
+            },
+            "runAfter": {},
+            "else": {
+              "actions": {
+                "Condition": {
+                  "actions": {
+                    "Update_a_row": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "390c59fb-ca9a-4d85-8aa3-1073ae35a5ad"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateOnlyRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "si_externalidentities",
+                          "recordId": "@triggerOutputs()?['body/_si_externalidentityid_value']",
+                          "item/si_blocksignin": true
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    }
+                  },
+                  "runAfter": {},
+                  "expression": {
+                    "not": {
+                      "equals": [
+                        "@triggerOutputs()?['body/_si_externalidentityid_value']",
+                        "@null"
+                      ]
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "3aaabff3-f27f-40f4-a7c8-69c4e42050c5"
+                  },
+                  "type": "If"
+                }
+              }
+            },
+            "expression": {
+              "or": [
+                {
+                  "equals": [
+                    "@triggerBody()?['si_membershipstatus']",
+                    100000000
+                  ]
+                },
+                {
+                  "equals": [
+                    "@triggerBody()?['si_membershipstatus']",
+                    100000003
+                  ]
+                },
+                {
+                  "equals": [
+                    "@triggerBody()?['si_membershipstatus']",
+                    157420000
+                  ]
+                },
+                {
+                  "equals": [
+                    "@triggerBody()?['si_membershipstatus']",
+                    100000006
+                  ]
+                }
+              ]
+            },
+            "metadata": {
+              "operationMetadataId": "548e8999-08d3-4d96-99a7-24a42b2dbf6f"
+            },
+            "type": "If"
+          }
+        }
+      },
+      "templateName": ""
+    },
+    "schemaVersion": "1.0.0.0"
+  }
+}

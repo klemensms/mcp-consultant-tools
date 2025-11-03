@@ -1,0 +1,24 @@
+{
+  "INSTRUCTION": "Replace the 'powerplatform-mcp-RTPI-ADO' section in your Claude Desktop config with this updated version that includes BOTH PowerPlatform and Azure DevOps",
+
+  "powerplatform-mcp-RTPI-ADO": {
+    "command": "npx",
+    "args": ["-y", "powerplatform-mcp"],
+    "env": {
+      "_COMMENT_POWERPLATFORM": "PowerPlatform Configuration - ADD THESE",
+      "POWERPLATFORM_URL": "https://yourorg.crm11.dynamics.com",
+      "POWERPLATFORM_CLIENT_ID": "your-client-id-here",
+      "POWERPLATFORM_CLIENT_SECRET": "your-client-secret-here",
+      "POWERPLATFORM_TENANT_ID": "your-tenant-id-here",
+
+      "_COMMENT_AZUREDEVOPS": "Azure DevOps Configuration - ALREADY CONFIGURED",
+      "AZUREDEVOPS_ORGANIZATION": "your-organization",
+      "AZUREDEVOPS_PAT": "your-personal-access-token-here",
+      "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+      "AZUREDEVOPS_API_VERSION": "7.1",
+      "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "true",
+      "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+      "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false"
+    }
+  }
+}

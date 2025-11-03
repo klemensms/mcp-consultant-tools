@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "powerplatform-mcp": {
+      "command": "npx",
+      "args": ["-y", "powerplatform-mcp"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-client-secret",
+        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+        "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
+        "AZUREDEVOPS_PAT": "your-personal-access-token",
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2,Project3",
+        "AZUREDEVOPS_API_VERSION": "7.1",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "true",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "true"
+      }
+    }
+  }
+}

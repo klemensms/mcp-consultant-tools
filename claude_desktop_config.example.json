@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "powerplatform": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "git+https://github-enterprise.your-company.com/your-org/devops-mcp-consultant-tools.git"
+      ],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourorg.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-client-id-here",
+        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret-here",
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id-here",
+
+        "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
+        "AZUREDEVOPS_PAT": "your-personal-access-token-here",
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "false",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false"
+      }
+    }
+  }
+}
