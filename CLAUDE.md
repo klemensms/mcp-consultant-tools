@@ -62,7 +62,7 @@ The server validates configuration on first use and throws an error if any requi
 
 ### MCP Tools vs Prompts
 
-**Tools** (17 total): Return raw JSON data from PowerPlatform API
+**Tools**: Return raw JSON data from PowerPlatform API
 
 *Entity & Metadata Tools:*
 - `get-entity-metadata`: Entity definition metadata
@@ -72,7 +72,6 @@ The server validates configuration on first use and throws an error if any requi
 - `get-global-option-set`: Global option set definitions
 - `get-record`: Single record by entity name and ID
 - `query-records`: OData-filtered record queries
-- `use-powerplatform-prompt`: Execute prompt templates (also available as tool)
 
 *Plugin Tools:*
 - `get-plugin-assemblies`: List all plugin assemblies in the environment

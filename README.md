@@ -37,6 +37,41 @@ npx mcp-consultant-tools
 
 This is an MCP server designed to work with MCP-compatible clients like Claude Desktop, Cursor, or Claude Code (VS Code extension).
 
+### Quick Start: VS Code (Claude Code) Configuration
+
+For VS Code with Claude Code extension, create a `.vscode/mcp.json` file in your repository:
+
+```json
+{
+  "servers": {
+    "mcp-consultant-tools": {
+      "command": "npx",
+      "args": ["-y", "mcp-consultant-tools"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-client-secret",
+        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+        "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
+        "AZUREDEVOPS_PAT": "your-personal-access-token",
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+        "AZUREDEVOPS_API_VERSION": "7.1",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "true",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false"
+      }
+    }
+  }
+}
+```
+
+**After configuration:**
+1. Save the `.vscode/mcp.json` file
+2. Reload VS Code window
+3. The MCP server will be available in Claude Code
+
+**Note:** You can omit PowerPlatform or Azure DevOps credentials if you only need one integration (see Environment Variables Reference below).
+
 ### Quick Start: Claude Desktop Configuration
 
 Add this to your Claude Desktop config file at `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
@@ -136,7 +171,6 @@ Once configured, the MCP server will expose tools for retrieving PowerPlatform e
 - `get-global-option-set`: Get a global option set definition
 - `get-record`: Get a specific record by entity name and ID
 - `query-records`: Query records using an OData filter expression
-- `use-powerplatform-prompt`: Use pre-defined prompt templates for PowerPlatform entities
 
 #### Plugin Registration & Validation Tools
 - `get-plugin-assemblies`: List all plugin assemblies in the environment
@@ -146,151 +180,29 @@ Once configured, the MCP server will expose tools for retrieving PowerPlatform e
 
 ## MCP Prompts
 
-The server includes a prompts feature that provides formatted, context-rich information about PowerPlatform entities.
+The server includes MCP prompts that provide formatted, context-rich information.
 
-### Available Prompt Types
+### Available Prompts
 
 #### Entity Prompts
-The `use-powerplatform-prompt` tool supports the following prompt types:
-
-1. **ENTITY_OVERVIEW**: Comprehensive overview of an entity
-2. **ATTRIBUTE_DETAILS**: Detailed information about a specific entity attribute
-3. **QUERY_TEMPLATE**: OData query template for an entity with example filters
-4. **RELATIONSHIP_MAP**: Visual map of entity relationships
+1. **entity-overview**: Comprehensive overview of a PowerPlatform entity
+2. **attribute-details**: Detailed information about a specific entity attribute
+3. **query-template**: OData query template for an entity with example filters
+4. **relationship-map**: Visual map of entity relationships
 
 #### Plugin Prompts
 5. **plugin-deployment-report**: Generate a comprehensive deployment report for a plugin assembly with validation warnings
 6. **entity-plugin-pipeline-report**: Generate a visual execution pipeline showing all plugins for an entity in order
 
-### Examples
+#### Workflow & Flow Prompts
+7. **flows-report**: Comprehensive report of all Power Automate flows
+8. **workflows-report**: Comprehensive report of all classic Dynamics workflows
 
-#### Entity Overview Prompt
-
-```javascript
-// Example client code
-await mcpClient.invoke("use-powerplatform-prompt", {
-  promptType: "ENTITY_OVERVIEW",
-  entityName: "account"
-});
-```
-
-**Output:**
-```
-## Power Platform Entity: account
-
-This is an overview of the 'account' entity in Microsoft Power Platform/Dataverse:
-
-### Entity Details
-- Display Name: Account
-- Schema Name: Account
-- Description: Business that represents a customer or potential customer
-- Primary Key: accountid
-- Primary Name: name
-
-### Key Attributes
-- name: String (Account Name)
-- emailaddress1: String (Email)
-- telephone1: String (Main Phone)
-- address1_city: String (City)
-- statecode: Status (Status)
-- accountnumber: String (Account Number)
-- industrycode: OptionSetValue (Industry)
-- revenue: Money (Annual Revenue)
-- ownerid: Owner (Owner)
-- createdon: DateTime (Created On)
-
-### Relationships
-- One-to-Many Relationships: 42
-- Many-to-Many Relationships: 8
-
-You can query this entity using OData filters against the plural name.
-```
-
-#### Attribute Details Prompt
-
-```javascript
-await mcpClient.invoke("use-powerplatform-prompt", {
-  promptType: "ATTRIBUTE_DETAILS",
-  entityName: "account",
-  attributeName: "revenue"
-});
-```
-
-**Output:**
-```
-## Attribute: revenue
-
-Details for the 'revenue' attribute of the 'account' entity:
-
-- Display Name: Annual Revenue
-- Description: Annual revenue for the account
-- Type: Money
-- Format: Currency
-- Is Required: No
-- Is Searchable: true
-
-### Usage Notes
-- Data Type: Money
-- Required: No
-- Max Length: N/A
-```
-
-#### Query Template Prompt
-
-```javascript
-await mcpClient.invoke("use-powerplatform-prompt", {
-  promptType: "QUERY_TEMPLATE",
-  entityName: "account"
-});
-```
-
-**Output:**
-```
-## OData Query Template for accounts
-
-Use this template to build queries against the accounts entity:
-accounts?$select=name,emailaddress1,telephone1, address1_city,statecode&$filter=name eq 'Example'&$orderby=name asc&$top=50
-```
-
-### Common Filter Examples
-- Equals: `name eq 'Contoso'`
-- Contains: `contains(name, 'Contoso')`
-- Greater than date: `createdon gt 2023-01-01T00:00:00Z`
-- Multiple conditions: `name eq 'Contoso' and statecode eq 0`
-```
-
-#### Relationship Map Prompt
-
-```javascript
-await mcpClient.invoke("use-powerplatform-prompt", {
-  promptType: "RELATIONSHIP_MAP",
-  entityName: "contact"
-});
-```
-
-**Output:**
-```
-## Relationship Map for contact
-
-This shows all relationships for the 'contact' entity:
-
-### One-to-Many Relationships (contact as Primary)
-- contact_activity_parties: contact (1) → activityparty (N)
-- contact_connections1: contact (1) → connection (N)
-- contact_connections2: contact (1) → connection (N)
-- contact_customer_contacts: contact (1) → contact (N)
-- contact_master_contact: contact (1) → contact (N)
-
-### One-to-Many Relationships (contact as Related)
-- account_primary_contact: account (1) → contact (N)
-- customer_contacts: customer (1) → contact (N)
-- system_user_contacts: systemuser (1) → contact (N)
-
-### Many-to-Many Relationships
-- contactleads_association: contact (N) ↔ lead (N)
-- contactopportunities_association: contact (N) ↔ opportunity (N)
-- contactquotes_association: contact (N) ↔ quote (N)
-```
+#### Azure DevOps Prompts
+9. **wiki-search-results**: Search Azure DevOps wiki pages with formatted results
+10. **wiki-page-content**: Get a formatted wiki page with navigation context
+11. **work-item-summary**: Get a comprehensive summary of a work item with comments
+12. **work-items-query-report**: Execute a WIQL query and get formatted results
 
 ## Prompt Examples
 
