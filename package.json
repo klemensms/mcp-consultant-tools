@@ -1,6 +1,6 @@
 {
   "name": "mcp-consultant-tools",
-  "version": "0.4.6",
+  "version": "1.0.0",
   "description": "Dynamics CRM Consultant MCP Server",
   "main": "build/index.js",
   "bin": {
