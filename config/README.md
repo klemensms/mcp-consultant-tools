@@ -16,9 +16,9 @@ Copy the relevant section to your Claude Desktop config file at:
 ```json
 {
   "mcpServers": {
-    "powerplatform-mcp": {
+    "mcp-consultant-tools": {
       "command": "npx",
-      "args": ["-y", "powerplatform-mcp"],
+      "args": ["-y", "mcp-consultant-tools"],
       "env": {
         "POWERPLATFORM_URL": "https://your-env.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-client-id",

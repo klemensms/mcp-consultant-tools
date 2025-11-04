@@ -1,9 +1,9 @@
 {
-  "INSTRUCTION": "Replace the 'powerplatform-mcp-RTPI-ADO' section in your Claude Desktop config with this updated version that includes BOTH PowerPlatform and Azure DevOps",
+  "INSTRUCTION": "Replace the 'mcp-consultant-tools-RTPI-ADO' section in your Claude Desktop config with this updated version that includes BOTH PowerPlatform and Azure DevOps",
 
-  "powerplatform-mcp-RTPI-ADO": {
+  "mcp-consultant-tools-RTPI-ADO": {
     "command": "npx",
-    "args": ["-y", "powerplatform-mcp"],
+    "args": ["-y", "mcp-consultant-tools"],
     "env": {
       "_COMMENT_POWERPLATFORM": "PowerPlatform Configuration - ADD THESE",
       "POWERPLATFORM_URL": "https://yourorg.crm11.dynamics.com",

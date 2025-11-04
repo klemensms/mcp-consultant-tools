@@ -22,7 +22,7 @@ npm start
 
 Or run directly with npx (without installing):
 ```bash
-npx powerplatform-mcp
+npx mcp-consultant-tools
 ```
 
 ## Architecture
@@ -381,10 +381,10 @@ const items = page.content.matchAll(/\|\s*#(\d+)\s*\|/g);
 
 ## Publishing
 
-The package is published to npm as `powerplatform-mcp`:
+The package is published to npm as `mcp-consultant-tools`:
 - `npm run prepublishOnly` automatically runs build before publishing
 - Published files: `build/`, `README.md` (defined in package.json files array)
-- Binary: `powerplatform-mcp` command points to `build/index.js`
+- Binary: `mcp-consultant-tools` command points to `build/index.js`
 
 ## TypeScript Configuration
 

@@ -61,9 +61,9 @@ echo ""
 cat << 'EOF'
 {
   "mcpServers": {
-    "powerplatform-mcp": {
+    "mcp-consultant-tools": {
       "command": "npx",
-      "args": ["-y", "powerplatform-mcp"],
+      "args": ["-y", "mcp-consultant-tools"],
       "env": {
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-client-id",

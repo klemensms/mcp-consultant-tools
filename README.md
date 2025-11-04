@@ -16,13 +16,13 @@ You can install and run this tool in two ways:
 ### Option 1: Install globally
 
 ```bash
-npm install -g powerplatform-mcp
+npm install -g mcp-consultant-tools
 ```
 
 Then run it:
 
 ```bash
-powerplatform-mcp
+mcp-consultant-tools
 ```
 
 ### Option 2: Run directly with npx
@@ -30,24 +30,96 @@ powerplatform-mcp
 Run without installing:
 
 ```bash
-npx powerplatform-mcp
+npx mcp-consultant-tools
 ```
 
 ## Configuration
 
-Before running, set the following environment variables:
+This is an MCP server designed to work with MCP-compatible clients like Claude Desktop, Cursor, or Claude Code (VS Code extension).
 
-```bash
-# PowerPlatform/Dataverse connection details
-POWERPLATFORM_URL=https://yourenvironment.crm.dynamics.com
-POWERPLATFORM_CLIENT_ID=your-azure-app-client-id
-POWERPLATFORM_CLIENT_SECRET=your-azure-app-client-secret
-POWERPLATFORM_TENANT_ID=your-azure-tenant-id
+### Quick Start: Claude Desktop Configuration
+
+Add this to your Claude Desktop config file at `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "mcp-consultant-tools": {
+      "command": "npx",
+      "args": ["-y", "mcp-consultant-tools"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-client-secret",
+        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+        "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
+        "AZUREDEVOPS_PAT": "your-personal-access-token",
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+        "AZUREDEVOPS_API_VERSION": "7.1",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "true",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false"
+      }
+    }
+  }
+}
 ```
+
+### Local Development Configuration
+
+For local development and testing, you can run the server directly from your cloned repository using Node.js. Add this to your Claude Desktop config:
+
+```json
+{
+  "mcpServers": {
+    "mcp-consultant-tools-dev": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp-consultant-tools/build/index.js"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-client-secret",
+        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+        "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
+        "AZUREDEVOPS_PAT": "your-personal-access-token",
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+        "AZUREDEVOPS_API_VERSION": "7.1",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "true",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false"
+      }
+    }
+  }
+}
+```
+
+**Important:** Replace `/absolute/path/to/mcp-consultant-tools` with the actual path to your cloned repository (e.g., `/Users/yourname/Repo/mcp-consultant-tools`).
+
+### Environment Variables Reference
+
+**PowerPlatform/Dataverse (Required):**
+- `POWERPLATFORM_URL`: Your PowerPlatform environment URL
+- `POWERPLATFORM_CLIENT_ID`: Azure AD app registration client ID
+- `POWERPLATFORM_CLIENT_SECRET`: Azure AD app registration client secret
+- `POWERPLATFORM_TENANT_ID`: Azure tenant ID
+
+**Azure DevOps (Optional):**
+- `AZUREDEVOPS_ORGANIZATION`: Your Azure DevOps organization name
+- `AZUREDEVOPS_PAT`: Personal Access Token with appropriate scopes
+- `AZUREDEVOPS_PROJECTS`: Comma-separated list of allowed projects
+- `AZUREDEVOPS_API_VERSION`: API version (default: "7.1")
+- `AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE`: Enable work item write operations (default: "false")
+- `AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE`: Enable work item delete operations (default: "false")
+- `AZUREDEVOPS_ENABLE_WIKI_WRITE`: Enable wiki write operations (default: "false")
+
+**After configuration:**
+1. Save the config file
+2. Completely restart Claude Desktop (quit and reopen)
+3. The MCP server will be available in Claude Desktop
 
 ## Usage
 
-This is an MCP server designed to work with MCP-compatible clients like Cursor, Claude App and GitHub Copilot. Once running, it will expose tools for retrieving PowerPlatform entity metadata and records.
+Once configured, the MCP server will expose tools for retrieving PowerPlatform entity metadata and records.
 
 ### Available Tools
 

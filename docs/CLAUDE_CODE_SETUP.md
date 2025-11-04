@@ -17,7 +17,7 @@ Add this to your `settings.json`:
     "powerplatform": {
       "command": "node",
       "args": [
-        "/Users/klemensstelk/Repo/powerplatform-mcp/build/index.js"
+        "/Users/klemensstelk/Repo/mcp-consultant-tools/build/index.js"
       ],
       "env": {
         "POWERPLATFORM_URL": "https://rtpidev.crm11.dynamics.com",
@@ -53,7 +53,7 @@ export POWERPLATFORM_TENANT_ID="your-tenant-id"
     "powerplatform": {
       "command": "node",
       "args": [
-        "/Users/klemensstelk/Repo/powerplatform-mcp/build/index.js"
+        "/Users/klemensstelk/Repo/mcp-consultant-tools/build/index.js"
       ]
     }
   }
@@ -74,9 +74,9 @@ Since you already have a `.env` file in the repo:
     "powerplatform": {
       "command": "node",
       "args": [
-        "/Users/klemensstelk/Repo/powerplatform-mcp/build/index.js"
+        "/Users/klemensstelk/Repo/mcp-consultant-tools/build/index.js"
       ],
-      "cwd": "/Users/klemensstelk/Repo/powerplatform-mcp"
+      "cwd": "/Users/klemensstelk/Repo/mcp-consultant-tools"
     }
   }
 }
@@ -139,13 +139,13 @@ Once configured, you'll have access to:
 
 2. Check the build:
    ```bash
-   cd /Users/klemensstelk/Repo/powerplatform-mcp
+   cd /Users/klemensstelk/Repo/mcp-consultant-tools
    npm run build
    ```
 
 3. Test the server directly:
    ```bash
-   node /Users/klemensstelk/Repo/powerplatform-mcp/build/index.js
+   node /Users/klemensstelk/Repo/mcp-consultant-tools/build/index.js
    ```
    - Should wait for input (that's normal for stdio server)
    - Press Ctrl+C to exit
