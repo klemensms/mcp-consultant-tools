@@ -22,7 +22,7 @@ npm start
 
 Or run directly with npx (without installing):
 ```bash
-npx powerplatform-mcp
+npx mcp-consultant-tools
 ```
 
 ## Architecture
@@ -381,10 +381,48 @@ const items = page.content.matchAll(/\|\s*#(\d+)\s*\|/g);
 
 ## Publishing
 
-The package is published to npm as `powerplatform-mcp`:
+The package is published to npm as `mcp-consultant-tools`:
 - `npm run prepublishOnly` automatically runs build before publishing
 - Published files: `build/`, `README.md` (defined in package.json files array)
-- Binary: `powerplatform-mcp` command points to `build/index.js`
+- Binary: `mcp-consultant-tools` command points to `build/index.js`
+
+### Publishing Strategy & Branch Workflow
+
+**IMPORTANT**: Only publish to npm from the `main` branch after merging feature/release branches.
+
+**Branch Strategy:**
+- **`feature/*` branches**: Active development of new features
+  - Develop and test locally
+  - Do NOT publish to npm
+  - Use local node command for testing: `node /path/to/build/index.js`
+
+- **`release/*` branches**: Testing versions before release
+  - Validate and test changes before merging to main
+  - Do NOT publish to npm
+  - Use local node command for testing
+
+- **`main` branch**: Production-ready code
+  - **ONLY** publish to npm when main is updated
+  - Publishing workflow:
+    1. Ensure you're on `main` branch
+    2. Merge feature/release branch to `main`
+    3. Update version: `npm version patch|minor|major`
+    4. Publish: `npm publish`
+    5. Push to GitHub: `git push && git push --tags`
+
+**Version Bumping:**
+- `npm version patch`: Bug fixes (0.4.6 → 0.4.7)
+- `npm version minor`: New features (0.4.6 → 0.5.0)
+- `npm version major`: Breaking changes (0.4.6 → 1.0.0)
+
+**Testing Before Publishing:**
+Always test locally using the local development configuration before publishing:
+```json
+{
+  "command": "node",
+  "args": ["/absolute/path/to/mcp-consultant-tools/build/index.js"]
+}
+```
 
 ## TypeScript Configuration
 

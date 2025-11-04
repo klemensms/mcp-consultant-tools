@@ -5,7 +5,7 @@ This document describes the organization of the PowerPlatform MCP Server codebas
 ## Directory Structure
 
 ```
-powerplatform-mcp/
+mcp-consultant-tools/
 ├── src/                    # Source code (TypeScript)
 │   ├── index.ts           # MCP server entry point
 │   ├── PowerPlatformService.ts
@@ -220,7 +220,7 @@ The following are excluded from version control (see `.gitignore`):
    ```bash
    npm start
    # Or
-   npx powerplatform-mcp
+   npx mcp-consultant-tools
    ```
 
 ### Production Deployment

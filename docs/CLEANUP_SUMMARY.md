@@ -12,7 +12,7 @@ Reorganized the PowerPlatform MCP Server codebase into a professional, maintaina
 ### Directory Structure Created
 
 ```
-powerplatform-mcp/
+mcp-consultant-tools/
 ├── src/          (3 TypeScript files)
 ├── tests/        (17 test scripts + README)
 ├── examples/     (2 example scripts + README)
@@ -99,7 +99,7 @@ Files updated: All 17 test files + 2 example files
 ### Build Verification ✅
 ```bash
 $ npm run build
-> powerplatform-mcp@0.4.5 build
+> mcp-consultant-tools@0.4.5 build
 > tsc
 # Successful!
 ```

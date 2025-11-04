@@ -149,7 +149,7 @@ npm publish
 
 1. Open Claude Desktop
 2. Go to Settings → Developer → MCP Servers
-3. Find the powerplatform-mcp server
+3. Find the mcp-consultant-tools server
 4. Click "Restart Server"
 
 ## Backward Compatibility

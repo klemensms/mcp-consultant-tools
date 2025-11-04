@@ -35,7 +35,7 @@ const AZUREDEVOPS_CONFIG: AzureDevOpsConfig = {
 
 // Create server instance
 const server = new McpServer({
-  name: "powerplatform-mcp",
+  name: "mcp-consultant-tools",
   version: "1.0.0",
 });
 

@@ -179,7 +179,7 @@ The server uses `npx -y` which automatically installs dependencies. If you see t
 3. Update the config to use the global installation:
    ```json
    {
-     "command": "powerplatform-mcp",
+     "command": "mcp-consultant-tools",
      "args": [],
      "env": { ... }
    }
@@ -260,7 +260,7 @@ To update to the latest version:
 1. Claude Desktop will automatically use the latest version from GitHub Enterprise on each restart (when using `npx`)
 2. For manual installations, run:
    ```bash
-   npm update -g powerplatform-mcp
+   npm update -g mcp-consultant-tools
    ```
 
 Or reinstall from the repository:
