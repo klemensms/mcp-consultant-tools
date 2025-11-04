@@ -185,6 +185,10 @@ Once configured, the MCP server will expose tools for retrieving PowerPlatform e
 
 ### Available Tools
 
+The server provides **30 tools** across PowerPlatform, Azure DevOps, and Figma integrations.
+
+### PowerPlatform/Dataverse Tools
+
 #### Entity Metadata & Data Tools
 - `get-entity-metadata`: Get metadata about a PowerPlatform entity
 - `get-entity-attributes`: Get attributes/fields of a PowerPlatform entity
@@ -200,13 +204,38 @@ Once configured, the MCP server will expose tools for retrieving PowerPlatform e
 - `get-entity-plugin-pipeline`: Get all plugins that execute on a specific entity, organized by message and execution order
 - `get-plugin-trace-logs`: Query plugin trace logs with filtering and exception parsing
 
-#### Figma Tools
+#### Workflow & Power Automate Flow Tools
+- `get-flows`: List all Power Automate cloud flows (category = 5)
+- `get-flow-definition`: Get complete flow definition including JSON logic from clientdata field
+- `get-flow-runs`: Get flow run history with status, duration, and error details
+- `get-workflows`: List all classic Dynamics workflows (category = 0)
+- `get-workflow-definition`: Get complete workflow definition including XAML and trigger configuration
+
+### Azure DevOps Tools
+
+#### Wiki Tools
+- `get-wikis`: List all wikis in a project
+- `search-wiki-pages`: Full-text search across wiki pages with highlighting
+- `get-wiki-page`: Get specific wiki page content and metadata
+- `create-wiki-page`: Create new wiki page (requires `AZUREDEVOPS_ENABLE_WIKI_WRITE=true`)
+- `update-wiki-page`: Update existing wiki page (requires `AZUREDEVOPS_ENABLE_WIKI_WRITE=true`)
+
+#### Work Item Tools
+- `get-work-item`: Get work item by ID with full details
+- `query-work-items`: Execute WIQL queries to find work items
+- `get-work-item-comments`: Get discussion comments for a work item
+- `add-work-item-comment`: Add comment to work item (requires `AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true`)
+- `update-work-item`: Update work item fields using JSON Patch (requires `AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true`)
+- `create-work-item`: Create new work item (requires `AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true`)
+- `delete-work-item`: Delete work item (requires `AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE=true`)
+
+### Figma Tools
 - `get-figma-data`: Get comprehensive Figma design data including layout, text, styles, and components. Fetches from Figma API and transforms into simplified, AI-friendly format. Can fetch entire files or specific nodes.
 - `download-figma-images`: Placeholder for future image download functionality (Coming in v2)
 
 ## MCP Prompts
 
-The server includes MCP prompts that provide formatted, context-rich information.
+The server includes **12 prompts** that provide formatted, context-rich information across all integrations.
 
 ### Available Prompts
 
@@ -216,19 +245,19 @@ The server includes MCP prompts that provide formatted, context-rich information
 3. **query-template**: OData query template for an entity with example filters
 4. **relationship-map**: Visual map of entity relationships
 
-#### Plugin Prompts
+#### PowerPlatform Plugin Prompts
 5. **plugin-deployment-report**: Generate a comprehensive deployment report for a plugin assembly with validation warnings
 6. **entity-plugin-pipeline-report**: Generate a visual execution pipeline showing all plugins for an entity in order
 
-#### Workflow & Flow Prompts
-7. **flows-report**: Comprehensive report of all Power Automate flows
-8. **workflows-report**: Comprehensive report of all classic Dynamics workflows
+#### PowerPlatform Workflow & Flow Prompts
+7. **flows-report**: Comprehensive report of all Power Automate flows grouped by state
+8. **workflows-report**: Comprehensive report of all classic Dynamics workflows grouped by state
 
 #### Azure DevOps Prompts
-9. **wiki-search-results**: Search Azure DevOps wiki pages with formatted results
-10. **wiki-page-content**: Get a formatted wiki page with navigation context
-11. **work-item-summary**: Get a comprehensive summary of a work item with comments
-12. **work-items-query-report**: Execute a WIQL query and get formatted results
+9. **wiki-search-results**: Search Azure DevOps wiki pages with formatted results and content snippets
+10. **wiki-page-content**: Get a formatted wiki page with navigation context and sub-pages
+11. **work-item-summary**: Get a comprehensive summary of a work item with details and comments
+12. **work-items-query-report**: Execute a WIQL query and get results grouped by state/type
 
 ## Prompt Examples
 

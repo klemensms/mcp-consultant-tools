@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Model Context Protocol (MCP) server that provides intelligent access to Microsoft PowerPlatform/Dataverse entities, records, plugins, workflows, and Power Automate flows through an MCP-compatible interface. It enables AI assistants to explore entity metadata, query records, inspect plugin configurations, analyze workflows, and provide context-aware assistance for PowerPlatform development.
+This is a Model Context Protocol (MCP) server that provides intelligent access to Microsoft PowerPlatform/Dataverse entities, Azure DevOps wikis/work items, and Figma designs through an MCP-compatible interface. It enables AI assistants to explore entity metadata, query records, inspect plugin configurations, analyze workflows, search documentation, manage work items, and extract design data for context-aware assistance across the development lifecycle.
 
 ## Build and Development Commands
 
@@ -31,34 +31,64 @@ npx mcp-consultant-tools
 
 1. **MCP Server Layer** ([src/index.ts](src/index.ts))
    - Initializes the MCP server using `@modelcontextprotocol/sdk`
-   - Registers 16 tools and 8 prompts for PowerPlatform interaction
-   - Handles environment configuration and lazy-initialization of the PowerPlatformService
+   - Registers 30 tools and 12 prompts across PowerPlatform, Azure DevOps, and Figma integrations
+   - Handles environment configuration and lazy-initialization of services (PowerPlatformService, AzureDevOpsService, FigmaService)
    - Uses Zod schemas for parameter validation
    - Communicates via stdio transport (StdioServerTransport)
 
-2. **Service Layer** ([src/PowerPlatformService.ts](src/PowerPlatformService.ts))
-   - Manages authentication to PowerPlatform using Azure MSAL (ConfidentialClientApplication)
-   - Handles token acquisition and automatic refresh (5-minute buffer before expiry)
-   - Makes authenticated OData API requests to PowerPlatform/Dataverse Web API (v9.2)
-   - Implements filtering logic to exclude certain system attributes and relationships (e.g., yominame fields, msdyn_/adx_ entities)
+2. **Service Layer**
+   - **PowerPlatformService** ([src/PowerPlatformService.ts](src/PowerPlatformService.ts))
+     - Manages authentication to PowerPlatform using Azure MSAL (ConfidentialClientApplication)
+     - Handles token acquisition and automatic refresh (5-minute buffer before expiry)
+     - Makes authenticated OData API requests to PowerPlatform/Dataverse Web API (v9.2)
+     - Implements filtering logic to exclude certain system attributes and relationships (e.g., yominame fields, msdyn_/adx_ entities)
+
+   - **AzureDevOpsService** ([src/AzureDevOpsService.ts](src/AzureDevOpsService.ts))
+     - Manages authentication using Personal Access Tokens (PAT)
+     - Provides access to Azure DevOps wikis and work items
+     - Implements wiki path conversion (git paths ↔ wiki paths)
+     - Supports WIQL queries for work item filtering
+
+   - **FigmaService** ([src/FigmaService.ts](src/FigmaService.ts))
+     - Manages authentication using Personal Access Tokens (PAT) or OAuth
+     - Fetches Figma design files and nodes via REST API
+     - Transforms complex Figma data into simplified, AI-friendly format
+     - Supports design extraction with depth limiting and node filtering
 
 ### Key Design Patterns
 
-- **Lazy Initialization**: PowerPlatformService is created on-demand via `getPowerPlatformService()`, only when first tool/prompt is invoked
+- **Lazy Initialization**: All services (PowerPlatform, AzureDevOps, Figma) are created on-demand only when their respective tools/prompts are first invoked
 - **Token Caching**: Access tokens are cached and reused until near expiration to minimize authentication calls
 - **Prompt Templates**: Pre-defined prompt templates with placeholder replacement for consistent, formatted responses
 - **Dual Interface**: Functionality exposed both as MCP tools (for raw data) and prompts (for formatted, context-rich output)
 - **Stdout Suppression for dotenv**: The server temporarily suppresses stdout during dotenv initialization to prevent non-JSON output from corrupting the MCP JSON protocol (which requires clean JSON-only stdout)
+- **Optional Integrations**: All integrations are optional - users can configure only PowerPlatform, only Azure DevOps, only Figma, or any combination
 
 ### Environment Configuration
 
-Required environment variables (must be set before running):
+Environment variables are loaded from `.env` file or set in the MCP client configuration. All integrations are optional.
+
+**PowerPlatform Configuration (Optional):**
 - `POWERPLATFORM_URL`: PowerPlatform environment URL (e.g., https://yourenvironment.crm.dynamics.com)
 - `POWERPLATFORM_CLIENT_ID`: Azure AD app registration client ID
 - `POWERPLATFORM_CLIENT_SECRET`: Azure AD app registration client secret
 - `POWERPLATFORM_TENANT_ID`: Azure tenant ID
 
-The server validates configuration on first use and throws an error if any required variables are missing.
+**Azure DevOps Configuration (Optional):**
+- `AZUREDEVOPS_ORGANIZATION`: Organization name
+- `AZUREDEVOPS_PAT`: Personal Access Token
+- `AZUREDEVOPS_PROJECTS`: Comma-separated list of allowed projects
+- `AZUREDEVOPS_API_VERSION`: API version (default: "7.1")
+- `AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE`: Enable work item write operations (default: "false")
+- `AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE`: Enable work item delete operations (default: "false")
+- `AZUREDEVOPS_ENABLE_WIKI_WRITE`: Enable wiki write operations (default: "false")
+
+**Figma Configuration (Optional):**
+- `FIGMA_API_KEY`: Figma Personal Access Token (PAT)
+- `FIGMA_OAUTH_TOKEN`: Alternative OAuth token
+- `FIGMA_USE_OAUTH`: Set to "true" if using OAuth (default: "false")
+
+The server validates configuration on first use of each service and throws an error if any required variables for that service are missing.
 
 ### MCP Tools vs Prompts
 
@@ -86,7 +116,25 @@ The server validates configuration on first use and throws an error if any requi
 - `get-workflows`: List all classic Dynamics workflows
 - `get-workflow-definition`: Get complete workflow definition with XAML
 
-**Prompts** (8 total): Return formatted, human-readable context with metadata
+*Azure DevOps Tools:*
+- `get-wikis`: List all wikis in a project
+- `search-wiki-pages`: Search wiki content with highlighting
+- `get-wiki-page`: Get specific wiki page content
+- `create-wiki-page`: Create new wiki page (requires write permission)
+- `update-wiki-page`: Update existing wiki page (requires write permission)
+- `get-work-item`: Get work item by ID with details
+- `query-work-items`: Execute WIQL queries
+- `get-work-item-comments`: Get discussion comments
+- `add-work-item-comment`: Add comment (requires write permission)
+- `update-work-item`: Update work item fields (requires write permission)
+- `create-work-item`: Create new work item (requires write permission)
+- `delete-work-item`: Delete work item (requires delete permission)
+
+*Figma Tools:*
+- `get-figma-data`: Get comprehensive Figma design data (layout, text, styles, components)
+- `download-figma-images`: Placeholder for future image download functionality (v2)
+
+**Prompts** (12 total): Return formatted, human-readable context with metadata
 
 *Entity Prompts:*
 - `entity-overview`: Comprehensive entity overview with key fields and relationships
@@ -101,6 +149,12 @@ The server validates configuration on first use and throws an error if any requi
 *Workflow & Flow Prompts:*
 - `flows-report`: Comprehensive report of all Power Automate flows
 - `workflows-report`: Comprehensive report of all classic workflows
+
+*Azure DevOps Prompts:*
+- `wiki-search-results`: Search wiki pages with formatted results
+- `wiki-page-content`: Get formatted wiki page with navigation context
+- `work-item-summary`: Comprehensive work item summary with details and comments
+- `work-items-query-report`: Execute WIQL query and get formatted results
 
 ### API Integration
 
@@ -377,6 +431,198 @@ const page = await getWikiPage("RTPI", results.results[0].wikiId, results.result
 // Extract content
 const items = page.content.matchAll(/\|\s*#(\d+)\s*\|/g);
 ```
+
+## Figma Integration
+
+### Figma Architecture Overview
+
+The Figma integration extracts design data from Figma files and transforms it into a simplified, AI-friendly format. It uses a multi-stage pipeline to process complex Figma API responses.
+
+### Figma Service ([src/FigmaService.ts](src/FigmaService.ts))
+
+**Authentication:**
+- Supports Personal Access Token (PAT) authentication: `X-Figma-Token` header
+- Supports OAuth authentication: `Authorization: Bearer` header
+- Token type configured via `FIGMA_USE_OAUTH` environment variable
+
+**Core Methods:**
+- `getFigmaData(fileKey, nodeId?, depth?)` - Main method for extracting design data
+- `getFigmaFile(fileKey)` - Fetch complete Figma file via REST API
+- `getFigmaNodes(fileKey, nodeIds)` - Fetch specific nodes by ID
+- `getAuthHeaders()` - Returns appropriate authentication headers
+
+**Features:**
+- Depth limiting for large files (prevents token overflow)
+- Node filtering (fetch specific nodes instead of entire file)
+- Automatic retry logic with corporate proxy fallback
+- JSON output format
+
+### Data Transformation Pipeline
+
+The Figma integration uses a sophisticated extraction and transformation pipeline:
+
+```
+Figma API Response (Complex)
+    ↓
+Node Walker (Tree Traversal)
+  - Depth-first traversal
+  - Depth limiting
+  - Context propagation
+    ↓
+Extractors (Data Extraction)
+  - layoutExtractor: position, size, constraints
+  - textExtractor: text content, typography
+  - visualsExtractor: fills, strokes, effects, opacity
+  - componentExtractor: component instances, properties
+    ↓
+Transformers (Simplification)
+  - Layout properties
+  - Text styles
+  - Fill/stroke definitions
+  - Effects (shadows, blurs)
+    ↓
+Style Deduplication
+  - Hash style objects
+  - Store in globalVars.styles
+  - Return reference IDs
+    ↓
+Simplified Design (AI-Friendly JSON)
+```
+
+### Figma Extractors ([src/figma/extractors/](src/figma/extractors/))
+
+**Design Extractor** ([design-extractor.ts](src/figma/extractors/design-extractor.ts)):
+- Top-level orchestration of extraction process
+- Coordinates node walking and data extraction
+- Manages global style deduplication
+
+**Node Walker** ([node-walker.ts](src/figma/extractors/node-walker.ts)):
+- Depth-first tree traversal
+- Supports depth limiting
+- Provides beforeChildren and afterChildren hooks for extractors
+
+**Built-in Extractors** ([built-in.ts](src/figma/extractors/built-in.ts)):
+- `layoutExtractor`: Extracts position, size, constraints, and layout properties
+- `textExtractor`: Extracts text content and typography
+- `visualsExtractor`: Extracts fills, strokes, effects, opacity, border radius
+- `componentExtractor`: Extracts component instances and properties
+- `collapseSvgContainers`: Optimizes SVG nodes (afterChildren hook)
+
+### Figma Transformers ([src/figma/transformers/](src/figma/transformers/))
+
+Transform complex Figma API data into simplified structures:
+
+- **layout.ts**: Layout calculations (position, size, constraints, auto-layout)
+- **text.ts**: Text style parsing (font, size, weight, alignment)
+- **style.ts**: Fill and stroke parsing (solid colors, gradients, images)
+- **effects.ts**: Shadow and blur effect parsing
+- **component.ts**: Component metadata extraction
+
+### Figma Tools
+
+**get-figma-data** ([src/index.ts](src/index.ts:2221)):
+- Fetches comprehensive Figma design data
+- Returns simplified, AI-friendly JSON format
+- Supports entire file or specific node fetching
+- Supports depth limiting for large files
+- Automatic style deduplication
+
+**Parameters:**
+- `fileKey` (required): Figma file key from URL (alphanumeric)
+- `nodeId` (optional): Specific node ID(s) to fetch (format: `1:10` or `1:10;2:20`)
+- `depth` (optional): Tree traversal depth limit
+
+**Output Structure:**
+```typescript
+{
+  metadata: {
+    name: string;
+    // file metadata
+  },
+  nodes: SimplifiedNode[],
+  components: { [id: string]: ComponentDefinition },
+  componentSets: { [id: string]: ComponentSetDefinition },
+  globalVars: {
+    styles: { [id: string]: StyleObject }
+  }
+}
+```
+
+**download-figma-images** ([src/index.ts](src/index.ts:2274)):
+- Placeholder for future image download functionality
+- Planned for v2 release
+- Will support PNG/SVG downloads with Sharp-based processing
+
+### Figma API Integration
+
+**Endpoints Used:**
+
+1. **Get File**
+   ```
+   GET https://api.figma.com/v1/files/{fileKey}?depth={depth}
+   ```
+   Returns complete file structure with all nodes
+
+2. **Get Specific Nodes**
+   ```
+   GET https://api.figma.com/v1/files/{fileKey}/nodes?ids={nodeId1},{nodeId2}
+   ```
+   Returns only specified nodes
+
+**Rate Limits:**
+- Figma API has rate limits (varies by plan)
+- Implements retry logic with exponential backoff
+- Uses fetch-with-retry for corporate proxy support
+
+### Use Cases
+
+**Design System Documentation:**
+- Extract component definitions and properties
+- Document typography scales and color palettes
+- Map design tokens to code variables
+
+**Design QA:**
+- Verify consistency across design files
+- Check for style drift
+- Identify unused components
+
+**Design-to-Code:**
+- Extract layout properties for code generation
+- Map Figma components to code components
+- Generate CSS from Figma styles
+
+**AI-Assisted Design Review:**
+- Provide design context to AI assistants
+- Enable natural language queries about designs
+- Facilitate design discussions with structured data
+
+### Error Handling
+
+Common Figma API errors and solutions:
+
+**Missing Authentication:**
+```
+Error: Missing required Figma configuration: FIGMA_API_KEY or FIGMA_OAUTH_TOKEN
+```
+Solution: Set credentials in environment variables
+
+**Invalid File Key:**
+```
+Error: 404 - File not found
+```
+Solution: Verify file key from URL, check access permissions
+
+**Expired OAuth Token:**
+```
+Error: 401 - Unauthorized
+```
+Solution: Refresh OAuth token
+
+**Rate Limit Exceeded:**
+```
+Error: 429 - Too Many Requests
+```
+Solution: Reduce request frequency, implement backoff
 
 ## Publishing
 

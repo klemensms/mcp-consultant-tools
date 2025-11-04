@@ -1,7 +1,7 @@
 {
   "name": "mcp-consultant-tools",
   "version": "2.0.0",
-  "description": "Dynamics CRM Consultant MCP Server",
+  "description": "MCP server providing access to PowerPlatform/Dataverse, Azure DevOps, and Figma through unified interface",
   "main": "build/index.js",
   "bin": {
     "mcp-consultant-tools": "build/index.js"
@@ -19,7 +19,11 @@
     "mcp",
     "model-context-protocol",
     "dynamics",
-    "dataverse"
+    "dataverse",
+    "azure-devops",
+    "figma",
+    "design-tools",
+    "devops"
   ],
   "author": "Michal Sobieraj",
   "license": "MIT",
