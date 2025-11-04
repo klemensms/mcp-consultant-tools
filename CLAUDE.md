@@ -387,41 +387,52 @@ The package is published to npm as `mcp-consultant-tools`:
 
 ### Publishing Strategy & Branch Workflow
 
-**IMPORTANT**: Only publish to npm from the `main` branch after merging feature/release branches.
+**IMPORTANT**: The `main` branch is the source of truth for npm publishing. Whatever is in `main` gets published to npm.
 
 **Branch Strategy:**
-- **`feature/*` branches**: Active development of new features
-  - Develop and test locally
-  - Do NOT publish to npm
-  - Use local node command for testing: `node /path/to/build/index.js`
 
-- **`release/*` branches**: Testing versions before release
-  - Validate and test changes before merging to main
-  - Do NOT publish to npm
-  - Use local node command for testing
+- **`release/*` branches**: Active development and local testing
+  - This is where you work on new features and fixes
+  - Test locally using the local node command (see below)
+  - Do NOT publish to npm from release branches
+  - The latest `release/*` branch contains work-in-progress code
 
-- **`main` branch**: Production-ready code
-  - **ONLY** publish to npm when main is updated
+- **`main` branch**: Production-ready code that is published to npm
+  - Only merge to `main` when you're ready to publish
   - Publishing workflow:
-    1. Ensure you're on `main` branch
-    2. Merge feature/release branch to `main`
-    3. Update version: `npm version patch|minor|major`
-    4. Publish: `npm publish`
-    5. Push to GitHub: `git push && git push --tags`
+    1. Merge `release/*` branch to `main`
+    2. Update version on `main`: `npm version patch|minor|major`
+    3. Publish: `npm publish`
+    4. Push to GitHub: `git push && git push --tags`
+  - Everything in `main` should be tested and ready for public use
 
 **Version Bumping:**
-- `npm version patch`: Bug fixes (0.4.6 → 0.4.7)
-- `npm version minor`: New features (0.4.6 → 0.5.0)
-- `npm version major`: Breaking changes (0.4.6 → 1.0.0)
+- `npm version patch`: Bug fixes (2.0.0 → 2.0.1)
+- `npm version minor`: New features (2.0.0 → 2.1.0)
+- `npm version major`: Breaking changes (2.0.0 → 3.0.0)
 
-**Testing Before Publishing:**
-Always test locally using the local development configuration before publishing:
+**Local Testing Configuration:**
+Test from your `release/*` branch using the local development configuration:
 ```json
 {
   "command": "node",
-  "args": ["/absolute/path/to/mcp-consultant-tools/build/index.js"]
+  "args": ["/absolute/path/to/mcp-consultant-tools/build/index.js"],
+  "env": {
+    "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
+    "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
+    "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-client-secret",
+    "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+    "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
+    "AZUREDEVOPS_PAT": "your-personal-access-token",
+    "AZUREDEVOPS_PROJECTS": "Project1,Project2"
+  }
 }
 ```
+
+**Workflow Summary:**
+1. Work on `release/*` branch → Test locally with `node` command
+2. When ready → Merge to `main` → Bump version → Publish to npm
+3. Start new `release/*` branch for next iteration
 
 ## TypeScript Configuration
 
