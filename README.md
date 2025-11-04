@@ -33,6 +33,38 @@ Run without installing:
 npx mcp-consultant-tools
 ```
 
+### Updating to Latest Version
+
+**Important:** If you're using `npx` and want to ensure you're running the latest version (especially after a new release), npx may use a cached older version. Here's how to get the latest:
+
+**Recommended - Always use latest:**
+```bash
+npx mcp-consultant-tools@latest
+```
+
+**Alternative methods:**
+
+1. **Specify exact version:**
+   ```bash
+   npx mcp-consultant-tools@3.0.0
+   ```
+
+2. **Clear cache then run:**
+   ```bash
+   npm cache clean --force
+   npx mcp-consultant-tools
+   ```
+
+**For MCP configurations** (Claude Desktop, VS Code), update to use `@latest`:
+```json
+{
+  "command": "npx",
+  "args": ["-y", "mcp-consultant-tools@latest"]
+}
+```
+
+This ensures you always get the latest features and fixes instead of a cached older version.
+
 ## Configuration
 
 This is an MCP server designed to work with MCP-compatible clients like Claude Desktop, Cursor, or Claude Code (VS Code extension).
@@ -46,7 +78,7 @@ For VS Code with Claude Code extension, create a `.vscode/mcp.json` file in your
   "servers": {
     "mcp-consultant-tools": {
       "command": "npx",
-      "args": ["-y", "mcp-consultant-tools"],
+      "args": ["-y", "mcp-consultant-tools@latest"],
       "env": {
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
@@ -84,7 +116,7 @@ Add this to your Claude Desktop config file at `~/Library/Application Support/Cl
   "mcpServers": {
     "mcp-consultant-tools": {
       "command": "npx",
-      "args": ["-y", "mcp-consultant-tools"],
+      "args": ["-y", "mcp-consultant-tools@latest"],
       "env": {
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
