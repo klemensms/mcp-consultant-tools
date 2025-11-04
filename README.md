@@ -963,6 +963,49 @@ AZUREDEVOPS_ENABLE_WIKI_WRITE=true
 # PAT with: vso.wiki (read/write), vso.work_write (read/write), vso.search (read)
 ```
 
+## Development & Release Strategy
+
+This project follows a structured branching strategy for development and releases:
+
+### Branch Strategy
+
+- **`feature/*` branches**: For active development of new features
+  - Create feature branches off `main`
+  - Develop and test changes locally
+  - Do NOT publish to npm from feature branches
+
+- **`release/*` branches**: For testing versions before release
+  - Used to test and validate changes before merging to main
+  - Do NOT publish to npm from release branches
+  - Example: `release/1.0`, `release/2.0`
+
+- **`main` branch**: Production-ready code
+  - **ONLY** publish to npm when main branch is updated
+  - Merge feature/release branches to main when ready
+  - Publishing workflow:
+    1. Merge changes to `main`
+    2. Update version: `npm version patch|minor|major`
+    3. Publish: `npm publish`
+    4. Push to GitHub: `git push && git push --tags`
+
+### Local Development Setup
+
+For local testing during development (feature/release branches):
+
+```json
+{
+  "mcpServers": {
+    "mcp-consultant-tools-dev": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp-consultant-tools/build/index.js"],
+      "env": { ... }
+    }
+  }
+}
+```
+
+This allows you to test changes locally without publishing to npm.
+
 ## License
 
 MIT
