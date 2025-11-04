@@ -48,8 +48,14 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
         "AZUREDEVOPS_ORGANIZATION": "your-org",
         "AZUREDEVOPS_PAT": "your-pat",
         "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+        "AZUREDEVOPS_API_VERSION": "7.1",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "false",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
 
-        "FIGMA_API_KEY": "your-figma-token"
+        "FIGMA_API_KEY": "your-figma-token",
+        "FIGMA_OAUTH_TOKEN": "",
+        "FIGMA_USE_OAUTH": "false"
       }
     }
   }
@@ -72,7 +78,19 @@ Create `.vscode/mcp.json` in your project:
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
-        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id",
+
+        "AZUREDEVOPS_ORGANIZATION": "your-org",
+        "AZUREDEVOPS_PAT": "your-pat",
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+        "AZUREDEVOPS_API_VERSION": "7.1",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "false",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
+
+        "FIGMA_API_KEY": "your-figma-token",
+        "FIGMA_OAUTH_TOKEN": "",
+        "FIGMA_USE_OAUTH": "false"
       }
     }
   }

@@ -668,9 +668,18 @@ Test from your `release/*` branch using the local development configuration:
     "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
     "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-client-secret",
     "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+
     "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
     "AZUREDEVOPS_PAT": "your-personal-access-token",
-    "AZUREDEVOPS_PROJECTS": "Project1,Project2"
+    "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+    "AZUREDEVOPS_API_VERSION": "7.1",
+    "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "false",
+    "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+    "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
+
+    "FIGMA_API_KEY": "your-figma-personal-access-token",
+    "FIGMA_OAUTH_TOKEN": "",
+    "FIGMA_USE_OAUTH": "false"
   }
 }
 ```

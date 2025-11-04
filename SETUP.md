@@ -108,6 +108,7 @@ Edit the file and add:
         "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
 
         "FIGMA_API_KEY": "your-figma-personal-access-token",
+        "FIGMA_OAUTH_TOKEN": "",
         "FIGMA_USE_OAUTH": "false"
       }
     }
@@ -148,8 +149,14 @@ Create `.vscode/mcp.json` in your project:
         "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
         "AZUREDEVOPS_PAT": "your-personal-access-token",
         "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+        "AZUREDEVOPS_API_VERSION": "7.1",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "false",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
 
-        "FIGMA_API_KEY": "your-figma-personal-access-token"
+        "FIGMA_API_KEY": "your-figma-personal-access-token",
+        "FIGMA_OAUTH_TOKEN": "",
+        "FIGMA_USE_OAUTH": "false"
       }
     }
   }
@@ -182,8 +189,14 @@ export POWERPLATFORM_TENANT_ID="your-tenant-id"
 export AZUREDEVOPS_ORGANIZATION="your-organization"
 export AZUREDEVOPS_PAT="your-pat"
 export AZUREDEVOPS_PROJECTS="Project1,Project2"
+export AZUREDEVOPS_API_VERSION="7.1"
+export AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE="false"
+export AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE="false"
+export AZUREDEVOPS_ENABLE_WIKI_WRITE="false"
 
 export FIGMA_API_KEY="your-figma-token"
+export FIGMA_OAUTH_TOKEN=""
+export FIGMA_USE_OAUTH="false"
 ```
 
 Then use a simpler configuration:
@@ -219,7 +232,19 @@ For local development and testing from a cloned repository:
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-client-secret",
-        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id"
+        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+
+        "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
+        "AZUREDEVOPS_PAT": "your-personal-access-token",
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+        "AZUREDEVOPS_API_VERSION": "7.1",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "false",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
+
+        "FIGMA_API_KEY": "your-figma-personal-access-token",
+        "FIGMA_OAUTH_TOKEN": "",
+        "FIGMA_USE_OAUTH": "false"
       }
     }
   }
@@ -285,11 +310,18 @@ All integrations are optional. Configure only the services you need.
 
 ### Figma (Optional)
 
-- `FIGMA_API_KEY` (required if using Figma): Figma Personal Access Token
+**Authentication Methods (choose one):**
+
+- `FIGMA_API_KEY` (required if using PAT): Figma Personal Access Token
   - Get from: https://www.figma.com/developers/api#authentication
-- `FIGMA_OAUTH_TOKEN` (optional): Alternative to API key for OAuth authentication
-- `FIGMA_USE_OAUTH` (optional): Set to `"true"` if using OAuth token
+  - Recommended for personal use
+- `FIGMA_OAUTH_TOKEN` (required if using OAuth): OAuth Bearer token
+  - Used for team/organizational access
+  - Requires `FIGMA_USE_OAUTH` to be `"true"`
+- `FIGMA_USE_OAUTH` (optional): Set to `"true"` if using OAuth token instead of API key
   - Default: `"false"`
+  - When `"true"`, uses `FIGMA_OAUTH_TOKEN` for authentication
+  - When `"false"`, uses `FIGMA_API_KEY` for authentication
 
 ---
 
