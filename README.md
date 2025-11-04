@@ -97,7 +97,12 @@ For local development and testing, you can run the server directly from your clo
 
 ### Environment Variables Reference
 
-**PowerPlatform/Dataverse (Required):**
+**Note:** Both PowerPlatform and Azure DevOps integrations are optional. You can configure only the services you need:
+- PowerPlatform only: Set `POWERPLATFORM_*` variables
+- Azure DevOps only: Set `AZUREDEVOPS_*` variables
+- Both: Set all variables
+
+**PowerPlatform/Dataverse (Optional):**
 - `POWERPLATFORM_URL`: Your PowerPlatform environment URL
 - `POWERPLATFORM_CLIENT_ID`: Azure AD app registration client ID
 - `POWERPLATFORM_CLIENT_SECRET`: Azure AD app registration client secret
