@@ -1,11 +1,11 @@
-# PowerPlatform MCP Server
+# MCP Consultant Tools
 
-A Model Context Protocol (MCP) server that provides intelligent access to PowerPlatform/Dataverse entities and records. This tool offers context-aware assistance, entity exploration and metadata access.
+A Model Context Protocol (MCP) server that provides intelligent access to PowerPlatform/Dataverse entities, Azure DevOps, and Figma designs. This tool offers context-aware assistance, entity exploration, and metadata access across multiple platforms.
 
 Key features:
-- Rich entity metadata exploration with formatted, context-aware prompts
-- Advanced OData query support with intelligent filtering
-- Comprehensive relationship mapping and visualization
+- **PowerPlatform/Dataverse**: Rich entity metadata exploration with formatted, context-aware prompts, advanced OData query support, comprehensive relationship mapping
+- **Azure DevOps**: Wiki search, work item management, WIQL queries, and team collaboration tools
+- **Figma**: Design data extraction with simplified AI-friendly format, component analysis, and style deduplication
 - AI-assisted query building and data modeling through AI agent
 - Full access to entity attributes, relationships, and global option sets
 
@@ -58,7 +58,10 @@ For VS Code with Claude Code extension, create a `.vscode/mcp.json` file in your
         "AZUREDEVOPS_API_VERSION": "7.1",
         "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "true",
         "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
-        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false"
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
+        "FIGMA_API_KEY": "your-figma-personal-access-token",
+        "FIGMA_OAUTH_TOKEN": "",
+        "FIGMA_USE_OAUTH": "false"
       }
     }
   }
@@ -70,7 +73,7 @@ For VS Code with Claude Code extension, create a `.vscode/mcp.json` file in your
 2. Reload VS Code window
 3. The MCP server will be available in Claude Code
 
-**Note:** You can omit PowerPlatform or Azure DevOps credentials if you only need one integration (see Environment Variables Reference below).
+**Note:** You can omit PowerPlatform, Azure DevOps, or Figma credentials if you only need certain integrations (see Environment Variables Reference below).
 
 ### Quick Start: Claude Desktop Configuration
 
@@ -93,7 +96,10 @@ Add this to your Claude Desktop config file at `~/Library/Application Support/Cl
         "AZUREDEVOPS_API_VERSION": "7.1",
         "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "true",
         "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
-        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false"
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
+        "FIGMA_API_KEY": "your-figma-personal-access-token",
+        "FIGMA_OAUTH_TOKEN": "",
+        "FIGMA_USE_OAUTH": "false"
       }
     }
   }
@@ -121,7 +127,10 @@ For local development and testing, you can run the server directly from your clo
         "AZUREDEVOPS_API_VERSION": "7.1",
         "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "true",
         "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
-        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false"
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
+        "FIGMA_API_KEY": "your-figma-personal-access-token",
+        "FIGMA_OAUTH_TOKEN": "",
+        "FIGMA_USE_OAUTH": "false"
       }
     }
   }
@@ -132,10 +141,11 @@ For local development and testing, you can run the server directly from your clo
 
 ### Environment Variables Reference
 
-**Note:** Both PowerPlatform and Azure DevOps integrations are optional. You can configure only the services you need:
+**Note:** All integrations (PowerPlatform, Azure DevOps, Figma) are optional. You can configure only the services you need:
 - PowerPlatform only: Set `POWERPLATFORM_*` variables
 - Azure DevOps only: Set `AZUREDEVOPS_*` variables
-- Both: Set all variables
+- Figma only: Set `FIGMA_*` variables
+- Any combination: Set only the variables you need
 
 **PowerPlatform/Dataverse (Optional):**
 - `POWERPLATFORM_URL`: Your PowerPlatform environment URL
@@ -151,6 +161,18 @@ For local development and testing, you can run the server directly from your clo
 - `AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE`: Enable work item write operations (default: "false")
 - `AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE`: Enable work item delete operations (default: "false")
 - `AZUREDEVOPS_ENABLE_WIKI_WRITE`: Enable wiki write operations (default: "false")
+
+**Figma (Optional):**
+- `FIGMA_API_KEY`: Figma Personal Access Token (generate at: https://www.figma.com/developers/api#authentication)
+- `FIGMA_OAUTH_TOKEN`: Alternative to API key for OAuth authentication
+- `FIGMA_USE_OAUTH`: Set to "true" if using OAuth token instead of API key (default: "false")
+
+**How to get a Figma API Key:**
+1. Go to https://www.figma.com/developers/api#authentication
+2. Scroll to "Personal Access Tokens"
+3. Click "Get personal access token"
+4. Log in to Figma
+5. Generate new token and copy it to your config
 
 **After configuration:**
 1. Save the config file
@@ -177,6 +199,10 @@ Once configured, the MCP server will expose tools for retrieving PowerPlatform e
 - `get-plugin-assembly-complete`: Get comprehensive plugin assembly information including all types, steps, images, and automatic validation
 - `get-entity-plugin-pipeline`: Get all plugins that execute on a specific entity, organized by message and execution order
 - `get-plugin-trace-logs`: Query plugin trace logs with filtering and exception parsing
+
+#### Figma Tools
+- `get-figma-data`: Get comprehensive Figma design data including layout, text, styles, and components. Fetches from Figma API and transforms into simplified, AI-friendly format. Can fetch entire files or specific nodes.
+- `download-figma-images`: Placeholder for future image download functionality (Coming in v2)
 
 ## MCP Prompts
 
