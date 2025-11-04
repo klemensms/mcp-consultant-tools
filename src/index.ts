@@ -5,6 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { PowerPlatformService, PowerPlatformConfig } from "./PowerPlatformService.js";
 import { AzureDevOpsService, AzureDevOpsConfig } from "./AzureDevOpsService.js";
+import { FigmaService, type FigmaConfig } from "./FigmaService.js";
 
 // Load environment variables from .env file (silent mode to not interfere with MCP)
 // Temporarily suppress stdout to prevent dotenv from corrupting the JSON protocol
@@ -31,6 +32,13 @@ const AZUREDEVOPS_CONFIG: AzureDevOpsConfig = {
   enableWorkItemWrite: process.env.AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE === "true",
   enableWorkItemDelete: process.env.AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE === "true",
   enableWikiWrite: process.env.AZUREDEVOPS_ENABLE_WIKI_WRITE === "true",
+};
+
+// Figma configuration
+const FIGMA_CONFIG: FigmaConfig = {
+  apiKey: process.env.FIGMA_API_KEY || "",
+  oauthToken: process.env.FIGMA_OAUTH_TOKEN || "",
+  useOAuth: process.env.FIGMA_USE_OAUTH === "true",
 };
 
 // Create server instance
@@ -86,6 +94,33 @@ function getAzureDevOpsService(): AzureDevOpsService {
   }
 
   return azureDevOpsService;
+}
+
+let figmaService: FigmaService | null = null;
+
+// Function to initialize FigmaService on demand
+function getFigmaService(): FigmaService {
+  if (!figmaService) {
+    // Check if configuration is complete
+    const missingConfig: string[] = [];
+
+    if (!FIGMA_CONFIG.apiKey && !FIGMA_CONFIG.oauthToken) {
+      missingConfig.push("FIGMA_API_KEY or FIGMA_OAUTH_TOKEN");
+    }
+
+    if (missingConfig.length > 0) {
+      throw new Error(
+        `Missing required Figma configuration: ${missingConfig.join(", ")}. ` +
+        `Please set these in your .env file or environment variables.`
+      );
+    }
+
+    // Initialize service
+    figmaService = new FigmaService(FIGMA_CONFIG);
+    console.error("Figma service initialized");
+  }
+
+  return figmaService;
 }
 
 // Pre-defined PowerPlatform Prompts
@@ -2177,6 +2212,89 @@ server.tool(
         ],
       };
     }
+  }
+);
+
+// ==================== FIGMA TOOLS ====================
+
+/**
+ * Tool: get-figma-data
+ * Fetches and simplifies Figma file or node data for AI consumption
+ */
+server.tool(
+  "get-figma-data",
+  "Get comprehensive Figma design data including layout, text, styles, and components. " +
+  "Fetches from Figma API and transforms into simplified, AI-friendly format. " +
+  "Can fetch entire files or specific nodes. Automatically deduplicates styles.",
+  {
+    fileKey: z.string().describe(
+      "Figma file key (alphanumeric string from URL). " +
+      "Example: From 'https://figma.com/file/ABC123/MyFile', use 'ABC123'"
+    ),
+    nodeId: z.string().optional().describe(
+      "Optional specific node ID(s) to fetch. Format: '1234:5678' or multiple '1:10;2:20'. " +
+      "If omitted, fetches entire file."
+    ),
+    depth: z.number().optional().describe(
+      "Optional tree traversal depth limit. Useful for large files. " +
+      "Example: depth=3 stops after 3 levels of children."
+    ),
+  },
+  async ({ fileKey, nodeId, depth }) => {
+    try {
+      const service = getFigmaService();
+      const result = await service.getFigmaData(fileKey, nodeId, depth);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(result, null, 2)
+        }],
+        isError: false,
+      };
+    } catch (error: any) {
+      console.error("Error fetching Figma data:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to fetch Figma data: ${error.message}\n\n` +
+                `Troubleshooting:\n` +
+                `1. Verify FIGMA_API_KEY or FIGMA_OAUTH_TOKEN is set\n` +
+                `2. Check file key is correct (from Figma URL)\n` +
+                `3. Ensure you have access to the file in Figma\n` +
+                `4. For OAuth, check token hasn't expired`
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: download-figma-images (v2 Feature)
+ * Placeholder for future image download functionality
+ */
+server.tool(
+  "download-figma-images",
+  "Download and process images from Figma designs (Coming in v2)",
+  {
+    fileKey: z.string().describe("Figma file key"),
+    localPath: z.string().describe("Local path to save images"),
+  },
+  async ({ fileKey, localPath }) => {
+    return {
+      content: [{
+        type: "text",
+        text: "Image download functionality is planned for v2. " +
+              "This will include:\n" +
+              "- Download PNG/SVG exports\n" +
+              "- Crop images with Figma transforms\n" +
+              "- Generate CSS dimension variables\n" +
+              "- Support for image fills and rendered nodes\n\n" +
+              "For now, use get-figma-data to retrieve design metadata."
+      }],
+      isError: false,
+    };
   }
 );
 

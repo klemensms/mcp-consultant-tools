@@ -1,11 +1,11 @@
-# PowerPlatform MCP Server
+# MCP Consultant Tools
 
-A Model Context Protocol (MCP) server that provides intelligent access to PowerPlatform/Dataverse entities and records. This tool offers context-aware assistance, entity exploration and metadata access.
+A Model Context Protocol (MCP) server that provides intelligent access to PowerPlatform/Dataverse entities, Azure DevOps, and Figma designs. This tool offers context-aware assistance, entity exploration, and metadata access across multiple platforms.
 
 Key features:
-- Rich entity metadata exploration with formatted, context-aware prompts
-- Advanced OData query support with intelligent filtering
-- Comprehensive relationship mapping and visualization
+- **PowerPlatform/Dataverse**: Rich entity metadata exploration with formatted, context-aware prompts, advanced OData query support, comprehensive relationship mapping
+- **Azure DevOps**: Wiki search, work item management, WIQL queries, and team collaboration tools
+- **Figma**: Design data extraction with simplified AI-friendly format, component analysis, and style deduplication
 - AI-assisted query building and data modeling through AI agent
 - Full access to entity attributes, relationships, and global option sets
 
@@ -58,7 +58,10 @@ For VS Code with Claude Code extension, create a `.vscode/mcp.json` file in your
         "AZUREDEVOPS_API_VERSION": "7.1",
         "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "true",
         "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
-        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false"
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
+        "FIGMA_API_KEY": "your-figma-personal-access-token",
+        "FIGMA_OAUTH_TOKEN": "",
+        "FIGMA_USE_OAUTH": "false"
       }
     }
   }
@@ -70,7 +73,7 @@ For VS Code with Claude Code extension, create a `.vscode/mcp.json` file in your
 2. Reload VS Code window
 3. The MCP server will be available in Claude Code
 
-**Note:** You can omit PowerPlatform or Azure DevOps credentials if you only need one integration (see Environment Variables Reference below).
+**Note:** You can omit PowerPlatform, Azure DevOps, or Figma credentials if you only need certain integrations (see Environment Variables Reference below).
 
 ### Quick Start: Claude Desktop Configuration
 
@@ -93,7 +96,10 @@ Add this to your Claude Desktop config file at `~/Library/Application Support/Cl
         "AZUREDEVOPS_API_VERSION": "7.1",
         "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "true",
         "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
-        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false"
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
+        "FIGMA_API_KEY": "your-figma-personal-access-token",
+        "FIGMA_OAUTH_TOKEN": "",
+        "FIGMA_USE_OAUTH": "false"
       }
     }
   }
@@ -121,7 +127,10 @@ For local development and testing, you can run the server directly from your clo
         "AZUREDEVOPS_API_VERSION": "7.1",
         "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "true",
         "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
-        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false"
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
+        "FIGMA_API_KEY": "your-figma-personal-access-token",
+        "FIGMA_OAUTH_TOKEN": "",
+        "FIGMA_USE_OAUTH": "false"
       }
     }
   }
@@ -132,10 +141,11 @@ For local development and testing, you can run the server directly from your clo
 
 ### Environment Variables Reference
 
-**Note:** Both PowerPlatform and Azure DevOps integrations are optional. You can configure only the services you need:
+**Note:** All integrations (PowerPlatform, Azure DevOps, Figma) are optional. You can configure only the services you need:
 - PowerPlatform only: Set `POWERPLATFORM_*` variables
 - Azure DevOps only: Set `AZUREDEVOPS_*` variables
-- Both: Set all variables
+- Figma only: Set `FIGMA_*` variables
+- Any combination: Set only the variables you need
 
 **PowerPlatform/Dataverse (Optional):**
 - `POWERPLATFORM_URL`: Your PowerPlatform environment URL
@@ -152,6 +162,18 @@ For local development and testing, you can run the server directly from your clo
 - `AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE`: Enable work item delete operations (default: "false")
 - `AZUREDEVOPS_ENABLE_WIKI_WRITE`: Enable wiki write operations (default: "false")
 
+**Figma (Optional):**
+- `FIGMA_API_KEY`: Figma Personal Access Token (generate at: https://www.figma.com/developers/api#authentication)
+- `FIGMA_OAUTH_TOKEN`: Alternative to API key for OAuth authentication
+- `FIGMA_USE_OAUTH`: Set to "true" if using OAuth token instead of API key (default: "false")
+
+**How to get a Figma API Key:**
+1. Go to https://www.figma.com/developers/api#authentication
+2. Scroll to "Personal Access Tokens"
+3. Click "Get personal access token"
+4. Log in to Figma
+5. Generate new token and copy it to your config
+
 **After configuration:**
 1. Save the config file
 2. Completely restart Claude Desktop (quit and reopen)
@@ -162,6 +184,10 @@ For local development and testing, you can run the server directly from your clo
 Once configured, the MCP server will expose tools for retrieving PowerPlatform entity metadata and records.
 
 ### Available Tools
+
+The server provides **30 tools** across PowerPlatform, Azure DevOps, and Figma integrations.
+
+### PowerPlatform/Dataverse Tools
 
 #### Entity Metadata & Data Tools
 - `get-entity-metadata`: Get metadata about a PowerPlatform entity
@@ -178,9 +204,38 @@ Once configured, the MCP server will expose tools for retrieving PowerPlatform e
 - `get-entity-plugin-pipeline`: Get all plugins that execute on a specific entity, organized by message and execution order
 - `get-plugin-trace-logs`: Query plugin trace logs with filtering and exception parsing
 
+#### Workflow & Power Automate Flow Tools
+- `get-flows`: List all Power Automate cloud flows (category = 5)
+- `get-flow-definition`: Get complete flow definition including JSON logic from clientdata field
+- `get-flow-runs`: Get flow run history with status, duration, and error details
+- `get-workflows`: List all classic Dynamics workflows (category = 0)
+- `get-workflow-definition`: Get complete workflow definition including XAML and trigger configuration
+
+### Azure DevOps Tools
+
+#### Wiki Tools
+- `get-wikis`: List all wikis in a project
+- `search-wiki-pages`: Full-text search across wiki pages with highlighting
+- `get-wiki-page`: Get specific wiki page content and metadata
+- `create-wiki-page`: Create new wiki page (requires `AZUREDEVOPS_ENABLE_WIKI_WRITE=true`)
+- `update-wiki-page`: Update existing wiki page (requires `AZUREDEVOPS_ENABLE_WIKI_WRITE=true`)
+
+#### Work Item Tools
+- `get-work-item`: Get work item by ID with full details
+- `query-work-items`: Execute WIQL queries to find work items
+- `get-work-item-comments`: Get discussion comments for a work item
+- `add-work-item-comment`: Add comment to work item (requires `AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true`)
+- `update-work-item`: Update work item fields using JSON Patch (requires `AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true`)
+- `create-work-item`: Create new work item (requires `AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true`)
+- `delete-work-item`: Delete work item (requires `AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE=true`)
+
+### Figma Tools
+- `get-figma-data`: Get comprehensive Figma design data including layout, text, styles, and components. Fetches from Figma API and transforms into simplified, AI-friendly format. Can fetch entire files or specific nodes.
+- `download-figma-images`: Placeholder for future image download functionality (Coming in v2)
+
 ## MCP Prompts
 
-The server includes MCP prompts that provide formatted, context-rich information.
+The server includes **12 prompts** that provide formatted, context-rich information across all integrations.
 
 ### Available Prompts
 
@@ -190,19 +245,19 @@ The server includes MCP prompts that provide formatted, context-rich information
 3. **query-template**: OData query template for an entity with example filters
 4. **relationship-map**: Visual map of entity relationships
 
-#### Plugin Prompts
+#### PowerPlatform Plugin Prompts
 5. **plugin-deployment-report**: Generate a comprehensive deployment report for a plugin assembly with validation warnings
 6. **entity-plugin-pipeline-report**: Generate a visual execution pipeline showing all plugins for an entity in order
 
-#### Workflow & Flow Prompts
-7. **flows-report**: Comprehensive report of all Power Automate flows
-8. **workflows-report**: Comprehensive report of all classic Dynamics workflows
+#### PowerPlatform Workflow & Flow Prompts
+7. **flows-report**: Comprehensive report of all Power Automate flows grouped by state
+8. **workflows-report**: Comprehensive report of all classic Dynamics workflows grouped by state
 
 #### Azure DevOps Prompts
-9. **wiki-search-results**: Search Azure DevOps wiki pages with formatted results
-10. **wiki-page-content**: Get a formatted wiki page with navigation context
-11. **work-item-summary**: Get a comprehensive summary of a work item with comments
-12. **work-items-query-report**: Execute a WIQL query and get formatted results
+9. **wiki-search-results**: Search Azure DevOps wiki pages with formatted results and content snippets
+10. **wiki-page-content**: Get a formatted wiki page with navigation context and sub-pages
+11. **work-item-summary**: Get a comprehensive summary of a work item with details and comments
+12. **work-items-query-report**: Execute a WIQL query and get results grouped by state/type
 
 ## Prompt Examples
 
