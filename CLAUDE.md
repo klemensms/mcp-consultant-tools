@@ -31,7 +31,7 @@ npx mcp-consultant-tools
 
 1. **MCP Server Layer** ([src/index.ts](src/index.ts))
    - Initializes the MCP server using `@modelcontextprotocol/sdk`
-   - Registers 30 tools and 12 prompts across PowerPlatform, Azure DevOps, and Figma integrations
+   - Registers 28 tools and 13 prompts across PowerPlatform, Azure DevOps, and Figma integrations
    - Handles environment configuration and lazy-initialization of services (PowerPlatformService, AzureDevOpsService, FigmaService)
    - Uses Zod schemas for parameter validation
    - Communicates via stdio transport (StdioServerTransport)
@@ -63,6 +63,51 @@ npx mcp-consultant-tools
 - **Dual Interface**: Functionality exposed both as MCP tools (for raw data) and prompts (for formatted, context-rich output)
 - **Stdout Suppression for dotenv**: The server temporarily suppresses stdout during dotenv initialization to prevent non-JSON output from corrupting the MCP JSON protocol (which requires clean JSON-only stdout)
 - **Optional Integrations**: All integrations are optional - users can configure only PowerPlatform, only Azure DevOps, only Figma, or any combination
+
+### ⚠️ CRITICAL: MCP Protocol Requirements
+
+**NEVER use `console.log()` or write to stdout in the codebase!**
+
+The Model Context Protocol (MCP) uses stdio transport and requires **clean JSON-only output on stdout**. Any text written to stdout corrupts the JSON protocol and causes parsing errors in MCP clients.
+
+**❌ FORBIDDEN (writes to stdout):**
+```typescript
+console.log('Querying apps...');        // ❌ Breaks MCP protocol - writes to stdout
+console.info('Processing...');          // ❌ Breaks MCP protocol - writes to stdout
+process.stdout.write('...');            // ❌ Breaks MCP protocol - writes to stdout
+```
+
+**✅ ALLOWED (writes to stderr):**
+```typescript
+// console.error and console.warn write to stderr - safe for MCP
+console.error('API error:', error);     // ✅ OK - writes to stderr
+console.warn('Solution not found');     // ✅ OK - writes to stderr
+process.stderr.write('Debug: ...\n');  // ✅ OK - writes to stderr
+
+// Use audit logger for important events
+auditLogger.log({...});                 // ✅ OK - internal logging
+
+// Include debug info in return values/errors
+throw new Error('Details: ' + JSON.stringify(data));  // ✅ OK - error messages
+```
+
+**Key Points:**
+- `console.log()` and `console.info()` → **stdout** → ❌ FORBIDDEN
+- `console.error()` and `console.warn()` → **stderr** → ✅ ALLOWED
+- Always prefer `console.error()` for error logging (existing pattern in codebase)
+- Never use `console.log()` for debugging or informational messages
+
+**Symptoms of stdout corruption:**
+- MCP client errors: "Unexpected token 'X', '...' is not valid JSON"
+- Protocol failures with cryptic JSON parsing errors
+- Tools fail silently or with protocol errors
+
+**Testing for stdout issues:**
+1. Run the server: `node build/index.js`
+2. Send a valid JSON-RPC request to stdin
+3. Verify stdout contains ONLY valid JSON (no debug messages, no console output)
+
+If you see any console.log/warn/error statements in code review or debugging, **remove them immediately**.
 
 ### Environment Configuration
 
@@ -116,6 +161,10 @@ The server validates configuration on first use of each service and throws an er
 - `get-workflows`: List all classic Dynamics workflows
 - `get-workflow-definition`: Get complete workflow definition with XAML
 
+*Business Rules Tools (Read-Only):*
+- `get-business-rules`: List all business rules (for troubleshooting)
+- `get-business-rule`: Get business rule definition with XAML (for troubleshooting)
+
 *Azure DevOps Tools:*
 - `get-wikis`: List all wikis in a project
 - `search-wiki-pages`: Search wiki content with highlighting
@@ -134,7 +183,7 @@ The server validates configuration on first use of each service and throws an er
 - `get-figma-data`: Get comprehensive Figma design data (layout, text, styles, components)
 - `download-figma-images`: Placeholder for future image download functionality (v2)
 
-**Prompts** (12 total): Return formatted, human-readable context with metadata
+**Prompts** (13 total): Return formatted, human-readable context with metadata
 
 *Entity Prompts:*
 - `entity-overview`: Comprehensive entity overview with key fields and relationships
@@ -149,6 +198,9 @@ The server validates configuration on first use of each service and throws an er
 *Workflow & Flow Prompts:*
 - `flows-report`: Comprehensive report of all Power Automate flows
 - `workflows-report`: Comprehensive report of all classic workflows
+
+*Business Rules Prompts (Read-Only):*
+- `business-rules-report`: Comprehensive report of all business rules (for troubleshooting)
 
 *Azure DevOps Prompts:*
 - `wiki-search-results`: Search wiki pages with formatted results
@@ -668,9 +720,18 @@ Test from your `release/*` branch using the local development configuration:
     "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
     "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-client-secret",
     "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+
     "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
     "AZUREDEVOPS_PAT": "your-personal-access-token",
-    "AZUREDEVOPS_PROJECTS": "Project1,Project2"
+    "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+    "AZUREDEVOPS_API_VERSION": "7.1",
+    "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "false",
+    "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+    "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
+
+    "FIGMA_API_KEY": "your-figma-personal-access-token",
+    "FIGMA_OAUTH_TOKEN": "",
+    "FIGMA_USE_OAUTH": "false"
   }
 }
 ```

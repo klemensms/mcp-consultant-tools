@@ -1,5 +1,9 @@
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import axios from 'axios';
+import { bestPracticesValidator } from './utils/bestPractices.js';
+import { iconManager } from './utils/iconManager.js';
+import { auditLogger } from './utils/audit-logger.js';
+import { rateLimiter } from './utils/rate-limiter.js';
 
 export interface PowerPlatformConfig {
   organizationUrl: string;
@@ -70,20 +74,35 @@ export class PowerPlatformService {
 
   /**
    * Make an authenticated request to the PowerPlatform API
+   * Extended to support all HTTP methods for write operations
    */
-  private async makeRequest<T>(endpoint: string): Promise<T> {
+  private async makeRequest<T>(
+    endpoint: string,
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET',
+    data?: any,
+    additionalHeaders?: Record<string, string>
+  ): Promise<T> {
     try {
       const token = await this.getAccessToken();
 
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        ...additionalHeaders
+      };
+
+      // Add Content-Type for POST/PUT/PATCH requests
+      if (method !== 'GET' && method !== 'DELETE' && data) {
+        headers['Content-Type'] = 'application/json';
+      }
+
       const response = await axios({
-        method: 'GET',
+        method,
         url: `${this.config.organizationUrl}/${endpoint}`,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-          'OData-MaxVersion': '4.0',
-          'OData-Version': '4.0'
-        }
+        headers,
+        data
       });
 
       return response.data as T;
@@ -91,6 +110,7 @@ export class PowerPlatformService {
       const errorDetails = error.response?.data?.error || error.response?.data || error.message;
       console.error('PowerPlatform API request failed:', {
         endpoint,
+        method,
         status: error.response?.status,
         statusText: error.response?.statusText,
         error: errorDetails
@@ -787,5 +807,1831 @@ export class PowerPlatformService {
       modifiedBy: workflow.modifiedby?.fullname,
       xaml: workflow.xaml
     };
+  }
+
+  /**
+   * Get all business rules in the environment
+   * @param activeOnly Only return activated business rules (default: false)
+   * @param maxRecords Maximum number of business rules to return (default: 100)
+   * @returns List of business rules with basic information
+   */
+  async getBusinessRules(activeOnly: boolean = false, maxRecords: number = 100): Promise<any> {
+    // Category 2 = Business Rule
+    // StateCode: 0=Draft, 1=Activated, 2=Suspended
+    // Type: 1=Definition
+    const stateFilter = activeOnly ? ' and statecode eq 1' : '';
+
+    const businessRules = await this.makeRequest<ApiCollectionResponse<any>>(
+      `api/data/v9.2/workflows?$filter=category eq 2${stateFilter}&$select=workflowid,name,statecode,statuscode,description,createdon,modifiedon,type,ismanaged,primaryentity&$expand=ownerid($select=fullname),modifiedby($select=fullname)&$orderby=modifiedon desc&$top=${maxRecords}`
+    );
+
+    // Format the results for better readability
+    const formattedBusinessRules = businessRules.value.map((rule: any) => ({
+      workflowid: rule.workflowid,
+      name: rule.name,
+      description: rule.description,
+      state: rule.statecode === 0 ? 'Draft' : rule.statecode === 1 ? 'Activated' : 'Suspended',
+      statecode: rule.statecode,
+      statuscode: rule.statuscode,
+      type: rule.type === 1 ? 'Definition' : rule.type === 2 ? 'Activation' : 'Template',
+      primaryEntity: rule.primaryentity,
+      isManaged: rule.ismanaged,
+      owner: rule.ownerid?.fullname,
+      modifiedOn: rule.modifiedon,
+      modifiedBy: rule.modifiedby?.fullname,
+      createdOn: rule.createdon
+    }));
+
+    return {
+      totalCount: formattedBusinessRules.length,
+      businessRules: formattedBusinessRules
+    };
+  }
+
+  /**
+   * Get a specific business rule with its complete XAML definition
+   * @param workflowId The GUID of the business rule (workflowid)
+   * @returns Complete business rule information including the XAML definition
+   */
+  async getBusinessRule(workflowId: string): Promise<any> {
+    const businessRule = await this.makeRequest<any>(
+      `api/data/v9.2/workflows(${workflowId})?$select=workflowid,name,statecode,statuscode,description,createdon,modifiedon,type,category,ismanaged,primaryentity,xaml&$expand=ownerid($select=fullname),modifiedby($select=fullname),createdby($select=fullname)`
+    );
+
+    // Verify it's actually a business rule
+    if (businessRule.category !== 2) {
+      throw new Error(`Workflow ${workflowId} is not a business rule (category: ${businessRule.category})`);
+    }
+
+    return {
+      workflowid: businessRule.workflowid,
+      name: businessRule.name,
+      description: businessRule.description,
+      state: businessRule.statecode === 0 ? 'Draft' : businessRule.statecode === 1 ? 'Activated' : 'Suspended',
+      statecode: businessRule.statecode,
+      statuscode: businessRule.statuscode,
+      type: businessRule.type === 1 ? 'Definition' : businessRule.type === 2 ? 'Activation' : 'Template',
+      category: businessRule.category,
+      primaryEntity: businessRule.primaryentity,
+      isManaged: businessRule.ismanaged,
+      owner: businessRule.ownerid?.fullname,
+      createdOn: businessRule.createdon,
+      createdBy: businessRule.createdby?.fullname,
+      modifiedOn: businessRule.modifiedon,
+      modifiedBy: businessRule.modifiedby?.fullname,
+      xaml: businessRule.xaml
+    };
+  }
+
+  // ==================== MODEL-DRIVEN APP OPERATIONS ====================
+
+  /**
+   * Get all model-driven apps in the environment
+   * @param activeOnly Only return active apps (default: false)
+   * @param maxRecords Maximum number of apps to return (default: 100)
+   * @returns List of model-driven apps with basic information
+   */
+  async getApps(
+    activeOnly: boolean = false,
+    maxRecords: number = 100,
+    includeUnpublished: boolean = true,
+    solutionUniqueName?: string
+  ): Promise<any> {
+    // Build filter conditions
+    const filters: string[] = [];
+
+    // StateCode: 0=Active, 1=Inactive
+    if (activeOnly) {
+      filters.push('statecode eq 0');
+    }
+
+    // Published status: publishedon null = unpublished
+    if (!includeUnpublished) {
+      filters.push('publishedon ne null');
+    }
+
+    const filterString = filters.length > 0 ? `&$filter=${filters.join(' and ')}` : '';
+
+    const apps = await this.makeRequest<ApiCollectionResponse<any>>(
+      `api/data/v9.2/appmodules?$select=appmoduleid,name,uniquename,description,webresourceid,clienttype,formfactor,navigationtype,url,isfeatured,isdefault,publishedon,statecode,statuscode,_publisherid_value,createdon,modifiedon&$orderby=modifiedon desc&$top=${maxRecords}${filterString}`
+    );
+
+    // If solution filter specified, filter results by solution
+    let filteredApps = apps.value;
+    if (solutionUniqueName) {
+      // Query solution components to find apps in the specified solution
+      const solution = await this.makeRequest<ApiCollectionResponse<any>>(
+        `api/data/v9.2/solutions?$filter=uniquename eq '${solutionUniqueName}'&$select=solutionid`
+      );
+
+      if (solution.value.length > 0) {
+        const solutionId = solution.value[0].solutionid;
+
+        // Query solution components for app modules
+        const solutionComponents = await this.makeRequest<ApiCollectionResponse<any>>(
+          `api/data/v9.2/solutioncomponents?$filter=_solutionid_value eq ${solutionId} and componenttype eq 80&$select=objectid`
+        );
+
+        const appIdsInSolution = new Set(solutionComponents.value.map((c: any) => c.objectid.toLowerCase()));
+        filteredApps = apps.value.filter((app: any) => appIdsInSolution.has(app.appmoduleid.toLowerCase()));
+      }
+    }
+
+    // Format the results for better readability
+    const formattedApps = filteredApps.map((app: any) => ({
+      appmoduleid: app.appmoduleid,
+      name: app.name,
+      uniquename: app.uniquename,
+      description: app.description,
+      webresourceid: app.webresourceid,
+      clienttype: app.clienttype,
+      formfactor: app.formfactor,
+      navigationtype: app.navigationtype,
+      url: app.url,
+      isfeatured: app.isfeatured,
+      isdefault: app.isdefault,
+      state: app.statecode === 0 ? 'Active' : 'Inactive',
+      statecode: app.statecode,
+      statuscode: app.statuscode,
+      publishedon: app.publishedon,
+      published: app.publishedon ? true : false,
+      publisherid: app._publisherid_value || null,
+      createdon: app.createdon,
+      modifiedon: app.modifiedon
+    }));
+
+    return {
+      totalCount: formattedApps.length,
+      apps: formattedApps,
+      filters: {
+        activeOnly,
+        includeUnpublished,
+        solutionUniqueName: solutionUniqueName || 'all'
+      }
+    };
+  }
+
+  /**
+   * Get a specific model-driven app by ID
+   * @param appId The GUID of the app (appmoduleid)
+   * @returns Complete app information including publisher details
+   */
+  async getApp(appId: string): Promise<any> {
+    const app = await this.makeRequest<any>(
+      `api/data/v9.2/appmodules(${appId})?$select=appmoduleid,name,uniquename,description,webresourceid,clienttype,formfactor,navigationtype,url,isfeatured,isdefault,publishedon,statecode,statuscode,configxml,createdon,modifiedon,_publisherid_value,_createdby_value,_modifiedby_value`
+    );
+
+    return {
+      appmoduleid: app.appmoduleid,
+      name: app.name,
+      uniquename: app.uniquename,
+      description: app.description,
+      webresourceid: app.webresourceid,
+      clienttype: app.clienttype,
+      formfactor: app.formfactor,
+      navigationtype: app.navigationtype === 0 ? 'Single Session' : 'Multi Session',
+      url: app.url,
+      isfeatured: app.isfeatured,
+      isdefault: app.isdefault,
+      state: app.statecode === 0 ? 'Active' : 'Inactive',
+      statecode: app.statecode,
+      statuscode: app.statuscode,
+      publishedon: app.publishedon,
+      createdon: app.createdon,
+      modifiedon: app.modifiedon,
+      createdBy: app._createdby_value || null,
+      modifiedBy: app._modifiedby_value || null,
+      publisherid: app._publisherid_value || null
+    };
+  }
+
+  /**
+   * Get all components (entities, forms, views, sitemaps) associated with an app
+   * @param appId The GUID of the app (appmoduleid)
+   * @returns List of app components with type information
+   */
+  async getAppComponents(appId: string): Promise<any> {
+    const components = await this.makeRequest<ApiCollectionResponse<any>>(
+      `api/data/v9.2/appmodulecomponents?$filter=_appmoduleidunique_value eq ${appId}&$select=appmodulecomponentid,objectid,componenttype,rootappmodulecomponentid,createdon,modifiedon&$orderby=componenttype asc`
+    );
+
+    // Map component type numbers to friendly names
+    const componentTypeMap: { [key: number]: string } = {
+      1: 'Entity',
+      24: 'Form',
+      26: 'View',
+      29: 'Business Process Flow',
+      48: 'Ribbon Command',
+      59: 'Chart/Dashboard',
+      60: 'System Form',
+      62: 'SiteMap'
+    };
+
+    const formattedComponents = components.value.map((component: any) => ({
+      appmodulecomponentid: component.appmodulecomponentid,
+      objectid: component.objectid,
+      componenttype: component.componenttype,
+      componenttypeName: componentTypeMap[component.componenttype] || `Unknown (${component.componenttype})`,
+      rootappmodulecomponentid: component.rootappmodulecomponentid,
+      createdon: component.createdon,
+      modifiedon: component.modifiedon
+    }));
+
+    // Group by component type for easier reading
+    const groupedByType: { [key: string]: any[] } = {};
+    formattedComponents.forEach((comp: any) => {
+      const typeName = comp.componenttypeName;
+      if (!groupedByType[typeName]) {
+        groupedByType[typeName] = [];
+      }
+      groupedByType[typeName].push(comp);
+    });
+
+    return {
+      totalCount: formattedComponents.length,
+      components: formattedComponents,
+      groupedByType
+    };
+  }
+
+  /**
+   * Get the sitemap for a specific app
+   * @param appId The GUID of the app (appmoduleid)
+   * @returns Sitemap information including XML
+   */
+  async getAppSitemap(appId: string): Promise<any> {
+    // First get the app components to find the sitemap
+    const components = await this.makeRequest<ApiCollectionResponse<any>>(
+      `api/data/v9.2/appmodulecomponents?$filter=_appmoduleidunique_value eq ${appId} and componenttype eq 62&$select=objectid`
+    );
+
+    if (components.value.length === 0) {
+      return {
+        hasSitemap: false,
+        message: 'No sitemap found for this app'
+      };
+    }
+
+    // Get the sitemap details
+    const sitemapId = components.value[0].objectid;
+    const sitemap = await this.makeRequest<any>(
+      `api/data/v9.2/sitemaps(${sitemapId})?$select=sitemapid,sitemapname,sitemapnameunique,sitemapxml,isappaware,enablecollapsiblegroups,showhome,showpinned,showrecents,ismanaged,createdon,modifiedon`
+    );
+
+    return {
+      hasSitemap: true,
+      sitemapid: sitemap.sitemapid,
+      sitemapname: sitemap.sitemapname,
+      sitemapnameunique: sitemap.sitemapnameunique,
+      sitemapxml: sitemap.sitemapxml,
+      isappaware: sitemap.isappaware,
+      enablecollapsiblegroups: sitemap.enablecollapsiblegroups,
+      showhome: sitemap.showhome,
+      showpinned: sitemap.showpinned,
+      showrecents: sitemap.showrecents,
+      ismanaged: sitemap.ismanaged,
+      createdon: sitemap.createdon,
+      modifiedon: sitemap.modifiedon
+    };
+  }
+
+  /**
+   * Create a new model-driven app
+   * @param appDefinition The app definition object
+   * @param solutionUniqueName Optional solution to add the app to
+   * @returns The created app information including ID
+   */
+  async createApp(appDefinition: any, solutionUniqueName?: string): Promise<any> {
+    const startTime = Date.now();
+
+    try {
+      // Validate uniquename format (English chars/numbers only, no spaces)
+      const uniquename = appDefinition.uniquename;
+      if (!/^[a-zA-Z0-9_]+$/.test(uniquename)) {
+        throw new Error('App uniquename must contain only English letters, numbers, and underscores (no spaces)');
+      }
+
+      // Set defaults
+      const appRequest = {
+        name: appDefinition.name,
+        uniquename: appDefinition.uniquename,
+        description: appDefinition.description || '',
+        webresourceid: appDefinition.webresourceid || '953b9fac-1e5e-e611-80d6-00155ded156f', // Default icon
+        welcomepageid: '00000000-0000-0000-0000-000000000000', // Required: empty GUID for no welcome page
+        clienttype: appDefinition.clienttype || 4, // UCI
+        formfactor: appDefinition.formfactor || 1, // Unknown/All
+        navigationtype: appDefinition.navigationtype !== undefined ? appDefinition.navigationtype : 0, // Single session
+        isfeatured: appDefinition.isfeatured || false,
+        isdefault: appDefinition.isdefault || false,
+        url: appDefinition.url || ''
+      };
+
+      // Headers with solution context and return representation
+      const headers: Record<string, string> = {
+        'Prefer': 'return=representation'
+      };
+      if (solutionUniqueName) {
+        headers['MSCRM.SolutionUniqueName'] = solutionUniqueName;
+      }
+
+      // Execute with rate limiting
+      const response = await rateLimiter.execute(async () => {
+        return await this.makeRequest<any>(
+          'api/data/v9.2/appmodules',
+          'POST',
+          appRequest,
+          headers
+        );
+      });
+
+      // Extract app ID from response (now returned due to Prefer header)
+      const appId = response.appmoduleid;
+
+      if (!appId) {
+        throw new Error('App creation response missing appmoduleid. Full response: ' + JSON.stringify(response));
+      }
+
+      // Verify the app is queryable (retry with delay if needed)
+      let appVerified = false;
+      let retryCount = 0;
+      const maxRetries = 3;
+      const retryDelayMs = 2000;
+
+      while (!appVerified && retryCount < maxRetries) {
+        try {
+          await this.makeRequest<any>(
+            `api/data/v9.2/appmodules(${appId})?$select=appmoduleid,name,uniquename`
+          );
+          appVerified = true;
+        } catch (error: any) {
+          retryCount++;
+          if (retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+          }
+        }
+      }
+
+      // Audit log success
+      auditLogger.log({
+        operation: 'createApp',
+        operationType: 'CREATE',
+        componentType: 'AppModule',
+        componentName: appDefinition.name,
+        componentId: appId,
+        success: true,
+        executionTimeMs: Date.now() - startTime
+      });
+
+      return {
+        appId,
+        name: appDefinition.name,
+        uniquename: appDefinition.uniquename,
+        verified: appVerified,
+        message: appVerified
+          ? 'App created successfully and verified. Remember to add entities, validate, and publish.'
+          : `App created successfully (ID: ${appId}) but verification timed out. The app may need time to propagate in the system. Use get-app with the returned appId to check status.`
+      };
+
+    } catch (error: any) {
+      // Audit log failure
+      auditLogger.log({
+        operation: 'createApp',
+        operationType: 'CREATE',
+        componentType: 'AppModule',
+        componentName: appDefinition.name,
+        success: false,
+        error: error.message,
+        executionTimeMs: Date.now() - startTime
+      });
+
+      throw new Error(`Failed to create app: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create a sitemap from simplified configuration (no XML knowledge required)
+   * @param config Simplified sitemap configuration
+   * @param solutionUniqueName Optional solution to add the sitemap to
+   * @returns The created sitemap information including ID and XML
+   */
+  async createSimpleSitemap(config: any, solutionUniqueName?: string): Promise<any> {
+    const startTime = Date.now();
+
+    try {
+      // Generate sitemap XML from simplified configuration
+      let xml = '<SiteMap>';
+
+      config.areas.forEach((area: any) => {
+        xml += `<Area Id="${area.id}"`;
+        if (area.icon) {
+          xml += ` Icon="${area.icon}"`;
+        }
+        if (area.showGroups !== undefined) {
+          xml += ` ShowGroups="${area.showGroups}"`;
+        }
+        xml += '>';
+        xml += `<Titles><Title LCID="1033" Title="${this.escapeXml(area.title)}" /></Titles>`;
+        if (area.description) {
+          xml += `<Descriptions><Description LCID="1033" Description="${this.escapeXml(area.description)}" /></Descriptions>`;
+        }
+
+        area.groups.forEach((group: any) => {
+          xml += `<Group Id="${group.id}"`;
+          if (group.isProfile !== undefined) {
+            xml += ` IsProfile="${group.isProfile}"`;
+          }
+          xml += '>';
+          xml += `<Titles><Title LCID="1033" Title="${this.escapeXml(group.title)}" /></Titles>`;
+          if (group.description) {
+            xml += `<Descriptions><Description LCID="1033" Description="${this.escapeXml(group.description)}" /></Descriptions>`;
+          }
+
+          group.subareas.forEach((subarea: any) => {
+            xml += `<SubArea Id="${subarea.id}"`;
+            if (subarea.entity) {
+              xml += ` Entity="${subarea.entity}"`;
+            }
+            if (subarea.url) {
+              xml += ` Url="${subarea.url}"`;
+            }
+            if (subarea.icon) {
+              xml += ` Icon="${subarea.icon}"`;
+            }
+            if (subarea.availableOffline !== undefined) {
+              xml += ` AvailableOffline="${subarea.availableOffline}"`;
+            }
+            if (subarea.passParams !== undefined) {
+              xml += ` PassParams="${subarea.passParams}"`;
+            }
+            xml += '>';
+            xml += `<Titles><Title LCID="1033" Title="${this.escapeXml(subarea.title)}" /></Titles>`;
+            if (subarea.description) {
+              xml += `<Descriptions><Description LCID="1033" Description="${this.escapeXml(subarea.description)}" /></Descriptions>`;
+            }
+            xml += '</SubArea>';
+          });
+
+          xml += '</Group>';
+        });
+
+        xml += '</Area>';
+      });
+
+      xml += '</SiteMap>';
+
+      // Create sitemap entity
+      const sitemapRequest = {
+        sitemapname: config.name,
+        sitemapxml: xml,
+        isappaware: true,
+        enablecollapsiblegroups: config.enableCollapsibleGroups !== undefined ? config.enableCollapsibleGroups : false,
+        showhome: config.showHome !== undefined ? config.showHome : true,
+        showpinned: config.showPinned !== undefined ? config.showPinned : true,
+        showrecents: config.showRecents !== undefined ? config.showRecents : true
+      };
+
+      // Headers with solution context
+      const headers: Record<string, string> = {};
+      if (solutionUniqueName) {
+        headers['MSCRM.SolutionUniqueName'] = solutionUniqueName;
+      }
+
+      // Execute with rate limiting
+      const response = await rateLimiter.execute(async () => {
+        return await this.makeRequest<any>(
+          'api/data/v9.2/sitemaps',
+          'POST',
+          sitemapRequest,
+          headers
+        );
+      });
+
+      // Extract sitemap ID from response
+      const sitemapId = response.sitemapid;
+
+      // Audit log success
+      auditLogger.log({
+        operation: 'createSimpleSitemap',
+        operationType: 'CREATE',
+        componentType: 'SiteMap',
+        componentName: config.name,
+        componentId: sitemapId,
+        success: true,
+        executionTimeMs: Date.now() - startTime
+      });
+
+      return {
+        sitemapId,
+        sitemapName: config.name,
+        sitemapXml: xml,
+        message: 'Sitemap created successfully. Add it to your app using add-entities-to-app or add specific components.'
+      };
+
+    } catch (error: any) {
+      // Audit log failure
+      auditLogger.log({
+        operation: 'createSimpleSitemap',
+        operationType: 'CREATE',
+        componentType: 'SiteMap',
+        componentName: config.name,
+        success: false,
+        error: error.message,
+        executionTimeMs: Date.now() - startTime
+      });
+
+      throw new Error(`Failed to create sitemap: ${error.message}`);
+    }
+  }
+
+  /**
+   * Add entities to an app with auto-generated sitemap
+   * @param appId The GUID of the app
+   * @param entityNames Array of entity logical names to add
+   * @returns Result of the operation
+   */
+  async addEntitiesToApp(appId: string, entityNames: string[]): Promise<any> {
+    const startTime = Date.now();
+
+    try {
+      // Validate entities exist
+      const entityPromises = entityNames.map(name =>
+        this.makeRequest<any>(`api/data/v9.2/EntityDefinitions(LogicalName='${name}')?$select=LogicalName,DisplayName,MetadataId`)
+      );
+      const entities = await Promise.all(entityPromises);
+
+      // Prepare components array
+      const components: any[] = [];
+
+      // Add entity components
+      // Note: AddAppComponents action expects PascalCase property names
+      entities.forEach(entity => {
+        components.push({
+          ComponentId: entity.MetadataId,
+          ComponentType: 1 // Entity
+        });
+      });
+
+      // Use AddAppComponents action
+      await rateLimiter.execute(async () => {
+        return await this.makeRequest<any>(
+          'api/data/v9.2/AddAppComponents',
+          'POST',
+          {
+            AppId: appId,
+            Components: components
+          }
+        );
+      });
+
+      // Audit log success
+      auditLogger.log({
+        operation: 'addEntitiesToApp',
+        operationType: 'UPDATE',
+        componentType: 'AppModule',
+        componentId: appId,
+        success: true,
+        executionTimeMs: Date.now() - startTime
+      });
+
+      return {
+        appId,
+        entitiesAdded: entityNames,
+        message: `Successfully added ${entityNames.length} entities to app. Remember to validate and publish.`
+      };
+
+    } catch (error: any) {
+      // Audit log failure
+      auditLogger.log({
+        operation: 'addEntitiesToApp',
+        operationType: 'UPDATE',
+        componentType: 'AppModule',
+        componentId: appId,
+        success: false,
+        error: error.message,
+        executionTimeMs: Date.now() - startTime
+      });
+
+      throw new Error(`Failed to add entities to app: ${error.message}`);
+    }
+  }
+
+  /**
+   * Validate an app before publishing
+   * @param appId The GUID of the app
+   * @returns Validation result with any issues found
+   */
+  async validateApp(appId: string): Promise<any> {
+    try {
+      const response = await this.makeRequest<any>(
+        `api/data/v9.2/ValidateApp(AppModuleId=${appId})`
+      );
+
+      const validationResponse = response.AppValidationResponse;
+      const isValid = validationResponse.ValidationSuccess;
+      const issues = validationResponse.ValidationIssueList || [];
+
+      return {
+        appId,
+        isValid,
+        issueCount: issues.length,
+        issues: issues.map((issue: any) => ({
+          errorType: issue.ErrorType,
+          message: issue.Message,
+          componentId: issue.ComponentId,
+          componentType: issue.ComponentType
+        })),
+        message: isValid
+          ? 'App validation passed. Ready to publish.'
+          : `App validation found ${issues.length} issue(s). Fix them before publishing.`
+      };
+
+    } catch (error: any) {
+      throw new Error(`Failed to validate app: ${error.message}`);
+    }
+  }
+
+  /**
+   * Publish an app to make it available to users
+   * @param appId The GUID of the app
+   * @returns Result of the publish operation
+   */
+  async publishApp(appId: string): Promise<any> {
+    const startTime = Date.now();
+
+    try {
+      // First validate the app
+      const validation = await this.validateApp(appId);
+      if (!validation.isValid) {
+        throw new Error(`Cannot publish app with validation errors: ${JSON.stringify(validation.issues)}`);
+      }
+
+      // Publish using PublishXml with app parameter
+      const parameterXml = `<importexportxml><appmodules><appmodule>${appId}</appmodule></appmodules></importexportxml>`;
+
+      await rateLimiter.execute(async () => {
+        return await this.publishXml(parameterXml);
+      });
+
+      // Audit log success
+      auditLogger.log({
+        operation: 'publishApp',
+        operationType: 'PUBLISH',
+        componentType: 'AppModule',
+        componentId: appId,
+        success: true,
+        executionTimeMs: Date.now() - startTime
+      });
+
+      return {
+        appId,
+        message: 'App published successfully. It is now available to users with appropriate security roles.'
+      };
+
+    } catch (error: any) {
+      // Audit log failure
+      auditLogger.log({
+        operation: 'publishApp',
+        operationType: 'PUBLISH',
+        componentType: 'AppModule',
+        componentId: appId,
+        success: false,
+        error: error.message,
+        executionTimeMs: Date.now() - startTime
+      });
+
+      throw new Error(`Failed to publish app: ${error.message}`);
+    }
+  }
+
+  /**
+   * Helper to escape XML special characters
+   */
+  private escapeXml(unsafe: string): string {
+    return unsafe.replace(/[<>&'"]/g, (c) => {
+      switch (c) {
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '&': return '&amp;';
+        case '\'': return '&apos;';
+        case '"': return '&quot;';
+        default: return c;
+      }
+    });
+  }
+
+  // ==================== CUSTOMIZATION WRITE OPERATIONS ====================
+
+  /**
+   * Create a new custom entity (table)
+   * @param entityDefinition The entity definition object
+   * @param solutionUniqueName Optional solution to add the entity to
+   * @returns The created entity metadata
+   */
+  async createEntity(entityDefinition: any, solutionUniqueName?: string): Promise<any> {
+    const startTime = Date.now();
+
+    try {
+      // Validate entity name against best practices
+      const schemaName = entityDefinition.SchemaName || entityDefinition.LogicalName;
+      const isRefData = schemaName?.toLowerCase().includes('ref_') || false;
+      const nameValidation = bestPracticesValidator.validateEntityName(schemaName, isRefData);
+
+      if (!nameValidation.isValid) {
+        const error = `Entity name validation failed: ${nameValidation.issues.join(', ')}`;
+        auditLogger.log({
+          operation: 'createEntity',
+          operationType: 'CREATE',
+          componentType: 'Entity',
+          componentName: schemaName,
+          success: false,
+          error,
+          executionTimeMs: Date.now() - startTime
+        });
+        throw new Error(error);
+      }
+
+      // Log warnings if any
+      if (nameValidation.warnings.length > 0) {
+        console.error(`[WARNING] Entity name warnings: ${nameValidation.warnings.join(', ')}`);
+      }
+
+      // Validate ownership type
+      const ownershipType = entityDefinition.OwnershipType;
+      if (ownershipType) {
+        const ownershipValidation = bestPracticesValidator.validateOwnershipType(ownershipType);
+        if (!ownershipValidation.isValid) {
+          console.error(`[WARNING] ${ownershipValidation.issues.join(', ')}`);
+        }
+      }
+
+      // Check for required columns
+      const requiredColumnsValidation = bestPracticesValidator.validateRequiredColumns([], isRefData);
+      if (requiredColumnsValidation.missingColumns && requiredColumnsValidation.missingColumns.length > 0) {
+        console.error('[WARNING] Entity will need required columns added after creation:',
+          requiredColumnsValidation.missingColumns.map(c => c.schemaName).join(', '));
+      }
+
+      const headers: Record<string, string> = {};
+      if (solutionUniqueName) {
+        headers['MSCRM.SolutionUniqueName'] = solutionUniqueName;
+      }
+
+      // Execute with rate limiting
+      const response = await rateLimiter.execute(async () => {
+        return await this.makeRequest<any>(
+          'api/data/v9.2/EntityDefinitions',
+          'POST',
+          entityDefinition,
+          headers
+        );
+      });
+
+      // Log success
+      auditLogger.log({
+        operation: 'createEntity',
+        operationType: 'CREATE',
+        componentType: 'Entity',
+        componentName: schemaName,
+        success: true,
+        executionTimeMs: Date.now() - startTime
+      });
+
+      return response;
+    } catch (error: any) {
+      // Log failure
+      auditLogger.log({
+        operation: 'createEntity',
+        operationType: 'CREATE',
+        componentType: 'Entity',
+        componentName: entityDefinition.SchemaName || entityDefinition.LogicalName,
+        success: false,
+        error: error.message,
+        executionTimeMs: Date.now() - startTime
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Update an existing entity
+   * @param metadataId The MetadataId of the entity
+   * @param updates The properties to update
+   * @param solutionUniqueName Optional solution context
+   */
+  async updateEntity(metadataId: string, updates: any, solutionUniqueName?: string): Promise<void> {
+    const headers: Record<string, string> = {
+      'MSCRM.MergeLabels': 'true'
+    };
+    if (solutionUniqueName) {
+      headers['MSCRM.SolutionUniqueName'] = solutionUniqueName;
+    }
+
+    await this.makeRequest<void>(
+      `api/data/v9.2/EntityDefinitions(${metadataId})`,
+      'PUT',
+      updates,
+      headers
+    );
+  }
+
+  /**
+   * Delete a custom entity
+   * @param metadataId The MetadataId of the entity to delete
+   */
+  async deleteEntity(metadataId: string): Promise<void> {
+    await this.makeRequest<void>(
+      `api/data/v9.2/EntityDefinitions(${metadataId})`,
+      'DELETE'
+    );
+  }
+
+  /**
+   * Create a new attribute on an entity
+   * @param entityLogicalName The logical name of the entity
+   * @param attributeDefinition The attribute definition object
+   * @param solutionUniqueName Optional solution to add the attribute to
+   * @returns The created attribute metadata
+   */
+  async createAttribute(
+    entityLogicalName: string,
+    attributeDefinition: any,
+    solutionUniqueName?: string
+  ): Promise<any> {
+    const startTime = Date.now();
+
+    try {
+      // Validate attribute name against best practices
+      const schemaName = attributeDefinition.SchemaName || attributeDefinition.LogicalName;
+      const isLookup = attributeDefinition['@odata.type'] === 'Microsoft.Dynamics.CRM.LookupAttributeMetadata';
+      const nameValidation = bestPracticesValidator.validateAttributeName(schemaName, isLookup);
+
+      if (!nameValidation.isValid) {
+        const error = `Attribute name validation failed: ${nameValidation.issues.join(', ')}`;
+        auditLogger.log({
+          operation: 'createAttribute',
+          operationType: 'CREATE',
+          componentType: 'Attribute',
+          componentName: `${entityLogicalName}.${schemaName}`,
+          success: false,
+          error,
+          executionTimeMs: Date.now() - startTime
+        });
+        throw new Error(error);
+      }
+
+      // Log warnings if any
+      if (nameValidation.warnings.length > 0) {
+        console.error(`[WARNING] Attribute name warnings: ${nameValidation.warnings.join(', ')}`);
+      }
+
+      // Validate boolean usage (best practice is to avoid booleans)
+      const isBoolean = attributeDefinition['@odata.type'] === 'Microsoft.Dynamics.CRM.BooleanAttributeMetadata';
+      if (isBoolean) {
+        const booleanValidation = bestPracticesValidator.validateBooleanUsage('Boolean', schemaName);
+        if (!booleanValidation.isValid) {
+          console.error(`[WARNING] ${booleanValidation.warnings.join(', ')}`);
+        }
+      }
+
+      const headers: Record<string, string> = {};
+      if (solutionUniqueName) {
+        headers['MSCRM.SolutionUniqueName'] = solutionUniqueName;
+      }
+
+      // Execute with rate limiting
+      const response = await rateLimiter.execute(async () => {
+        return await this.makeRequest<any>(
+          `api/data/v9.2/EntityDefinitions(LogicalName='${entityLogicalName}')/Attributes`,
+          'POST',
+          attributeDefinition,
+          headers
+        );
+      });
+
+      // Log success
+      auditLogger.log({
+        operation: 'createAttribute',
+        operationType: 'CREATE',
+        componentType: 'Attribute',
+        componentName: `${entityLogicalName}.${schemaName}`,
+        success: true,
+        executionTimeMs: Date.now() - startTime
+      });
+
+      return response;
+    } catch (error: any) {
+      // Log failure
+      const schemaName = attributeDefinition.SchemaName || attributeDefinition.LogicalName;
+      auditLogger.log({
+        operation: 'createAttribute',
+        operationType: 'CREATE',
+        componentType: 'Attribute',
+        componentName: `${entityLogicalName}.${schemaName}`,
+        success: false,
+        error: error.message,
+        executionTimeMs: Date.now() - startTime
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Update an existing attribute
+   * @param entityLogicalName The logical name of the entity
+   * @param attributeLogicalName The logical name of the attribute
+   * @param updates The properties to update
+   * @param solutionUniqueName Optional solution context
+   */
+  async updateAttribute(
+    entityLogicalName: string,
+    attributeLogicalName: string,
+    updates: any,
+    solutionUniqueName?: string
+  ): Promise<void> {
+    const headers: Record<string, string> = {
+      'MSCRM.MergeLabels': 'true'
+    };
+    if (solutionUniqueName) {
+      headers['MSCRM.SolutionUniqueName'] = solutionUniqueName;
+    }
+
+    // First, get the existing attribute to retrieve its @odata.type and merge updates
+    const existingAttribute = await this.getEntityAttribute(entityLogicalName, attributeLogicalName);
+
+    // Merge the updates with required fields
+    const payload = {
+      ...updates,
+      '@odata.type': existingAttribute['@odata.type'],
+      LogicalName: attributeLogicalName,
+      AttributeType: existingAttribute.AttributeType
+    };
+
+    await this.makeRequest<void>(
+      `api/data/v9.2/EntityDefinitions(LogicalName='${entityLogicalName}')/Attributes(LogicalName='${attributeLogicalName}')`,
+      'PUT',
+      payload,
+      headers
+    );
+  }
+
+  /**
+   * Delete an attribute
+   * @param entityLogicalName The logical name of the entity
+   * @param attributeMetadataId The MetadataId of the attribute to delete
+   */
+  async deleteAttribute(entityLogicalName: string, attributeMetadataId: string): Promise<void> {
+    await this.makeRequest<void>(
+      `api/data/v9.2/EntityDefinitions(LogicalName='${entityLogicalName}')/Attributes(${attributeMetadataId})`,
+      'DELETE'
+    );
+  }
+
+  /**
+   * Create a picklist attribute using a global option set
+   * @param entityLogicalName The logical name of the entity
+   * @param attributeDefinition The attribute definition (must reference a global option set)
+   * @param solutionUniqueName Optional solution to add the attribute to
+   * @returns The created attribute metadata
+   */
+  async createGlobalOptionSetAttribute(
+    entityLogicalName: string,
+    attributeDefinition: any,
+    solutionUniqueName?: string
+  ): Promise<any> {
+    const headers: Record<string, string> = {};
+    if (solutionUniqueName) {
+      headers['MSCRM.SolutionUniqueName'] = solutionUniqueName;
+    }
+
+    // Ensure the attribute is of type PicklistAttributeMetadata with GlobalOptionSet
+    if (!attributeDefinition['@odata.type']) {
+      attributeDefinition['@odata.type'] = 'Microsoft.Dynamics.CRM.PicklistAttributeMetadata';
+    }
+
+    return await this.makeRequest<any>(
+      `api/data/v9.2/EntityDefinitions(LogicalName='${entityLogicalName}')/Attributes`,
+      'POST',
+      attributeDefinition,
+      headers
+    );
+  }
+
+  /**
+   * Create a one-to-many relationship
+   * @param relationshipDefinition The relationship definition
+   * @param solutionUniqueName Optional solution to add the relationship to
+   */
+  async createOneToManyRelationship(
+    relationshipDefinition: any,
+    solutionUniqueName?: string
+  ): Promise<any> {
+    const headers: Record<string, string> = {};
+    if (solutionUniqueName) {
+      headers['MSCRM.SolutionUniqueName'] = solutionUniqueName;
+    }
+
+    const response = await this.makeRequest<any>(
+      'api/data/v9.2/RelationshipDefinitions',
+      'POST',
+      relationshipDefinition,
+      headers
+    );
+
+    return response;
+  }
+
+  /**
+   * Create a many-to-many relationship
+   * @param relationshipDefinition The relationship definition
+   * @param solutionUniqueName Optional solution to add the relationship to
+   */
+  async createManyToManyRelationship(
+    relationshipDefinition: any,
+    solutionUniqueName?: string
+  ): Promise<any> {
+    const headers: Record<string, string> = {};
+    if (solutionUniqueName) {
+      headers['MSCRM.SolutionUniqueName'] = solutionUniqueName;
+    }
+
+    const response = await this.makeRequest<any>(
+      'api/data/v9.2/RelationshipDefinitions',
+      'POST',
+      relationshipDefinition,
+      headers
+    );
+
+    return response;
+  }
+
+  /**
+   * Delete a relationship
+   * @param metadataId The MetadataId of the relationship to delete
+   */
+  async deleteRelationship(metadataId: string): Promise<void> {
+    await this.makeRequest<void>(
+      `api/data/v9.2/RelationshipDefinitions(${metadataId})`,
+      'DELETE'
+    );
+  }
+
+  /**
+   * Update a relationship
+   * Note: Most relationship properties are immutable, only labels can be updated
+   * @param metadataId The MetadataId of the relationship
+   * @param updates The properties to update (typically labels)
+   */
+  async updateRelationship(metadataId: string, updates: any): Promise<void> {
+    await this.makeRequest<void>(
+      `api/data/v9.2/RelationshipDefinitions(${metadataId})`,
+      'PUT',
+      updates,
+      { 'MSCRM.MergeLabels': 'true' }
+    );
+  }
+
+  /**
+   * Get detailed information about a relationship
+   * @param metadataId The MetadataId of the relationship
+   * @returns The relationship metadata
+   */
+  async getRelationshipDetails(metadataId: string): Promise<any> {
+    return await this.makeRequest<any>(
+      `api/data/v9.2/RelationshipDefinitions(${metadataId})`
+    );
+  }
+
+  /**
+   * Publish all customizations
+   */
+  async publishAllCustomizations(): Promise<void> {
+    await this.makeRequest<void>(
+      'api/data/v9.2/PublishAllXml',
+      'POST',
+      {}
+    );
+  }
+
+  /**
+   * Publish specific customizations
+   * @param parameterXml The ParameterXml specifying what to publish
+   */
+  async publishXml(parameterXml: string): Promise<void> {
+    await this.makeRequest<void>(
+      'api/data/v9.2/PublishXml',
+      'POST',
+      { ParameterXml: parameterXml }
+    );
+  }
+
+  /**
+   * Create a global option set
+   * @param optionSetDefinition The option set definition
+   * @param solutionUniqueName Optional solution to add the option set to
+   */
+  async createGlobalOptionSet(
+    optionSetDefinition: any,
+    solutionUniqueName?: string
+  ): Promise<any> {
+    const headers: Record<string, string> = {};
+    if (solutionUniqueName) {
+      headers['MSCRM.SolutionUniqueName'] = solutionUniqueName;
+    }
+
+    const response = await this.makeRequest<any>(
+      'api/data/v9.2/GlobalOptionSetDefinitions',
+      'POST',
+      optionSetDefinition,
+      headers
+    );
+
+    return response;
+  }
+
+  /**
+   * Delete a global option set
+   * @param metadataId The MetadataId of the option set to delete
+   */
+  async deleteGlobalOptionSet(metadataId: string): Promise<void> {
+    await this.makeRequest<void>(
+      `api/data/v9.2/GlobalOptionSetDefinitions(${metadataId})`,
+      'DELETE'
+    );
+  }
+
+  // ===== Phase 2: UI Components (Forms, Views, Option Sets) =====
+
+  /**
+   * Update a global option set
+   */
+  async updateGlobalOptionSet(metadataId: string, updates: any, solutionUniqueName?: string): Promise<void> {
+    const headers = solutionUniqueName ? { 'MSCRM.SolutionUniqueName': solutionUniqueName } : undefined;
+    await this.makeRequest<void>(
+      `api/data/v9.2/GlobalOptionSetDefinitions(${metadataId})`,
+      'PUT',
+      updates,
+      headers
+    );
+  }
+
+  /**
+   * Add a value to a global option set
+   */
+  async addOptionSetValue(optionSetName: string, value: number, label: string, solutionUniqueName?: string): Promise<any> {
+    const headers = solutionUniqueName ? { 'MSCRM.SolutionUniqueName': solutionUniqueName } : undefined;
+    return await this.makeRequest<any>(
+      `api/data/v9.2/InsertOptionValue`,
+      'POST',
+      {
+        OptionSetName: optionSetName,
+        Value: value,
+        Label: {
+          LocalizedLabels: [{ Label: label, LanguageCode: 1033 }]
+        }
+      },
+      headers
+    );
+  }
+
+  /**
+   * Update an option set value
+   */
+  async updateOptionSetValue(optionSetName: string, value: number, label: string, solutionUniqueName?: string): Promise<void> {
+    const headers: Record<string, string> = { 'MSCRM.MergeLabels': 'true' };
+    if (solutionUniqueName) {
+      headers['MSCRM.SolutionUniqueName'] = solutionUniqueName;
+    }
+    await this.makeRequest<void>(
+      `api/data/v9.2/UpdateOptionValue`,
+      'POST',
+      {
+        OptionSetName: optionSetName,
+        Value: value,
+        Label: {
+          LocalizedLabels: [{ Label: label, LanguageCode: 1033 }]
+        },
+        MergeLabels: true
+      },
+      headers
+    );
+  }
+
+  /**
+   * Delete an option set value
+   */
+  async deleteOptionSetValue(optionSetName: string, value: number): Promise<void> {
+    await this.makeRequest<void>(
+      `api/data/v9.2/DeleteOptionValue`,
+      'POST',
+      {
+        OptionSetName: optionSetName,
+        Value: value
+      }
+    );
+  }
+
+  /**
+   * Reorder option set values
+   */
+  async reorderOptionSetValues(optionSetName: string, values: number[], solutionUniqueName?: string): Promise<void> {
+    const headers = solutionUniqueName ? { 'MSCRM.SolutionUniqueName': solutionUniqueName } : undefined;
+    await this.makeRequest<void>(
+      `api/data/v9.2/OrderOption`,
+      'POST',
+      {
+        OptionSetName: optionSetName,
+        Values: values
+      },
+      headers
+    );
+  }
+
+  /**
+   * Create a form (systemform)
+   */
+  async createForm(form: any, solutionUniqueName?: string): Promise<any> {
+    const headers = solutionUniqueName ? { 'MSCRM.SolutionUniqueName': solutionUniqueName } : undefined;
+    return await this.makeRequest<any>(
+      'api/data/v9.2/systemforms',
+      'POST',
+      form,
+      headers
+    );
+  }
+
+  /**
+   * Update a form
+   */
+  async updateForm(formId: string, updates: any, solutionUniqueName?: string): Promise<void> {
+    const headers = solutionUniqueName ? { 'MSCRM.SolutionUniqueName': solutionUniqueName } : undefined;
+    await this.makeRequest<void>(
+      `api/data/v9.2/systemforms(${formId})`,
+      'PATCH',
+      updates,
+      headers
+    );
+  }
+
+  /**
+   * Delete a form
+   */
+  async deleteForm(formId: string): Promise<void> {
+    await this.makeRequest<void>(
+      `api/data/v9.2/systemforms(${formId})`,
+      'DELETE'
+    );
+  }
+
+  /**
+   * Get forms for an entity
+   */
+  async getForms(entityLogicalName: string): Promise<any> {
+    return await this.makeRequest<any>(
+      `api/data/v9.2/systemforms?$filter=objecttypecode eq '${entityLogicalName}'&$orderby=type`
+    );
+  }
+
+  /**
+   * Create a view (savedquery)
+   */
+  async createView(view: any, solutionUniqueName?: string): Promise<any> {
+    const headers = solutionUniqueName ? { 'MSCRM.SolutionUniqueName': solutionUniqueName } : undefined;
+    return await this.makeRequest<any>(
+      'api/data/v9.2/savedqueries',
+      'POST',
+      view,
+      headers
+    );
+  }
+
+  /**
+   * Update a view
+   */
+  async updateView(viewId: string, updates: any, solutionUniqueName?: string): Promise<void> {
+    const headers = solutionUniqueName ? { 'MSCRM.SolutionUniqueName': solutionUniqueName } : undefined;
+    await this.makeRequest<void>(
+      `api/data/v9.2/savedqueries(${viewId})`,
+      'PATCH',
+      updates,
+      headers
+    );
+  }
+
+  /**
+   * Delete a view
+   */
+  async deleteView(viewId: string): Promise<void> {
+    await this.makeRequest<void>(
+      `api/data/v9.2/savedqueries(${viewId})`,
+      'DELETE'
+    );
+  }
+
+  /**
+   * Get views for an entity
+   */
+  async getViews(entityLogicalName: string): Promise<any> {
+    return await this.makeRequest<any>(
+      `api/data/v9.2/savedqueries?$filter=returnedtypecode eq '${entityLogicalName}'&$orderby=querytype`
+    );
+  }
+
+  /**
+   * Activate a form (set statecode=1)
+   * @param formId The systemformid (GUID)
+   */
+  async activateForm(formId: string): Promise<void> {
+    await this.makeRequest<void>(
+      `api/data/v9.2/systemforms(${formId})`,
+      'PATCH',
+      { statecode: 1, statuscode: 1 }
+    );
+  }
+
+  /**
+   * Deactivate a form (set statecode=0)
+   * @param formId The systemformid (GUID)
+   */
+  async deactivateForm(formId: string): Promise<void> {
+    await this.makeRequest<void>(
+      `api/data/v9.2/systemforms(${formId})`,
+      'PATCH',
+      { statecode: 0, statuscode: 2 }
+    );
+  }
+
+  /**
+   * Set a view as the default view for its entity
+   * @param viewId The savedqueryid (GUID)
+   */
+  async setDefaultView(viewId: string): Promise<void> {
+    await this.makeRequest<void>(
+      `api/data/v9.2/savedqueries(${viewId})`,
+      'PATCH',
+      { isdefault: true }
+    );
+  }
+
+  /**
+   * Get the FetchXML from a view
+   * @param viewId The savedqueryid (GUID)
+   * @returns The view with FetchXML
+   */
+  async getViewFetchXml(viewId: string): Promise<any> {
+    return await this.makeRequest<any>(
+      `api/data/v9.2/savedqueries(${viewId})?$select=fetchxml,name,returnedtypecode,querytype`
+    );
+  }
+
+  // ===== Phase 3: Advanced Customizations (Web Resources) =====
+
+  /**
+   * Create a web resource
+   */
+  async createWebResource(webResource: any, solutionUniqueName?: string): Promise<any> {
+    const headers = solutionUniqueName ? { 'MSCRM.SolutionUniqueName': solutionUniqueName } : undefined;
+    return await this.makeRequest<any>(
+      'api/data/v9.2/webresourceset',
+      'POST',
+      webResource,
+      headers
+    );
+  }
+
+  /**
+   * Update a web resource
+   */
+  async updateWebResource(webResourceId: string, updates: any, solutionUniqueName?: string): Promise<void> {
+    const headers = solutionUniqueName ? { 'MSCRM.SolutionUniqueName': solutionUniqueName } : undefined;
+    await this.makeRequest<void>(
+      `api/data/v9.2/webresourceset(${webResourceId})`,
+      'PATCH',
+      updates,
+      headers
+    );
+  }
+
+  /**
+   * Delete a web resource
+   */
+  async deleteWebResource(webResourceId: string): Promise<void> {
+    await this.makeRequest<void>(
+      `api/data/v9.2/webresourceset(${webResourceId})`,
+      'DELETE'
+    );
+  }
+
+  /**
+   * Get web resource
+   */
+  async getWebResource(webResourceId: string): Promise<any> {
+    return await this.makeRequest<any>(
+      `api/data/v9.2/webresourceset(${webResourceId})`
+    );
+  }
+
+  /**
+   * Get web resources by name pattern
+   */
+  async getWebResources(nameFilter?: string): Promise<any> {
+    const filter = nameFilter ? `?$filter=contains(name,'${nameFilter}')` : '';
+    return await this.makeRequest<any>(
+      `api/data/v9.2/webresourceset${filter}`
+    );
+  }
+
+  /**
+   * Get web resource content (base64 encoded)
+   * @param webResourceId The webresourceid (GUID)
+   * @returns The web resource with content field
+   */
+  async getWebResourceContent(webResourceId: string): Promise<any> {
+    return await this.makeRequest<any>(
+      `api/data/v9.2/webresourceset(${webResourceId})?$select=content,name,webresourcetype`
+    );
+  }
+
+  /**
+   * Get web resource dependencies
+   * @param webResourceId The webresourceid (GUID)
+   * @returns List of dependencies
+   */
+  async getWebResourceDependencies(webResourceId: string): Promise<any> {
+    return await this.makeRequest<any>(
+      `api/data/v9.2/webresourceset(${webResourceId})/dependencies`
+    );
+  }
+
+  // ===== Phase 4: Solution Management =====
+
+  /**
+   * Create a publisher
+   */
+  async createPublisher(publisher: any): Promise<any> {
+    return await this.makeRequest<any>(
+      'api/data/v9.2/publishers',
+      'POST',
+      publisher
+    );
+  }
+
+  /**
+   * Get publishers
+   */
+  async getPublishers(): Promise<any> {
+    return await this.makeRequest<any>(
+      'api/data/v9.2/publishers?$filter=isreadonly eq false'
+    );
+  }
+
+  /**
+   * Create a solution
+   */
+  async createSolution(solution: any): Promise<any> {
+    return await this.makeRequest<any>(
+      'api/data/v9.2/solutions',
+      'POST',
+      solution
+    );
+  }
+
+  /**
+   * Get solutions
+   */
+  async getSolutions(): Promise<any> {
+    return await this.makeRequest<any>(
+      'api/data/v9.2/solutions?$filter=isvisible eq true&$orderby=createdon desc'
+    );
+  }
+
+  /**
+   * Get solution by unique name
+   */
+  async getSolution(uniqueName: string): Promise<any> {
+    const result = await this.makeRequest<any>(
+      `api/data/v9.2/solutions?$filter=uniquename eq '${uniqueName}'&$top=1`
+    );
+    return result.value && result.value.length > 0 ? result.value[0] : null;
+  }
+
+  /**
+   * Add component to solution
+   */
+  async addComponentToSolution(
+    solutionUniqueName: string,
+    componentId: string,
+    componentType: number,
+    addRequiredComponents: boolean = true,
+    includedComponentSettingsValues?: string
+  ): Promise<void> {
+    await this.makeRequest<void>(
+      'api/data/v9.2/AddSolutionComponent',
+      'POST',
+      {
+        SolutionUniqueName: solutionUniqueName,
+        ComponentId: componentId,
+        ComponentType: componentType,
+        AddRequiredComponents: addRequiredComponents,
+        IncludedComponentSettingsValues: includedComponentSettingsValues
+      }
+    );
+  }
+
+  /**
+   * Remove component from solution
+   */
+  async removeComponentFromSolution(
+    solutionUniqueName: string,
+    componentId: string,
+    componentType: number
+  ): Promise<void> {
+    await this.makeRequest<void>(
+      'api/data/v9.2/RemoveSolutionComponent',
+      'POST',
+      {
+        SolutionUniqueName: solutionUniqueName,
+        ComponentId: componentId,
+        ComponentType: componentType
+      }
+    );
+  }
+
+  /**
+   * Get solution components
+   */
+  async getSolutionComponents(solutionUniqueName: string): Promise<any> {
+    const solution = await this.getSolution(solutionUniqueName);
+    if (!solution) {
+      throw new Error(`Solution '${solutionUniqueName}' not found`);
+    }
+
+    return await this.makeRequest<any>(
+      `api/data/v9.2/solutioncomponents?$filter=_solutionid_value eq ${solution.solutionid}&$orderby=componenttype`
+    );
+  }
+
+  /**
+   * Export solution
+   */
+  async exportSolution(solutionName: string, managed: boolean = false): Promise<any> {
+    return await this.makeRequest<any>(
+      'api/data/v9.2/ExportSolution',
+      'POST',
+      {
+        SolutionName: solutionName,
+        Managed: managed,
+        ExportAutoNumberingSettings: true,
+        ExportCalendarSettings: true,
+        ExportCustomizationSettings: true,
+        ExportEmailTrackingSettings: true,
+        ExportGeneralSettings: true,
+        ExportMarketingSettings: true,
+        ExportOutlookSynchronizationSettings: true,
+        ExportRelationshipRoles: true,
+        ExportIsvConfig: true,
+        ExportSales: true,
+        ExportExternalApplications: true
+      }
+    );
+  }
+
+  /**
+   * Import solution
+   */
+  async importSolution(
+    customizationFile: string,
+    publishWorkflows: boolean = true,
+    overwriteUnmanagedCustomizations: boolean = false
+  ): Promise<any> {
+    return await this.makeRequest<any>(
+      'api/data/v9.2/ImportSolution',
+      'POST',
+      {
+        CustomizationFile: customizationFile,
+        PublishWorkflows: publishWorkflows,
+        OverwriteUnmanagedCustomizations: overwriteUnmanagedCustomizations,
+        SkipProductUpdateDependencies: false,
+        HoldingSolution: false,
+        ImportJobId: this.generateGuid()
+      }
+    );
+  }
+
+  /**
+   * Delete a solution
+   */
+  async deleteSolution(solutionId: string): Promise<void> {
+    await this.makeRequest<void>(
+      `api/data/v9.2/solutions(${solutionId})`,
+      'DELETE'
+    );
+  }
+
+  // ===== Phase 5: Publishing & Validation =====
+
+  /**
+   * Publish specific entity
+   */
+  async publishEntity(entityLogicalName: string): Promise<void> {
+    const parameterXml = `<importexportxml><entities><entity>${entityLogicalName}</entity></entities></importexportxml>`;
+    await this.publishXml(parameterXml);
+  }
+
+  /**
+   * Publish specific component
+   */
+  async publishComponent(componentId: string, componentType: number): Promise<void> {
+    const typeMap: Record<number, string> = {
+      1: 'entity',
+      2: 'attribute',
+      9: 'optionset',
+      24: 'form',
+      26: 'savedquery',
+      29: 'workflow',
+      60: 'systemform',
+      61: 'webresource'
+    };
+
+    const componentTypeName = typeMap[componentType] || 'component';
+    const parameterXml = `<importexportxml><${componentTypeName}s><${componentTypeName}>${componentId}</${componentTypeName}></${componentTypeName}s></importexportxml>`;
+    await this.publishXml(parameterXml);
+  }
+
+  /**
+   * Check for unpublished customizations
+   */
+  async checkUnpublishedChanges(): Promise<any> {
+    // Query for unpublished customizations using RetrieveUnpublished
+    return await this.makeRequest<any>(
+      'api/data/v9.2/RetrieveUnpublished',
+      'POST',
+      {}
+    );
+  }
+
+  /**
+   * Check component dependencies
+   */
+  async checkDependencies(componentId: string, componentType: number): Promise<any> {
+    return await this.makeRequest<any>(
+      'api/data/v9.2/RetrieveDependenciesForDelete',
+      'POST',
+      {
+        ObjectId: componentId,
+        ComponentType: componentType
+      }
+    );
+  }
+
+  /**
+   * Check if component can be deleted
+   */
+  async checkDeleteEligibility(componentId: string, componentType: number): Promise<{ canDelete: boolean; dependencies: any[] }> {
+    try {
+      const result = await this.checkDependencies(componentId, componentType);
+      const dependencies = result.EntityCollection?.Entities || [];
+
+      return {
+        canDelete: dependencies.length === 0,
+        dependencies: dependencies
+      };
+    } catch (error) {
+      return {
+        canDelete: false,
+        dependencies: []
+      };
+    }
+  }
+
+  /**
+   * Preview unpublished changes
+   * Returns all components that have unpublished customizations
+   */
+  async previewUnpublishedChanges(): Promise<any> {
+    // Use RetrieveUnpublished action to get unpublished changes
+    return await this.makeRequest<any>(
+      'api/data/v9.2/RetrieveUnpublished',
+      'POST',
+      {}
+    );
+  }
+
+  /**
+   * Check dependencies for a specific component
+   * @param componentId The component ID (GUID)
+   * @param componentType The component type code
+   * @returns Dependency information
+   */
+  async checkComponentDependencies(componentId: string, componentType: number): Promise<any> {
+    // This is an alias for checkDependencies for consistency
+    return await this.checkDependencies(componentId, componentType);
+  }
+
+  /**
+   * Validate solution integrity
+   * Checks for missing dependencies and other issues
+   * @param solutionUniqueName The unique name of the solution
+   * @returns Validation results
+   */
+  async validateSolutionIntegrity(solutionUniqueName: string): Promise<any> {
+    // Get solution components
+    const components = await this.getSolutionComponents(solutionUniqueName);
+
+    const issues: any[] = [];
+    const warnings: any[] = [];
+
+    // Check each component for dependencies
+    for (const component of components.value || []) {
+      try {
+        const deps = await this.checkDependencies(
+          component.objectid,
+          component.componenttype
+        );
+
+        const dependencies = deps.EntityCollection?.Entities || [];
+        const missingDeps = dependencies.filter((d: any) => d.Attributes?.ismissing === true);
+
+        if (missingDeps.length > 0) {
+          issues.push({
+            componentId: component.objectid,
+            componentType: component.componenttype,
+            missingDependencies: missingDeps
+          });
+        }
+      } catch (error) {
+        warnings.push({
+          componentId: component.objectid,
+          componentType: component.componenttype,
+          error: 'Could not check dependencies'
+        });
+      }
+    }
+
+    return {
+      isValid: issues.length === 0,
+      issues,
+      warnings
+    };
+  }
+
+  /**
+   * Validate schema name
+   */
+  validateSchemaName(schemaName: string, prefix: string): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    // Check if starts with prefix
+    if (!schemaName.startsWith(prefix)) {
+      errors.push(`Schema name must start with prefix '${prefix}'`);
+    }
+
+    // Check for invalid characters
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schemaName)) {
+      errors.push('Schema name must start with a letter or underscore and contain only letters, numbers, and underscores');
+    }
+
+    // Check length (max 64 characters for most components)
+    if (schemaName.length > 64) {
+      errors.push('Schema name must be 64 characters or less');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
+   * Get entity customization information
+   */
+  async getEntityCustomizationInfo(entityLogicalName: string): Promise<any> {
+    return await this.makeRequest<any>(
+      `api/data/v9.2/EntityDefinitions(LogicalName='${entityLogicalName}')?$select=IsCustomizable,IsManaged,IsCustomEntity`
+    );
+  }
+
+  /**
+   * Check if entity has dependencies
+   */
+  async checkEntityDependencies(entityLogicalName: string): Promise<any> {
+    // First get the metadata ID
+    const entityMetadata = await this.getEntityMetadata(entityLogicalName);
+    if (!entityMetadata.MetadataId) {
+      throw new Error(`Could not find MetadataId for entity '${entityLogicalName}'`);
+    }
+
+    // Component type 1 = Entity
+    return await this.checkDependencies(entityMetadata.MetadataId, 1);
+  }
+
+  /**
+   * Helper to generate GUID
+   */
+  private generateGuid(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
   }
 }

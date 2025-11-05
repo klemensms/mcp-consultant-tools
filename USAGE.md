@@ -312,6 +312,569 @@ await mcpClient.callPrompt("entity-plugin-pipeline-report", {
    - Filtering: revenue
 ```
 
+## PowerPlatform Customization Workflows
+
+**IMPORTANT:** All customization examples require `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` and make permanent changes to your CRM environment. Test in development/sandbox environments first.
+
+### Workflow 1: Create a Complete Entity with Attributes
+
+This workflow demonstrates creating a new entity with multiple attributes, relationships, and basic configuration.
+
+```javascript
+// Step 1: Create the entity
+// Note: Default settings disable activities, notes, duplicate detection, and mail merge
+// Primary column defaults to 850 character max length
+const entityResult = await mcpClient.invoke("create-entity", {
+  schemaName: "sic_application",
+  displayName: "Application",
+  pluralDisplayName: "Applications",
+  description: "Customer application entity",
+  ownershipType: "UserOwned",
+  hasActivities: false,  // Default: false
+  hasNotes: false,       // Default: false
+  primaryAttributeSchemaName: "sic_applicationnumber",
+  primaryAttributeDisplayName: "Application Number",
+  primaryAttributeMaxLength: 850,  // Default: 850 (maximum allowed)
+  solutionUniqueName: "MyCustomSolution"
+});
+
+// Step 2: Add additional attributes
+// String attribute
+await mcpClient.invoke("create-attribute", {
+  entityLogicalName: "sic_application",
+  attributeType: "String",
+  schemaName: "sic_applicantname",
+  displayName: "Applicant Name",
+  maxLength: 200,
+  isRequired: "ApplicationRequired",
+  solutionUniqueName: "MyCustomSolution"
+});
+
+// DateTime attribute
+await mcpClient.invoke("create-attribute", {
+  entityLogicalName: "sic_application",
+  attributeType: "DateTime",
+  schemaName: "sic_submitteddate",
+  displayName: "Submitted Date",
+  dateTimeBehavior: "UserLocal",
+  format: "DateOnly",
+  solutionUniqueName: "MyCustomSolution"
+});
+
+// Picklist attribute
+await mcpClient.invoke("create-attribute", {
+  entityLogicalName: "sic_application",
+  attributeType: "Picklist",
+  schemaName: "sic_status",
+  displayName: "Status",
+  optionSetOptions: [
+    {value: 1, label: "Draft"},
+    {value: 2, label: "Submitted"},
+    {value: 3, label: "Under Review"},
+    {value: 4, label: "Approved"},
+    {value: 5, label: "Rejected"}
+  ],
+  solutionUniqueName: "MyCustomSolution"
+});
+
+// Lookup attribute to Account
+await mcpClient.invoke("create-attribute", {
+  entityLogicalName: "sic_application",
+  attributeType: "Lookup",
+  schemaName: "sic_parentaccount",
+  displayName: "Parent Account",
+  referencedEntity: "account",
+  solutionUniqueName: "MyCustomSolution"
+});
+
+// Money attribute
+await mcpClient.invoke("create-attribute", {
+  entityLogicalName: "sic_application",
+  attributeType: "Money",
+  schemaName: "sic_requestedamount",
+  displayName: "Requested Amount",
+  precision: 2,
+  minValue: 0,
+  maxValue: 1000000,
+  solutionUniqueName: "MyCustomSolution"
+});
+
+// Step 3: Publish customizations
+await mcpClient.invoke("publish-customizations", {});
+
+console.log("Entity created with 5 attributes and published!");
+```
+
+### Workflow 2: Managing Forms and Views
+
+Create custom forms and views for your entity.
+
+```javascript
+// Step 1: Create a main form
+const formResult = await mcpClient.invoke("create-form", {
+  entityLogicalName: "sic_application",
+  name: "Application Main Form",
+  formType: 2,  // Main form
+  formXml: `<form>
+    <tabs>
+      <tab name="general" showlabel="true">
+        <labels><label description="General" languagecode="1033"/></labels>
+        <columns>
+          <column width="100%">
+            <sections>
+              <section name="info" showlabel="true">
+                <labels><label description="Application Information" languagecode="1033"/></labels>
+                <rows>
+                  <row><cell id="sic_applicantname"/></row>
+                  <row><cell id="sic_submitteddate"/></row>
+                  <row><cell id="sic_status"/></row>
+                  <row><cell id="sic_requestedamount"/></row>
+                  <row><cell id="sic_parentaccount"/></row>
+                </rows>
+              </section>
+            </sections>
+          </column>
+        </columns>
+      </tab>
+    </tabs>
+  </form>`,
+  description: "Main application form",
+  solutionUniqueName: "MyCustomSolution"
+});
+
+// Step 2: Activate the form
+await mcpClient.invoke("activate-form", {
+  formId: formResult.formid
+});
+
+// Step 3: Create a custom view
+const viewResult = await mcpClient.invoke("create-view", {
+  entityLogicalName: "sic_application",
+  name: "Active Applications",
+  fetchXml: `<fetch>
+    <entity name="sic_application">
+      <attribute name="sic_applicationnumber"/>
+      <attribute name="sic_applicantname"/>
+      <attribute name="sic_submitteddate"/>
+      <attribute name="sic_status"/>
+      <attribute name="sic_requestedamount"/>
+      <filter>
+        <condition attribute="statecode" operator="eq" value="0"/>
+        <condition attribute="sic_status" operator="in">
+          <value>2</value>
+          <value>3</value>
+        </condition>
+      </filter>
+      <order attribute="sic_submitteddate" descending="true"/>
+    </entity>
+  </fetch>`,
+  layoutXml: `<grid>
+    <row>
+      <cell name="sic_applicationnumber" width="150"/>
+      <cell name="sic_applicantname" width="200"/>
+      <cell name="sic_submitteddate" width="100"/>
+      <cell name="sic_status" width="100"/>
+      <cell name="sic_requestedamount" width="150"/>
+    </row>
+  </grid>`,
+  queryType: 0,  // Public view
+  description: "View of active applications",
+  solutionUniqueName: "MyCustomSolution"
+});
+
+// Step 4: Set as default view
+await mcpClient.invoke("set-default-view", {
+  viewId: viewResult.savedqueryid
+});
+
+// Step 5: Publish customizations
+await mcpClient.invoke("publish-entity", {
+  entityLogicalName: "sic_application"
+});
+
+console.log("Form and view created and published!");
+```
+
+### Workflow 3: Creating Relationships
+
+Establish relationships between entities.
+
+```javascript
+// One-to-Many relationship: Account -> Applications
+const relationshipResult = await mcpClient.invoke("create-one-to-many-relationship", {
+  schemaName: "sic_account_applications",
+  referencedEntity: "account",
+  referencingEntity: "sic_application",
+  lookupAttributeSchemaName: "sic_relatedaccount",
+  lookupAttributeDisplayName: "Related Account",
+  solutionUniqueName: "MyCustomSolution"
+});
+
+// Many-to-Many relationship: Applications <-> Contacts
+const manyToManyResult = await mcpClient.invoke("create-many-to-many-relationship", {
+  schemaName: "sic_application_contact",
+  entity1LogicalName: "sic_application",
+  entity2LogicalName: "contact",
+  solutionUniqueName: "MyCustomSolution"
+});
+
+// Publish to make relationships active
+await mcpClient.invoke("publish-customizations", {});
+
+console.log("Relationships created and published!");
+```
+
+### Workflow 4: Solution Management
+
+Complete ALM workflow for managing solutions.
+
+```javascript
+// Step 1: Create a publisher (one-time setup)
+const publisherResult = await mcpClient.invoke("create-publisher", {
+  uniqueName: "SmartImpactConsulting",
+  friendlyName: "Smart Impact Consulting",
+  customizationPrefix: "sic",
+  description: "Our company publisher"
+});
+
+// Step 2: Create a solution
+const solutionResult = await mcpClient.invoke("create-solution", {
+  uniqueName: "ApplicationManagement",
+  friendlyName: "Application Management",
+  publisherId: publisherResult.publisherid,
+  version: "1.0.0.0",
+  description: "Application management solution"
+});
+
+// Step 3: Add components to solution
+// Add entity (automatically includes attributes)
+await mcpClient.invoke("add-solution-component", {
+  solutionUniqueName: "ApplicationManagement",
+  componentId: entityResult.MetadataId,
+  componentType: 1,  // Entity
+  addRequiredComponents: true
+});
+
+// Add form
+await mcpClient.invoke("add-solution-component", {
+  solutionUniqueName: "ApplicationManagement",
+  componentId: formResult.formid,
+  componentType: 60,  // SystemForm
+  addRequiredComponents: true
+});
+
+// Add view
+await mcpClient.invoke("add-solution-component", {
+  solutionUniqueName: "ApplicationManagement",
+  componentId: viewResult.savedqueryid,
+  componentType: 26,  // View
+  addRequiredComponents: true
+});
+
+// Step 4: Export solution
+const exportResult = await mcpClient.invoke("export-solution", {
+  solutionName: "ApplicationManagement",
+  managed: false
+});
+
+// Save the base64 zip file
+const fs = require('fs');
+fs.writeFileSync('ApplicationManagement.zip',
+  Buffer.from(exportResult.ExportSolutionFile, 'base64'));
+
+console.log("Solution exported successfully!");
+```
+
+### Workflow 5: Global Option Sets
+
+Manage shared option sets across entities.
+
+```javascript
+// Step 1: Get existing global option set
+const optionSet = await mcpClient.invoke("get-global-option-set", {
+  optionSetName: "sic_industrycodes"
+});
+
+// Step 2: Add new values
+await mcpClient.invoke("add-optionset-value", {
+  optionSetName: "sic_industrycodes",
+  value: 100000,
+  label: "Technology",
+  solutionUniqueName: "MyCustomSolution"
+});
+
+await mcpClient.invoke("add-optionset-value", {
+  optionSetName: "sic_industrycodes",
+  value: 100001,
+  label: "Healthcare",
+  solutionUniqueName: "MyCustomSolution"
+});
+
+await mcpClient.invoke("add-optionset-value", {
+  optionSetName: "sic_industrycodes",
+  value: 100002,
+  label: "Finance",
+  solutionUniqueName: "MyCustomSolution"
+});
+
+// Step 3: Reorder values for better display
+await mcpClient.invoke("reorder-optionset-values", {
+  optionSetName: "sic_industrycodes",
+  values: [100002, 100000, 100001],  // Finance, Technology, Healthcare
+  solutionUniqueName: "MyCustomSolution"
+});
+
+// Step 4: Use the global option set in an attribute
+await mcpClient.invoke("create-global-optionset-attribute", {
+  entityLogicalName: "account",
+  schemaName: "sic_industrycode",
+  displayName: "Industry Code",
+  globalOptionSetName: "sic_industrycodes",
+  solutionUniqueName: "MyCustomSolution"
+});
+
+// Step 5: Publish
+await mcpClient.invoke("publish-customizations", {});
+
+console.log("Global option set updated and used in attribute!");
+```
+
+### Workflow 6: Web Resources (JavaScript)
+
+Upload and manage JavaScript web resources.
+
+```javascript
+// Step 1: Create JavaScript file content
+const jsCode = `
+function onLoad(executionContext) {
+  var formContext = executionContext.getFormContext();
+  console.log("Form loaded successfully");
+
+  // Set default values
+  formContext.getAttribute("sic_submitteddate").setValue(new Date());
+  formContext.getAttribute("sic_status").setValue(1); // Draft
+}
+
+function onSave(executionContext) {
+  var formContext = executionContext.getFormContext();
+
+  // Validation logic
+  var amount = formContext.getAttribute("sic_requestedamount").getValue();
+  if (amount && amount > 100000) {
+    alert("Requested amount exceeds limit. Manager approval required.");
+  }
+}
+`;
+
+// Step 2: Encode content to base64
+const base64Content = Buffer.from(jsCode).toString('base64');
+
+// Step 3: Create web resource
+const webResourceResult = await mcpClient.invoke("create-web-resource", {
+  name: "sic_/scripts/application_form.js",
+  displayName: "Application Form Script",
+  webResourceType: 3,  // JavaScript
+  content: base64Content,
+  description: "Form scripts for application entity",
+  solutionUniqueName: "MyCustomSolution"
+});
+
+// Step 4: Publish
+await mcpClient.invoke("publish-customizations", {});
+
+console.log("Web resource created and published!");
+console.log("Add this to your form's form libraries and events.");
+```
+
+### Workflow 7: Validation and Dependencies
+
+Check dependencies before making changes.
+
+```javascript
+// Step 1: Check if entity is customizable
+const customInfo = await mcpClient.invoke("get-entity-customization-info", {
+  entityLogicalName: "sic_application"
+});
+
+if (!customInfo.IsCustomizable.Value) {
+  console.log("Warning: Entity is not customizable!");
+}
+
+// Step 2: Check dependencies before deletion
+const deleteCheck = await mcpClient.invoke("check-delete-eligibility", {
+  componentId: "12345678-1234-1234-1234-123456789012",
+  componentType: 2  // Attribute
+});
+
+if (!deleteCheck.canDelete) {
+  console.log("Cannot delete - Dependencies:");
+  deleteCheck.dependencies.forEach(dep => {
+    console.log(`- ${dep.DependentComponentType}: ${dep.DependentComponentObjectId}`);
+  });
+} else {
+  // Safe to delete
+  await mcpClient.invoke("delete-attribute", {
+    entityLogicalName: "sic_application",
+    attributeMetadataId: "12345678-1234-1234-1234-123456789012"
+  });
+}
+
+// Step 3: Check entity dependencies
+const entityDeps = await mcpClient.invoke("check-entity-dependencies", {
+  entityLogicalName: "sic_application"
+});
+
+console.log("Entity has", entityDeps.EntityCollection.Entities.length, "dependencies");
+
+// Step 4: Validate solution integrity
+const solutionValidation = await mcpClient.invoke("validate-solution-integrity", {
+  solutionUniqueName: "ApplicationManagement"
+});
+
+if (!solutionValidation.isValid) {
+  console.log("Solution has issues:");
+  solutionValidation.issues.forEach(issue => {
+    console.log(`- Missing dependency: ${issue.componentType}`);
+  });
+}
+
+// Step 5: Preview unpublished changes
+const unpublished = await mcpClient.invoke("preview-unpublished-changes", {});
+console.log("Unpublished components:", unpublished);
+```
+
+### Workflow 8: Business Rules (Read-Only)
+
+Business rules can be inspected for troubleshooting purposes.
+
+```javascript
+// List all business rules
+const allRules = await mcpClient.invoke("get-business-rules", {
+  activeOnly: false,
+  maxRecords: 100
+});
+
+console.log(`Found ${allRules.totalCount} business rules`);
+
+// Get a specific business rule definition
+const ruleDetail = await mcpClient.invoke("get-business-rule", {
+  workflowId: "12345678-1234-1234-1234-123456789012"
+});
+
+console.log(`Business rule: ${ruleDetail.name}`);
+console.log(`Entity: ${ruleDetail.primaryEntity}`);
+console.log(`State: ${ruleDetail.state}`);
+console.log(`XAML: ${ruleDetail.xaml}`);
+
+// Generate a formatted report of all business rules
+const report = await mcpClient.invoke("business-rules-report", {
+  activeOnly: "false"
+});
+
+console.log(report); // Markdown report grouped by state
+```
+
+**Note:** Business rules are read-only in this MCP server. Use the PowerPlatform UI to create or modify business rules.
+
+### Best Practices for Customization
+
+1. **Always use solutions** - Set `POWERPLATFORM_DEFAULT_SOLUTION` or pass `solutionUniqueName` to all tools
+2. **Test in development first** - Never test customizations in production
+3. **Check dependencies** - Use validation tools before deleting components
+4. **Publish regularly** - Publish after each logical group of changes
+5. **Export solutions** - Back up your work by exporting solutions regularly
+6. **Use naming conventions** - Follow your organization's prefix and naming standards
+7. **Validate schema names** - Use `validate-schema-name` before creating components
+8. **Document changes** - Add descriptions to all customizations
+9. **Monitor audit logs** - Review the audit trail for all operations
+10. **Version control** - Export and commit solution files to source control
+
+### Workflow: Configure and Publish a Model-Driven App
+
+This workflow demonstrates adding entities to an app, validating, and publishing.
+
+**Note:** Due to a Dataverse API bug, apps must be created manually via the Power Apps maker portal. See [CREATE_APP_API_BUG_REPORT.md](CREATE_APP_API_BUG_REPORT.md) for details.
+
+```javascript
+// Step 1: Create the app manually
+// 1. Go to https://make.powerapps.com
+// 2. Create a new model-driven app via the UI
+// 3. Copy the app ID from the URL: https://make.powerapps.com/.../app/edit/{APP-ID}
+
+const appId = "12345678-1234-1234-1234-123456789abc"; // From Power Apps maker portal URL
+
+// Step 2: Add entities to the app
+await mcpClient.invoke("add-entities-to-app", {
+  appId: appId,
+  entityNames: [
+    "account",
+    "contact",
+    "opportunity",
+    "sic_application"  // Your custom entity
+  ]
+});
+
+console.log("Entities added to app");
+
+// Step 3: Validate the app
+const validationResult = await mcpClient.invoke("validate-app", {
+  appId: appId
+});
+
+if (!validationResult.isValid) {
+  console.error("Validation failed:", validationResult.issues);
+  // Fix issues before publishing
+} else {
+  console.log("Validation passed!");
+}
+
+// Step 4: Publish the app
+const publishResult = await mcpClient.invoke("publish-app", {
+  appId: appId
+});
+
+console.log("App published successfully!");
+
+// Step 5: Get comprehensive overview
+await mcpClient.callPrompt("app-overview", {
+  appId: appId
+});
+// Returns formatted report with all app details, components, and sitemap
+```
+
+**Querying Existing Apps:**
+
+```javascript
+// List all apps
+const allApps = await mcpClient.invoke("get-apps", {
+  activeOnly: false,
+  maxRecords: 100
+});
+
+// Get specific app details
+const app = await mcpClient.invoke("get-app", {
+  appId: "12345678-1234-1234-1234-123456789abc"
+});
+
+// Get app components
+const components = await mcpClient.invoke("get-app-components", {
+  appId: app.appmoduleid
+});
+
+// Get app sitemap
+const sitemap = await mcpClient.invoke("get-app-sitemap", {
+  appId: app.appmoduleid
+});
+```
+
+**Important Notes:**
+- Apps require appropriate security roles for user access
+- After publishing, assign security roles using PowerPlatform UI
+- uniquename is auto-prefixed with publisher prefix
+- Always validate before publishing to catch configuration issues
+
+---
+
 ## Azure DevOps Examples
 
 ### Example 1: Search Wiki Documentation

@@ -108,6 +108,7 @@ Edit the file and add:
         "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
 
         "FIGMA_API_KEY": "your-figma-personal-access-token",
+        "FIGMA_OAUTH_TOKEN": "",
         "FIGMA_USE_OAUTH": "false"
       }
     }
@@ -148,8 +149,14 @@ Create `.vscode/mcp.json` in your project:
         "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
         "AZUREDEVOPS_PAT": "your-personal-access-token",
         "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+        "AZUREDEVOPS_API_VERSION": "7.1",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "false",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
 
-        "FIGMA_API_KEY": "your-figma-personal-access-token"
+        "FIGMA_API_KEY": "your-figma-personal-access-token",
+        "FIGMA_OAUTH_TOKEN": "",
+        "FIGMA_USE_OAUTH": "false"
       }
     }
   }
@@ -182,8 +189,14 @@ export POWERPLATFORM_TENANT_ID="your-tenant-id"
 export AZUREDEVOPS_ORGANIZATION="your-organization"
 export AZUREDEVOPS_PAT="your-pat"
 export AZUREDEVOPS_PROJECTS="Project1,Project2"
+export AZUREDEVOPS_API_VERSION="7.1"
+export AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE="false"
+export AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE="false"
+export AZUREDEVOPS_ENABLE_WIKI_WRITE="false"
 
 export FIGMA_API_KEY="your-figma-token"
+export FIGMA_OAUTH_TOKEN=""
+export FIGMA_USE_OAUTH="false"
 ```
 
 Then use a simpler configuration:
@@ -219,7 +232,19 @@ For local development and testing from a cloned repository:
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-client-secret",
-        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id"
+        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+
+        "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
+        "AZUREDEVOPS_PAT": "your-personal-access-token",
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+        "AZUREDEVOPS_API_VERSION": "7.1",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "false",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",
+
+        "FIGMA_API_KEY": "your-figma-personal-access-token",
+        "FIGMA_OAUTH_TOKEN": "",
+        "FIGMA_USE_OAUTH": "false"
       }
     }
   }
@@ -263,6 +288,13 @@ All integrations are optional. Configure only the services you need.
 - `POWERPLATFORM_CLIENT_ID` (required): Azure AD app registration client ID
 - `POWERPLATFORM_CLIENT_SECRET` (required): Azure AD app registration client secret
 - `POWERPLATFORM_TENANT_ID` (required): Azure tenant ID
+- `POWERPLATFORM_ENABLE_CUSTOMIZATION` (optional): Enable write operations for customization
+  - Default: `"false"`
+  - Set to `"true"` to enable entity/attribute creation, form/view management, solution operations, etc.
+  - **WARNING:** Write operations make permanent changes to your CRM environment. Use with caution.
+- `POWERPLATFORM_DEFAULT_SOLUTION` (optional): Default solution to add new customizations to
+  - Example: `"YourSolutionName"`
+  - When set, all created entities, attributes, forms, views, etc. will be automatically added to this solution
 
 ### Azure DevOps (Optional)
 
@@ -285,11 +317,18 @@ All integrations are optional. Configure only the services you need.
 
 ### Figma (Optional)
 
-- `FIGMA_API_KEY` (required if using Figma): Figma Personal Access Token
+**Authentication Methods (choose one):**
+
+- `FIGMA_API_KEY` (required if using PAT): Figma Personal Access Token
   - Get from: https://www.figma.com/developers/api#authentication
-- `FIGMA_OAUTH_TOKEN` (optional): Alternative to API key for OAuth authentication
-- `FIGMA_USE_OAUTH` (optional): Set to `"true"` if using OAuth token
+  - Recommended for personal use
+- `FIGMA_OAUTH_TOKEN` (required if using OAuth): OAuth Bearer token
+  - Used for team/organizational access
+  - Requires `FIGMA_USE_OAUTH` to be `"true"`
+- `FIGMA_USE_OAUTH` (optional): Set to `"true"` if using OAuth token instead of API key
   - Default: `"false"`
+  - When `"true"`, uses `FIGMA_OAUTH_TOKEN` for authentication
+  - When `"false"`, uses `FIGMA_API_KEY` for authentication
 
 ---
 
@@ -503,6 +542,26 @@ npm cache clean --force
 - Use service accounts for automated access
 - Monitor app registration usage in Azure AD audit logs
 
+**Customization Write Operations (IMPORTANT):**
+
+When `POWERPLATFORM_ENABLE_CUSTOMIZATION=true`, the following tools make **permanent changes** to your CRM environment:
+
+- Entity/attribute creation and deletion
+- Form and view modifications
+- Business rule changes
+- Web resource uploads
+- Solution import/export
+- Publishing customizations
+
+**Security Recommendations:**
+- Use customization tools **only in development/test environments** initially
+- Always test in a sandbox before production
+- Use `POWERPLATFORM_DEFAULT_SOLUTION` to track all changes
+- Export solutions regularly for backup
+- Review and test all AI-generated customizations before publishing
+- Consider separate credentials for read-only vs. write access
+- Monitor audit logs for all customization operations
+
 ### Azure DevOps
 
 **Read-Only Access (Recommended for most users):**
@@ -579,7 +638,16 @@ Show me active work items in MyProject
 The MCP client should show all configured tools based on your environment variables:
 
 **PowerPlatform tools** (if `POWERPLATFORM_*` is configured):
-- 15 tools for entities, plugins, workflows, flows
+- 16 read-only tools (entities, plugins, workflows, flows)
+- 56 customization tools (if `POWERPLATFORM_ENABLE_CUSTOMIZATION=true`)
+  - Entity & attribute management
+  - Relationships
+  - Forms & views
+  - Global option sets
+  - Business rules
+  - Web resources
+  - Solution management
+  - Publishing & validation
 
 **Azure DevOps tools** (if `AZUREDEVOPS_*` is configured):
 - 12 tools for wikis and work items
@@ -587,7 +655,7 @@ The MCP client should show all configured tools based on your environment variab
 **Figma tools** (if `FIGMA_*` is configured):
 - 2 tools for design data
 
-**Total:** Up to 30 tools and 12 prompts when all integrations are configured.
+**Total:** Up to 86+ tools and 12 prompts when all integrations are configured.
 
 ---
 
