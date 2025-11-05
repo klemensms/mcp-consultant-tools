@@ -98,6 +98,8 @@ Edit the file and add:
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-client-secret",
         "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "true",
+        "POWERPLATFORM_DEFAULT_SOLUTION": "YourSolutionName",
 
         "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
         "AZUREDEVOPS_PAT": "your-personal-access-token",
@@ -145,6 +147,8 @@ Create `.vscode/mcp.json` in your project:
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-client-secret",
         "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "true",
+        "POWERPLATFORM_DEFAULT_SOLUTION": "YourSolutionName",
 
         "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
         "AZUREDEVOPS_PAT": "your-personal-access-token",
@@ -185,6 +189,8 @@ export POWERPLATFORM_URL="https://yourenvironment.crm.dynamics.com"
 export POWERPLATFORM_CLIENT_ID="your-client-id"
 export POWERPLATFORM_CLIENT_SECRET="your-client-secret"
 export POWERPLATFORM_TENANT_ID="your-tenant-id"
+export POWERPLATFORM_ENABLE_CUSTOMIZATION="true"
+export POWERPLATFORM_DEFAULT_SOLUTION="YourSolutionName"
 
 export AZUREDEVOPS_ORGANIZATION="your-organization"
 export AZUREDEVOPS_PAT="your-pat"
@@ -233,6 +239,8 @@ For local development and testing from a cloned repository:
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-client-secret",
         "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "true",
+        "POWERPLATFORM_DEFAULT_SOLUTION": "YourSolutionName",
 
         "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
         "AZUREDEVOPS_PAT": "your-personal-access-token",
