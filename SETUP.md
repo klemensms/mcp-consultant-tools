@@ -288,6 +288,13 @@ All integrations are optional. Configure only the services you need.
 - `POWERPLATFORM_CLIENT_ID` (required): Azure AD app registration client ID
 - `POWERPLATFORM_CLIENT_SECRET` (required): Azure AD app registration client secret
 - `POWERPLATFORM_TENANT_ID` (required): Azure tenant ID
+- `POWERPLATFORM_ENABLE_CUSTOMIZATION` (optional): Enable write operations for customization
+  - Default: `"false"`
+  - Set to `"true"` to enable entity/attribute creation, form/view management, solution operations, etc.
+  - **WARNING:** Write operations make permanent changes to your CRM environment. Use with caution.
+- `POWERPLATFORM_DEFAULT_SOLUTION` (optional): Default solution to add new customizations to
+  - Example: `"YourSolutionName"`
+  - When set, all created entities, attributes, forms, views, etc. will be automatically added to this solution
 
 ### Azure DevOps (Optional)
 
@@ -535,6 +542,26 @@ npm cache clean --force
 - Use service accounts for automated access
 - Monitor app registration usage in Azure AD audit logs
 
+**Customization Write Operations (IMPORTANT):**
+
+When `POWERPLATFORM_ENABLE_CUSTOMIZATION=true`, the following tools make **permanent changes** to your CRM environment:
+
+- Entity/attribute creation and deletion
+- Form and view modifications
+- Business rule changes
+- Web resource uploads
+- Solution import/export
+- Publishing customizations
+
+**Security Recommendations:**
+- Use customization tools **only in development/test environments** initially
+- Always test in a sandbox before production
+- Use `POWERPLATFORM_DEFAULT_SOLUTION` to track all changes
+- Export solutions regularly for backup
+- Review and test all AI-generated customizations before publishing
+- Consider separate credentials for read-only vs. write access
+- Monitor audit logs for all customization operations
+
 ### Azure DevOps
 
 **Read-Only Access (Recommended for most users):**
@@ -611,7 +638,16 @@ Show me active work items in MyProject
 The MCP client should show all configured tools based on your environment variables:
 
 **PowerPlatform tools** (if `POWERPLATFORM_*` is configured):
-- 15 tools for entities, plugins, workflows, flows
+- 16 read-only tools (entities, plugins, workflows, flows)
+- 56 customization tools (if `POWERPLATFORM_ENABLE_CUSTOMIZATION=true`)
+  - Entity & attribute management
+  - Relationships
+  - Forms & views
+  - Global option sets
+  - Business rules
+  - Web resources
+  - Solution management
+  - Publishing & validation
 
 **Azure DevOps tools** (if `AZUREDEVOPS_*` is configured):
 - 12 tools for wikis and work items
@@ -619,7 +655,7 @@ The MCP client should show all configured tools based on your environment variab
 **Figma tools** (if `FIGMA_*` is configured):
 - 2 tools for design data
 
-**Total:** Up to 30 tools and 12 prompts when all integrations are configured.
+**Total:** Up to 86+ tools and 12 prompts when all integrations are configured.
 
 ---
 

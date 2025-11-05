@@ -212,7 +212,8 @@ export class AzureDevOpsService {
     let wikiPath = pagePath;
     if (pagePath.endsWith('.md')) {
       wikiPath = this.convertGitPathToWikiPath(pagePath);
-      console.log(`Auto-converted git path to wiki path: ${pagePath} -> ${wikiPath}`);
+      // Log to stderr (not stdout) to avoid breaking MCP protocol
+      console.error(`Auto-converted git path to wiki path: ${pagePath} -> ${wikiPath}`);
     }
 
     const response = await this.makeRequest<any>(

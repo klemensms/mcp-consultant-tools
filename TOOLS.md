@@ -436,6 +436,1332 @@ await mcpClient.invoke("get-workflow-definition", {
 
 ---
 
+### PowerPlatform Customization Tools (Write Operations)
+
+**IMPORTANT:** All customization tools require `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` and make permanent changes to your CRM environment.
+
+---
+
+#### create-entity
+
+Create a new custom entity (table) in PowerPlatform.
+
+**Parameters:**
+- `schemaName` (string, required): Entity schema name (e.g., "sic_application")
+- `displayName` (string, required): Display name
+- `pluralDisplayName` (string, required): Plural display name
+- `description` (string, optional): Entity description
+- `ownershipType` (string, required): UserOwned, TeamOwned, or OrganizationOwned
+- `hasActivities` (boolean, optional): Enable activities (default: false)
+- `hasNotes` (boolean, optional): Enable notes (default: false)
+- `isActivityParty` (boolean, optional): Can be activity party (default: false)
+- `primaryAttributeSchemaName` (string, optional): Primary attribute name (default: "name")
+- `primaryAttributeDisplayName` (string, optional): Primary attribute display name (default: "Name")
+- `primaryAttributeMaxLength` (number, optional): Primary attribute max length (default: 850)
+- `solutionUniqueName` (string, optional): Solution to add entity to
+
+**Default Settings:**
+- Activities: Disabled
+- Notes: Disabled
+- Duplicate detection: Disabled
+- Mail merge: Disabled
+- Primary column max length: 850 characters
+
+**Returns:**
+- Created entity metadata including MetadataId
+
+**Example:**
+```javascript
+await mcpClient.invoke("create-entity", {
+  schemaName: "sic_application",
+  displayName: "Application",
+  pluralDisplayName: "Applications",
+  description: "Custom application entity",
+  ownershipType: "UserOwned",
+  hasActivities: true,
+  hasNotes: true,
+  solutionUniqueName: "MySolution"
+});
+```
+
+**Note:** Remember to publish customizations after creation.
+
+---
+
+#### update-entity
+
+Update existing entity metadata.
+
+**Parameters:**
+- `metadataId` (string, required): Entity MetadataId (GUID)
+- `displayName` (string, optional): New display name
+- `pluralDisplayName` (string, optional): New plural display name
+- `description` (string, optional): New description
+- `solutionUniqueName` (string, optional): Solution context
+
+**Returns:**
+- Success confirmation
+
+**Example:**
+```javascript
+await mcpClient.invoke("update-entity", {
+  metadataId: "12345678-1234-1234-1234-123456789012",
+  displayName: "Updated Application",
+  description: "Updated description"
+});
+```
+
+---
+
+#### delete-entity
+
+Delete a custom entity.
+
+**Parameters:**
+- `metadataId` (string, required): Entity MetadataId (GUID)
+
+**Returns:**
+- Success confirmation
+
+**Example:**
+```javascript
+await mcpClient.invoke("delete-entity", {
+  metadataId: "12345678-1234-1234-1234-123456789012"
+});
+```
+
+**Warning:** This permanently deletes the entity and all its data. Check dependencies first.
+
+---
+
+#### create-attribute
+
+Create a new attribute (column) on an entity. Supports 10 user-creatable attribute types.
+
+**⚠️ IMPORTANT LIMITATIONS:**
+1. **Local option sets are NOT SUPPORTED** - All Picklist/MultiSelectPicklist attributes MUST use global option sets
+2. **Customer-type attributes CANNOT be created via SDK** - This is a Microsoft platform limitation. Use a standard Lookup to Account or Contact instead, or create manually via Power Apps maker portal
+
+**Parameters:**
+- `entityLogicalName` (string, required): Entity logical name
+- `attributeType` (string, required): One of: String, Memo, Integer, Decimal, Money, DateTime, Boolean, Picklist, Lookup, Customer, MultiSelectPicklist, AutoNumber
+- `schemaName` (string, required): Attribute schema name
+- `displayName` (string, required): Display name
+- `description` (string, optional): Description
+- `isRequired` (string, optional): "None", "ApplicationRequired", or "SystemRequired"
+- Type-specific parameters (see below)
+- `solutionUniqueName` (string, optional): Solution to add attribute to
+
+**Type-Specific Parameters:**
+
+**String:**
+- `maxLength` (number, required): Max length (1-4000)
+- `format` (string, optional): "Email", "Text", "TextArea", "Url", "TickerSymbol", "PhoneticGuide", "VersionNumber", "Phone"
+
+**Memo:**
+- `maxLength` (number, required): Max length (1-1048576)
+
+**Integer:**
+- `minValue` (number, optional): Minimum value
+- `maxValue` (number, optional): Maximum value
+
+**Decimal:**
+- `precision` (number, required): Total digits (1-10)
+- `minValue` (number, optional): Minimum value
+- `maxValue` (number, optional): Maximum value
+
+**Money:**
+- `precision` (number, required): Decimal places (0-4)
+- `minValue` (number, optional): Minimum value
+- `maxValue` (number, optional): Maximum value
+
+**DateTime:**
+- `dateTimeBehavior` (string, required): "UserLocal", "DateOnly", or "TimeZoneIndependent"
+- `format` (string, optional): "DateOnly" or "DateAndTime"
+
+**Boolean:**
+- `defaultValue` (boolean, optional): Default value
+
+**Picklist:**
+- `globalOptionSetName` (string, optional): Name of existing global option set to reference
+- `optionSetOptions` (array, optional): Options to create a NEW global option set automatically
+  - **Simple format (RECOMMENDED)**: Array of strings - values auto-numbered 0, 1, 2, etc.
+  - **Advanced format**: Array of {value: number, label: string} for custom values
+
+**IMPORTANT:** All option sets are created as GLOBAL for consistency and reusability. Local option sets are NOT supported. Provide either `globalOptionSetName` (to use existing) OR `optionSetOptions` (to create new).
+
+**Lookup:**
+- `referencedEntity` (string, required): Target entity logical name
+
+**Customer:**
+- ⚠️ **NOT SUPPORTED VIA SDK** - Customer-type attributes cannot be created programmatically due to Microsoft API limitations
+- **Workarounds:**
+  1. Create manually via Power Apps maker portal
+  2. Use a standard Lookup to Account or Contact instead
+  3. Create separate lookup fields for each target entity (Account and Contact)
+
+**MultiSelectPicklist:**
+- `globalOptionSetName` (string, optional): Name of existing global option set to reference
+- `optionSetOptions` (array, optional): Options to create a NEW global option set automatically
+  - **Simple format (RECOMMENDED)**: Array of strings - values auto-numbered 0, 1, 2, etc.
+  - **Advanced format**: Array of {value: number, label: string} for custom values
+
+**Returns:**
+- Created attribute metadata
+
+**Example - String:**
+```javascript
+await mcpClient.invoke("create-attribute", {
+  entityLogicalName: "account",
+  attributeType: "String",
+  schemaName: "sic_customfield",
+  displayName: "Custom Field",
+  description: "A custom text field",
+  maxLength: 100,
+  solutionUniqueName: "MySolution"
+});
+```
+
+**Example - Picklist (Use Existing Global Option Set):**
+```javascript
+await mcpClient.invoke("create-attribute", {
+  entityLogicalName: "account",
+  attributeType: "Picklist",
+  schemaName: "sic_status",
+  displayName: "Status",
+  globalOptionSetName: "sic_status"  // Reference existing global option set
+});
+```
+
+**Example - Picklist (Create New Global Option Set - Simple):**
+```javascript
+// Simple format with auto-numbering from 0
+await mcpClient.invoke("create-attribute", {
+  entityLogicalName: "account",
+  attributeType: "Picklist",
+  schemaName: "sic_priority",
+  displayName: "Priority",
+  optionSetOptions: ["Low", "Medium", "High", "Critical"]  // Values: 0, 1, 2, 3
+  // Global option set named "sic_priority" will be created automatically
+});
+```
+
+**Example - Picklist (Create New Global Option Set - Custom Values):**
+```javascript
+// Advanced format with custom values
+await mcpClient.invoke("create-attribute", {
+  entityLogicalName: "account",
+  attributeType: "Picklist",
+  schemaName: "sic_customstatus",
+  displayName: "Custom Status",
+  optionSetOptions: [
+    {value: 100, label: "Active"},
+    {value: 200, label: "Inactive"},
+    {value: 300, label: "Pending"}
+  ]
+  // Global option set named "sic_customstatus" will be created automatically
+});
+```
+
+**Example - Lookup:**
+```javascript
+await mcpClient.invoke("create-attribute", {
+  entityLogicalName: "sic_application",
+  attributeType: "Lookup",
+  schemaName: "sic_parentaccount",
+  displayName: "Parent Account",
+  referencedEntity: "account"
+});
+```
+
+---
+
+#### update-attribute
+
+Update existing attribute metadata. **Supports converting String attributes to AutoNumber type** by setting the `autoNumberFormat` parameter.
+
+**Parameters:**
+- `entityLogicalName` (string, required): Entity logical name
+- `attributeLogicalName` (string, required): Attribute logical name
+- `displayName` (string, optional): New display name
+- `description` (string, optional): New description
+- `requiredLevel` (string, optional): Required level ("None", "Recommended", "ApplicationRequired")
+- `autoNumberFormat` (string, optional): Auto-number format to convert String attribute to AutoNumber (see format details below)
+- `solutionUniqueName` (string, optional): Solution context
+
+**AutoNumber Format Placeholders:**
+- `{SEQNUM:n}` - Sequential number with minimum length n (grows as needed)
+- `{RANDSTRING:n}` - Random alphanumeric string (length 1-6 ONLY - API limitation)
+- `{DATETIMEUTC:format}` - UTC timestamp with .NET DateTime format
+
+**Examples:**
+```javascript
+// Convert primary name field to AutoNumber
+await mcpClient.invoke("update-attribute", {
+  entityLogicalName: "sic_strikeactionperiod",
+  attributeLogicalName: "sic_name",
+  autoNumberFormat: "SAP-{SEQNUM:5}",
+  solutionUniqueName: "MCPTestCore"
+});
+// Result: SAP-00001, SAP-00002, SAP-00003...
+
+// Complex format with date and random string
+await mcpClient.invoke("update-attribute", {
+  entityLogicalName: "incident",
+  attributeLogicalName: "ticketnumber",
+  autoNumberFormat: "CASE-{DATETIMEUTC:yyyyMMdd}-{SEQNUM:4}-{RANDSTRING:4}"
+});
+// Result: CASE-20250115-0001-A7K2, CASE-20250115-0002-B9M4...
+```
+
+**⚠️ IMPORTANT NOTES:**
+- Converting to AutoNumber is **irreversible** - you cannot convert back to a regular String
+- Existing values in the field will remain, but new records will use auto-generated values
+- RANDSTRING length must be 1-6 (Dataverse API limitation)
+
+**Returns:**
+- Success confirmation with format details
+
+---
+
+#### delete-attribute
+
+Delete an attribute from an entity.
+
+**Parameters:**
+- `entityLogicalName` (string, required): Entity logical name
+- `attributeMetadataId` (string, required): Attribute MetadataId (GUID)
+
+**Returns:**
+- Success confirmation
+
+**Warning:** This permanently deletes the attribute and all its data.
+
+---
+
+#### create-global-optionset-attribute
+
+Create a picklist attribute that uses a global option set.
+
+**Parameters:**
+- `entityLogicalName` (string, required): Entity logical name
+- `schemaName` (string, required): Attribute schema name
+- `displayName` (string, required): Display name
+- `globalOptionSetName` (string, required): Global option set name
+- `solutionUniqueName` (string, optional): Solution to add to
+
+**Returns:**
+- Created attribute metadata
+
+**Example:**
+```javascript
+await mcpClient.invoke("create-global-optionset-attribute", {
+  entityLogicalName: "account",
+  schemaName: "sic_industry",
+  displayName: "Industry",
+  globalOptionSetName: "sic_industrycodes"
+});
+```
+
+---
+
+#### create-one-to-many-relationship
+
+Create a one-to-many (1:N) relationship between entities.
+
+**Parameters:**
+- `schemaName` (string, required): Relationship schema name
+- `referencedEntity` (string, required): Parent entity (1 side)
+- `referencingEntity` (string, required): Child entity (N side)
+- `lookupAttributeSchemaName` (string, required): Lookup field name on child entity
+- `lookupAttributeDisplayName` (string, required): Lookup field display name
+- `solutionUniqueName` (string, optional): Solution to add to
+
+**Returns:**
+- Created relationship metadata
+
+**Example:**
+```javascript
+await mcpClient.invoke("create-one-to-many-relationship", {
+  schemaName: "sic_account_application",
+  referencedEntity: "account",
+  referencingEntity: "sic_application",
+  lookupAttributeSchemaName: "sic_parentaccount",
+  lookupAttributeDisplayName: "Parent Account"
+});
+```
+
+---
+
+#### create-many-to-many-relationship
+
+Create a many-to-many (N:N) relationship between entities.
+
+**Parameters:**
+- `schemaName` (string, required): Relationship schema name
+- `entity1LogicalName` (string, required): First entity
+- `entity2LogicalName` (string, required): Second entity
+- `entity1NavigationPropertyName` (string, optional): Navigation property name
+- `entity2NavigationPropertyName` (string, optional): Navigation property name
+- `solutionUniqueName` (string, optional): Solution to add to
+
+**Returns:**
+- Created relationship metadata
+
+**Example:**
+```javascript
+await mcpClient.invoke("create-many-to-many-relationship", {
+  schemaName: "sic_application_contact",
+  entity1LogicalName: "sic_application",
+  entity2LogicalName: "contact"
+});
+```
+
+---
+
+#### update-relationship
+
+Update relationship metadata (labels only - most properties are immutable).
+
+**Parameters:**
+- `metadataId` (string, required): Relationship MetadataId (GUID)
+- `displayName` (string, optional): New display name
+
+**Returns:**
+- Success confirmation
+
+---
+
+#### delete-relationship
+
+Delete a relationship.
+
+**Parameters:**
+- `metadataId` (string, required): Relationship MetadataId (GUID)
+
+**Returns:**
+- Success confirmation
+
+---
+
+#### update-global-optionset
+
+Update global option set metadata.
+
+**Parameters:**
+- `metadataId` (string, required): Option set MetadataId (GUID)
+- `displayName` (string, optional): New display name
+- `description` (string, optional): New description
+- `solutionUniqueName` (string, optional): Solution context
+
+**Returns:**
+- Success confirmation
+
+---
+
+#### add-optionset-value
+
+Add a new value to a global option set.
+
+**Parameters:**
+- `optionSetName` (string, required): Option set name
+- `value` (number, required): Numeric value
+- `label` (string, required): Display label
+- `solutionUniqueName` (string, optional): Solution context
+
+**Returns:**
+- Created option metadata
+
+**Example:**
+```javascript
+await mcpClient.invoke("add-optionset-value", {
+  optionSetName: "sic_industrycodes",
+  value: 100000,
+  label: "Technology"
+});
+```
+
+---
+
+#### update-optionset-value
+
+Update an existing option set value label.
+
+**Parameters:**
+- `optionSetName` (string, required): Option set name
+- `value` (number, required): Value to update
+- `label` (string, required): New label
+- `solutionUniqueName` (string, optional): Solution context
+
+**Returns:**
+- Success confirmation
+
+---
+
+#### delete-optionset-value
+
+Delete a value from an option set.
+
+**Parameters:**
+- `optionSetName` (string, required): Option set name
+- `value` (number, required): Value to delete
+
+**Returns:**
+- Success confirmation
+
+**Warning:** Removes the value from all records using it.
+
+---
+
+#### reorder-optionset-values
+
+Reorder option set values to change their display order.
+
+**Parameters:**
+- `optionSetName` (string, required): Option set name
+- `values` (array, required): Array of values in desired order
+- `solutionUniqueName` (string, optional): Solution context
+
+**Returns:**
+- Success confirmation
+
+**Example:**
+```javascript
+await mcpClient.invoke("reorder-optionset-values", {
+  optionSetName: "sic_priority",
+  values: [3, 1, 2]  // High, Medium, Low
+});
+```
+
+---
+
+#### create-form
+
+Create a new form for an entity.
+
+**Parameters:**
+- `entityLogicalName` (string, required): Entity logical name
+- `name` (string, required): Form name
+- `formType` (number, required): Form type code (2=Main, 7=QuickCreate, 6=QuickView, 11=Card)
+- `formXml` (string, required): Form XML definition
+- `description` (string, optional): Form description
+- `solutionUniqueName` (string, optional): Solution to add to
+
+**Returns:**
+- Created form ID
+
+**Example:**
+```javascript
+await mcpClient.invoke("create-form", {
+  entityLogicalName: "account",
+  name: "Custom Main Form",
+  formType: 2,
+  formXml: "<form>...</form>"
+});
+```
+
+---
+
+#### update-form
+
+Update existing form XML and metadata.
+
+**Parameters:**
+- `formId` (string, required): Form ID (GUID)
+- `name` (string, optional): New form name
+- `formXml` (string, optional): New form XML
+- `description` (string, optional): New description
+- `solutionUniqueName` (string, optional): Solution context
+
+**Returns:**
+- Success confirmation
+
+---
+
+#### delete-form
+
+Delete a form.
+
+**Parameters:**
+- `formId` (string, required): Form ID (GUID)
+
+**Returns:**
+- Success confirmation
+
+---
+
+#### activate-form
+
+Activate a form to make it available for use.
+
+**Parameters:**
+- `formId` (string, required): Form ID (GUID)
+
+**Returns:**
+- Success confirmation
+
+---
+
+#### deactivate-form
+
+Deactivate a form to hide it from users.
+
+**Parameters:**
+- `formId` (string, required): Form ID (GUID)
+
+**Returns:**
+- Success confirmation
+
+---
+
+#### get-forms
+
+Get all forms for an entity.
+
+**Parameters:**
+- `entityLogicalName` (string, required): Entity logical name
+
+**Returns:**
+- Array of forms with metadata
+
+**Example:**
+```javascript
+await mcpClient.invoke("get-forms", {
+  entityLogicalName: "account"
+});
+```
+
+---
+
+#### create-view
+
+Create a new view (saved query) with FetchXML.
+
+**Parameters:**
+- `entityLogicalName` (string, required): Entity logical name
+- `name` (string, required): View name
+- `fetchXml` (string, required): FetchXML query
+- `layoutXml` (string, required): Layout XML (columns)
+- `queryType` (number, required): View type (0=Public, 64=Lookup)
+- `description` (string, optional): View description
+- `solutionUniqueName` (string, optional): Solution to add to
+
+**Returns:**
+- Created view ID
+
+**Example:**
+```javascript
+await mcpClient.invoke("create-view", {
+  entityLogicalName: "account",
+  name: "Active Accounts",
+  fetchXml: "<fetch><entity name='account'><filter><condition attribute='statecode' operator='eq' value='0'/></filter></entity></fetch>",
+  layoutXml: "<grid><row><cell name='name'/><cell name='revenue'/></row></grid>",
+  queryType: 0
+});
+```
+
+---
+
+#### update-view
+
+Update existing view query and layout.
+
+**Parameters:**
+- `viewId` (string, required): View ID (GUID)
+- `name` (string, optional): New view name
+- `fetchXml` (string, optional): New FetchXML
+- `layoutXml` (string, optional): New layout XML
+- `description` (string, optional): New description
+- `solutionUniqueName` (string, optional): Solution context
+
+**Returns:**
+- Success confirmation
+
+---
+
+#### delete-view
+
+Delete a view.
+
+**Parameters:**
+- `viewId` (string, required): View ID (GUID)
+
+**Returns:**
+- Success confirmation
+
+---
+
+#### set-default-view
+
+Set a view as the default view for its entity.
+
+**Parameters:**
+- `viewId` (string, required): View ID (GUID)
+
+**Returns:**
+- Success confirmation
+
+---
+
+#### get-view-fetchxml
+
+Get the FetchXML from a specific view.
+
+**Parameters:**
+- `viewId` (string, required): View ID (GUID)
+
+**Returns:**
+- View metadata including FetchXML
+
+---
+
+#### get-views
+
+Get all views for an entity.
+
+**Parameters:**
+- `entityLogicalName` (string, required): Entity logical name
+
+**Returns:**
+- Array of views with metadata
+
+---
+
+#### get-business-rules
+
+Get all business rules in the environment (read-only for troubleshooting).
+
+**Parameters:**
+- `activeOnly` (boolean, optional): Only return activated business rules (default: false)
+- `maxRecords` (number, optional): Maximum number of business rules to return (default: 100)
+
+**Returns:**
+- List of business rules with basic information
+
+**Note:** Business rules are read-only in this MCP server. Use the PowerPlatform UI to create or modify business rules.
+
+---
+
+#### get-business-rule
+
+Get the complete definition of a specific business rule including its XAML (read-only for troubleshooting).
+
+**Parameters:**
+- `workflowId` (string, required): Business rule ID (GUID)
+
+**Returns:**
+- Complete business rule information including XAML definition
+
+**Note:** Business rules are read-only in this MCP server. Use the PowerPlatform UI to create or modify business rules.
+
+---
+
+### Model-Driven App Tools
+
+#### get-apps
+
+Get all model-driven apps in the PowerPlatform environment.
+
+**Parameters:**
+- `activeOnly` (boolean, optional): Only return active apps (default: false)
+- `maxRecords` (number, optional): Maximum number of apps to return (default: 100)
+
+**Returns:**
+- List of model-driven apps with:
+  - App ID, name, unique name
+  - Description and URL
+  - State (Active/Inactive)
+  - Publisher information
+  - Published timestamp
+
+**Example:**
+```javascript
+await mcpClient.invoke("get-apps", {
+  activeOnly: true,
+  maxRecords: 50
+});
+```
+
+---
+
+#### get-app
+
+Get detailed information about a specific model-driven app.
+
+**Parameters:**
+- `appId` (string, required): App ID (GUID)
+
+**Returns:**
+- Complete app information including:
+  - Basic properties (name, unique name, description)
+  - Navigation type (single/multi session)
+  - Featured and default status
+  - Publisher details
+  - Created/modified timestamps
+
+**Example:**
+```javascript
+await mcpClient.invoke("get-app", {
+  appId: "12345678-1234-1234-1234-123456789abc"
+});
+```
+
+---
+
+#### get-app-components
+
+Get all components (entities, forms, views, sitemaps) in a model-driven app.
+
+**Parameters:**
+- `appId` (string, required): App ID (GUID)
+
+**Returns:**
+- List of all components with:
+  - Component ID and type
+  - Grouped by type (Entity, Form, View, SiteMap, etc.)
+  - Creation and modification timestamps
+
+**Example:**
+```javascript
+await mcpClient.invoke("get-app-components", {
+  appId: "12345678-1234-1234-1234-123456789abc"
+});
+```
+
+---
+
+#### get-app-sitemap
+
+Get the sitemap (navigation) configuration for a model-driven app.
+
+**Parameters:**
+- `appId` (string, required): App ID (GUID)
+
+**Returns:**
+- Sitemap information including:
+  - Sitemap name and ID
+  - Sitemap XML structure
+  - Configuration options (collapsible groups, show home, pinned, recents)
+  - Managed status
+
+**Example:**
+```javascript
+await mcpClient.invoke("get-app-sitemap", {
+  appId: "12345678-1234-1234-1234-123456789abc"
+});
+```
+
+---
+
+#### ~~create-app~~ (REMOVED - API Bug)
+
+**Status:** ❌ Removed due to Dataverse API bug
+
+**Issue:** This tool has been removed because the Dataverse API consistently creates orphaned solution components without creating the actual app module record. See [CREATE_APP_API_BUG_REPORT.md](CREATE_APP_API_BUG_REPORT.md) for details.
+
+**Workaround:** Create apps manually via Power Apps maker portal, then use the other MDA tools (add-entities-to-app, validate-app, publish-app) with the app ID.
+
+---
+
+#### add-entities-to-app
+
+Add entities to a model-driven app (automatically adds them to navigation).
+
+**Parameters:**
+- `appId` (string, required): App ID (GUID)
+- `entityNames` (array of strings, required): Entity logical names to add (e.g., ["account", "contact"])
+
+**Returns:**
+- List of entities added
+- Success message
+
+**Example:**
+```javascript
+await mcpClient.invoke("add-entities-to-app", {
+  appId: "12345678-1234-1234-1234-123456789abc",
+  entityNames: ["account", "contact", "opportunity"]
+});
+```
+
+**Important Notes:**
+- Entities are validated before adding
+- After adding entities, run validate-app
+- Then publish-app to make changes live
+
+---
+
+#### validate-app
+
+Validate a model-driven app before publishing (checks for missing components and configuration issues).
+
+**Parameters:**
+- `appId` (string, required): App ID (GUID)
+
+**Returns:**
+- Validation success status
+- List of validation issues (if any)
+- Issue details (error type, message, component ID)
+
+**Example:**
+```javascript
+await mcpClient.invoke("validate-app", {
+  appId: "12345678-1234-1234-1234-123456789abc"
+});
+```
+
+**Common Issues:**
+- Missing sitemap
+- Entities without forms or views
+- Invalid component references
+
+---
+
+#### publish-app
+
+Publish a model-driven app to make it available to users (automatically validates first).
+
+**Parameters:**
+- `appId` (string, required): App ID (GUID)
+
+**Returns:**
+- Success message
+- Published app ID
+
+**Example:**
+```javascript
+await mcpClient.invoke("publish-app", {
+  appId: "12345678-1234-1234-1234-123456789abc"
+});
+```
+
+**Important Notes:**
+- App must pass validation before publishing
+- Users need appropriate security roles to access the app
+- Publishing makes changes visible to all users
+
+---
+
+### Web Resource Tools
+
+#### create-web-resource
+
+Create a new web resource (JavaScript, CSS, HTML, images, etc.).
+
+**Parameters:**
+- `name` (string, required): Web resource name (must include prefix, e.g., "prefix_/scripts/file.js")
+- `displayName` (string, required): Display name
+- `webResourceType` (number, required): Type code (1=HTML, 2=CSS, 3=JS, 4=XML, 5=PNG, 6=JPG, 7=GIF, 8=XAP, 9=XSL, 10=ICO, 11=SVG, 12=RESX)
+- `content` (string, required): Base64-encoded content
+- `description` (string, optional): Description
+- `solutionUniqueName` (string, optional): Solution to add to
+
+**Returns:**
+- Created web resource ID
+
+**Example:**
+```javascript
+await mcpClient.invoke("create-web-resource", {
+  name: "sic_/scripts/myfile.js",
+  displayName: "My JavaScript File",
+  webResourceType: 3,
+  content: "ZnVuY3Rpb24gaGVsbG8oKSB7IGNvbnNvbGUubG9nKCdIZWxsbycpOyB9"  // Base64 of JS code
+});
+```
+
+---
+
+#### update-web-resource
+
+Update web resource content or metadata.
+
+**Parameters:**
+- `webResourceId` (string, required): Web resource ID (GUID)
+- `displayName` (string, optional): New display name
+- `content` (string, optional): New base64-encoded content
+- `description` (string, optional): New description
+- `solutionUniqueName` (string, optional): Solution context
+
+**Returns:**
+- Success confirmation
+
+**Note:** Remember to publish after updating.
+
+---
+
+#### delete-web-resource
+
+Delete a web resource.
+
+**Parameters:**
+- `webResourceId` (string, required): Web resource ID (GUID)
+
+**Returns:**
+- Success confirmation
+
+---
+
+#### get-web-resource
+
+Get web resource by ID.
+
+**Parameters:**
+- `webResourceId` (string, required): Web resource ID (GUID)
+
+**Returns:**
+- Web resource metadata and content
+
+---
+
+#### get-web-resources
+
+Get web resources by name pattern.
+
+**Parameters:**
+- `nameFilter` (string, optional): Name filter (partial match)
+
+**Returns:**
+- Array of web resources
+
+**Example:**
+```javascript
+await mcpClient.invoke("get-web-resources", {
+  nameFilter: "sic_/scripts"
+});
+```
+
+---
+
+#### get-webresource-dependencies
+
+Get dependencies for a web resource.
+
+**Parameters:**
+- `webResourceId` (string, required): Web resource ID (GUID)
+
+**Returns:**
+- Array of components that depend on this web resource
+
+---
+
+#### create-publisher
+
+Create a new solution publisher.
+
+**Parameters:**
+- `uniqueName` (string, required): Publisher unique name
+- `friendlyName` (string, required): Publisher friendly name
+- `customizationPrefix` (string, required): Customization prefix (e.g., "sic")
+- `description` (string, optional): Description
+
+**Returns:**
+- Created publisher ID
+
+**Example:**
+```javascript
+await mcpClient.invoke("create-publisher", {
+  uniqueName: "SmartImpactConsulting",
+  friendlyName: "Smart Impact Consulting",
+  customizationPrefix: "sic",
+  description: "Our company publisher"
+});
+```
+
+---
+
+#### get-publishers
+
+Get all publishers (excluding system publishers).
+
+**Parameters:**
+None
+
+**Returns:**
+- Array of publishers
+
+---
+
+#### create-solution
+
+Create a new solution.
+
+**Parameters:**
+- `uniqueName` (string, required): Solution unique name
+- `friendlyName` (string, required): Solution friendly name
+- `publisherId` (string, required): Publisher ID (GUID)
+- `version` (string, required): Version (e.g., "1.0.0.0")
+- `description` (string, optional): Description
+
+**Returns:**
+- Created solution ID
+
+**Example:**
+```javascript
+await mcpClient.invoke("create-solution", {
+  uniqueName: "MyCustomSolution",
+  friendlyName: "My Custom Solution",
+  publisherId: "12345678-1234-1234-1234-123456789012",
+  version: "1.0.0.0",
+  description: "Custom solution for our app"
+});
+```
+
+---
+
+#### add-solution-component
+
+Add a component to a solution.
+
+**Parameters:**
+- `solutionUniqueName` (string, required): Solution unique name
+- `componentId` (string, required): Component ID (GUID)
+- `componentType` (number, required): Component type code (1=Entity, 2=Attribute, 9=OptionSet, 24=Form, 26=View, 29=Workflow, 60=SystemForm, 61=WebResource)
+- `addRequiredComponents` (boolean, optional, default: true): Include required components
+
+**Returns:**
+- Success confirmation
+
+**Example:**
+```javascript
+await mcpClient.invoke("add-solution-component", {
+  solutionUniqueName: "MyCustomSolution",
+  componentId: "12345678-1234-1234-1234-123456789012",
+  componentType: 1,  // Entity
+  addRequiredComponents: true
+});
+```
+
+---
+
+#### remove-solution-component
+
+Remove a component from a solution.
+
+**Parameters:**
+- `solutionUniqueName` (string, required): Solution unique name
+- `componentId` (string, required): Component ID (GUID)
+- `componentType` (number, required): Component type code
+
+**Returns:**
+- Success confirmation
+
+---
+
+#### export-solution
+
+Export a solution as a zip file (base64-encoded).
+
+**Parameters:**
+- `solutionName` (string, required): Solution unique name
+- `managed` (boolean, optional, default: false): Export as managed solution
+
+**Returns:**
+- Base64-encoded zip file
+
+**Example:**
+```javascript
+const result = await mcpClient.invoke("export-solution", {
+  solutionName: "MyCustomSolution",
+  managed: false
+});
+// result.ExportSolutionFile contains base64-encoded zip
+```
+
+---
+
+#### import-solution
+
+Import a solution from a base64-encoded zip file.
+
+**Parameters:**
+- `customizationFile` (string, required): Base64-encoded solution zip
+- `publishWorkflows` (boolean, optional, default: true): Activate workflows after import
+- `overwriteUnmanagedCustomizations` (boolean, optional, default: false): Overwrite existing customizations
+
+**Returns:**
+- Import job ID
+
+**Example:**
+```javascript
+await mcpClient.invoke("import-solution", {
+  customizationFile: "UEsDBBQ...",  // Base64 zip content
+  publishWorkflows: true,
+  overwriteUnmanagedCustomizations: false
+});
+```
+
+---
+
+#### publish-customizations
+
+Publish all pending customizations to make them active.
+
+**Parameters:**
+None
+
+**Returns:**
+- Success confirmation
+
+**Example:**
+```javascript
+await mcpClient.invoke("publish-customizations", {});
+```
+
+**Note:** This makes all unpublished entity, form, view, and other customizations active in the system.
+
+---
+
+#### publish-entity
+
+Publish customizations for a specific entity.
+
+**Parameters:**
+- `entityLogicalName` (string, required): Entity logical name
+
+**Returns:**
+- Success confirmation
+
+**Example:**
+```javascript
+await mcpClient.invoke("publish-entity", {
+  entityLogicalName: "account"
+});
+```
+
+---
+
+#### check-dependencies
+
+Check what components depend on a specific component.
+
+**Parameters:**
+- `componentId` (string, required): Component ID (GUID)
+- `componentType` (number, required): Component type code
+
+**Returns:**
+- Array of dependent components
+
+**Example:**
+```javascript
+await mcpClient.invoke("check-dependencies", {
+  componentId: "12345678-1234-1234-1234-123456789012",
+  componentType: 1  // Entity
+});
+```
+
+---
+
+#### check-entity-dependencies
+
+Check dependencies for a specific entity.
+
+**Parameters:**
+- `entityLogicalName` (string, required): Entity logical name
+
+**Returns:**
+- Array of dependent components
+
+---
+
+#### check-delete-eligibility
+
+Check if a component can be safely deleted.
+
+**Parameters:**
+- `componentId` (string, required): Component ID (GUID)
+- `componentType` (number, required): Component type code
+
+**Returns:**
+- `canDelete` (boolean): Whether component can be deleted
+- `dependencies` (array): List of blocking dependencies
+
+**Example:**
+```javascript
+const result = await mcpClient.invoke("check-delete-eligibility", {
+  componentId: "12345678-1234-1234-1234-123456789012",
+  componentType: 1
+});
+if (result.canDelete) {
+  // Safe to delete
+}
+```
+
+---
+
+#### get-entity-customization-info
+
+Check if an entity is customizable and its managed state.
+
+**Parameters:**
+- `entityLogicalName` (string, required): Entity logical name
+
+**Returns:**
+- `IsCustomizable`: Whether entity can be customized
+- `IsManaged`: Whether entity is managed
+- `IsCustomEntity`: Whether entity is custom (not system)
+
+---
+
+#### validate-schema-name
+
+Validate a schema name against naming rules.
+
+**Parameters:**
+- `schemaName` (string, required): Schema name to validate
+- `prefix` (string, required): Required prefix
+
+**Returns:**
+- `valid` (boolean): Whether name is valid
+- `errors` (array): List of validation errors
+
+**Example:**
+```javascript
+const result = await mcpClient.invoke("validate-schema-name", {
+  schemaName: "sic_application",
+  prefix: "sic_"
+});
+if (!result.valid) {
+  console.log("Errors:", result.errors);
+}
+```
+
+---
+
+#### preview-unpublished-changes
+
+Preview all unpublished customizations in the environment.
+
+**Parameters:**
+None
+
+**Returns:**
+- List of components with unpublished changes
+
+---
+
+#### validate-solution-integrity
+
+Validate a solution for missing dependencies and issues.
+
+**Parameters:**
+- `solutionUniqueName` (string, required): Solution unique name
+
+**Returns:**
+- `isValid` (boolean): Whether solution is valid
+- `issues` (array): Missing dependencies
+- `warnings` (array): Potential issues
+
+**Example:**
+```javascript
+const result = await mcpClient.invoke("validate-solution-integrity", {
+  solutionUniqueName: "MyCustomSolution"
+});
+if (!result.isValid) {
+  console.log("Issues:", result.issues);
+}
+```
+
+---
+
 ## Azure DevOps Tools
 
 ### Wiki Tools
@@ -976,6 +2302,24 @@ Comprehensive report of all classic Dynamics workflows grouped by state.
   - Trigger events
   - Primary entities
   - Owners and modified dates
+
+---
+
+#### business-rules-report
+
+Comprehensive report of all business rules grouped by state (read-only for troubleshooting).
+
+**Parameters:**
+- `activeOnly` (string, optional): Set to 'true' to only include activated business rules (default: false)
+
+**Returns:**
+- Formatted markdown with:
+  - Business rules grouped by state (Active, Draft, Suspended)
+  - Primary entities
+  - Owners and modified dates
+  - Note about read-only access
+
+**Note:** Business rules are read-only in this MCP server. Use the PowerPlatform UI to create or modify business rules.
 
 ---
 

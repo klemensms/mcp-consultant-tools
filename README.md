@@ -5,11 +5,20 @@ A Model Context Protocol (MCP) server providing intelligent access to PowerPlatf
 ## Overview
 
 This MCP server enables AI assistants to:
-- **PowerPlatform/Dataverse**: Explore entity metadata, query records, inspect plugins, analyze workflows and flows
-- **Azure DevOps**: Search wikis, manage work items, execute WIQL queries
-- **Figma**: Extract design data in simplified, AI-friendly format
+- **PowerPlatform/Dataverse** (70+ tools):
+  - **READ**: Explore entity metadata, query records, inspect plugins, analyze workflows and flows
+  - **WRITE** *(Optional, Feature-Flagged)*:
+    - Entities & attributes (all 11 user-creatable types)
+    - Global option sets, forms, views
+    - Business rules, web resources
+    - Solutions, publishers, import/export
+    - Publishing & validation
+- **Azure DevOps** (12 tools): Search wikis, manage work items, execute WIQL queries
+- **Figma** (2 tools): Extract design data in simplified, AI-friendly format
 
 All integrations are **optional** - configure only the services you need.
+
+**Total: 86+ MCP tools** providing comprehensive access to your development lifecycle.
 
 ## Quick Start
 
@@ -44,6 +53,8 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
         "POWERPLATFORM_TENANT_ID": "your-tenant-id",
+        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "false",
+        "POWERPLATFORM_DEFAULT_SOLUTION": "",
 
         "AZUREDEVOPS_ORGANIZATION": "your-org",
         "AZUREDEVOPS_PAT": "your-pat",
@@ -79,6 +90,8 @@ Create `.vscode/mcp.json` in your project:
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
         "POWERPLATFORM_TENANT_ID": "your-tenant-id",
+        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "false",
+        "POWERPLATFORM_DEFAULT_SOLUTION": "",
 
         "AZUREDEVOPS_ORGANIZATION": "your-org",
         "AZUREDEVOPS_PAT": "your-pat",
@@ -103,9 +116,9 @@ Reload VS Code window after saving.
 
 ## Available Tools
 
-### PowerPlatform/Dataverse (15 tools)
+### PowerPlatform/Dataverse (72 tools)
 
-**Entity & Data:**
+**Entity & Data (Read - 7 tools):**
 - `get-entity-metadata` - Get entity metadata
 - `get-entity-attributes` - Get entity fields/attributes
 - `get-entity-attribute` - Get specific attribute details
@@ -114,13 +127,83 @@ Reload VS Code window after saving.
 - `get-record` - Get a specific record
 - `query-records` - Query records with OData filters
 
-**Plugins:**
+**Entity Management (Write - 7 tools) - Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true:**
+- `create-entity` - Create new custom entity (table)
+- `update-entity` - Update entity metadata
+- `delete-entity` - Delete custom entity
+- `create-attribute` - Create new attribute (column) - supports all 11 user-creatable types
+- `update-attribute` - Update attribute metadata
+- `delete-attribute` - Delete attribute
+- `create-global-optionset-attribute` - Create attribute using global option set
+
+**Relationships (Write - 4 tools) - Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true:**
+- `create-one-to-many-relationship` - Create 1:N relationship
+- `create-many-to-many-relationship` - Create N:N relationship
+- `update-relationship` - Update relationship metadata
+- `delete-relationship` - Delete relationship
+
+**Global Option Sets (Write - 5 tools) - Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true:**
+- `update-global-optionset` - Update option set metadata
+- `add-optionset-value` - Add new value to option set
+- `update-optionset-value` - Update existing value
+- `delete-optionset-value` - Delete value
+- `reorder-optionset-values` - Reorder values
+
+**Forms (Write - 6 tools) - Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true:**
+- `create-form` - Create new form (Main, QuickCreate, QuickView, Card)
+- `update-form` - Update form XML and metadata
+- `delete-form` - Delete form
+- `activate-form` - Activate form
+- `deactivate-form` - Deactivate form
+- `get-forms` - Get all forms for entity
+
+**Views (Write - 6 tools) - Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true:**
+- `create-view` - Create new view with FetchXML
+- `update-view` - Update view query and layout
+- `delete-view` - Delete view
+- `set-default-view` - Set view as default
+- `get-view-fetchxml` - Get view FetchXML
+- `get-views` - Get all views for entity
+
+**Business Rules (Read-only - 2 tools):**
+- `get-business-rules` - List all business rules (for troubleshooting)
+- `get-business-rule` - Get business rule definition (for troubleshooting)
+
+**Web Resources (Write - 6 tools) - Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true:**
+- `create-web-resource` - Create web resource (JS, CSS, HTML, images)
+- `update-web-resource` - Update web resource content
+- `delete-web-resource` - Delete web resource
+- `get-web-resource` - Get web resource by ID
+- `get-web-resources` - Get web resources by name pattern
+- `get-webresource-dependencies` - Get web resource dependencies
+
+**Solution Management (Write - 7 tools) - Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true:**
+- `create-publisher` - Create new solution publisher
+- `get-publishers` - Get all publishers
+- `create-solution` - Create new solution
+- `add-solution-component` - Add component to solution
+- `remove-solution-component` - Remove component from solution
+- `export-solution` - Export solution (managed/unmanaged)
+- `import-solution` - Import solution from base64 zip
+
+**Publishing & Validation (Write - 8 tools) - Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true:**
+- `publish-customizations` - Publish all pending customizations
+- `publish-entity` - Publish specific entity
+- `check-dependencies` - Check component dependencies
+- `check-entity-dependencies` - Check entity dependencies
+- `check-delete-eligibility` - Check if component can be deleted
+- `get-entity-customization-info` - Check if entity is customizable
+- `validate-schema-name` - Validate schema name against rules
+- `preview-unpublished-changes` - Preview unpublished customizations
+- `validate-solution-integrity` - Validate solution for missing dependencies
+
+**Plugins (Read - 4 tools):**
 - `get-plugin-assemblies` - List plugin assemblies
 - `get-plugin-assembly-complete` - Full assembly details with validation
 - `get-entity-plugin-pipeline` - Plugin execution order for entity
 - `get-plugin-trace-logs` - Query plugin execution logs
 
-**Workflows & Flows:**
+**Workflows & Flows (Read - 5 tools):**
 - `get-flows` - List Power Automate flows
 - `get-flow-definition` - Get flow definition and logic
 - `get-flow-runs` - Get flow run history
@@ -152,7 +235,7 @@ Reload VS Code window after saving.
 
 ## Available Prompts
 
-The server includes **12 prompts** that provide formatted, context-rich output:
+The server includes **13 prompts** that provide formatted, context-rich output:
 
 **PowerPlatform:**
 - `entity-overview` - Comprehensive entity overview
@@ -163,6 +246,7 @@ The server includes **12 prompts** that provide formatted, context-rich output:
 - `entity-plugin-pipeline-report` - Visual plugin execution pipeline
 - `flows-report` - Power Automate flows report
 - `workflows-report` - Classic workflows report
+- `business-rules-report` - Business rules report (read-only)
 
 **Azure DevOps:**
 - `wiki-search-results` - Formatted wiki search results
@@ -173,7 +257,7 @@ The server includes **12 prompts** that provide formatted, context-rich output:
 ## Documentation
 
 - **[SETUP.md](SETUP.md)** - Complete setup guide with credentials, troubleshooting, and security
-- **[TOOLS.md](TOOLS.md)** - Full reference for all 30 tools and 12 prompts
+- **[TOOLS.md](TOOLS.md)** - Full reference for all 86+ tools and 12 prompts
 - **[USAGE.md](USAGE.md)** - Examples and use cases for all integrations
 - **[CLAUDE.md](CLAUDE.md)** - Architecture details and development guide
 
@@ -238,6 +322,11 @@ All integrations are optional and can be configured independently:
 **PowerPlatform:**
 - Requires Azure AD app registration
 - Uses OAuth authentication with automatic token refresh
+- **Customization tools** (optional, opt-in):
+  - Set `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` to enable write operations
+  - Create entities, attributes, and publish customizations
+  - Specify `POWERPLATFORM_DEFAULT_SOLUTION` to auto-add customizations to a solution
+  - **WARNING:** These tools make permanent changes to your CRM environment. Use with caution.
 
 **Azure DevOps:**
 - Requires Personal Access Token (PAT)
