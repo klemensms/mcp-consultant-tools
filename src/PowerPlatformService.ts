@@ -1344,7 +1344,7 @@ export class PowerPlatformService {
   }
 
   /**
-   * Add entities to an app with auto-generated sitemap
+   * Add entities to an app by modifying the sitemap XML
    * @param appId The GUID of the app
    * @param entityNames Array of entity logical names to add
    * @returns Result of the operation
@@ -1353,35 +1353,118 @@ export class PowerPlatformService {
     const startTime = Date.now();
 
     try {
-      // Validate entities exist
+      // Get app details
+      const app = await this.makeRequest<any>(
+        `api/data/v9.2/appmodules(${appId})?$select=appmoduleid,name,uniquename`
+      );
+
+      // Validate entities exist and get their display names
       const entityPromises = entityNames.map(name =>
         this.makeRequest<any>(`api/data/v9.2/EntityDefinitions(LogicalName='${name}')?$select=LogicalName,DisplayName,MetadataId`)
       );
       const entities = await Promise.all(entityPromises);
 
-      // Prepare components array
-      const components: any[] = [];
+      // Try to get the app's sitemap via components first
+      let sitemapInfo = await this.getAppSitemap(appId);
 
-      // Add entity components
-      // Note: AddAppComponents action expects PascalCase property names
-      entities.forEach(entity => {
-        components.push({
-          ComponentId: entity.MetadataId,
-          ComponentType: 1 // Entity
-        });
-      });
+      // If not found via components, try to find by matching name
+      if (!sitemapInfo.hasSitemap) {
+        const sitemapQuery = await this.makeRequest<ApiCollectionResponse<any>>(
+          `api/data/v9.2/sitemaps?$filter=sitemapnameunique eq '${app.uniquename}'&$select=sitemapid,sitemapname,sitemapnameunique,sitemapxml`
+        );
 
-      // Use AddAppComponents action
+        if (sitemapQuery.value.length > 0) {
+          const sitemap = sitemapQuery.value[0];
+          sitemapInfo = {
+            hasSitemap: true,
+            sitemapid: sitemap.sitemapid,
+            sitemapname: sitemap.sitemapname,
+            sitemapnameunique: sitemap.sitemapnameunique,
+            sitemapxml: sitemap.sitemapxml
+          };
+        } else {
+          throw new Error(`App '${app.name}' does not have a sitemap. Cannot add entities without a sitemap.`);
+        }
+      }
+
+      // Parse sitemap XML
+      let sitemapXml = sitemapInfo.sitemapxml;
+
+      // Find or create a "Tables" area and group
+      // Check if <Area> with Id="Area_Tables" exists
+      const areaRegex = /<Area[^>]+Id="Area_Tables"[^>]*>/;
+      const hasTablesArea = areaRegex.test(sitemapXml);
+
+      if (!hasTablesArea) {
+        // Add a new Area for tables before the closing </SiteMap>
+        const newArea = `
+  <Area Id="Area_Tables" Title="Tables" ShowGroups="true">
+    <Group Id="Group_Tables" Title="Custom Tables">
+    </Group>
+  </Area>`;
+        sitemapXml = sitemapXml.replace('</SiteMap>', newArea + '\n</SiteMap>');
+      }
+
+      // Add SubArea elements for each entity within Group_Tables
+      for (const entity of entities) {
+        const displayName = entity.DisplayName?.UserLocalizedLabel?.Label || entity.LogicalName;
+        const subAreaId = `SubArea_${entity.LogicalName}`;
+
+        // Check if SubArea already exists
+        const subAreaRegex = new RegExp(`<SubArea[^>]+Id="${subAreaId}"[^>]*>`);
+        if (subAreaRegex.test(sitemapXml)) {
+          continue; // Skip if already exists
+        }
+
+        // Add SubArea within Group_Tables
+        const newSubArea = `
+      <SubArea Id="${subAreaId}" Entity="${entity.LogicalName}" Title="${displayName}" />`;
+
+        // Find the Group_Tables closing tag and add before it
+        sitemapXml = sitemapXml.replace(
+          /<\/Group>/,
+          newSubArea + '\n    </Group>'
+        );
+      }
+
+      // Update the sitemap
       await rateLimiter.execute(async () => {
         return await this.makeRequest<any>(
-          'api/data/v9.2/AddAppComponents',
-          'POST',
+          `api/data/v9.2/sitemaps(${sitemapInfo.sitemapid})`,
+          'PATCH',
           {
-            AppId: appId,
-            Components: components
+            sitemapxml: sitemapXml
           }
         );
       });
+
+      // CRITICAL: Also add entity components to app for Advanced Find/Search
+      // Use deep insert via appmodule_appmodulecomponent collection navigation property
+      for (const entity of entities) {
+        try {
+          await rateLimiter.execute(async () => {
+            return await this.makeRequest<any>(
+              `api/data/v9.2/appmodules(${appId})/appmodule_appmodulecomponent`,
+              'POST',
+              {
+                componenttype: 1, // Entity
+                objectid: entity.MetadataId
+              }
+            );
+          });
+        } catch (componentError: any) {
+          // If deep insert fails, try to continue with other entities
+          auditLogger.log({
+            operation: 'addEntitiesToApp',
+            operationType: 'CREATE',
+            componentType: 'AppModuleComponent',
+            componentName: entity.LogicalName,
+            success: false,
+            error: `Failed to add ${entity.LogicalName} as app component: ${componentError.message}`,
+            executionTimeMs: Date.now() - startTime
+          });
+        }
+      }
 
       // Audit log success
       auditLogger.log({
@@ -1395,8 +1478,9 @@ export class PowerPlatformService {
 
       return {
         appId,
+        sitemapId: sitemapInfo.sitemapid,
         entitiesAdded: entityNames,
-        message: `Successfully added ${entityNames.length} entities to app. Remember to validate and publish.`
+        message: `Successfully added ${entityNames.length} entities to app sitemap. Remember to publish the app.`
       };
 
     } catch (error: any) {
@@ -1643,6 +1727,139 @@ export class PowerPlatformService {
       `api/data/v9.2/EntityDefinitions(${metadataId})`,
       'DELETE'
     );
+  }
+
+  /**
+   * Update entity icon using Fluent UI System Icon
+   * @param entityLogicalName The logical name of the entity
+   * @param iconFileName The Fluent UI icon file name (e.g., 'people_community_24_filled.svg')
+   * @param solutionUniqueName Optional solution to add the web resource to
+   * @returns Result with web resource ID and icon vector name
+   */
+  async updateEntityIcon(
+    entityLogicalName: string,
+    iconFileName: string,
+    solutionUniqueName?: string
+  ): Promise<any> {
+    const startTime = Date.now();
+
+    try {
+      // Step 1: Get entity metadata to retrieve schema name and metadata ID
+      const entityMetadata = await this.getEntityMetadata(entityLogicalName);
+      const entitySchemaName = entityMetadata.SchemaName;
+      const metadataId = entityMetadata.MetadataId;
+
+      if (!metadataId) {
+        throw new Error(`Could not find MetadataId for entity '${entityLogicalName}'`);
+      }
+
+      // Note: No need to clear existing IconVectorName - PowerPlatform will override it
+      // when we set the new icon. This avoids potential API errors from setting null values.
+
+      // Step 2: Fetch the icon SVG from Fluent UI GitHub
+      const svgContent = await iconManager.fetchIcon(iconFileName);
+
+      // Step 3: Validate the SVG
+      const validation = iconManager.validateIconSvg(svgContent);
+      if (!validation.valid) {
+        throw new Error(`Invalid SVG: ${validation.error}`);
+      }
+
+      // Step 4: Convert SVG to base64
+      const base64Content = Buffer.from(svgContent).toString('base64');
+
+      // Step 5: Generate web resource name
+      const webResourceName = iconManager.generateWebResourceName(entitySchemaName, iconFileName.replace('.svg', ''));
+
+      // Step 6: Check if web resource already exists (use exact name match)
+      const existingResourcesResponse = await this.makeRequest<any>(
+        `api/data/v9.2/webresourceset?$filter=name eq '${webResourceName}'&$select=webresourceid,name`
+      );
+
+      let webResourceId: string;
+
+      if (existingResourcesResponse.value && existingResourcesResponse.value.length > 0) {
+        // Web resource exists, update it
+        const existing = existingResourcesResponse.value[0];
+        webResourceId = existing.webresourceid;
+
+        const webResourceUpdates = {
+          displayname: `Icon for ${entityMetadata.DisplayName?.UserLocalizedLabel?.Label || entityLogicalName}`,
+          content: base64Content,
+          description: `Fluent UI icon (${iconFileName}) for ${entityLogicalName} entity`
+        };
+
+        await this.updateWebResource(webResourceId, webResourceUpdates, solutionUniqueName);
+      } else {
+        // Web resource doesn't exist, create new
+        const webResource = {
+          name: webResourceName,
+          displayname: `Icon for ${entityMetadata.DisplayName?.UserLocalizedLabel?.Label || entityLogicalName}`,
+          webresourcetype: 11, // SVG
+          content: base64Content,
+          description: `Fluent UI icon (${iconFileName}) for ${entityLogicalName} entity`
+        };
+
+        const webResourceResult = await this.createWebResource(webResource, solutionUniqueName);
+        webResourceId = webResourceResult.webresourceid;
+      }
+
+      // Step 7: Generate icon vector name
+      const iconVectorName = iconManager.generateIconVectorName(webResourceName);
+
+      // Step 8: Update entity metadata with icon reference
+      const entityUpdates = {
+        '@odata.type': 'Microsoft.Dynamics.CRM.EntityMetadata',
+        IconVectorName: iconVectorName
+      };
+
+      await this.updateEntity(metadataId, entityUpdates, solutionUniqueName);
+
+      // Step 9: Publish the web resource (component type 61)
+      await this.publishComponent(webResourceId, 61);
+
+      // Step 10: Publish the entity (component type 1)
+      await this.publishComponent(metadataId, 1);
+
+      // Log success
+      auditLogger.log({
+        operation: 'updateEntityIcon',
+        operationType: 'UPDATE',
+        componentType: 'Entity',
+        componentName: entityLogicalName,
+        success: true,
+        parameters: {
+          iconFileName,
+          webResourceName,
+          webResourceId,
+          iconVectorName
+        },
+        executionTimeMs: Date.now() - startTime
+      });
+
+      return {
+        success: true,
+        entityLogicalName,
+        entitySchemaName,
+        iconFileName,
+        webResourceId,
+        webResourceName,
+        iconVectorName,
+        message: 'Entity icon updated and published successfully. The icon should now be visible in the UI.'
+      };
+    } catch (error: any) {
+      // Log failure
+      auditLogger.log({
+        operation: 'updateEntityIcon',
+        operationType: 'UPDATE',
+        componentType: 'Entity',
+        componentName: entityLogicalName,
+        success: false,
+        error: error.message,
+        executionTimeMs: Date.now() - startTime
+      });
+      throw error;
+    }
   }
 
   /**

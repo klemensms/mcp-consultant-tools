@@ -93,11 +93,19 @@ export enum ComponentType {
 
 /**
  * Component to add to an app
+ * NOTE: AddAppComponents action requires specific ID field names based on component type:
+ * - Entities: metadataid + @odata.type = 'Microsoft.Dynamics.CRM.entity'
+ * - Views: savedqueryid + @odata.type = 'Microsoft.Dynamics.CRM.savedquery'
+ * - Forms: formid + @odata.type = 'Microsoft.Dynamics.CRM.systemform'
+ * - Sitemaps: sitemapid + @odata.type = 'Microsoft.Dynamics.CRM.sitemap'
  */
 export interface AppComponent {
-  '@odata.type'?: string; // 'Microsoft.Dynamics.CRM.crmbaseentity'
-  componentId: string;
-  componentType: ComponentType | number;
+  '@odata.type': string; // Required: e.g., 'Microsoft.Dynamics.CRM.entity'
+  metadataid?: string; // For entities
+  savedqueryid?: string; // For views (savedquery)
+  formid?: string; // For forms (systemform)
+  sitemapid?: string; // For sitemaps
+  [key: string]: any; // Allow other component-specific ID fields
 }
 
 /**

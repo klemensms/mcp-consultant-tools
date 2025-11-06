@@ -197,10 +197,63 @@ export class IconManager {
    * Populate full URLs for icon suggestions
    */
   private populateUrls(suggestions: IconSuggestion[]): IconSuggestion[] {
-    return suggestions.map(s => ({
-      ...s,
-      url: `${this.baseUrl}/${s.fileName}`
-    }));
+    return suggestions.map(s => {
+      try {
+        const iconPath = this.constructFluentIconPath(s.fileName);
+        return {
+          ...s,
+          url: `${this.baseUrl}/${iconPath}`
+        };
+      } catch (error) {
+        // If path construction fails, return suggestion with empty URL
+        return {
+          ...s,
+          url: ''
+        };
+      }
+    });
+  }
+
+  /**
+   * Parse icon filename and construct GitHub path
+   * Converts: people_community_24_filled.svg
+   * To: assets/People Community/SVG/ic_fluent_people_community_24_filled.svg
+   */
+  private constructFluentIconPath(fileName: string): string {
+    // Remove .svg extension
+    const base = fileName.replace('.svg', '');
+
+    // Split into parts
+    const parts = base.split('_');
+
+    // Extract size (e.g., '24') and style (e.g., 'filled' or 'regular')
+    const size = parts[parts.length - 2];
+    const style = parts[parts.length - 1];
+
+    // Validate size and style
+    if (!size || !style || isNaN(parseInt(size))) {
+      throw new Error(`Invalid icon filename format: ${fileName}. Expected format: {icon_name}_{size}_{style}.svg (e.g., people_community_24_filled.svg)`);
+    }
+
+    // Icon name is everything before size and style
+    const iconNameParts = parts.slice(0, -2);
+
+    if (iconNameParts.length === 0) {
+      throw new Error(`Invalid icon filename format: ${fileName}. Missing icon name.`);
+    }
+
+    // Folder name: capitalize each word, join with space
+    const folderName = iconNameParts
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+    // Full filename with ic_fluent_ prefix
+    const fullFileName = `ic_fluent_${base}.svg`;
+
+    // Construct the full path
+    const path = `${folderName}/SVG/${fullFileName}`;
+
+    return path;
   }
 
   /**
@@ -212,14 +265,16 @@ export class IconManager {
       return this.cache.get(fileName)!;
     }
 
-    const url = `${this.baseUrl}/${fileName}`;
-
     try {
+      // Construct the correct GitHub path
+      const iconPath = this.constructFluentIconPath(fileName);
+      const url = `${this.baseUrl}/${iconPath}`;
+
       // Use global fetch if available (Node 18+)
       const response = await global.fetch(url);
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch icon: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to fetch icon from GitHub: ${response.status} ${response.statusText}. URL: ${url}`);
       }
 
       const svg = await response.text();
@@ -234,7 +289,7 @@ export class IconManager {
 
       return svg;
     } catch (error) {
-      throw new Error(`Failed to fetch icon from ${url}: ${error}`);
+      throw new Error(`Failed to fetch icon '${fileName}': ${error instanceof Error ? error.message : String(error)}\n\nExpected format: {icon_name}_{size}_{style}.svg (e.g., people_community_24_filled.svg)\nBrowse icons at: https://github.com/microsoft/fluentui-system-icons`);
     }
   }
 
@@ -251,9 +306,11 @@ export class IconManager {
 
   /**
    * Generate icon vector name for EntityMetadata
+   * Uses $webresource: directive which is the correct syntax for Dynamics 365
+   * This creates a solution dependency and tells the system to look up the web resource by name
    */
   generateIconVectorName(webResourceName: string): string {
-    return `/${webResourceName}.svg`;
+    return `$webresource:${webResourceName}`;
   }
 
   /**
@@ -330,7 +387,12 @@ export class IconManager {
    */
   buildIconUrl(iconName: string, size: number = 24, style: 'filled' | 'regular' = 'filled'): string {
     const fileName = `${iconName}_${size}_${style}.svg`;
-    return `${this.baseUrl}/${fileName}`;
+    try {
+      const iconPath = this.constructFluentIconPath(fileName);
+      return `${this.baseUrl}/${iconPath}`;
+    } catch (error) {
+      throw new Error(`Failed to build icon URL for '${iconName}': ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**

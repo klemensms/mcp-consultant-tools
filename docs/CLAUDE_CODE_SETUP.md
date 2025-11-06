@@ -23,7 +23,9 @@ Add this to your `settings.json`:
         "POWERPLATFORM_URL": "https://rtpidev.crm11.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
-        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id",
+        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "true",
+        "POWERPLATFORM_DEFAULT_SOLUTION": "YourSolutionName"
       }
     }
   }
@@ -43,6 +45,8 @@ export POWERPLATFORM_URL="https://rtpidev.crm11.dynamics.com"
 export POWERPLATFORM_CLIENT_ID="your-client-id"
 export POWERPLATFORM_CLIENT_SECRET="your-client-secret"
 export POWERPLATFORM_TENANT_ID="your-tenant-id"
+export POWERPLATFORM_ENABLE_CUSTOMIZATION="true"
+export POWERPLATFORM_DEFAULT_SOLUTION="YourSolutionName"
 ```
 
 2. **Then use this simpler VS Code configuration:**

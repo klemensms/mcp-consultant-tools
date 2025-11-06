@@ -3061,6 +3061,57 @@ server.tool(
 );
 
 /**
+ * Tool: update-entity-icon
+ * Update entity icon using Fluent UI System Icons
+ */
+server.tool(
+  "update-entity-icon",
+  "Update entity icon using Fluent UI System Icons from Microsoft's official icon library. Creates a web resource and sets it as the entity icon. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  {
+    entityLogicalName: z.string().describe("The logical name of the entity (e.g., 'sic_strikeaction')"),
+    iconFileName: z.string().describe("Fluent UI icon file name (e.g., 'people_community_24_filled.svg'). Browse icons at: https://github.com/microsoft/fluentui-system-icons"),
+    solutionUniqueName: z.string().optional().describe("Solution to add the web resource to (optional, uses POWERPLATFORM_DEFAULT_SOLUTION if not specified)")
+  },
+  async (params) => {
+    try {
+      checkCustomizationEnabled();
+      const service = getPowerPlatformService();
+
+      const result = await service.updateEntityIcon(
+        params.entityLogicalName,
+        params.iconFileName,
+        params.solutionUniqueName
+      );
+
+      const message = `✅ Successfully updated entity icon
+
+**Entity:** ${result.entityLogicalName} (${result.entitySchemaName})
+**Icon:** ${result.iconFileName}
+**Web Resource:** ${result.webResourceName}
+**Web Resource ID:** ${result.webResourceId}
+**Icon Vector Name:** ${result.iconVectorName}
+
+✨ **Published:** The icon has been automatically published and should now be visible in the UI.
+
+💡 TIP: Browse available Fluent UI icons at https://github.com/microsoft/fluentui-system-icons`;
+
+      return {
+        content: [{ type: "text", text: message }]
+      };
+    } catch (error: any) {
+      console.error("Error updating entity icon:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `❌ Failed to update entity icon: ${error.message}\n\n💡 Make sure the icon file name is valid (e.g., 'people_community_24_filled.svg'). Browse available icons at https://github.com/microsoft/fluentui-system-icons`
+        }],
+        isError: true
+      };
+    }
+  }
+);
+
+/**
  * Tool: delete-entity
  * Delete a custom entity
  */
