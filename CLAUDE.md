@@ -139,7 +139,7 @@ The server validates configuration on first use of each service and throws an er
 
 **Tools**: Return raw JSON data from PowerPlatform API
 
-*Entity & Metadata Tools:*
+*Entity & Metadata Tools (Read):*
 - `get-entity-metadata`: Entity definition metadata
 - `get-entity-attributes`: All attributes/fields for an entity
 - `get-entity-attribute`: Specific attribute details
@@ -147,6 +147,9 @@ The server validates configuration on first use of each service and throws an er
 - `get-global-option-set`: Global option set definitions
 - `get-record`: Single record by entity name and ID
 - `query-records`: OData-filtered record queries
+
+*Entity Customization Tools (Write - requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true):*
+- `update-entity-icon`: Set entity icon using Fluent UI System Icons
 
 *Plugin Tools:*
 - `get-plugin-assemblies`: List all plugin assemblies in the environment
@@ -675,6 +678,169 @@ Solution: Refresh OAuth token
 Error: 429 - Too Many Requests
 ```
 Solution: Reduce request frequency, implement backoff
+
+## Icon Management with Fluent UI System Icons
+
+### Overview
+
+The MCP server includes comprehensive icon management capabilities using Microsoft's official Fluent UI System Icons. This enables programmatic assignment of icons to custom entities, improving UI consistency and developer productivity.
+
+### Icon Manager Utility ([src/utils/iconManager.ts](src/utils/iconManager.ts))
+
+The `IconManager` class provides:
+
+**Core Functionality:**
+- Icon suggestion based on entity name/type
+- SVG fetching from Fluent UI GitHub repository
+- SVG validation (size, content, security checks)
+- Web resource name generation
+- Icon vector name generation for entity metadata
+- Icon search and categorization
+
+**Icon Source:**
+- Repository: https://github.com/microsoft/fluentui-system-icons
+- 2,100+ professional icons
+- Multiple sizes: 16, 20, 24, 28, 32, 48px
+- Two styles: Regular and Filled
+- SVG format, optimized for web
+- MIT License (free, open source)
+
+### Update Entity Icon Tool
+
+**Tool:** `update-entity-icon`
+
+**Purpose:** Set or update entity icons programmatically using Fluent UI System Icons
+
+**Parameters:**
+```typescript
+{
+  entityLogicalName: string;    // e.g., 'sic_strikeaction'
+  iconFileName: string;          // e.g., 'people_community_24_filled.svg'
+  solutionUniqueName?: string;  // optional solution context
+}
+```
+
+**Implementation Flow ([src/PowerPlatformService.ts](src/PowerPlatformService.ts:1648)):**
+
+1. **Fetch Entity Metadata**: Retrieve schema name and metadata ID
+2. **Download SVG**: Fetch icon from Fluent UI GitHub repository
+3. **Validate SVG**: Check format, size (<100KB), and security (no script tags)
+4. **Convert to Base64**: Encode SVG for web resource
+5. **Create Web Resource**: Upload as SVG web resource (type 11)
+6. **Update Entity Metadata**: Set `IconVectorName` property with `$webresource:` directive
+7. **Add to Solution**: Include web resource in specified solution
+8. **Publish Web Resource**: Automatically publish the web resource (component type 61)
+9. **Publish Entity**: Automatically publish the entity metadata (component type 1)
+10. **Audit Logging**: Log operation with details
+
+**Example Usage:**
+```typescript
+await mcpClient.invoke("update-entity-icon", {
+  entityLogicalName: "sic_strikeaction",
+  iconFileName: "people_community_24_filled.svg",
+  solutionUniqueName: "MCPTestCore"
+});
+```
+
+**Icon Suggestions:**
+
+The IconManager provides intelligent icon suggestions based on entity names:
+- **Strike Action** → `people_community_24_filled.svg` (group/collective action)
+- **Strike Action Period** → `calendar_24_filled.svg` (date ranges)
+- **Contact** → `person_24_filled.svg` (individual person)
+- **Account** → `building_24_filled.svg` (organization)
+- **Case/Incident** → `alert_24_filled.svg` (alerts/warnings)
+- **Project** → `briefcase_24_filled.svg` (work/projects)
+
+### Icon Naming Convention
+
+Fluent UI icon file names follow this pattern:
+```
+{iconName}_{size}_{style}.svg
+```
+
+Examples:
+- `people_community_24_filled.svg`
+- `calendar_clock_24_regular.svg`
+- `document_text_28_filled.svg`
+
+### Security & Validation
+
+The IconManager implements security checks:
+- **Size limit**: Maximum 100KB per SVG
+- **Content validation**: Must contain `<svg>` tag
+- **Security scan**: Rejects SVGs with `<script>` tags
+- **Format check**: Validates SVG structure
+
+### Web Resource Management
+
+**Web Resource Naming:**
+```typescript
+generateWebResourceName(entitySchemaName, iconName)
+// Example: "sic_strikeaction_icon_people_community_24_filled"
+```
+
+**Icon Vector Name:**
+```typescript
+generateIconVectorName(webResourceName)
+// Example: "$webresource:sic_strikeaction_icon_people_community_24_filled"
+// Uses $webresource: directive (Dynamics 365 standard syntax)
+// Creates solution dependency and enables web resource lookup by name
+```
+
+**Web Resource Properties:**
+- **Type**: 11 (SVG)
+- **Content**: Base64-encoded SVG
+- **Display Name**: "Icon for {Entity Display Name}"
+- **Description**: "Fluent UI icon ({fileName}) for {logicalName} entity"
+
+### Use Cases
+
+**Entity Branding:**
+- Assign consistent, professional icons to custom entities
+- Improve entity recognition in Model-Driven App navigation
+- Enhance user experience with visual identifiers
+
+**Automated Entity Creation:**
+- Set icons programmatically during entity creation workflows
+- Standardize icon usage across development teams
+- Reduce manual configuration in Power Apps maker portal
+
+**Design System Consistency:**
+- Use Microsoft's official design language
+- Align with Microsoft 365 and Power Platform aesthetics
+- Future-proof with actively maintained icon library
+
+### Error Handling
+
+Common errors and solutions:
+
+**Invalid Icon File Name:**
+```
+Error: Failed to fetch icon: 404 Not Found
+```
+Solution: Verify icon name at https://github.com/microsoft/fluentui-system-icons
+
+**SVG Too Large:**
+```
+Error: Invalid SVG: SVG file is too large (max 100KB)
+```
+Solution: Use standard Fluent UI icons (always under 100KB)
+
+**Missing Entity:**
+```
+Error: Could not find MetadataId for entity 'entityname'
+```
+Solution: Verify entity logical name exists
+
+### Publishing Requirement
+
+After updating entity icons, customizations must be published:
+```typescript
+await mcpClient.invoke("publish-customizations", {});
+```
+
+Icons will only appear in the UI after publishing.
 
 ## Publishing
 

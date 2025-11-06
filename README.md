@@ -20,6 +20,11 @@ All integrations are **optional** - configure only the services you need.
 
 **Total: 86+ MCP tools** providing comprehensive access to your development lifecycle.
 
+## Known limitations
+- Cannot create Model-Driven-Apps
+- Cannot add Customer fields
+- Adds icon to solution, but does not update the table correctly. Icon name: 'Icon for {table name}'
+
 ## Quick Start
 
 ### Installation
@@ -127,9 +132,10 @@ Reload VS Code window after saving.
 - `get-record` - Get a specific record
 - `query-records` - Query records with OData filters
 
-**Entity Management (Write - 7 tools) - Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true:**
+**Entity Management (Write - 8 tools) - Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true:**
 - `create-entity` - Create new custom entity (table)
 - `update-entity` - Update entity metadata
+- `update-entity-icon` - Set entity icon using Fluent UI System Icons
 - `delete-entity` - Delete custom entity
 - `create-attribute` - Create new attribute (column) - supports all 11 user-creatable types
 - `update-attribute` - Update attribute metadata

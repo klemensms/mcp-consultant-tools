@@ -513,6 +513,42 @@ await mcpClient.invoke("update-entity", {
 
 ---
 
+#### update-entity-icon
+
+Set or update entity icon using Fluent UI System Icons from Microsoft's official icon library.
+
+**Parameters:**
+- `entityLogicalName` (string, required): The logical name of the entity (e.g., 'sic_strikeaction')
+- `iconFileName` (string, required): Fluent UI icon file name (e.g., 'people_community_24_filled.svg')
+- `solutionUniqueName` (string, optional): Solution to add the web resource to
+
+**Returns:**
+- Entity details with web resource information
+- Web resource ID and name
+- Icon vector name
+
+**Example:**
+```javascript
+await mcpClient.invoke("update-entity-icon", {
+  entityLogicalName: "sic_strikeaction",
+  iconFileName: "people_community_24_filled.svg",
+  solutionUniqueName: "MCPTestCore"
+});
+```
+
+**Icon Suggestions:**
+- **Strike Action**: `people_community_24_filled.svg` (group/collective action)
+- **Calendar/Period**: `calendar_24_filled.svg` (date ranges)
+- **Contact**: `person_24_filled.svg` (individual person)
+- **Account**: `building_24_filled.svg` (organization)
+- **Alert/Case**: `alert_24_filled.svg` (alerts/warnings)
+
+**Browse icons:** https://github.com/microsoft/fluentui-system-icons
+
+**Note:** You must publish customizations after updating icons for changes to appear in the UI.
+
+---
+
 #### delete-entity
 
 Delete a custom entity.
