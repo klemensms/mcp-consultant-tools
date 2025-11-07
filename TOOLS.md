@@ -7,6 +7,8 @@ Complete reference for all tools and prompts provided by the MCP Consultant Tool
 - [PowerPlatform Tools](#powerplatform-tools)
 - [Azure DevOps Tools](#azure-devops-tools)
 - [Figma Tools](#figma-tools)
+- [Application Insights Tools](#application-insights-tools)
+- [Azure SQL Database Tools](#azure-sql-database-tools)
 - [MCP Prompts](#mcp-prompts)
 
 ## PowerPlatform Tools
@@ -2481,6 +2483,293 @@ Get custom application events from Application Insights.
 
 ---
 
+## Azure SQL Database Tools
+
+The Azure SQL Database integration provides read-only access to SQL databases with comprehensive security controls. All tools are designed for database investigation and schema exploration.
+
+**Key Features:**
+- **Read-only by design** - Only SELECT queries permitted
+- **Query validation** - Blocks INSERT, UPDATE, DELETE, DROP, EXEC, and other write operations
+- **Safety mechanisms** - 10MB response limit, 1000 row limit (configurable), 30-second timeout
+- **Connection pooling** - Automatic connection management with health checks
+- **Credential protection** - Credentials sanitized from all error messages
+- **Audit logging** - All user queries logged for security
+
+### Schema Exploration Tools
+
+#### sql-test-connection
+
+Test connectivity to the Azure SQL Database.
+
+**Parameters:**
+None
+
+**Returns:**
+- `connected` (boolean): Connection status
+- `sqlVersion` (string): SQL Server version
+- `database` (string): Connected database name
+- `user` (string): Current user (sanitized)
+- `serverTime` (string): Server UTC time
+
+**Example:**
+```javascript
+await mcpClient.invoke("sql-test-connection", {});
+```
+
+**Use Cases:**
+- Verify database connectivity before queries
+- Check SQL Server version for compatibility
+- Confirm correct database connection
+- Troubleshoot connection issues
+
+---
+
+#### sql-list-tables
+
+List all user tables in the database with row counts and sizes.
+
+**Parameters:**
+None
+
+**Returns:**
+Array of tables with:
+- `schemaName` (string): Schema name (e.g., "dbo")
+- `tableName` (string): Table name
+- `rowCount` (number): Approximate row count
+- `totalSpaceMB` (number): Total space used in MB
+- `dataSpaceMB` (number): Data space used in MB
+- `indexSpaceMB` (number): Index space used in MB
+
+**Example:**
+```javascript
+await mcpClient.invoke("sql-list-tables", {});
+```
+
+**Use Cases:**
+- Database inventory and exploration
+- Identify large tables for optimization
+- Understand database schema structure
+- Find tables by name pattern
+
+---
+
+#### sql-list-views
+
+List all database views with their definitions.
+
+**Parameters:**
+None
+
+**Returns:**
+Array of views with:
+- `schemaName` (string): Schema name
+- `viewName` (string): View name
+- `definition` (string): View SQL definition
+
+**Example:**
+```javascript
+await mcpClient.invoke("sql-list-views", {});
+```
+
+**Use Cases:**
+- Explore existing views
+- Understand data access patterns
+- Document database logic
+- Find views by name pattern
+
+---
+
+#### sql-list-stored-procedures
+
+List all stored procedures in the database.
+
+**Parameters:**
+None
+
+**Returns:**
+Array of procedures with:
+- `schemaName` (string): Schema name
+- `procedureName` (string): Procedure name
+- `definition` (string): Procedure SQL definition
+- `createDate` (string): Creation date
+- `modifyDate` (string): Last modification date
+
+**Example:**
+```javascript
+await mcpClient.invoke("sql-list-stored-procedures", {});
+```
+
+**Use Cases:**
+- Inventory database procedures
+- Review procedure logic
+- Find procedures by name pattern
+- Document database operations
+
+---
+
+#### sql-list-triggers
+
+List all database triggers with their event types.
+
+**Parameters:**
+None
+
+**Returns:**
+Array of triggers with:
+- `schemaName` (string): Schema name
+- `triggerName` (string): Trigger name
+- `tableName` (string): Associated table name
+- `eventType` (string): Trigger event (INSERT, UPDATE, DELETE)
+- `isEnabled` (boolean): Enabled status
+- `definition` (string): Trigger SQL definition
+
+**Example:**
+```javascript
+await mcpClient.invoke("sql-list-triggers", {});
+```
+
+**Use Cases:**
+- Audit automated operations
+- Understand data modification logic
+- Document database automation
+- Troubleshoot trigger conflicts
+
+---
+
+#### sql-list-functions
+
+List all user-defined functions in the database.
+
+**Parameters:**
+None
+
+**Returns:**
+Array of functions with:
+- `schemaName` (string): Schema name
+- `functionName` (string): Function name
+- `functionType` (string): Function type (Scalar, Table-valued, etc.)
+- `returnType` (string): Return data type
+- `definition` (string): Function SQL definition
+
+**Example:**
+```javascript
+await mcpClient.invoke("sql-list-functions", {});
+```
+
+**Use Cases:**
+- Inventory database functions
+- Review calculation logic
+- Find functions by name pattern
+- Document business rules
+
+---
+
+#### sql-get-table-schema
+
+Get comprehensive schema details for a specific table including columns, indexes, and foreign keys.
+
+**Parameters:**
+- `schemaName` (string, required): Schema name (e.g., "dbo")
+- `tableName` (string, required): Table name
+
+**Returns:**
+- `columns` (array): Column definitions with data types, nullability, defaults, identity
+- `indexes` (array): Index definitions with columns, uniqueness, primary key status
+- `foreignKeys` (array): Foreign key relationships with referenced tables and columns
+
+**Example:**
+```javascript
+await mcpClient.invoke("sql-get-table-schema", {
+  schemaName: "dbo",
+  tableName: "Users"
+});
+```
+
+**Use Cases:**
+- Understand table structure
+- Plan data queries
+- Document table relationships
+- Troubleshoot data issues
+
+---
+
+#### sql-get-object-definition
+
+Get the SQL definition for views, stored procedures, functions, or triggers.
+
+**Parameters:**
+- `schemaName` (string, required): Schema name
+- `objectName` (string, required): Object name
+- `objectType` (string, required): Object type - "VIEW", "PROCEDURE", "FUNCTION", or "TRIGGER"
+
+**Returns:**
+- `schemaName` (string): Schema name
+- `objectName` (string): Object name
+- `objectType` (string): Object type
+- `definition` (string): SQL definition
+
+**Example:**
+```javascript
+await mcpClient.invoke("sql-get-object-definition", {
+  schemaName: "dbo",
+  objectName: "vw_ActiveUsers",
+  objectType: "VIEW"
+});
+```
+
+**Use Cases:**
+- Review database logic
+- Document business rules
+- Troubleshoot procedure issues
+- Understand view definitions
+
+---
+
+### Query Execution Tools
+
+#### sql-execute-query
+
+Execute a SELECT query safely with read-only access.
+
+**Parameters:**
+- `query` (string, required): SQL SELECT query to execute
+
+**Returns:**
+- `columns` (array): Column names
+- `rows` (array): Query result rows
+- `rowCount` (number): Number of rows returned
+- `truncated` (boolean): Whether results were truncated (>1000 rows)
+
+**Security:**
+- Only SELECT queries permitted
+- Validates query for dangerous keywords (INSERT, UPDATE, DELETE, DROP, EXEC, etc.)
+- Removes SQL comments before validation
+- 1000 row limit (configurable via AZURE_SQL_MAX_RESULT_ROWS)
+- 10MB response size limit
+- 30-second query timeout
+- All queries logged for audit
+
+**Example:**
+```javascript
+await mcpClient.invoke("sql-execute-query", {
+  query: "SELECT TOP 10 UserId, UserName, Email, IsActive FROM dbo.Users WHERE IsActive = 1 ORDER BY CreateDate DESC"
+});
+```
+
+**Use Cases:**
+- Investigate data issues
+- Explore table contents
+- Verify data quality
+- Ad-hoc data analysis
+
+**Limitations:**
+- Maximum 1000 rows (configurable)
+- Maximum 10MB response size
+- 30-second query timeout
+- Read-only operations only
+
+---
+
 ## MCP Prompts
 
 Prompts return formatted, human-readable content with context. They use tools internally but add interpretation and formatting.
@@ -2815,3 +3104,105 @@ Generate a comprehensive troubleshooting guide combining exceptions, performance
   - Investigation recommendations with KQL query examples
 
 **Use case:** First-responder guide during production incidents
+
+---
+
+### Azure SQL Database Prompts
+
+#### sql-database-overview
+
+Generate a comprehensive database overview with all schema objects formatted as markdown.
+
+**Parameters:**
+None
+
+**Returns:**
+- Formatted markdown report with:
+  - Database summary (total tables, views, procedures, triggers, functions)
+  - Tables list with row counts and sizes
+  - Views list
+  - Stored procedures list
+  - Triggers list
+  - Functions list
+  - Database statistics
+
+**Example:**
+```javascript
+await mcpClient.getPrompt("sql-database-overview", {});
+```
+
+**Use Cases:**
+- Database inventory and documentation
+- Schema exploration for new team members
+- Architecture review and planning
+- Database health assessment
+
+---
+
+#### sql-table-details
+
+Generate a detailed report for a specific table with all schema information.
+
+**Parameters:**
+- `schemaName` (string, required): Schema name (e.g., "dbo")
+- `tableName` (string, required): Table name
+
+**Returns:**
+- Formatted markdown report with:
+  - Table summary (schema, name, row count)
+  - Column definitions (name, type, nullable, default, identity)
+  - Indexes (name, type, columns, uniqueness, clustered)
+  - Foreign key relationships (name, columns, referenced table)
+  - Sample query templates
+
+**Example:**
+```javascript
+await mcpClient.getPrompt("sql-table-details", {
+  schemaName: "dbo",
+  tableName: "Users"
+});
+```
+
+**Use Cases:**
+- Table structure documentation
+- Query planning and optimization
+- Relationship mapping
+- Data investigation
+
+---
+
+#### sql-query-results
+
+Execute a query and return formatted results as markdown tables.
+
+**Parameters:**
+- `query` (string, required): SQL SELECT query to execute
+
+**Returns:**
+- Formatted markdown table with:
+  - Column headers
+  - Query results (up to 1000 rows)
+  - Row count summary
+  - Truncation indicator if results exceeded limit
+
+**Security:**
+- Only SELECT queries permitted
+- Query validation blocks write operations
+- 1000 row limit (configurable)
+- 10MB response size limit
+- 30-second timeout
+
+**Example:**
+```javascript
+await mcpClient.getPrompt("sql-query-results", {
+  query: "SELECT TOP 20 UserId, UserName, Email, CreateDate FROM dbo.Users WHERE IsActive = 1 ORDER BY CreateDate DESC"
+});
+```
+
+**Use Cases:**
+- Data exploration and analysis
+- Result sharing in documentation
+- Quick data investigation
+- Report generation
+
+---

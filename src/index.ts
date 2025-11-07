@@ -7,7 +7,18 @@ import { PowerPlatformService, PowerPlatformConfig } from "./PowerPlatformServic
 import { AzureDevOpsService, AzureDevOpsConfig } from "./AzureDevOpsService.js";
 import { FigmaService, type FigmaConfig } from "./FigmaService.js";
 import { ApplicationInsightsService, ApplicationInsightsConfig, ApplicationInsightsResourceConfig } from "./ApplicationInsightsService.js";
+import { AzureSqlService, type AzureSqlConfig } from "./AzureSqlService.js";
 import { formatTableAsMarkdown, analyzeExceptions, analyzePerformance, analyzeDependencies } from "./utils/appinsights-formatters.js";
+import {
+  formatSqlResultsAsMarkdown,
+  formatTableList,
+  formatViewList,
+  formatProcedureList,
+  formatTriggerList,
+  formatFunctionList,
+  formatTableSchemaAsMarkdown,
+  formatDatabaseOverview,
+} from "./utils/sql-formatters.js";
 
 // Load environment variables from .env file (silent mode to not interfere with MCP)
 // Temporarily suppress stdout to prevent dotenv from corrupting the JSON protocol
@@ -76,6 +87,28 @@ if (process.env.APPINSIGHTS_RESOURCES) {
     },
   ];
 }
+
+// Azure SQL Database configuration
+const AZURE_SQL_CONFIG: AzureSqlConfig = {
+  server: process.env.AZURE_SQL_SERVER || "",
+  database: process.env.AZURE_SQL_DATABASE || "",
+  port: parseInt(process.env.AZURE_SQL_PORT || "1433"),
+
+  username: process.env.AZURE_SQL_USERNAME || "",
+  password: process.env.AZURE_SQL_PASSWORD || "",
+
+  useAzureAd: process.env.AZURE_SQL_USE_AZURE_AD === "true",
+  clientId: process.env.AZURE_SQL_CLIENT_ID || "",
+  clientSecret: process.env.AZURE_SQL_CLIENT_SECRET || "",
+  tenantId: process.env.AZURE_SQL_TENANT_ID || "",
+
+  queryTimeout: parseInt(process.env.AZURE_SQL_QUERY_TIMEOUT || "30000"),
+  maxResultRows: parseInt(process.env.AZURE_SQL_MAX_RESULT_ROWS || "1000"),
+  connectionTimeout: parseInt(process.env.AZURE_SQL_CONNECTION_TIMEOUT || "15000"),
+
+  poolMin: parseInt(process.env.AZURE_SQL_POOL_MIN || "0"),
+  poolMax: parseInt(process.env.AZURE_SQL_POOL_MAX || "10"),
+};
 
 // Create server instance
 const server = new McpServer({
@@ -190,6 +223,42 @@ function getApplicationInsightsService(): ApplicationInsightsService {
   }
 
   return applicationInsightsService;
+}
+
+let azureSqlService: AzureSqlService | null = null;
+
+// Function to initialize AzureSqlService on demand
+function getAzureSqlService(): AzureSqlService {
+  if (!azureSqlService) {
+    // Check if configuration is complete
+    const missingConfig: string[] = [];
+    if (!AZURE_SQL_CONFIG.server) missingConfig.push("server");
+    if (!AZURE_SQL_CONFIG.database) missingConfig.push("database");
+
+    if (!AZURE_SQL_CONFIG.useAzureAd) {
+      // SQL Authentication requires username and password
+      if (!AZURE_SQL_CONFIG.username) missingConfig.push("username");
+      if (!AZURE_SQL_CONFIG.password) missingConfig.push("password");
+    } else {
+      // Azure AD requires service principal credentials
+      if (!AZURE_SQL_CONFIG.clientId) missingConfig.push("clientId");
+      if (!AZURE_SQL_CONFIG.clientSecret) missingConfig.push("clientSecret");
+      if (!AZURE_SQL_CONFIG.tenantId) missingConfig.push("tenantId");
+    }
+
+    if (missingConfig.length > 0) {
+      throw new Error(
+        `Missing Azure SQL Database configuration: ${missingConfig.join(", ")}. ` +
+        `Set these in environment variables (AZURE_SQL_*).`
+      );
+    }
+
+    // Initialize service
+    azureSqlService = new AzureSqlService(AZURE_SQL_CONFIG);
+    console.error("Azure SQL Database service initialized");
+  }
+
+  return azureSqlService;
 }
 
 // Pre-defined PowerPlatform Prompts
@@ -6453,6 +6522,467 @@ server.tool(
     }
   }
 );
+
+/**
+ * ===========================================
+ * AZURE SQL DATABASE TOOLS (9 TOOLS)
+ * ===========================================
+ */
+
+/**
+ * Tool: sql-test-connection
+ * Test database connectivity
+ */
+server.tool(
+  "sql-test-connection",
+  "Test Azure SQL Database connectivity and return connection information",
+  {},
+  async () => {
+    try {
+      const sqlService = getAzureSqlService();
+      const result = await sqlService.testConnection();
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error testing connection: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: sql-list-tables
+ * List all user tables in the database
+ */
+server.tool(
+  "sql-list-tables",
+  "List all user tables in the Azure SQL Database with row counts and sizes",
+  {},
+  async () => {
+    try {
+      const sqlService = getAzureSqlService();
+      const tables = await sqlService.listTables();
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(tables, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error listing tables: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: sql-list-views
+ * List all views in the database
+ */
+server.tool(
+  "sql-list-views",
+  "List all views in the Azure SQL Database",
+  {},
+  async () => {
+    try {
+      const sqlService = getAzureSqlService();
+      const views = await sqlService.listViews();
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(views, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error listing views: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: sql-list-stored-procedures
+ * List all stored procedures
+ */
+server.tool(
+  "sql-list-stored-procedures",
+  "List all stored procedures in the Azure SQL Database",
+  {},
+  async () => {
+    try {
+      const sqlService = getAzureSqlService();
+      const procedures = await sqlService.listStoredProcedures();
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(procedures, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error listing stored procedures: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: sql-list-triggers
+ * List all database triggers
+ */
+server.tool(
+  "sql-list-triggers",
+  "List all database triggers in the Azure SQL Database",
+  {},
+  async () => {
+    try {
+      const sqlService = getAzureSqlService();
+      const triggers = await sqlService.listTriggers();
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(triggers, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error listing triggers: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: sql-list-functions
+ * List all user-defined functions
+ */
+server.tool(
+  "sql-list-functions",
+  "List all user-defined functions in the Azure SQL Database",
+  {},
+  async () => {
+    try {
+      const sqlService = getAzureSqlService();
+      const functions = await sqlService.listFunctions();
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(functions, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error listing functions: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: sql-get-table-schema
+ * Get detailed schema information for a table
+ */
+server.tool(
+  "sql-get-table-schema",
+  "Get detailed schema information for a table including columns, indexes, and foreign keys",
+  {
+    schemaName: z.string().describe("Schema name (e.g., 'dbo')"),
+    tableName: z.string().describe("Table name (e.g., 'Users')"),
+  },
+  async ({ schemaName, tableName }) => {
+    try {
+      const sqlService = getAzureSqlService();
+      const schema = await sqlService.getTableSchema(schemaName, tableName);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(schema, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error getting table schema: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: sql-get-object-definition
+ * Get SQL definition for a database object
+ */
+server.tool(
+  "sql-get-object-definition",
+  "Get the SQL definition for a view, stored procedure, function, or trigger",
+  {
+    schemaName: z.string().describe("Schema name (e.g., 'dbo')"),
+    objectName: z.string().describe("Object name"),
+    objectType: z.enum(['VIEW', 'PROCEDURE', 'FUNCTION', 'TRIGGER']).describe("Object type"),
+  },
+  async ({ schemaName, objectName, objectType }) => {
+    try {
+      const sqlService = getAzureSqlService();
+      const definition = await sqlService.getObjectDefinition(schemaName, objectName, objectType);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(definition, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error getting object definition: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: sql-execute-query
+ * Execute a SELECT query with safety validation
+ */
+server.tool(
+  "sql-execute-query",
+  "Execute a SELECT query against the Azure SQL Database (read-only, with result limits)",
+  {
+    query: z.string().describe("SELECT query to execute (e.g., 'SELECT TOP 10 * FROM dbo.Users WHERE IsActive = 1')"),
+  },
+  async ({ query }) => {
+    try {
+      const sqlService = getAzureSqlService();
+      const result = await sqlService.executeSelectQuery(query);
+
+      let text = JSON.stringify(result, null, 2);
+
+      if (result.truncated) {
+        text += `\n\n⚠️ WARNING: Results truncated to ${result.rowCount} rows. Add WHERE clause to filter results.`;
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error executing query: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * ===========================================
+ * AZURE SQL DATABASE PROMPTS (3 PROMPTS)
+ * ===========================================
+ */
+
+/**
+ * Prompt: sql-database-overview
+ * Get a comprehensive overview of the database
+ */
+server.prompt(
+  "sql-database-overview",
+  "Get a comprehensive overview of the Azure SQL Database schema",
+  {},
+  async () => {
+    const sqlService = getAzureSqlService();
+
+    const [tables, views, procedures, triggers, functions] = await Promise.all([
+      sqlService.listTables(),
+      sqlService.listViews(),
+      sqlService.listStoredProcedures(),
+      sqlService.listTriggers(),
+      sqlService.listFunctions(),
+    ]);
+
+    const formattedOverview = formatDatabaseOverview(tables, views, procedures, triggers, functions);
+
+    return {
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: formattedOverview,
+          },
+        },
+      ],
+    };
+  }
+);
+
+/**
+ * Prompt: sql-table-details
+ * Get detailed information about a specific table
+ */
+server.prompt(
+  "sql-table-details",
+  "Get detailed report for a specific table with columns, indexes, and relationships",
+  {
+    schemaName: z.string().describe("Schema name (e.g., 'dbo')"),
+    tableName: z.string().describe("Table name"),
+  },
+  async ({ schemaName, tableName }) => {
+    const sqlService = getAzureSqlService();
+    const schema = await sqlService.getTableSchema(schemaName, tableName);
+
+    let template = formatTableSchemaAsMarkdown(schema);
+    template += `\n\n### Sample Query\n\n\`\`\`sql\nSELECT TOP 100 * FROM ${schemaName}.${tableName}\n\`\`\``;
+
+    return {
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: template,
+          },
+        },
+      ],
+    };
+  }
+);
+
+/**
+ * Prompt: sql-query-results
+ * Execute a query and return formatted results
+ */
+server.prompt(
+  "sql-query-results",
+  "Execute a query and return formatted results with column headers",
+  {
+    query: z.string().describe("SELECT query to execute"),
+  },
+  async ({ query }) => {
+    const sqlService = getAzureSqlService();
+    const result = await sqlService.executeSelectQuery(query);
+
+    let template = `## Query Results\n\n`;
+    template += `**Query:**\n\`\`\`sql\n${query}\n\`\`\`\n\n`;
+    template += `**Results:**\n${formatSqlResultsAsMarkdown(result)}\n\n`;
+    template += `**Row Count:** ${result.rowCount}`;
+
+    if (result.truncated) {
+      template += ` (truncated)`;
+    }
+
+    return {
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: template,
+          },
+        },
+      ],
+    };
+  }
+);
+
+/**
+ * ===========================================
+ * CLEANUP HANDLERS
+ * ===========================================
+ */
+
+// Graceful shutdown handlers
+process.on('SIGINT', async () => {
+  console.error('Shutting down gracefully (SIGINT)...');
+  if (azureSqlService) {
+    await azureSqlService.close();
+  }
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.error('Shutting down gracefully (SIGTERM)...');
+  if (azureSqlService) {
+    await azureSqlService.close();
+  }
+  process.exit(0);
+});
 
 async function main() {
   const transport = new StdioServerTransport();

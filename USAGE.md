@@ -8,6 +8,7 @@ This guide provides practical examples and use cases for the MCP Consultant Tool
 - [Azure DevOps Examples](#azure-devops-examples)
 - [Application Insights Examples](#application-insights-examples)
 - [Figma Examples](#figma-examples)
+- [Azure SQL Database Examples](#azure-sql-database-examples)
 - [Integration Use Cases](#integration-use-cases)
 
 ## PowerPlatform Examples
@@ -1604,6 +1605,356 @@ await mcpClient.invoke("get-figma-data", {
   nodeId: "1:10;2:20"  // Multiple nodes separated by semicolon
 });
 ```
+
+## Azure SQL Database Examples
+
+The Azure SQL Database integration provides read-only access for database investigation, schema exploration, and ad-hoc querying with comprehensive security controls.
+
+### 1. Database Schema Discovery
+
+**Natural Language Request:**
+
+```
+User: "Show me an overview of the database"
+
+Response:
+[uses sql-database-overview prompt internally]
+
+Database Overview:
+- 45 tables (containing 2.5M total rows, 1.2 GB)
+- 12 views
+- 28 stored procedures
+- 15 triggers
+- 8 user-defined functions
+
+Top 5 largest tables:
+1. OrderHistory - 1.2M rows, 450 MB
+2. Users - 250K rows, 180 MB
+3. Products - 150K rows, 95 MB
+4. Transactions - 500K rows, 320 MB
+5. AuditLog - 800K rows, 250 MB
+
+All tables are in the 'dbo' schema.
+```
+
+### 2. Table Structure Investigation
+
+**Natural Language Request:**
+
+```
+User: "What's the structure of the Users table?"
+
+Response:
+[uses sql-table-details prompt internally]
+
+Users Table Structure (dbo.Users):
+- 250,000 rows
+- 15 columns
+
+Key Columns:
+- UserId (int, PK, Identity) - Primary key
+- UserName (nvarchar(100), NOT NULL) - User login name
+- Email (nvarchar(255), NOT NULL) - Email address
+- IsActive (bit, NOT NULL, default: 1) - Active status
+- CreateDate (datetime, NOT NULL, default: getdate()) - Account creation
+- LastLoginDate (datetime, NULL) - Last successful login
+
+Indexes:
+- PK_Users (Clustered, Primary Key on UserId)
+- IX_Users_Email (Non-clustered, Unique on Email)
+- IX_Users_UserName (Non-clustered, Unique on UserName)
+- IX_Users_IsActive_CreateDate (Non-clustered on IsActive, CreateDate)
+
+Foreign Key Relationships:
+- UserRoles.UserId → Users.UserId (One-to-Many)
+- Orders.UserId → Users.UserId (One-to-Many)
+- AuditLog.UserId → Users.UserId (One-to-Many)
+```
+
+### 3. Data Investigation
+
+**Natural Language Request:**
+
+```
+User: "Show me the 10 most recent active users"
+
+Response:
+[uses sql-execute-query tool internally]
+
+Query executed:
+SELECT TOP 10 UserId, UserName, Email, CreateDate, LastLoginDate
+FROM dbo.Users
+WHERE IsActive = 1
+ORDER BY CreateDate DESC
+
+Results (10 rows):
+| UserId | UserName    | Email                  | CreateDate          | LastLoginDate       |
+|--------|-------------|------------------------|---------------------|---------------------|
+| 15234  | jdoe2025    | jdoe@example.com       | 2025-01-15 09:23:45 | 2025-01-16 14:32:10 |
+| 15233  | asmith99    | asmith@example.com     | 2025-01-14 16:45:12 | 2025-01-15 08:15:33 |
+| 15232  | mwilliams   | mwilliams@example.com  | 2025-01-14 11:22:03 | NULL                |
+...
+```
+
+### 4. Exploring Database Objects
+
+**Listing All Views:**
+
+```
+User: "What views are available in the database?"
+
+Response:
+[uses sql-list-views tool internally]
+
+Found 12 views:
+
+1. dbo.vw_ActiveUsers
+   - Shows active users with their last login dates
+
+2. dbo.vw_OrderSummary
+   - Aggregates order information by user
+
+3. dbo.vw_ProductInventory
+   - Current product inventory levels with warehouse locations
+
+4. dbo.vw_UserPermissions
+   - Consolidated view of user roles and permissions
+
+[... 8 more views ...]
+```
+
+**Viewing Stored Procedures:**
+
+```
+User: "List all stored procedures"
+
+Response:
+[uses sql-list-stored-procedures tool internally]
+
+Found 28 stored procedures:
+
+Recent Procedures:
+1. dbo.usp_GetUserOrders (Modified: 2025-01-10)
+2. dbo.usp_UpdateInventory (Modified: 2025-01-08)
+3. dbo.usp_ProcessPayment (Modified: 2025-01-05)
+4. dbo.usp_GenerateMonthlyReport (Modified: 2024-12-28)
+...
+```
+
+### 5. Testing Database Connectivity
+
+**Connection Verification:**
+
+```
+User: "Can you verify the database connection?"
+
+Response:
+[uses sql-test-connection tool internally]
+
+Database Connection Test:
+✅ Connected successfully
+
+Server Information:
+- SQL Server Version: Microsoft SQL Server 2022 (RTM) - 16.0.1000.6
+- Database: ProductionDB
+- User: mcp_readonly (read-only access)
+- Server Time: 2025-01-16 10:35:22 UTC
+
+Connection is healthy and ready for queries.
+```
+
+### 6. Investigating Triggers
+
+**Finding Automated Operations:**
+
+```
+User: "What triggers are set up on the Users table?"
+
+Response:
+[uses sql-list-triggers tool internally]
+
+Found 2 triggers on dbo.Users:
+
+1. trg_Users_AuditInsert (ENABLED)
+   - Event: AFTER INSERT
+   - Purpose: Logs new user creation to AuditLog table
+
+2. trg_Users_AuditUpdate (ENABLED)
+   - Event: AFTER UPDATE
+   - Purpose: Logs user profile changes to AuditLog table
+
+Both triggers are active and will execute on their respective events.
+```
+
+### 7. Understanding Functions
+
+**Reviewing Business Logic:**
+
+```
+User: "What user-defined functions exist?"
+
+Response:
+[uses sql-list-functions tool internally]
+
+Found 8 user-defined functions:
+
+Scalar Functions:
+1. dbo.fn_CalculateDiscount (Returns: decimal)
+   - Calculates user discount based on loyalty points
+
+2. dbo.fn_GetUserFullName (Returns: nvarchar(255))
+   - Concatenates first and last name
+
+3. dbo.fn_IsEligibleForPromotion (Returns: bit)
+   - Checks if user qualifies for promotions
+
+Table-Valued Functions:
+4. dbo.fn_GetUserOrderHistory (Returns: TABLE)
+   - Returns order history for a specific user
+
+5. dbo.fn_SearchProducts (Returns: TABLE)
+   - Performs product search with filters
+...
+```
+
+### 8. Viewing Object Definitions
+
+**Getting View Definition:**
+
+```
+User: "Show me the definition of vw_ActiveUsers"
+
+Response:
+[uses sql-get-object-definition tool internally]
+
+View Definition (dbo.vw_ActiveUsers):
+
+CREATE VIEW dbo.vw_ActiveUsers AS
+SELECT
+    u.UserId,
+    u.UserName,
+    u.Email,
+    u.CreateDate,
+    u.LastLoginDate,
+    DATEDIFF(DAY, u.LastLoginDate, GETDATE()) AS DaysSinceLastLogin
+FROM dbo.Users u
+WHERE u.IsActive = 1
+    AND u.DeletedDate IS NULL
+```
+
+### 9. Complex Query Investigation
+
+**Multi-Table Analysis:**
+
+```
+User: "Show me users who have placed orders in the last 30 days"
+
+Response:
+[uses sql-execute-query tool with JOIN query internally]
+
+Query executed:
+SELECT DISTINCT
+    u.UserId,
+    u.UserName,
+    u.Email,
+    COUNT(o.OrderId) AS OrderCount,
+    MAX(o.OrderDate) AS LastOrderDate
+FROM dbo.Users u
+INNER JOIN dbo.Orders o ON u.UserId = o.UserId
+WHERE o.OrderDate >= DATEADD(DAY, -30, GETDATE())
+GROUP BY u.UserId, u.UserName, u.Email
+ORDER BY OrderCount DESC
+
+Results (25 rows):
+| UserId | UserName   | Email               | OrderCount | LastOrderDate       |
+|--------|------------|---------------------|------------|---------------------|
+| 1423   | jsmith     | jsmith@example.com  | 8          | 2025-01-15 14:23:10 |
+| 2891   | mjohnson   | mjohnson@example.com| 6          | 2025-01-14 09:45:33 |
+...
+```
+
+### 10. Safety and Security Features
+
+**Read-Only Protection:**
+
+```
+User: "Can you delete inactive users for me?"
+
+Response:
+❌ Cannot execute query: Write operation detected.
+
+The Azure SQL Database integration is read-only by design.
+Only SELECT queries are permitted for security.
+
+Blocked operations: INSERT, UPDATE, DELETE, DROP, EXEC, TRUNCATE, ALTER, etc.
+
+If you need to modify data:
+1. Connect to the database using a standard SQL client
+2. Use an admin account with write permissions
+3. Execute the modification in a controlled environment
+```
+
+**Query Validation:**
+
+```
+User: "Run this query: SELECT * FROM Users; DROP TABLE AuditLog; --"
+
+Response:
+❌ Cannot execute query: Dangerous SQL keyword detected: DROP
+
+For security, the following are blocked:
+- Schema modifications (DROP, CREATE, ALTER, TRUNCATE)
+- Data modifications (INSERT, UPDATE, DELETE, MERGE)
+- Procedure execution (EXEC, EXECUTE)
+- System procedures (sp_*, xp_*)
+
+Please use SELECT queries only for data investigation.
+```
+
+### 11. Result Limiting
+
+**Large Result Handling:**
+
+```
+User: "Show me all users"
+
+Response:
+[uses sql-execute-query with SELECT * FROM Users internally]
+
+Query executed successfully.
+
+⚠️ Results truncated - Query returned more than 1000 rows.
+Showing first 1000 rows (out of 250,000 total).
+
+To see specific data:
+1. Add WHERE clause to filter results
+2. Use TOP N to limit results
+3. Add ORDER BY to control which rows are returned
+
+Example: SELECT TOP 100 * FROM Users WHERE IsActive = 1 ORDER BY CreateDate DESC
+```
+
+### 12. Database Documentation Workflow
+
+**Complete Investigation Process:**
+
+```
+User: "I need to document the Users and Orders relationship for new developers"
+
+AI Agent Workflow:
+1. Get database overview → Identify Users and Orders tables
+2. Get Users table schema → Document columns, indexes, keys
+3. Get Orders table schema → Document columns, indexes, keys
+4. Identify foreign key: Orders.UserId → Users.UserId
+5. Query sample data → Show example records
+6. Check for views → Find vw_UserOrders view
+7. Get view definition → Document the join logic
+8. Generate comprehensive markdown documentation
+
+Final Output: Complete relationship diagram with column details, sample queries, and usage examples.
+```
+
+---
 
 ## Integration Use Cases
 

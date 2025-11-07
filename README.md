@@ -1,6 +1,6 @@
 # MCP Consultant Tools
 
-A Model Context Protocol (MCP) server providing intelligent access to PowerPlatform/Dataverse, Azure DevOps, Figma, and Azure Application Insights through an AI-friendly interface.
+A Model Context Protocol (MCP) server providing intelligent access to PowerPlatform/Dataverse, Azure DevOps, Figma, Azure Application Insights, and Azure SQL Database through an AI-friendly interface.
 
 ## Overview
 
@@ -16,10 +16,11 @@ This MCP server enables AI assistants to:
 - **Azure DevOps** (12 tools): Search wikis, manage work items, execute WIQL queries
 - **Figma** (2 tools): Extract design data in simplified, AI-friendly format
 - **Application Insights** (10 tools): Query telemetry, analyze exceptions, monitor performance, troubleshoot issues
+- **Azure SQL Database** (9 tools): Explore database schema, query tables safely with read-only access, investigate database structure
 
 All integrations are **optional** - configure only the services you need.
 
-**Total: 96+ MCP tools** providing comprehensive access to your development and operations lifecycle.
+**Total: 105+ MCP tools & 21 prompts** providing comprehensive access to your development and operations lifecycle.
 
 ## Known limitations
 - Cannot create Model-Driven-Apps
@@ -78,7 +79,13 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
         "APPINSIGHTS_TENANT_ID": "your-tenant-id",
         "APPINSIGHTS_CLIENT_ID": "your-client-id",
         "APPINSIGHTS_CLIENT_SECRET": "your-client-secret",
-        "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod-api\",\"name\":\"Production API\",\"appId\":\"your-app-id\",\"active\":true}]"
+        "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod-api\",\"name\":\"Production API\",\"appId\":\"your-app-id\",\"active\":true}]",
+
+        "AZURE_SQL_SERVER": "yourserver.database.windows.net",
+        "AZURE_SQL_DATABASE": "yourdatabase",
+        "AZURE_SQL_USERNAME": "your-username",
+        "AZURE_SQL_PASSWORD": "your-password",
+        "AZURE_SQL_USE_AZURE_AD": "false"
       }
     }
   }
@@ -121,7 +128,13 @@ Create `.vscode/mcp.json` in your project:
         "APPINSIGHTS_TENANT_ID": "your-tenant-id",
         "APPINSIGHTS_CLIENT_ID": "your-client-id",
         "APPINSIGHTS_CLIENT_SECRET": "your-client-secret",
-        "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod-api\",\"name\":\"Production API\",\"appId\":\"your-app-id\",\"active\":true}]"
+        "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod-api\",\"name\":\"Production API\",\"appId\":\"your-app-id\",\"active\":true}]",
+
+        "AZURE_SQL_SERVER": "yourserver.database.windows.net",
+        "AZURE_SQL_DATABASE": "yourdatabase",
+        "AZURE_SQL_USERNAME": "your-username",
+        "AZURE_SQL_PASSWORD": "your-password",
+        "AZURE_SQL_USE_AZURE_AD": "false"
       }
     }
   }
@@ -293,10 +306,15 @@ The server includes **18 prompts** that provide formatted, context-rich output:
 - `appinsights-availability-report` - Availability and uptime report
 - `appinsights-troubleshooting-guide` - Comprehensive troubleshooting guide combining all telemetry
 
+**Azure SQL Database:**
+- `sql-database-overview` - Comprehensive database schema overview with all objects
+- `sql-table-details` - Detailed table report with columns, indexes, and relationships
+- `sql-query-results` - Formatted query results with column headers
+
 ## Documentation
 
 - **[SETUP.md](SETUP.md)** - Complete setup guide with credentials, troubleshooting, and security
-- **[TOOLS.md](TOOLS.md)** - Full reference for all 96+ tools and 18 prompts
+- **[TOOLS.md](TOOLS.md)** - Full reference for all 105+ tools and 21 prompts
 - **[USAGE.md](USAGE.md)** - Examples and use cases for all integrations
 - **[CLAUDE.md](CLAUDE.md)** - Architecture details and development guide
 
@@ -376,6 +394,28 @@ All integrations are optional and can be configured independently:
 - Requires Personal Access Token or OAuth
 - Read-only access to design files
 
+**Azure SQL Database:**
+- Supports SQL Authentication or Azure AD authentication
+- **Read-only access by design** - only SELECT queries permitted
+- Safety mechanisms:
+  - Query validation blocks INSERT, UPDATE, DELETE, DROP, EXEC, and other write operations
+  - 10MB response size limit to prevent memory exhaustion
+  - 1000 row result limit (configurable)
+  - 30-second query timeout protection
+  - Connection pooling with health checks (max 10 connections)
+  - Credential sanitization in error messages
+  - Audit logging for all user queries
+- Recommended database permissions:
+  ```sql
+  ALTER ROLE db_datareader ADD MEMBER [mcp_readonly];
+  GRANT VIEW DEFINITION TO [mcp_readonly];
+  ```
+
+**Application Insights:**
+- Supports Entra ID (OAuth) or API Key authentication
+- Read-only access to telemetry data
+- Entra ID recommended for production (higher rate limits)
+
 See [SETUP.md](SETUP.md#security-best-practices) for security best practices.
 
 ## Examples
@@ -410,6 +450,20 @@ Returns validation report with warnings
 User: "Search our wiki for OAuth documentation"
 AI: [uses wiki-search-results prompt]
 Returns formatted search results with snippets
+```
+
+### Investigate SQL Database schema
+
+```
+User: "Show me the database schema overview"
+AI: [uses sql-database-overview prompt]
+Returns formatted overview with tables, views, procedures, and statistics
+```
+
+```
+User: "Query the Users table for active accounts"
+AI: [uses sql-execute-query tool with "SELECT TOP 10 * FROM dbo.Users WHERE IsActive = 1"]
+Returns formatted query results with column headers
 ```
 
 See [USAGE.md](USAGE.md) for more examples.

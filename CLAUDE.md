@@ -27,20 +27,130 @@ npx mcp-consultant-tools
 
 ## Documentation Guidelines
 
-**IMPORTANT**: When adding new features or integrations, you MUST update ALL documentation files:
+## ⚠️ CRITICAL: DOCUMENTATION IS MANDATORY FOR ALL NEW FEATURES ⚠️
 
-1. **[README.md](README.md)** - High-level overview, quick start, and configuration examples
-2. **[SETUP.md](SETUP.md)** - Detailed setup instructions, credentials, Azure configuration, troubleshooting
-3. **[TOOLS.md](TOOLS.md)** - Complete reference for all tools and prompts with parameters
-4. **[USAGE.md](USAGE.md)** - Examples and use cases showing how to use the tools
-5. **[CLAUDE.md](CLAUDE.md)** (this file) - Architecture details and development guide
+**When adding ANY new feature, integration, or tool, you MUST update ALL FIVE documentation files BEFORE considering the implementation complete. This is NOT optional.**
 
-**Checklist for new integrations:**
-- [ ] Update README.md: Overview, tool counts, configuration examples
-- [ ] Update SETUP.md: Add credentials section with Azure portal screenshots/instructions
-- [ ] Update TOOLS.md: Document all new tools and prompts with parameters and descriptions
-- [ ] Update USAGE.md: Add practical examples showing real-world usage
-- [ ] Update CLAUDE.md: Add architecture section with service design, patterns, security
+**Implementation is NOT complete until ALL documentation is updated.**
+
+### Required Documentation Files (ALL MUST BE UPDATED)
+
+1. **[README.md](README.md)** - MUST UPDATE
+   - High-level overview section
+   - Tool counts (update totals)
+   - Complete configuration example at the top showing ALL integrations
+   - Quick start guide
+   - Feature list
+
+2. **[SETUP.md](SETUP.md)** - MUST UPDATE
+   - Detailed setup instructions for the new feature
+   - Step-by-step credential creation (with screenshots if Azure)
+   - Environment variable documentation
+   - Permissions required
+   - Troubleshooting section
+   - Complete working configuration example
+
+3. **[TOOLS.md](TOOLS.md)** - MUST UPDATE
+   - Document EVERY new tool with:
+     - Tool name
+     - Description
+     - All parameters with types and examples
+     - Return value structure
+     - Example usage
+   - Document EVERY new prompt with:
+     - Prompt name
+     - Description
+     - Parameters
+     - Output format
+   - Update table of contents
+   - Update tool count totals
+
+4. **[USAGE.md](USAGE.md)** - MUST UPDATE
+   - Add practical, real-world usage examples
+   - Show complete workflows (not just isolated tool calls)
+   - Include common use cases
+   - Add troubleshooting examples
+   - Show integration with other features
+
+5. **[CLAUDE.md](CLAUDE.md)** (this file) - MUST UPDATE
+   - Architecture section for the new service
+   - Design patterns used
+   - Security considerations
+   - Authentication methods
+   - API integration details
+   - Dependencies added
+
+### Documentation Update Checklist (MANDATORY)
+
+Copy this checklist and verify ALL items before marking implementation complete:
+
+```
+NEW FEATURE: [Feature Name]
+
+README.md Updates:
+- [ ] Updated project overview to include new feature
+- [ ] Updated tool count (XX tools → YY tools)
+- [ ] Updated prompt count if applicable
+- [ ] Added complete configuration example showing new feature
+- [ ] Updated features list
+- [ ] Added new integration to supported services list
+
+SETUP.md Updates:
+- [ ] Added new section for feature setup
+- [ ] Documented credential creation process
+- [ ] Listed all environment variables with defaults
+- [ ] Documented permissions required
+- [ ] Added troubleshooting section for common issues
+- [ ] Included complete working configuration example
+
+TOOLS.md Updates:
+- [ ] Documented ALL new tools (X tools)
+- [ ] Documented ALL new prompts (Y prompts)
+- [ ] Updated table of contents
+- [ ] Included parameter descriptions for all tools
+- [ ] Included example usage for each tool
+- [ ] Updated tool count summary at top
+- [ ] Updated prompt count summary at top
+
+USAGE.md Updates:
+- [ ] Added practical usage examples section
+- [ ] Included at least 3 real-world scenarios
+- [ ] Showed integration with existing features
+- [ ] Added troubleshooting examples
+- [ ] Included complete workflow examples
+
+CLAUDE.md Updates:
+- [ ] Added architecture section
+- [ ] Documented service design patterns
+- [ ] Documented security considerations
+- [ ] Updated dependencies section
+- [ ] Updated tool/prompt counts in overview
+```
+
+### Why This Matters
+
+**Users rely on documentation to:**
+1. Understand what the tool can do
+2. Configure it correctly
+3. Use it effectively
+4. Troubleshoot issues
+
+**Incomplete documentation = Unusable feature, regardless of code quality.**
+
+### Example: Adding a New Integration
+
+When adding a new integration (like Azure SQL Database):
+
+1. ✅ Write the code (service, tools, prompts)
+2. ✅ Update package.json (dependencies, description)
+3. ✅ Update .env.example (configuration variables)
+4. ✅ **Update README.md** (overview, config example, tool counts)
+5. ✅ **Update SETUP.md** (setup instructions, credentials, troubleshooting)
+6. ✅ **Update TOOLS.md** (document all tools and prompts)
+7. ✅ **Update USAGE.md** (practical examples, workflows)
+8. ✅ **Update CLAUDE.md** (architecture, patterns, security)
+
+**Only after steps 1-8 are complete can you mark the implementation done.**
 
 ## Architecture
 
@@ -911,6 +1021,405 @@ The service converts ISO 8601 durations (PT1H, P1D) to KQL format (1h, 1d) autom
 - Set reasonable time ranges
 - Cache metadata queries
 - Use `take` to limit row counts
+
+## Azure SQL Database Integration
+
+### Overview
+
+The Azure SQL Database integration provides read-only access to SQL databases for schema exploration, data investigation, and ad-hoc querying. The integration is designed with comprehensive security controls and is read-only by design to prevent accidental data modifications.
+
+### Architecture
+
+The Azure SQL Database integration provides read-only access to Azure SQL Database and SQL Server through the `mssql` library with comprehensive security controls.
+
+**Service Class:** `AzureSqlService` ([src/AzureSqlService.ts](src/AzureSqlService.ts))
+- Manages database connections with connection pooling
+- Implements query validation and security controls
+- Provides schema exploration methods
+- Executes safe SELECT queries with result limiting
+
+**Authentication Methods:**
+1. **SQL Authentication (Username/Password)** - Simpler for getting started
+   - Standard SQL Server authentication
+   - Username and password configured via environment variables
+   - Suitable for development and testing
+
+2. **Azure AD Authentication (Service Principal)** - Recommended for production
+   - Token-based authentication using Azure AD
+   - No stored passwords (uses client credentials flow)
+   - Better security with token refresh
+   - Uses `mssql` library's built-in Azure AD support
+
+**Configuration:**
+Supports flexible configuration through environment variables:
+- Connection settings (server, database, port)
+- Authentication credentials (SQL or Azure AD)
+- Query safety limits (timeout, max rows, max response size)
+- Connection pool settings (min/max connections)
+
+Each connection is validated on first use and maintains a health-checked connection pool.
+
+### Service Implementation ([src/AzureSqlService.ts](src/AzureSqlService.ts))
+
+**Core Architecture:**
+
+```typescript
+class AzureSqlService {
+  // Private connection pool (lazy-initialized)
+  private pool: ConnectionPool | null = null;
+
+  // Configuration
+  private config: AzureSqlConfig;
+
+  // Connection pool with health checks
+  private async getPool(): Promise<ConnectionPool>
+
+  // Security and execution
+  private sanitizeErrorMessage(error: Error): string
+  private async executeQuery<T>(query: string): Promise<IResult<T>>
+
+  // Public API methods
+  async testConnection(): Promise<ConnectionTestResult>
+  async listTables(): Promise<TableInfo[]>
+  async listViews(): Promise<ViewInfo[]>
+  async listStoredProcedures(): Promise<StoredProcedureInfo[]>
+  async listTriggers(): Promise<TriggerInfo[]>
+  async listFunctions(): Promise<FunctionInfo[]>
+  async getTableSchema(schema, table): Promise<TableSchema>
+  async getObjectDefinition(schema, name, type): Promise<ObjectDefinition>
+  async executeSelectQuery(query: string): Promise<SqlApiCollectionResponse>
+  async close(): Promise<void>
+}
+```
+
+**Connection Pooling:**
+- Uses `mssql` library's built-in connection pooling
+- Default pool: 0 min connections, 10 max connections (configurable)
+- Automatic connection health checks and reconnection
+- Graceful pool disposal on service shutdown
+
+**Enhanced Query Validation ([src/AzureSqlService.ts](src/AzureSqlService.ts:338)):**
+
+The service implements multi-layer security for query execution:
+
+```typescript
+async executeSelectQuery(query: string): Promise<SqlApiCollectionResponse<any>> {
+  const timer = auditLogger.startTimer();
+
+  // Layer 1: Remove SQL comments (prevents comment-hiding attacks)
+  let cleanQuery = query
+    .replace(/--.*$/gm, '')           // Remove single-line comments
+    .replace(/\/\*[\s\S]*?\*\//g, '') // Remove multi-line comments
+    .replace(/\s+/g, ' ')              // Normalize whitespace
+    .trim()
+    .toLowerCase();
+
+  // Layer 2: Validate SELECT-only
+  if (!cleanQuery.startsWith('select')) {
+    throw new Error('Only SELECT queries are permitted');
+  }
+
+  // Layer 3: Dangerous keyword detection with word boundaries
+  const dangerousPatterns = [
+    { pattern: /\b(insert|update|delete|merge)\b/i, name: 'write operations' },
+    { pattern: /\b(drop|create|alter|truncate)\b/i, name: 'schema modifications' },
+    { pattern: /\b(exec|execute|sp_|xp_)\b/i, name: 'procedure execution' },
+    { pattern: /\binto\b/i, name: 'data insertion' },
+    // ... more patterns
+  ];
+
+  for (const { pattern, name } of dangerousPatterns) {
+    if (pattern.test(cleanQuery)) {
+      auditLogger.log({
+        operation: 'execute-select-query',
+        operationType: 'READ',
+        componentType: 'Query',
+        success: false,
+        error: `Blocked ${name}`,
+        parameters: { query: query.substring(0, 500) },
+        executionTimeMs: timer()
+      });
+      throw new Error(`Invalid query: ${name} detected`);
+    }
+  }
+
+  // Execute with safety limits
+  const result = await this.executeQuery(query);
+
+  // Audit logging
+  auditLogger.log({
+    operation: 'execute-select-query',
+    operationType: 'READ',
+    componentType: 'Query',
+    success: true,
+    parameters: {
+      query: query.substring(0, 500),
+      rowCount: result.rowCount
+    },
+    executionTimeMs: timer()
+  });
+
+  return result;
+}
+```
+
+**Result Size Protection ([src/AzureSqlService.ts](src/AzureSqlService.ts:266)):**
+
+```typescript
+private async executeQuery<T>(query: string): Promise<IResult<T>> {
+  const pool = await this.getPool();
+  const request = pool.request();
+
+  // Set query timeout (default: 30 seconds)
+  request.timeout = this.config.queryTimeout || 30000;
+
+  const result = await request.query<T>(query);
+
+  // Enforce row limit (default: 1000 rows)
+  const maxRows = this.config.maxResultRows || 1000;
+  if (result.recordset && result.recordset.length > maxRows) {
+    result.recordset = result.recordset.slice(0, maxRows);
+    result.rowsAffected = [maxRows];
+  }
+
+  // Enforce response size limit (10MB)
+  const responseSize = JSON.stringify(result).length;
+  const maxSize = 10 * 1024 * 1024; // 10MB
+  if (responseSize > maxSize) {
+    throw new Error(`Query result too large (${responseSize} bytes, max ${maxSize})`);
+  }
+
+  return result;
+}
+```
+
+**Credential Sanitization ([src/AzureSqlService.ts](src/AzureSqlService.ts:232)):**
+
+All error messages are sanitized to remove credentials:
+
+```typescript
+private sanitizeErrorMessage(error: Error): string {
+  let message = error.message;
+
+  // Remove connection strings
+  message = message.replace(/Server=[^;]+/gi, 'Server=***');
+  message = message.replace(/Password=[^;]+/gi, 'Password=***');
+  message = message.replace(/User ID=[^;]+/gi, 'User ID=***');
+
+  // Remove IP addresses
+  message = message.replace(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, '***.***.***.***');
+
+  return message;
+}
+```
+
+### Available Tools (9 total)
+
+**Schema Exploration Tools:**
+1. **`sql-test-connection`** - Test database connectivity and server information
+2. **`sql-list-tables`** - List all tables with row counts and sizes
+3. **`sql-list-views`** - List all views with definitions
+4. **`sql-list-stored-procedures`** - List all stored procedures
+5. **`sql-list-triggers`** - List all triggers with event types
+6. **`sql-list-functions`** - List all user-defined functions
+7. **`sql-get-table-schema`** - Get complete table schema (columns, indexes, foreign keys)
+8. **`sql-get-object-definition`** - Get SQL definition for views, procedures, functions, triggers
+
+**Query Execution Tools:**
+9. **`sql-execute-query`** - Execute SELECT queries safely with validation
+
+### Available Prompts (3 total)
+
+1. **`sql-database-overview`** - Comprehensive database overview with all objects
+2. **`sql-table-details`** - Detailed table report with schema information
+3. **`sql-query-results`** - Formatted query results as markdown tables
+
+### Service Integration ([src/index.ts](src/index.ts))
+
+**Configuration Parsing:**
+```typescript
+const AZURE_SQL_CONFIG: AzureSqlConfig = {
+  server: process.env.AZURE_SQL_SERVER || "",
+  database: process.env.AZURE_SQL_DATABASE || "",
+  port: parseInt(process.env.AZURE_SQL_PORT || "1433"),
+  username: process.env.AZURE_SQL_USERNAME || "",
+  password: process.env.AZURE_SQL_PASSWORD || "",
+  useAzureAd: process.env.AZURE_SQL_USE_AZURE_AD === "true",
+  azureAdClientId: process.env.AZURE_SQL_CLIENT_ID,
+  azureAdClientSecret: process.env.AZURE_SQL_CLIENT_SECRET,
+  azureAdTenantId: process.env.AZURE_SQL_TENANT_ID,
+  queryTimeout: parseInt(process.env.AZURE_SQL_QUERY_TIMEOUT || "30000"),
+  maxResultRows: parseInt(process.env.AZURE_SQL_MAX_RESULT_ROWS || "1000"),
+  connectionTimeout: parseInt(process.env.AZURE_SQL_CONNECTION_TIMEOUT || "15000"),
+  poolMin: parseInt(process.env.AZURE_SQL_POOL_MIN || "0"),
+  poolMax: parseInt(process.env.AZURE_SQL_POOL_MAX || "10")
+};
+```
+
+**Lazy Initialization Pattern:**
+```typescript
+let azureSqlService: AzureSqlService | null = null;
+
+function getAzureSqlService(): AzureSqlService {
+  if (!azureSqlService) {
+    // Validate required configuration
+    const missingConfig: string[] = [];
+    if (!AZURE_SQL_CONFIG.server) missingConfig.push("AZURE_SQL_SERVER");
+    if (!AZURE_SQL_CONFIG.database) missingConfig.push("AZURE_SQL_DATABASE");
+    // ... more validation
+
+    if (missingConfig.length > 0) {
+      throw new Error(`Missing required Azure SQL configuration: ${missingConfig.join(", ")}`);
+    }
+
+    azureSqlService = new AzureSqlService(AZURE_SQL_CONFIG);
+    console.error("Azure SQL Database service initialized");
+  }
+  return azureSqlService;
+}
+```
+
+**Cleanup Handlers ([src/index.ts](src/index.ts:6970)):**
+```typescript
+process.on('SIGINT', async () => {
+  console.error('Shutting down gracefully (SIGINT)...');
+  if (azureSqlService) {
+    await azureSqlService.close();
+  }
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.error('Shutting down gracefully (SIGTERM)...');
+  if (azureSqlService) {
+    await azureSqlService.close();
+  }
+  process.exit(0);
+});
+```
+
+### Formatting Utilities ([src/utils/sql-formatters.ts](src/utils/sql-formatters.ts))
+
+The SQL formatters transform raw query results into human-readable markdown:
+
+**Key Formatters:**
+- `formatSqlResultsAsMarkdown()` - Convert query results to markdown tables
+- `formatTableList()` - Format table listings with row counts and sizes
+- `formatViewList()` - Format view listings
+- `formatProcedureList()` - Format stored procedure listings
+- `formatTriggerList()` - Format trigger listings with status
+- `formatFunctionList()` - Format function listings
+- `formatTableSchemaAsMarkdown()` - Comprehensive table schema with columns, indexes, FKs
+- `formatDatabaseOverview()` - Complete database overview with all objects
+
+**Example Output:**
+```markdown
+## Database Tables (45 total)
+
+| Schema | Table Name    | Rows    | Total Size | Data Size | Index Size |
+|--------|---------------|---------|------------|-----------|------------|
+| dbo    | OrderHistory  | 1.2M    | 450 MB     | 380 MB    | 70 MB      |
+| dbo    | Users         | 250K    | 180 MB     | 150 MB    | 30 MB      |
+| dbo    | Products      | 150K    | 95 MB      | 78 MB     | 17 MB      |
+```
+
+### Use Cases
+
+**Database Investigation:**
+- Explore unknown database schema
+- Document database structure for new team members
+- Investigate data issues without write access
+- Review database objects (tables, views, procedures, triggers, functions)
+
+**Data Analysis:**
+- Ad-hoc queries for data investigation
+- Verify data quality
+- Extract data for reporting
+- Troubleshoot application issues
+
+**Schema Documentation:**
+- Generate comprehensive database documentation
+- Map table relationships
+- Document indexes and constraints
+- Review stored procedure logic
+
+**Read-Only Operations:**
+- Safe database access for non-DBA users
+- Prevent accidental data modifications
+- Audit all query operations
+- Enforce row and size limits
+
+### Security Considerations
+
+**Query Safety:**
+- **Read-only enforcement** - Only SELECT queries permitted
+- **Keyword blacklist** - Blocks INSERT, UPDATE, DELETE, DROP, EXEC, and more
+- **Comment removal** - Prevents comment-hiding attacks
+- **Word boundary detection** - Uses regex `\b` to catch keyword variations
+- **Query size limits** - 10MB response max, 1000 row max (configurable)
+- **Timeout protection** - 30-second query timeout (configurable)
+- **Audit logging** - All queries logged with execution time
+
+**Credential Management:**
+- **Never logged** - Credentials never appear in logs or errors
+- **Sanitized errors** - Connection strings and passwords removed from error messages
+- **Environment variables** - Credentials stored in environment, not code
+- **Token-based auth** - Azure AD uses tokens, not stored passwords
+- **Separate accounts** - Use dedicated read-only accounts, not admin accounts
+
+**Database Permissions:**
+For read-only access, the user/service principal needs:
+```sql
+ALTER ROLE db_datareader ADD MEMBER [mcp_readonly];
+GRANT VIEW DEFINITION TO [mcp_readonly];
+```
+
+**Connection Security:**
+- **SSL/TLS encryption** - All connections encrypted by default
+- **Firewall rules** - Azure SQL firewall controls IP access
+- **Connection pooling** - Limits concurrent connections (max 10 default)
+- **Health checks** - Automatic connection validation and reconnection
+
+### Error Handling
+
+The service implements comprehensive error handling:
+
+**Connection Errors:**
+- Clear messages about server/database not found
+- Firewall rule suggestions
+- Authentication failure details (sanitized)
+- Connection timeout handling
+
+**Query Errors:**
+- **Syntax errors** - Clear SQL syntax error messages
+- **Permission errors** - Explains missing VIEW DEFINITION permission
+- **Timeout errors** - Suggests query optimization
+- **Result too large** - Provides row/size limit information
+
+**Validation Errors:**
+- **Write operation detected** - Explains read-only restriction
+- **Dangerous keyword** - Identifies blocked keyword and category
+- **Invalid query** - Suggests SELECT query format
+
+### Performance Optimization
+
+**Connection Pooling:**
+- Reuses connections for multiple queries
+- Configurable pool size (default: 0-10 connections)
+- Automatic connection health checks
+- Graceful connection disposal
+
+**Query Optimization:**
+- 30-second timeout encourages efficient queries
+- Row limit (1000 default) prevents large result sets
+- Response size limit (10MB) prevents memory issues
+- Recommends using TOP, WHERE, and ORDER BY clauses
+
+**Result Formatting:**
+- Markdown formatting is client-side only
+- No additional server load
+- Efficient string building
+- Minimal memory overhead
 
 ## Icon Management with Fluent UI System Icons
 
