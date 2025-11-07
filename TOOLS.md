@@ -8,6 +8,7 @@ Complete reference for all tools and prompts provided by the MCP Consultant Tool
 - [Azure DevOps Tools](#azure-devops-tools)
 - [Figma Tools](#figma-tools)
 - [Application Insights Tools](#application-insights-tools)
+- [Azure Log Analytics Workspace Tools](#azure-log-analytics-workspace-tools)
 - [Azure SQL Database Tools](#azure-sql-database-tools)
 - [MCP Prompts](#mcp-prompts)
 
@@ -2483,6 +2484,364 @@ Get custom application events from Application Insights.
 
 ---
 
+## Azure Log Analytics Workspace Tools
+
+Query and analyze log data from Azure Log Analytics workspaces using KQL (Kusto Query Language). Ideal for troubleshooting Azure Functions, App Services, and other Azure resources.
+
+**Key Features:**
+- **KQL query execution** - Run custom KQL queries against Log Analytics workspaces
+- **Azure Functions troubleshooting** - Specialized tools for function logs, errors, and performance
+- **Multi-workspace support** - Query multiple workspaces with active/inactive flags
+- **Generic log querying** - Search and retrieve logs from any table
+- **Metadata exploration** - Discover available tables and columns
+- **Authentication flexibility** - Supports Entra ID (OAuth) or API keys
+- **Shared credentials** - Automatic fallback to Application Insights credentials
+
+### loganalytics-list-workspaces
+
+List all configured Log Analytics workspaces (active and inactive).
+
+**Parameters:** None
+
+**Returns:**
+```typescript
+{
+  workspaces: Array<{
+    id: string;
+    name: string;
+    workspaceId: string;
+    active: boolean;
+    description?: string;
+  }>;
+}
+```
+
+**Example:**
+```json
+{
+  "workspaces": [
+    {
+      "id": "prod-functions",
+      "name": "Production Functions",
+      "workspaceId": "12345678-1234-1234-1234-123456789abc",
+      "active": true,
+      "description": "Production Azure Functions logs"
+    },
+    {
+      "id": "staging-functions",
+      "name": "Staging Functions",
+      "workspaceId": "87654321-4321-4321-4321-cba987654321",
+      "active": false
+    }
+  ]
+}
+```
+
+**Use Cases:**
+- View available workspaces
+- Check workspace active/inactive status
+- Get workspace IDs for queries
+
+### loganalytics-get-metadata
+
+Get schema metadata (tables and columns) for a Log Analytics workspace.
+
+**Parameters:**
+- `workspaceId` (required): Workspace identifier from configuration
+
+**Returns:**
+```typescript
+{
+  tables: Array<{
+    name: string;
+    columns: Array<{
+      name: string;
+      type: string;
+      description?: string;
+    }>;
+  }>;
+}
+```
+
+**Example:**
+```json
+{
+  "tables": [
+    {
+      "name": "FunctionAppLogs",
+      "columns": [
+        { "name": "TimeGenerated", "type": "datetime" },
+        { "name": "FunctionName", "type": "string" },
+        { "name": "Message", "type": "string" },
+        { "name": "SeverityLevel", "type": "int" },
+        { "name": "ExceptionDetails", "type": "string" }
+      ]
+    },
+    {
+      "name": "requests",
+      "columns": [
+        { "name": "timestamp", "type": "datetime" },
+        { "name": "name", "type": "string" },
+        { "name": "success", "type": "bool" },
+        { "name": "duration", "type": "real" }
+      ]
+    }
+  ]
+}
+```
+
+**Use Cases:**
+- Discover available tables in workspace
+- Explore table schemas before querying
+- Validate column names for KQL queries
+- Understand data types
+
+### loganalytics-execute-query
+
+Execute custom KQL query against a Log Analytics workspace.
+
+**Parameters:**
+- `workspaceId` (required): Workspace identifier
+- `query` (required): KQL query string
+- `timespan` (optional): ISO 8601 duration (e.g., "PT1H", "P1D", "PT12H")
+
+**Returns:**
+```typescript
+{
+  tables: Array<{
+    name: string;
+    columns: Array<{ name: string; type: string }>;
+    rows: any[][];
+  }>;
+}
+```
+
+**Example:**
+```typescript
+// Query parameters
+{
+  "workspaceId": "prod-functions",
+  "query": "FunctionAppLogs | where FunctionName == 'ProcessOrders' | where SeverityLevel >= 3 | order by TimeGenerated desc | take 10",
+  "timespan": "PT24H"
+}
+
+// Returns
+{
+  "tables": [
+    {
+      "name": "PrimaryResult",
+      "columns": [
+        { "name": "TimeGenerated", "type": "datetime" },
+        { "name": "FunctionName", "type": "string" },
+        { "name": "Message", "type": "string" },
+        { "name": "SeverityLevel", "type": "int" }
+      ],
+      "rows": [
+        ["2025-01-07T10:30:45Z", "ProcessOrders", "Database connection failed", 3],
+        ["2025-01-07T10:25:12Z", "ProcessOrders", "Timeout exception", 4]
+      ]
+    }
+  ]
+}
+```
+
+**Use Cases:**
+- Run custom KQL queries
+- Complex log analysis
+- Custom aggregations and joins
+- Advanced troubleshooting
+
+### loganalytics-get-function-logs
+
+Get logs for a specific Azure Function with optional filtering.
+
+**Parameters:**
+- `workspaceId` (required): Workspace identifier
+- `functionName` (optional): Filter by function name
+- `timespan` (optional): ISO 8601 duration (default: "PT1H")
+- `severityLevel` (optional): Minimum severity (0=Verbose, 1=Info, 2=Warning, 3=Error, 4=Critical)
+- `limit` (optional): Maximum records to return (default: 100)
+
+**Returns:** Query result with FunctionAppLogs table
+
+**Example:**
+```typescript
+// Get error and critical logs for ProcessOrders function
+{
+  "workspaceId": "prod-functions",
+  "functionName": "ProcessOrders",
+  "timespan": "PT12H",
+  "severityLevel": 3,
+  "limit": 50
+}
+```
+
+**Use Cases:**
+- View function execution logs
+- Filter by severity level
+- Investigate function behavior
+- Debug function issues
+
+### loganalytics-get-function-errors
+
+Get error logs for Azure Functions (ExceptionDetails present).
+
+**Parameters:**
+- `workspaceId` (required): Workspace identifier
+- `functionName` (optional): Filter by function name
+- `timespan` (optional): ISO 8601 duration (default: "PT1H")
+- `limit` (optional): Maximum records to return (default: 100)
+
+**Returns:** Query result with error logs including ExceptionDetails
+
+**Example:**
+```typescript
+{
+  "workspaceId": "prod-functions",
+  "functionName": "ProcessOrders",
+  "timespan": "PT6H"
+}
+```
+
+**Use Cases:**
+- Troubleshoot function failures
+- Analyze exception patterns
+- Identify recurring errors
+- Review stack traces
+
+### loganalytics-get-function-stats
+
+Get execution statistics for Azure Functions.
+
+**Parameters:**
+- `workspaceId` (required): Workspace identifier
+- `functionName` (optional): Filter by function name (if omitted, returns stats for all functions)
+- `timespan` (optional): ISO 8601 duration (default: "PT1H")
+
+**Returns:** Statistics with execution count, error count, success rate
+
+**Example Response:**
+```json
+{
+  "tables": [
+    {
+      "columns": [
+        { "name": "FunctionName", "type": "string" },
+        { "name": "TotalExecutions", "type": "long" },
+        { "name": "ErrorCount", "type": "long" },
+        { "name": "SuccessCount", "type": "long" },
+        { "name": "SuccessRate", "type": "real" }
+      ],
+      "rows": [
+        ["ProcessOrders", 1250, 15, 1235, 98.8],
+        ["SendNotifications", 3420, 2, 3418, 99.94],
+        ["GenerateReports", 180, 45, 135, 75.0]
+      ]
+    }
+  ]
+}
+```
+
+**Use Cases:**
+- Monitor function health
+- Track success/failure rates
+- Identify problematic functions
+- Performance monitoring
+
+### loganalytics-get-function-invocations
+
+Get Azure Function invocation records from requests and traces tables.
+
+**Parameters:**
+- `workspaceId` (required): Workspace identifier
+- `functionName` (optional): Filter by function name
+- `timespan` (optional): ISO 8601 duration (default: "PT1H")
+- `limit` (optional): Maximum records to return (default: 100)
+
+**Returns:** Query result with function invocations
+
+**Example:**
+```typescript
+{
+  "workspaceId": "prod-functions",
+  "functionName": "ProcessOrders",
+  "timespan": "PT2H"
+}
+```
+
+**Use Cases:**
+- Track function execution history
+- Monitor HTTP-triggered functions
+- Analyze invocation patterns
+- Debug timing issues
+
+### loganalytics-get-recent-events
+
+Get recent events from any Log Analytics table (generic log retrieval).
+
+**Parameters:**
+- `workspaceId` (required): Workspace identifier
+- `tableName` (required): Table name (e.g., "FunctionAppLogs", "requests", "traces")
+- `timespan` (optional): ISO 8601 duration (default: "PT1H")
+- `limit` (optional): Maximum records to return (default: 100)
+
+**Returns:** Query result ordered by TimeGenerated descending
+
+**Example:**
+```typescript
+{
+  "workspaceId": "prod-functions",
+  "tableName": "requests",
+  "timespan": "PT30M",
+  "limit": 50
+}
+```
+
+**Use Cases:**
+- Explore any table in workspace
+- Recent event monitoring
+- Generic log retrieval
+- Custom table queries
+
+### loganalytics-search-logs
+
+Search logs across tables or within a specific table (cross-table search).
+
+**Parameters:**
+- `workspaceId` (required): Workspace identifier
+- `searchText` (required): Text to search for
+- `tableName` (optional): Specific table to search (default: all tables using "*")
+- `timespan` (optional): ISO 8601 duration (default: "PT1H")
+- `limit` (optional): Maximum records to return (default: 100)
+
+**Returns:** Query result with matching log entries
+
+**Example:**
+```typescript
+// Search for "timeout" across all tables
+{
+  "workspaceId": "prod-functions",
+  "searchText": "timeout",
+  "timespan": "PT24H"
+}
+
+// Search within specific table
+{
+  "workspaceId": "prod-functions",
+  "searchText": "connection refused",
+  "tableName": "FunctionAppLogs",
+  "timespan": "PT6H"
+}
+```
+
+**Use Cases:**
+- Search for error messages
+- Find specific events
+- Cross-table log correlation
+- Keyword-based troubleshooting
+
+---
+
 ## Azure SQL Database Tools
 
 The Azure SQL Database integration provides read-only access to SQL databases with comprehensive security controls. All tools are designed for database investigation and schema exploration.
@@ -3104,6 +3463,260 @@ Generate a comprehensive troubleshooting guide combining exceptions, performance
   - Investigation recommendations with KQL query examples
 
 **Use case:** First-responder guide during production incidents
+
+---
+
+### Azure Log Analytics Workspace Prompts
+
+#### loganalytics-workspace-summary
+
+Generate a comprehensive workspace summary report with all active functions and their health status.
+
+**Parameters:**
+- `workspaceId` (required): Workspace identifier
+- `timespan` (optional): ISO 8601 duration (default: "PT1H")
+
+**Returns:**
+- Formatted markdown report with:
+  - Workspace overview
+  - List of active functions with execution counts
+  - Error summary by function
+  - Top errors by frequency
+  - Overall health status (success rates, error rates)
+  - Key insights and recommendations
+
+**Example:**
+```
+# Log Analytics Workspace Summary: Production Functions
+**Time Range:** Last 1 hour
+
+## Overview
+- Active Functions: 5
+- Total Executions: 1,250
+- Total Errors: 15
+- Overall Success Rate: 98.8%
+
+## Functions
+| Function Name | Executions | Errors | Success Rate |
+|--------------|------------|--------|--------------|
+| ProcessOrders | 450 | 8 | 98.2% |
+| SendNotifications | 600 | 2 | 99.7% |
+| GenerateReports | 200 | 5 | 97.5% |
+
+## Top Errors
+1. Database connection timeout (5 occurrences)
+2. HTTP request timeout (3 occurrences)
+3. Invalid input format (2 occurrences)
+
+## Recommendations
+- ⚠️ Investigate database connection timeouts in ProcessOrders
+- ✅ SendNotifications performing well (99.7% success rate)
+```
+
+**Use case:** Regular health monitoring and status dashboards
+
+#### loganalytics-function-troubleshooting
+
+Generate a comprehensive troubleshooting report for a specific Azure Function combining errors, stats, and recommendations.
+
+**Parameters:**
+- `workspaceId` (required): Workspace identifier
+- `functionName` (required): Function name to analyze
+- `timespan` (optional): ISO 8601 duration (default: "PT1H")
+
+**Returns:**
+- Formatted markdown report with:
+  - Recent errors and exceptions with timestamps
+  - Execution statistics (count, success rate)
+  - Error patterns and frequency analysis
+  - Common exception types
+  - Performance metrics
+  - Actionable troubleshooting recommendations
+
+**Example:**
+```
+# Troubleshooting Report: ProcessOrders Function
+**Time Range:** Last 1 hour
+
+## Execution Summary
+- Total Executions: 450
+- Successful: 442 (98.2%)
+- Failed: 8 (1.8%)
+
+## Recent Errors (Last 8)
+1. **[Error] 2025-01-07 10:30:45**
+   - Message: Database connection timeout
+   - Exception: System.TimeoutException
+
+2. **[Error] 2025-01-07 10:25:12**
+   - Message: HTTP request timeout
+   - Exception: System.Net.Http.HttpRequestException
+
+## Error Patterns
+- Database timeouts: 5 occurrences (62.5%)
+- HTTP timeouts: 3 occurrences (37.5%)
+
+## Recommendations
+🔍 **Immediate Actions:**
+1. Check database connection pool settings
+2. Review HTTP client timeout configuration
+3. Investigate external API response times
+
+⚠️ **Critical Issues:**
+- Error rate increasing (1.8% vs 0.5% baseline)
+- Database timeouts concentrated in last 30 minutes
+```
+
+**Use case:** Debugging function failures and investigating production issues
+
+#### loganalytics-function-performance-report
+
+Generate a performance analysis report for an Azure Function with execution statistics and optimization recommendations.
+
+**Parameters:**
+- `workspaceId` (required): Workspace identifier
+- `functionName` (optional): Function name (if omitted, analyzes all functions)
+- `timespan` (optional): ISO 8601 duration (default: "PT1H")
+
+**Returns:**
+- Formatted markdown report with:
+  - Execution count and success rate
+  - Performance statistics (if available)
+  - Slow executions analysis
+  - Performance trends
+  - Optimization recommendations
+
+**Example:**
+```
+# Performance Report: ProcessOrders Function
+**Time Range:** Last 6 hours
+
+## Execution Statistics
+- Total Executions: 2,750
+- Success Rate: 98.2%
+- Error Rate: 1.8%
+
+## Performance Insights
+- Average execution time: 1.2 seconds
+- Slowest execution: 8.5 seconds
+- Fastest execution: 0.3 seconds
+
+## Recommendations
+✅ **Performing Well:**
+- Success rate above 95% threshold
+- Consistent execution times
+
+⚠️ **Optimization Opportunities:**
+- 5 executions took > 5 seconds (investigate database queries)
+- Consider adding retry logic for transient failures
+```
+
+**Use case:** Performance monitoring and optimization planning
+
+#### loganalytics-security-analysis
+
+Generate a security analysis report by scanning logs for suspicious patterns, authentication failures, and security events.
+
+**Parameters:**
+- `workspaceId` (required): Workspace identifier
+- `timespan` (optional): ISO 8601 duration (default: "PT24H")
+
+**Returns:**
+- Formatted markdown report with:
+  - Authentication failures analysis
+  - Suspicious IP addresses or patterns
+  - Security-related error messages
+  - Access pattern anomalies
+  - Security recommendations
+
+**Example:**
+```
+# Security Analysis Report: Production Functions
+**Time Range:** Last 24 hours
+
+## Authentication Events
+- Total auth attempts: 1,250
+- Successful: 1,245 (99.6%)
+- Failed: 5 (0.4%)
+
+## Failed Authentication Details
+1. **2025-01-07 10:30:00** - Invalid API key
+2. **2025-01-07 09:15:22** - Expired token
+3. **2025-01-07 08:45:10** - Invalid credentials
+
+## Security Insights
+- No suspicious patterns detected
+- All failed auth attempts from known IPs
+- No anomalous access patterns
+
+## Recommendations
+✅ **Security Status:**
+- Authentication failure rate within normal range (<1%)
+- No immediate security concerns
+
+🔒 **Best Practices:**
+- Rotate API keys quarterly
+- Monitor for unusual access patterns
+- Enable MFA where possible
+```
+
+**Use case:** Security auditing and compliance monitoring
+
+#### loganalytics-logs-report
+
+Generate a formatted logs report with key insights and analysis for any table in Log Analytics.
+
+**Parameters:**
+- `workspaceId` (required): Workspace identifier
+- `tableName` (required): Table name to query (e.g., "FunctionAppLogs", "requests")
+- `timespan` (optional): ISO 8601 duration (default: "PT1H")
+- `limit` (optional): Maximum log entries to include (default: 100)
+
+**Returns:**
+- Formatted markdown report with:
+  - Logs table formatted as markdown
+  - Summary statistics (total entries, time range)
+  - Severity distribution (if applicable)
+  - Key insights and patterns
+  - Recommendations based on log analysis
+
+**Example:**
+```
+# Logs Report: FunctionAppLogs
+**Time Range:** Last 1 hour
+**Total Entries:** 125
+
+## Summary
+- Total log entries: 125
+- Unique functions: 3
+- Error count: 8
+- Success rate: 93.6%
+
+## Severity Distribution
+- Verbose: 25 (20%)
+- Information: 80 (64%)
+- Warning: 12 (9.6%)
+- Error: 8 (6.4%)
+- Critical: 0 (0%)
+
+## Key Insights
+- ProcessOrders function has higher error rate (5.3%)
+- Most errors related to database timeouts
+- SendNotifications performing well (99% success)
+
+## Top 10 Recent Logs
+| Time | Function | Severity | Message |
+|------|----------|----------|---------|
+| 10:30:45 | ProcessOrders | Error | Database timeout |
+| 10:29:12 | SendNotifications | Info | Message sent successfully |
+...
+
+## Recommendations
+- 🔍 Investigate database connection settings in ProcessOrders
+- ⚠️ Warning-level logs increasing (consider reviewing warning messages)
+```
+
+**Use case:** General log analysis and investigation
 
 ---
 

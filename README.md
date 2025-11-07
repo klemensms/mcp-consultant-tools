@@ -1,6 +1,6 @@
 # MCP Consultant Tools
 
-A Model Context Protocol (MCP) server providing intelligent access to PowerPlatform/Dataverse, Azure DevOps, Figma, Azure Application Insights, and Azure SQL Database through an AI-friendly interface.
+A Model Context Protocol (MCP) server providing intelligent access to PowerPlatform/Dataverse, Azure DevOps, Figma, Azure Application Insights, Azure Log Analytics, and Azure SQL Database through an AI-friendly interface.
 
 ## Overview
 
@@ -16,11 +16,12 @@ This MCP server enables AI assistants to:
 - **Azure DevOps** (12 tools): Search wikis, manage work items, execute WIQL queries
 - **Figma** (2 tools): Extract design data in simplified, AI-friendly format
 - **Application Insights** (10 tools): Query telemetry, analyze exceptions, monitor performance, troubleshoot issues
+- **Log Analytics** (10 tools): Query Azure Functions logs, analyze errors, monitor function performance, search workspace logs
 - **Azure SQL Database** (9 tools): Explore database schema, query tables safely with read-only access, investigate database structure
 
 All integrations are **optional** - configure only the services you need.
 
-**Total: 105+ MCP tools & 21 prompts** providing comprehensive access to your development and operations lifecycle.
+**Total: 116 MCP tools & 23 prompts** providing comprehensive access to your development and operations lifecycle.
 
 ## Known limitations
 - Cannot create Model-Driven-Apps
@@ -81,6 +82,12 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
         "APPINSIGHTS_CLIENT_SECRET": "your-client-secret",
         "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod-api\",\"name\":\"Production API\",\"appId\":\"your-app-id\",\"active\":true}]",
 
+        "LOGANALYTICS_AUTH_METHOD": "entra-id",
+        "LOGANALYTICS_TENANT_ID": "your-tenant-id",
+        "LOGANALYTICS_CLIENT_ID": "your-client-id",
+        "LOGANALYTICS_CLIENT_SECRET": "your-client-secret",
+        "LOGANALYTICS_RESOURCES": "[{\"id\":\"prod-functions\",\"name\":\"Production Functions\",\"workspaceId\":\"your-workspace-id\",\"active\":true}]",
+
         "AZURE_SQL_SERVER": "yourserver.database.windows.net",
         "AZURE_SQL_DATABASE": "yourdatabase",
         "AZURE_SQL_USERNAME": "your-username",
@@ -129,6 +136,12 @@ Create `.vscode/mcp.json` in your project:
         "APPINSIGHTS_CLIENT_ID": "your-client-id",
         "APPINSIGHTS_CLIENT_SECRET": "your-client-secret",
         "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod-api\",\"name\":\"Production API\",\"appId\":\"your-app-id\",\"active\":true}]",
+
+        "LOGANALYTICS_AUTH_METHOD": "entra-id",
+        "LOGANALYTICS_TENANT_ID": "your-tenant-id",
+        "LOGANALYTICS_CLIENT_ID": "your-client-id",
+        "LOGANALYTICS_CLIENT_SECRET": "your-client-secret",
+        "LOGANALYTICS_RESOURCES": "[{\"id\":\"prod-functions\",\"name\":\"Production Functions\",\"workspaceId\":\"your-workspace-id\",\"active\":true}]",
 
         "AZURE_SQL_SERVER": "yourserver.database.windows.net",
         "AZURE_SQL_DATABASE": "yourdatabase",
