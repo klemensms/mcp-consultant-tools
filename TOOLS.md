@@ -2193,6 +2193,294 @@ Placeholder for future image download functionality.
 
 ---
 
+## Application Insights Tools
+
+Query and analyze application telemetry data from Azure Application Insights.
+
+### appinsights-list-resources
+
+List all configured Application Insights resources (active and inactive).
+
+**Parameters:**
+- None
+
+**Returns:**
+- JSON array of configured resources with id, name, appId, active status, and description
+
+**Example:**
+```json
+[
+  {
+    "id": "prod-api",
+    "name": "Production API",
+    "appId": "12345678-1234-1234-1234-123456789abc",
+    "active": true,
+    "description": "Production API Application Insights"
+  },
+  {
+    "id": "staging-api",
+    "name": "Staging API",
+    "appId": "11111111-2222-3333-4444-555555555555",
+    "active": false,
+    "description": "Staging API (inactive)"
+  }
+]
+```
+
+---
+
+### appinsights-get-metadata
+
+Get schema metadata (tables and columns) for an Application Insights resource.
+
+**Parameters:**
+- `resourceId` (string, required): Resource ID (use `appinsights-list-resources` to find IDs)
+
+**Returns:**
+- JSON object containing tables with their column schemas
+
+**Example:**
+```json
+{
+  "tables": [
+    {
+      "name": "requests",
+      "columns": [
+        {"name": "timestamp", "type": "datetime"},
+        {"name": "id", "type": "string"},
+        {"name": "name", "type": "string"},
+        {"name": "duration", "type": "real"}
+      ]
+    }
+  ]
+}
+```
+
+---
+
+### appinsights-execute-query
+
+Execute a custom KQL (Kusto Query Language) query against Application Insights.
+
+**Parameters:**
+- `resourceId` (string, required): Resource ID
+- `query` (string, required): KQL query string
+- `timespan` (string, optional): Time range (e.g., 'PT1H' for 1 hour, 'P1D' for 1 day, 'PT12H' for 12 hours)
+
+**Returns:**
+- JSON object containing query results with tables, columns, and rows
+
+**Example:**
+```typescript
+// Query for exceptions in the last hour
+{
+  "resourceId": "prod-api",
+  "query": "exceptions | where timestamp > ago(1h) | take 10 | project timestamp, type, outerMessage",
+  "timespan": "PT1H"
+}
+```
+
+**Common Timespan Formats:**
+- `PT15M` - 15 minutes
+- `PT1H` - 1 hour
+- `PT12H` - 12 hours
+- `P1D` - 1 day
+- `P7D` - 7 days
+
+---
+
+### appinsights-get-exceptions
+
+Get recent exceptions from Application Insights with timestamps, types, and messages.
+
+**Parameters:**
+- `resourceId` (string, required): Resource ID
+- `timespan` (string, optional): Time range (default: PT1H)
+- `limit` (number, optional): Maximum number of results (default: 50)
+
+**Returns:**
+- JSON object with exception data (timestamp, type, outerMessage, innermostMessage, operation_Name, operation_Id, cloud_RoleName)
+
+**Example:**
+```typescript
+{
+  "resourceId": "prod-api",
+  "timespan": "PT12H",
+  "limit": 100
+}
+```
+
+---
+
+### appinsights-get-slow-requests
+
+Get slow HTTP requests (above duration threshold) from Application Insights.
+
+**Parameters:**
+- `resourceId` (string, required): Resource ID
+- `durationThresholdMs` (number, optional): Duration threshold in milliseconds (default: 5000)
+- `timespan` (string, optional): Time range (default: PT1H)
+- `limit` (number, optional): Maximum number of results (default: 50)
+
+**Returns:**
+- JSON object with slow request data (timestamp, name, duration, resultCode, success, operation_Id, cloud_RoleName)
+
+**Example:**
+```typescript
+{
+  "resourceId": "prod-web",
+  "durationThresholdMs": 3000,  // 3 seconds
+  "timespan": "PT6H",
+  "limit": 25
+}
+```
+
+---
+
+### appinsights-get-operation-performance
+
+Get performance summary by operation (request count, avg duration, percentiles).
+
+**Parameters:**
+- `resourceId` (string, required): Resource ID
+- `timespan` (string, optional): Time range (default: PT1H)
+
+**Returns:**
+- JSON object with performance metrics (RequestCount, AvgDuration, P50Duration, P95Duration, P99Duration, FailureCount) grouped by operation_Name
+
+**Example:**
+```typescript
+{
+  "resourceId": "prod-api",
+  "timespan": "P1D"  // Last 24 hours
+}
+```
+
+**Use Cases:**
+- Identify slowest operations
+- Monitor performance regression
+- Track operation failure rates
+- Analyze performance percentiles
+
+---
+
+### appinsights-get-failed-dependencies
+
+Get failed dependency calls (external APIs, databases, etc.) from Application Insights.
+
+**Parameters:**
+- `resourceId` (string, required): Resource ID
+- `timespan` (string, optional): Time range (default: PT1H)
+- `limit` (number, optional): Maximum number of results (default: 50)
+
+**Returns:**
+- JSON object with failed dependency data (timestamp, name, target, type, duration, resultCode, operation_Id, cloud_RoleName)
+
+**Example:**
+```typescript
+{
+  "resourceId": "prod-api",
+  "timespan": "PT2H",
+  "limit": 100
+}
+```
+
+**Use Cases:**
+- Identify external service issues
+- Monitor third-party API reliability
+- Track database connection failures
+- Correlate with operation failures
+
+---
+
+### appinsights-get-traces
+
+Get diagnostic traces/logs from Application Insights filtered by severity level.
+
+**Parameters:**
+- `resourceId` (string, required): Resource ID
+- `severityLevel` (number, optional): Minimum severity level (default: 2)
+  - 0 = Verbose
+  - 1 = Information
+  - 2 = Warning
+  - 3 = Error
+  - 4 = Critical
+- `timespan` (string, optional): Time range (default: PT1H)
+- `limit` (number, optional): Maximum number of results (default: 100)
+
+**Returns:**
+- JSON object with trace data (timestamp, message, severityLevel, operation_Name, operation_Id, cloud_RoleName)
+
+**Example:**
+```typescript
+{
+  "resourceId": "prod-api",
+  "severityLevel": 3,  // Error level and above
+  "timespan": "PT4H",
+  "limit": 200
+}
+```
+
+---
+
+### appinsights-get-availability
+
+Get availability test results and uptime statistics from Application Insights.
+
+**Parameters:**
+- `resourceId` (string, required): Resource ID
+- `timespan` (string, optional): Time range (default: PT24H)
+
+**Returns:**
+- JSON object with availability test summaries (TotalTests, SuccessCount, FailureCount, AvgDuration, SuccessRate) grouped by test name
+
+**Example:**
+```typescript
+{
+  "resourceId": "prod-web",
+  "timespan": "P7D"  // Last 7 days
+}
+```
+
+**Use Cases:**
+- Monitor uptime percentage
+- Track availability test failures
+- Identify geographic issues
+- Verify SLA compliance
+
+---
+
+### appinsights-get-custom-events
+
+Get custom application events from Application Insights.
+
+**Parameters:**
+- `resourceId` (string, required): Resource ID
+- `eventName` (string, optional): Filter by specific event name
+- `timespan` (string, optional): Time range (default: PT1H)
+- `limit` (number, optional): Maximum number of results (default: 100)
+
+**Returns:**
+- JSON object with custom event data (timestamp, name, customDimensions, operation_Id, cloud_RoleName)
+
+**Example:**
+```typescript
+{
+  "resourceId": "prod-api",
+  "eventName": "OrderPlaced",
+  "timespan": "P1D",
+  "limit": 500
+}
+```
+
+**Use Cases:**
+- Track business events
+- Monitor feature usage
+- Analyze user behavior
+- Custom KPI tracking
+
+---
+
 ## MCP Prompts
 
 Prompts return formatted, human-readable content with context. They use tools internally but add interpretation and formatting.
@@ -2429,3 +2717,101 @@ Execute a WIQL query and get results grouped by state/type.
   - Results grouped by state
   - Work item details (ID, title, assigned to)
   - Counts by group
+
+---
+
+### Application Insights Prompts
+
+#### appinsights-exception-summary
+
+Generate a comprehensive exception summary report for troubleshooting.
+
+**Parameters:**
+- `resourceId` (string, required): Application Insights resource ID
+- `timespan` (string, optional, default: 'PT1H'): Time range in ISO 8601 duration format
+
+**Returns:**
+- Formatted markdown report with:
+  - Key insights (exception counts, unique types, affected operations)
+  - Recent exceptions table
+  - Exception types frequency table
+  - Actionable recommendations
+
+**Use case:** Quick exception analysis during incident response
+
+---
+
+#### appinsights-performance-report
+
+Generate a comprehensive performance analysis report from Application Insights.
+
+**Parameters:**
+- `resourceId` (string, required): Application Insights resource ID
+- `timespan` (string, optional, default: 'PT1H'): Time range in ISO 8601 duration format
+
+**Returns:**
+- Formatted markdown report with:
+  - Key insights (slowest operations, highest failure rates)
+  - Operation performance summary (request counts, avg/P50/P95/P99 duration, failures)
+  - Slowest requests (>5 seconds)
+  - Performance optimization recommendations
+
+**Use case:** Performance analysis and optimization planning
+
+---
+
+#### appinsights-dependency-health
+
+Generate a dependency health report showing external service issues.
+
+**Parameters:**
+- `resourceId` (string, required): Application Insights resource ID
+- `timespan` (string, optional, default: 'PT1H'): Time range in ISO 8601 duration format
+
+**Returns:**
+- Formatted markdown report with:
+  - Key insights (affected targets, failure counts)
+  - Failed dependencies table
+  - Dependency success rates by target and type
+  - Actionable recommendations (circuit breakers, timeout configuration)
+
+**Use case:** Identifying external service dependencies causing failures
+
+---
+
+#### appinsights-availability-report
+
+Generate an availability and uptime report from Application Insights.
+
+**Parameters:**
+- `resourceId` (string, required): Application Insights resource ID
+- `timespan` (string, optional, default: 'PT24H'): Time range in ISO 8601 duration format
+
+**Returns:**
+- Formatted markdown report with:
+  - Availability test results (total tests, success/failure counts, success rates)
+  - Average test duration by location
+  - Recommendations for improving availability monitoring
+
+**Use case:** SLA monitoring and uptime verification
+
+---
+
+#### appinsights-troubleshooting-guide
+
+Generate a comprehensive troubleshooting guide combining exceptions, performance, and dependencies.
+
+**Parameters:**
+- `resourceId` (string, required): Application Insights resource ID
+- `timespan` (string, optional, default: 'PT1H'): Time range in ISO 8601 duration format
+
+**Returns:**
+- Formatted markdown report with:
+  - Health status overview (exceptions, slow requests, dependency failures)
+  - Top exceptions table
+  - Slowest requests table
+  - Failed dependencies table
+  - Step-by-step troubleshooting workflow
+  - Investigation recommendations with KQL query examples
+
+**Use case:** First-responder guide during production incidents

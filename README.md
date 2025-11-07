@@ -1,6 +1,6 @@
 # MCP Consultant Tools
 
-A Model Context Protocol (MCP) server providing intelligent access to PowerPlatform/Dataverse, Azure DevOps, and Figma through an AI-friendly interface.
+A Model Context Protocol (MCP) server providing intelligent access to PowerPlatform/Dataverse, Azure DevOps, Figma, and Azure Application Insights through an AI-friendly interface.
 
 ## Overview
 
@@ -15,10 +15,11 @@ This MCP server enables AI assistants to:
     - Publishing & validation
 - **Azure DevOps** (12 tools): Search wikis, manage work items, execute WIQL queries
 - **Figma** (2 tools): Extract design data in simplified, AI-friendly format
+- **Application Insights** (10 tools): Query telemetry, analyze exceptions, monitor performance, troubleshoot issues
 
 All integrations are **optional** - configure only the services you need.
 
-**Total: 86+ MCP tools** providing comprehensive access to your development lifecycle.
+**Total: 96+ MCP tools** providing comprehensive access to your development and operations lifecycle.
 
 ## Known limitations
 - Cannot create Model-Driven-Apps
@@ -71,7 +72,13 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 
         "FIGMA_API_KEY": "your-figma-token",
         "FIGMA_OAUTH_TOKEN": "",
-        "FIGMA_USE_OAUTH": "false"
+        "FIGMA_USE_OAUTH": "false",
+
+        "APPINSIGHTS_AUTH_METHOD": "entra-id",
+        "APPINSIGHTS_TENANT_ID": "your-tenant-id",
+        "APPINSIGHTS_CLIENT_ID": "your-client-id",
+        "APPINSIGHTS_CLIENT_SECRET": "your-client-secret",
+        "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod-api\",\"name\":\"Production API\",\"appId\":\"your-app-id\",\"active\":true}]"
       }
     }
   }
@@ -108,7 +115,13 @@ Create `.vscode/mcp.json` in your project:
 
         "FIGMA_API_KEY": "your-figma-token",
         "FIGMA_OAUTH_TOKEN": "",
-        "FIGMA_USE_OAUTH": "false"
+        "FIGMA_USE_OAUTH": "false",
+
+        "APPINSIGHTS_AUTH_METHOD": "entra-id",
+        "APPINSIGHTS_TENANT_ID": "your-tenant-id",
+        "APPINSIGHTS_CLIENT_ID": "your-client-id",
+        "APPINSIGHTS_CLIENT_SECRET": "your-client-secret",
+        "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod-api\",\"name\":\"Production API\",\"appId\":\"your-app-id\",\"active\":true}]"
       }
     }
   }
@@ -239,9 +252,22 @@ Reload VS Code window after saving.
 - `get-figma-data` - Get design data (layout, text, styles, components)
 - `download-figma-images` - Download images (coming in v2)
 
+### Application Insights (10 tools)
+
+- `appinsights-list-resources` - List all configured Application Insights resources
+- `appinsights-get-metadata` - Get schema metadata (tables and columns)
+- `appinsights-execute-query` - Execute custom KQL queries
+- `appinsights-get-exceptions` - Get recent exceptions with details
+- `appinsights-get-slow-requests` - Get slow HTTP requests (configurable threshold)
+- `appinsights-get-operation-performance` - Get operation performance summary (count, avg, percentiles)
+- `appinsights-get-failed-dependencies` - Get failed external API/database calls
+- `appinsights-get-traces` - Get diagnostic traces filtered by severity
+- `appinsights-get-availability` - Get availability test results and uptime stats
+- `appinsights-get-custom-events` - Get custom application events
+
 ## Available Prompts
 
-The server includes **13 prompts** that provide formatted, context-rich output:
+The server includes **18 prompts** that provide formatted, context-rich output:
 
 **PowerPlatform:**
 - `entity-overview` - Comprehensive entity overview
@@ -260,10 +286,17 @@ The server includes **13 prompts** that provide formatted, context-rich output:
 - `work-item-summary` - Comprehensive work item summary
 - `work-items-query-report` - Formatted WIQL query results
 
+**Application Insights:**
+- `appinsights-exception-summary` - Exception summary report with insights
+- `appinsights-performance-report` - Performance analysis with recommendations
+- `appinsights-dependency-health` - Dependency health report with success rates
+- `appinsights-availability-report` - Availability and uptime report
+- `appinsights-troubleshooting-guide` - Comprehensive troubleshooting guide combining all telemetry
+
 ## Documentation
 
 - **[SETUP.md](SETUP.md)** - Complete setup guide with credentials, troubleshooting, and security
-- **[TOOLS.md](TOOLS.md)** - Full reference for all 86+ tools and 12 prompts
+- **[TOOLS.md](TOOLS.md)** - Full reference for all 96+ tools and 18 prompts
 - **[USAGE.md](USAGE.md)** - Examples and use cases for all integrations
 - **[CLAUDE.md](CLAUDE.md)** - Architecture details and development guide
 

@@ -1,7 +1,7 @@
 {
   "name": "mcp-consultant-tools",
-  "version": "5.0.0",
-  "description": "MCP server providing access to PowerPlatform/Dataverse, Azure DevOps, and Figma through unified interface",
+  "version": "6.0.0",
+  "description": "MCP server providing access to PowerPlatform/Dataverse, Azure DevOps, Figma, and Azure Application Insights through unified interface",
   "main": "build/index.js",
   "bin": {
     "mcp-consultant-tools": "build/index.js"
@@ -22,6 +22,9 @@
     "dataverse",
     "azure-devops",
     "figma",
+    "application-insights",
+    "telemetry",
+    "monitoring",
     "design-tools",
     "devops"
   ],

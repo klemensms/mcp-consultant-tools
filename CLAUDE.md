@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Model Context Protocol (MCP) server that provides intelligent access to Microsoft PowerPlatform/Dataverse entities, Azure DevOps wikis/work items, and Figma designs through an MCP-compatible interface. It enables AI assistants to explore entity metadata, query records, inspect plugin configurations, analyze workflows, search documentation, manage work items, and extract design data for context-aware assistance across the development lifecycle.
+This is a Model Context Protocol (MCP) server that provides intelligent access to Microsoft PowerPlatform/Dataverse entities, Azure DevOps wikis/work items, Figma designs, and Azure Application Insights telemetry through an MCP-compatible interface. It enables AI assistants to explore entity metadata, query records, inspect plugin configurations, analyze workflows, search documentation, manage work items, extract design data, and troubleshoot application issues using telemetry data for context-aware assistance across the development and operations lifecycle.
 
 ## Build and Development Commands
 
@@ -25,14 +25,31 @@ Or run directly with npx (without installing):
 npx mcp-consultant-tools
 ```
 
+## Documentation Guidelines
+
+**IMPORTANT**: When adding new features or integrations, you MUST update ALL documentation files:
+
+1. **[README.md](README.md)** - High-level overview, quick start, and configuration examples
+2. **[SETUP.md](SETUP.md)** - Detailed setup instructions, credentials, Azure configuration, troubleshooting
+3. **[TOOLS.md](TOOLS.md)** - Complete reference for all tools and prompts with parameters
+4. **[USAGE.md](USAGE.md)** - Examples and use cases showing how to use the tools
+5. **[CLAUDE.md](CLAUDE.md)** (this file) - Architecture details and development guide
+
+**Checklist for new integrations:**
+- [ ] Update README.md: Overview, tool counts, configuration examples
+- [ ] Update SETUP.md: Add credentials section with Azure portal screenshots/instructions
+- [ ] Update TOOLS.md: Document all new tools and prompts with parameters and descriptions
+- [ ] Update USAGE.md: Add practical examples showing real-world usage
+- [ ] Update CLAUDE.md: Add architecture section with service design, patterns, security
+
 ## Architecture
 
 ### Two-Layer Architecture
 
 1. **MCP Server Layer** ([src/index.ts](src/index.ts))
    - Initializes the MCP server using `@modelcontextprotocol/sdk`
-   - Registers 28 tools and 13 prompts across PowerPlatform, Azure DevOps, and Figma integrations
-   - Handles environment configuration and lazy-initialization of services (PowerPlatformService, AzureDevOpsService, FigmaService)
+   - Registers 96+ tools and 18 prompts across PowerPlatform, Azure DevOps, Figma, and Application Insights integrations
+   - Handles environment configuration and lazy-initialization of services (PowerPlatformService, AzureDevOpsService, FigmaService, ApplicationInsightsService)
    - Uses Zod schemas for parameter validation
    - Communicates via stdio transport (StdioServerTransport)
 
@@ -55,14 +72,20 @@ npx mcp-consultant-tools
      - Transforms complex Figma data into simplified, AI-friendly format
      - Supports design extraction with depth limiting and node filtering
 
+   - **ApplicationInsightsService** ([src/ApplicationInsightsService.ts](src/ApplicationInsightsService.ts))
+     - Manages authentication using Entra ID (OAuth 2.0) or API Keys
+     - Executes KQL queries via Application Insights Query API
+     - Provides helper methods for common troubleshooting scenarios (exceptions, performance, dependencies)
+     - Supports multiple Application Insights resources with active/inactive flags
+
 ### Key Design Patterns
 
-- **Lazy Initialization**: All services (PowerPlatform, AzureDevOps, Figma) are created on-demand only when their respective tools/prompts are first invoked
+- **Lazy Initialization**: All services (PowerPlatform, AzureDevOps, Figma, ApplicationInsights) are created on-demand only when their respective tools/prompts are first invoked
 - **Token Caching**: Access tokens are cached and reused until near expiration to minimize authentication calls
 - **Prompt Templates**: Pre-defined prompt templates with placeholder replacement for consistent, formatted responses
 - **Dual Interface**: Functionality exposed both as MCP tools (for raw data) and prompts (for formatted, context-rich output)
 - **Stdout Suppression for dotenv**: The server temporarily suppresses stdout during dotenv initialization to prevent non-JSON output from corrupting the MCP JSON protocol (which requires clean JSON-only stdout)
-- **Optional Integrations**: All integrations are optional - users can configure only PowerPlatform, only Azure DevOps, only Figma, or any combination
+- **Optional Integrations**: All integrations are optional - users can configure only PowerPlatform, only Azure DevOps, only Figma, only Application Insights, or any combination
 
 ### ⚠️ CRITICAL: MCP Protocol Requirements
 
@@ -678,6 +701,216 @@ Solution: Refresh OAuth token
 Error: 429 - Too Many Requests
 ```
 Solution: Reduce request frequency, implement backoff
+
+## Application Insights Integration
+
+### Overview
+
+The Application Insights integration enables AI assistants to query and analyze application telemetry data, including exceptions, performance metrics, dependencies, traces, and availability results. The integration supports multiple Application Insights resources with active/inactive toggles for quick configuration changes.
+
+### Architecture
+
+The Application Insights integration provides access to Azure Application Insights telemetry through the Application Insights Query API using KQL (Kusto Query Language).
+
+**Service Class:** `ApplicationInsightsService` ([src/ApplicationInsightsService.ts](src/ApplicationInsightsService.ts))
+- Manages authentication (Entra ID OAuth or API Key)
+- Executes KQL queries via Application Insights Query API
+- Provides helper methods for common troubleshooting scenarios
+- Supports multiple Application Insights resources with active/inactive flags
+
+**Authentication Methods:**
+1. **Microsoft Entra ID (OAuth 2.0)** - Recommended for production
+   - Higher rate limits (60 requests/minute per user)
+   - No daily cap
+   - Better security (token-based, automatic expiry)
+   - Uses `@azure/msal-node` (same pattern as PowerPlatform)
+   - Requires "Monitoring Reader" role on Application Insights resources
+
+2. **API Key Authentication** - Simpler for single resources
+   - Lower rate limits (15 requests/minute per key)
+   - Daily cap of 1,500 requests per key
+   - Requires "Read telemetry" permission
+
+**Configuration:**
+Supports two configuration modes:
+1. Multi-resource (JSON array in `APPINSIGHTS_RESOURCES`)
+2. Single-resource fallback (`APPINSIGHTS_APP_ID`)
+
+Each resource has an `active` flag for quick toggling without removing configuration.
+
+### Available Tools (10 total)
+
+1. **`appinsights-list-resources`** - List configured resources (active and inactive)
+2. **`appinsights-get-metadata`** - Get schema metadata (tables and columns)
+3. **`appinsights-execute-query`** - Execute custom KQL queries
+4. **`appinsights-get-exceptions`** - Get recent exceptions with types and messages
+5. **`appinsights-get-slow-requests`** - Get slow HTTP requests (configurable threshold)
+6. **`appinsights-get-operation-performance`** - Get performance summary (count, avg, p50/p95/p99)
+7. **`appinsights-get-failed-dependencies`** - Get failed external calls (APIs, databases)
+8. **`appinsights-get-traces`** - Get diagnostic traces filtered by severity (0-4)
+9. **`appinsights-get-availability`** - Get availability test results and uptime stats
+10. **`appinsights-get-custom-events`** - Get custom application events
+
+### Available Prompts (5 total)
+
+1. **`appinsights-exception-summary`** - Exception summary report with insights and recommendations
+2. **`appinsights-performance-report`** - Performance analysis with slowest operations and recommendations
+3. **`appinsights-dependency-health`** - Dependency health with success rates and recommendations
+4. **`appinsights-availability-report`** - Availability and uptime report with test results
+5. **`appinsights-troubleshooting-guide`** - Comprehensive troubleshooting combining all telemetry sources
+
+### Telemetry Tables
+
+Application Insights stores data in the following tables:
+
+| Table | Description | Common Queries |
+|-------|-------------|----------------|
+| `requests` | Incoming HTTP requests | Performance, error rates |
+| `dependencies` | Outbound calls (APIs, DBs) | External service issues, latency |
+| `exceptions` | Application exceptions | Error troubleshooting, stability |
+| `traces` | Diagnostic logs | Debug output, informational logs |
+| `customEvents` | Custom events | Feature usage, business events |
+| `customMetrics` | Custom metrics | Business KPIs, counters |
+| `pageViews` | Client page views | User behavior, frontend perf |
+| `browserTimings` | Client performance | Frontend load times |
+| `availabilityResults` | Availability tests | Uptime monitoring |
+| `performanceCounters` | System performance | CPU, memory, disk |
+
+### Service Integration
+
+**Configuration Parsing** ([src/index.ts](src/index.ts)):
+```typescript
+// Multi-resource configuration
+APPINSIGHTS_RESOURCES=[{"id":"prod-api","name":"Production API","appId":"xxx","active":true}]
+
+// Or single-resource fallback
+APPINSIGHTS_APP_ID=xxx
+APPINSIGHTS_API_KEY=xxx
+```
+
+**Lazy Initialization Pattern:**
+- Service initialized on first tool/prompt invocation
+- Validates configuration before initialization
+- Caches access tokens with automatic refresh (5-minute buffer)
+
+**Helper Methods:**
+All helper methods are in `ApplicationInsightsService`:
+- `getRecentExceptions()` - Recent exceptions by timestamp
+- `getSlowRequests()` - Requests above duration threshold
+- `getFailedDependencies()` - Failed external calls
+- `getOperationPerformance()` - Performance aggregates by operation
+- `getTracesBySeverity()` - Traces filtered by severity level
+- `getAvailabilityResults()` - Availability test summaries
+- `getCustomEvents()` - Custom event queries
+
+**Formatting Utilities** ([src/utils/appinsights-formatters.ts](src/utils/appinsights-formatters.ts)):
+- `formatTableAsMarkdown()` - Convert query results to markdown tables
+- `analyzeExceptions()` - Extract insights from exception data
+- `analyzePerformance()` - Extract insights from performance data
+- `analyzeDependencies()` - Extract insights from dependency data
+
+### Use Cases
+
+**Exception Analysis:**
+- Recent exceptions by type and frequency
+- Exception stack traces and messages
+- Exception trends over time
+- Operation-level exception analysis
+
+**Performance Analysis:**
+- Slowest operations (requests and dependencies)
+- Request duration percentiles (p50, p95, p99)
+- Operations by call count
+- Performance regression detection
+
+**Dependency Monitoring:**
+- Failed dependency calls with targets
+- Slow external dependencies
+- Dependency success rates
+- External service health verification
+
+**Troubleshooting:**
+- Comprehensive troubleshooting guides
+- Operation-level analysis using operation_Id correlation
+- Timeline analysis for deployment correlation
+- Multi-source telemetry correlation
+
+**Availability Monitoring:**
+- Availability test results
+- Uptime percentage calculation
+- Failed test analysis
+- Geographic availability patterns
+
+### Error Handling
+
+The service implements comprehensive error handling:
+
+**Authentication Errors (401/403):**
+- Clear messages about missing credentials
+- Permission requirements (Monitoring Reader role)
+- Configuration validation
+
+**Rate Limiting (429):**
+- Retry-after header parsing
+- Clear messages about current limits
+- Recommendations for auth method upgrade
+
+**Query Errors:**
+- KQL syntax error detection with hints
+- Semantic error detection (invalid columns/tables)
+- Timeout handling (30-second default)
+- Network error detection
+
+**Resource Errors:**
+- Resource not found with available resources list
+- Inactive resource detection with activation instructions
+- Configuration validation
+
+### Security Considerations
+
+**Credential Management:**
+- Never log credentials
+- Store tokens in memory only (never persist)
+- Clear tokens on service disposal
+- Support for `.env` files for local development
+
+**Query Safety:**
+- Read-only operations only (no write/update/delete)
+- Query size limits (max 10KB)
+- Result size limits (max 10,000 rows)
+- No dangerous KQL keywords allowed
+
+**Data Sanitization:**
+- Sanitize error messages (remove connection strings, API keys)
+- Redact sensitive data in query results (optional)
+- Truncate large results automatically
+
+**RBAC and Permissions:**
+For Entra ID authentication, the service principal must have:
+- "Monitoring Reader" or "Reader" role on Application Insights resource
+- Role can be assigned at resource or resource group level
+
+For API Key authentication:
+- API key must have "Read telemetry" permission
+- Keys can be scoped to specific resources
+
+### Query Optimization
+
+**Timespan Conversion:**
+The service converts ISO 8601 durations (PT1H, P1D) to KQL format (1h, 1d) automatically.
+
+**Common Timespan Presets:**
+- `PT15M` → 15 minutes
+- `PT1H` → 1 hour
+- `PT12H` → 12 hours
+- `P1D` → 1 day
+- `P7D` → 7 days
+
+**Query Best Practices:**
+- Use `summarize` and `top` operators to limit result sizes
+- Set reasonable time ranges
+- Cache metadata queries
+- Use `take` to limit row counts
 
 ## Icon Management with Fluent UI System Icons
 

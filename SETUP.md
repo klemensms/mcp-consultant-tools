@@ -338,6 +338,79 @@ All integrations are optional. Configure only the services you need.
   - When `"true"`, uses `FIGMA_OAUTH_TOKEN` for authentication
   - When `"false"`, uses `FIGMA_API_KEY` for authentication
 
+### Application Insights (Optional)
+
+**Authentication Methods (choose one):**
+
+**Option 1: Microsoft Entra ID (Recommended for Production)**
+- `APPINSIGHTS_AUTH_METHOD` (optional): Authentication method
+  - Options: `"entra-id"` or `"api-key"`
+  - Default: `"entra-id"`
+  - Entra ID provides higher rate limits (60 req/min vs 15 req/min)
+- `APPINSIGHTS_TENANT_ID` (required if using Entra ID): Azure tenant ID
+- `APPINSIGHTS_CLIENT_ID` (required if using Entra ID): Service principal client ID
+- `APPINSIGHTS_CLIENT_SECRET` (required if using Entra ID): Service principal client secret
+- `APPINSIGHTS_RESOURCES` (required): JSON array of Application Insights resources to monitor
+
+**Option 2: API Key (Simpler for Single Resources)**
+- `APPINSIGHTS_APP_ID` (required if not using APPINSIGHTS_RESOURCES): Application Insights application ID
+- `APPINSIGHTS_API_KEY` (required if using API key auth): Application Insights API key
+
+**Multi-Resource Configuration (Recommended):**
+
+Configure multiple Application Insights resources with active/inactive flags:
+
+```json
+[
+  {
+    "id": "prod-api",
+    "name": "Production API",
+    "appId": "12345678-1234-1234-1234-123456789abc",
+    "active": true,
+    "description": "Production API Application Insights"
+  },
+  {
+    "id": "prod-web",
+    "name": "Production Web",
+    "appId": "87654321-4321-4 321-4321-cba987654321",
+    "active": true,
+    "description": "Production Web Application Insights"
+  },
+  {
+    "id": "staging-api",
+    "name": "Staging API",
+    "appId": "11111111-2222-3333-4444-555555555555",
+    "active": false,
+    "description": "Staging API (inactive)"
+  }
+]
+```
+
+Set as environment variable (minified):
+```bash
+APPINSIGHTS_RESOURCES='[{"id":"prod-api","name":"Production API","appId":"12345678-1234-1234-1234-123456789abc","active":true},{"id":"prod-web","name":"Production Web","appId":"87654321-4321-4321-4321-cba987654321","active":true}]'
+```
+
+**Single-Resource Configuration (Simple):**
+
+For a single Application Insights resource:
+
+```bash
+APPINSIGHTS_APP_ID=12345678-1234-1234-1234-123456789abc
+APPINSIGHTS_API_KEY=your-api-key-here
+APPINSIGHTS_AUTH_METHOD=api-key
+```
+
+Or with Entra ID:
+
+```bash
+APPINSIGHTS_APP_ID=12345678-1234-1234-1234-123456789abc
+APPINSIGHTS_TENANT_ID=your-tenant-id
+APPINSIGHTS_CLIENT_ID=your-service-principal-client-id
+APPINSIGHTS_CLIENT_SECRET=your-service-principal-secret
+APPINSIGHTS_AUTH_METHOD=entra-id
+```
+
 ---
 
 ## Obtaining Credentials
@@ -411,6 +484,103 @@ Contact your PowerPlatform administrator if you need help with app registration.
 7. Set it in `FIGMA_API_KEY` environment variable
 
 **Security Note:** Figma tokens have full access to your files. Keep them secure. Don't commit them to version control.
+
+---
+
+### Application Insights Credentials
+
+**Option 1: Entra ID (Service Principal) - Recommended**
+
+This is the recommended approach for production use with higher rate limits and better security.
+
+**Step 1: Create Service Principal**
+
+```bash
+# Create service principal
+az ad sp create-for-rbac \
+  --name "mcp-appinsights-reader" \
+  --role "Monitoring Reader" \
+  --scopes /subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Insights/components/{appinsights-name}
+
+# Output (save these values):
+# {
+#   "appId": "87654321-4321-4321-4321-cba987654321",    # → APPINSIGHTS_CLIENT_ID
+#   "password": "your-client-secret",                    # → APPINSIGHTS_CLIENT_SECRET
+#   "tenant": "12345678-1234-1234-1234-123456789abc"    # → APPINSIGHTS_TENANT_ID
+# }
+```
+
+**Step 2: Get Application Insights Application ID**
+
+1. Go to Azure Portal → Application Insights → Your resource
+2. Navigate to "API Access" under "Configure"
+3. Copy the **Application ID** (GUID format)
+4. This is your `appId` for the resource configuration
+
+**Step 3: Assign Monitoring Reader Role (if not done in Step 1)**
+
+```bash
+# Assign role to existing service principal
+az role assignment create \
+  --assignee {client-id} \
+  --role "Monitoring Reader" \
+  --scope /subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Insights/components/{appinsights-name}
+```
+
+**Step 4: Configure Environment Variables**
+
+For multiple resources (recommended):
+
+```bash
+APPINSIGHTS_AUTH_METHOD=entra-id
+APPINSIGHTS_TENANT_ID=your-tenant-id
+APPINSIGHTS_CLIENT_ID=your-service-principal-client-id
+APPINSIGHTS_CLIENT_SECRET=your-service-principal-secret
+APPINSIGHTS_RESOURCES='[{"id":"prod-api","name":"Production API","appId":"app-id-from-portal","active":true},{"id":"prod-web","name":"Production Web","appId":"another-app-id","active":true}]'
+```
+
+**Option 2: API Key - Simpler for Single Resources**
+
+This is simpler but has lower rate limits (15 req/min vs 60 req/min).
+
+**Step 1: Create API Key**
+
+1. Go to Azure Portal → Application Insights → Your resource
+2. Navigate to "API Access" under "Configure"
+3. Copy the **Application ID** (you'll need this)
+4. Click "+ Create API Key"
+5. Give it a name (e.g., "MCP Consultant Tools")
+6. Select permissions: **Read telemetry**
+7. Click "Generate key"
+8. Copy the generated key (only shown once!)
+
+**Step 2: Configure Environment Variables**
+
+For a single resource:
+
+```bash
+APPINSIGHTS_APP_ID=your-application-id-from-portal
+APPINSIGHTS_API_KEY=your-generated-api-key
+APPINSIGHTS_AUTH_METHOD=api-key
+```
+
+**Finding Required Information:**
+
+- **Application ID (appId)**: Azure Portal → Application Insights → API Access → Application ID
+- **Subscription ID**: Azure Portal → Subscriptions → Subscription ID
+- **Resource Group**: Azure Portal → Application Insights → Overview → Resource group
+- **Application Insights Name**: The name of your Application Insights resource
+
+**Required Permissions:**
+
+- **Entra ID**: Service principal needs "Monitoring Reader" or "Reader" role on the Application Insights resource
+- **API Key**: API key needs "Read telemetry" permission
+
+**Security Note:**
+- Service principal secrets should be rotated regularly (every 90 days recommended)
+- API keys have lower rate limits but are simpler to set up
+- Store all credentials securely. Never commit them to version control.
+- Use Entra ID for production environments (better rate limits and security)
 
 ---
 
