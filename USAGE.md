@@ -7,6 +7,7 @@ This guide provides practical examples and use cases for the MCP Consultant Tool
 - [PowerPlatform Examples](#powerplatform-examples)
 - [Azure DevOps Examples](#azure-devops-examples)
 - [Application Insights Examples](#application-insights-examples)
+- [Azure Log Analytics Workspace Examples](#azure-log-analytics-workspace-examples)
 - [Figma Examples](#figma-examples)
 - [Azure SQL Database Examples](#azure-sql-database-examples)
 - [Integration Use Cases](#integration-use-cases)
@@ -1547,6 +1548,402 @@ Application Insights uses ISO 8601 duration format for timespans:
 - Add `T` before time components
 - Use `D` for days, `H` for hours, `M` for minutes, `S` for seconds
 - Examples: `P1DT6H` = 1 day 6 hours, `PT30M` = 30 minutes
+
+## Azure Log Analytics Workspace Examples
+
+Azure Log Analytics provides powerful log querying capabilities for Azure Functions, App Services, and other Azure resources. These examples demonstrate practical troubleshooting workflows using KQL queries and AI-assisted analysis.
+
+### Example 1: Investigating Azure Function Failures
+
+When a critical Azure Function starts failing, quickly diagnose the issue:
+
+```javascript
+// Step 1: Get recent errors for the ProcessOrders function
+await mcpClient.invoke("loganalytics-get-function-errors", {
+  workspaceId: "prod-functions",
+  functionName: "ProcessOrders",
+  timespan: "PT6H",
+  limit: 20
+});
+```
+
+**AI analyzes the errors and identifies patterns:**
+```
+- 15 errors in last 6 hours
+- 80% are database timeouts (System.TimeoutException)
+- 20% are HTTP request timeouts
+- Errors started 3 hours ago
+- All errors from same database server
+```
+
+```javascript
+// Step 2: Get comprehensive troubleshooting report
+await mcpClient.invoke("loganalytics-function-troubleshooting", {
+  workspaceId: "prod-functions",
+  functionName: "ProcessOrders",
+  timespan: "PT6H"
+});
+```
+
+**AI generates actionable report:**
+
+```markdown
+# Troubleshooting Report: ProcessOrders Function
+
+## Execution Summary
+- Total Executions: 450
+- Successful: 438 (97.3%)
+- Failed: 12 (2.7%)
+
+## Error Patterns
+- Database timeouts: 9 occurrences (75%)
+- HTTP timeouts: 3 occurrences (25%)
+
+## Recommendations
+🔍 **Immediate Actions:**
+1. Check database connection pool exhaustion
+2. Review recent database schema changes
+3. Investigate slow queries (execution time > 30s)
+
+⚠️ **Critical Issues:**
+- Error rate increased from 0.5% to 2.7%
+- Database errors concentrated in last 3 hours
+```
+
+**Resolution:**
+- AI identifies database connection pool exhaustion
+- Developer increases pool size in configuration
+- Error rate returns to normal within 15 minutes
+
+### Example 2: Performance Analysis and Optimization
+
+Analyze function performance to identify optimization opportunities:
+
+```javascript
+// Step 1: Get execution statistics for all functions
+await mcpClient.invoke("loganalytics-get-function-stats", {
+  workspaceId: "prod-functions",
+  timespan: "PT24H"
+});
+```
+
+**AI identifies slow functions:**
+```
+- GenerateReports: 180 executions, 75% success rate (needs attention)
+- ProcessOrders: 1,250 executions, 98.8% success rate (healthy)
+- SendNotifications: 3,420 executions, 99.9% success rate (excellent)
+```
+
+```javascript
+// Step 2: Get detailed performance report for slow function
+await mcpClient.invoke("loganalytics-function-performance-report", {
+  workspaceId: "prod-functions",
+  functionName: "GenerateReports",
+  timespan: "PT24H"
+});
+```
+
+**AI provides optimization recommendations:**
+
+```markdown
+# Performance Report: GenerateReports Function
+
+## Performance Insights
+- 45 errors out of 180 executions (25% failure rate)
+- Most errors: "Memory limit exceeded"
+- Average execution time: 45 seconds
+- Slowest execution: 180 seconds
+
+## Recommendations
+⚠️ **Optimization Opportunities:**
+1. Reduce memory usage (currently exceeding 1.5GB limit)
+2. Implement pagination for large reports
+3. Add caching for frequently accessed data
+4. Consider increasing memory allocation to 2GB
+```
+
+**Resolution:**
+- Developer implements pagination and caching
+- Success rate improves from 75% to 98%
+- Average execution time drops to 12 seconds
+
+### Example 3: Security Audit and Compliance
+
+Monitor for security issues and authentication failures:
+
+```javascript
+// Generate security analysis report
+await mcpClient.invoke("loganalytics-security-analysis", {
+  workspaceId: "prod-functions",
+  timespan: "PT24H"
+});
+```
+
+**AI detects suspicious patterns:**
+
+```markdown
+# Security Analysis Report: Production Functions
+
+## Authentication Events
+- Total auth attempts: 1,250
+- Successful: 1,230 (98.4%)
+- Failed: 20 (1.6%)
+
+## Suspicious Activity Detected
+⚠️ **Unusual Pattern:**
+- 15 failed auth attempts from IP 203.0.113.42
+- All attempts within 5-minute window
+- Invalid API keys used
+- Potential brute force attack
+
+## Recommendations
+🚨 **Immediate Actions:**
+1. Block IP 203.0.113.42 at firewall level
+2. Rotate compromised API keys
+3. Enable rate limiting (max 5 attempts per minute)
+4. Set up alerts for similar patterns
+
+🔒 **Security Improvements:**
+- Implement API key rotation policy (quarterly)
+- Add MFA for admin operations
+- Enable Azure Firewall with geo-blocking
+```
+
+**Resolution:**
+- Security team blocks malicious IP
+- Implements rate limiting
+- Adds automated alerting for similar patterns
+
+### Example 4: Cross-Table Log Correlation
+
+Search across multiple tables to correlate events:
+
+```javascript
+// Search for "timeout" errors across all tables
+await mcpClient.invoke("loganalytics-search-logs", {
+  workspaceId: "prod-functions",
+  searchText: "timeout",
+  timespan: "PT12H",
+  limit: 100
+});
+```
+
+**AI correlates events across tables:**
+```
+Found 25 timeout events across 3 tables:
+- FunctionAppLogs: 15 timeout errors
+- requests: 8 HTTP request timeouts
+- dependencies: 2 database connection timeouts
+
+Timeline correlation:
+- All timeouts occurred between 10:00-11:00 UTC
+- External API (api.example.com) was down during this window
+- Database remained healthy
+```
+
+```javascript
+// Get detailed logs from specific table
+await mcpClient.invoke("loganalytics-get-recent-events", {
+  workspaceId: "prod-functions",
+  tableName: "dependencies",
+  timespan: "PT12H",
+  limit: 50
+});
+```
+
+**AI identifies root cause:**
+```
+Root Cause Analysis:
+- External API (api.example.com) had 100% failure rate
+- All 2 database timeouts were retry attempts after API failure
+- API vendor confirmed outage from 10:00-11:05 UTC
+- Recommendation: Implement circuit breaker pattern
+```
+
+**Resolution:**
+- Developer implements circuit breaker with Polly library
+- Adds fallback mechanism for API unavailability
+- System remains operational during future API outages
+
+### Example 5: Custom KQL Queries for Advanced Analysis
+
+Execute custom KQL queries for specific insights:
+
+```javascript
+// Custom query to find functions with declining success rates
+await mcpClient.invoke("loganalytics-execute-query", {
+  workspaceId: "prod-functions",
+  query: `
+    FunctionAppLogs
+    | where TimeGenerated > ago(7d)
+    | summarize
+        TotalExecutions = count(),
+        ErrorCount = countif(ExceptionDetails != ""),
+        SuccessRate = round(100.0 * countif(ExceptionDetails == "") / count(), 2)
+      by FunctionName, bin(TimeGenerated, 1d)
+    | order by TimeGenerated desc, SuccessRate asc
+  `,
+  timespan: "P7D"
+});
+```
+
+**AI analyzes trend data:**
+```
+Success Rate Trends (7-day analysis):
+
+ProcessOrders:
+- Day 1-3: 99.5% success rate (stable)
+- Day 4-7: 97.2% success rate (declining)
+- Root cause: New deployment on day 4 introduced bug
+
+GenerateReports:
+- Day 1-7: 75% success rate (consistently low)
+- Needs immediate optimization
+
+SendNotifications:
+- Day 1-7: 99.9% success rate (excellent, stable)
+```
+
+```javascript
+// Get metadata to discover available tables
+await mcpClient.invoke("loganalytics-get-metadata", {
+  workspaceId: "prod-functions"
+});
+```
+
+**AI suggests additional tables to query:**
+```
+Available Tables:
+- FunctionAppLogs: Function execution logs
+- requests: HTTP requests (for HTTP-triggered functions)
+- traces: Diagnostic traces
+- exceptions: Application exceptions
+- dependencies: External calls (APIs, databases)
+- customEvents: Custom application events
+
+Suggestion: Query 'dependencies' table to analyze external API performance
+```
+
+### Example 6: Workspace Health Monitoring
+
+Monitor overall workspace health across all functions:
+
+```javascript
+// Get comprehensive workspace summary
+await mcpClient.invoke("loganalytics-workspace-summary", {
+  workspaceId: "prod-functions",
+  timespan: "PT1H"
+});
+```
+
+**AI generates health dashboard:**
+
+```markdown
+# Workspace Summary: Production Functions
+**Time Range:** Last 1 hour
+
+## Overview
+- Active Functions: 5
+- Total Executions: 5,500
+- Total Errors: 22
+- Overall Success Rate: 99.6%
+
+## Functions
+| Function Name | Executions | Errors | Success Rate | Status |
+|--------------|------------|--------|--------------|--------|
+| SendNotifications | 3,420 | 2 | 99.94% | ✅ Healthy |
+| ProcessOrders | 1,250 | 15 | 98.8% | ⚠️ Needs attention |
+| GenerateReports | 180 | 5 | 97.2% | ⚠️ Needs attention |
+| SyncInventory | 450 | 0 | 100% | ✅ Excellent |
+| CleanupData | 200 | 0 | 100% | ✅ Excellent |
+
+## Top Errors
+1. Database connection timeout (8 occurrences) - ProcessOrders
+2. Memory limit exceeded (5 occurrences) - GenerateReports
+3. HTTP request timeout (2 occurrences) - ProcessOrders
+
+## Recommendations
+- ⚠️ **Immediate:** Investigate database timeouts in ProcessOrders
+- ⚠️ **Medium:** Optimize memory usage in GenerateReports
+- ✅ **Overall:** System health is good (99.6% success rate)
+```
+
+**Resolution:**
+- DevOps team uses this dashboard for daily health checks
+- Sets up automated alerts for functions below 95% success rate
+- Proactively addresses issues before users report them
+
+### Common Patterns: Shared Credentials with Application Insights
+
+When using both Application Insights and Log Analytics, you can share credentials:
+
+```bash
+# Configure shared Azure AD app registration
+export APPINSIGHTS_TENANT_ID=your-tenant-id
+export APPINSIGHTS_CLIENT_ID=your-app-client-id
+export APPINSIGHTS_CLIENT_SECRET=your-app-secret
+
+# Configure resources
+export APPINSIGHTS_RESOURCES='[{"id":"prod-api","name":"Production API","appId":"app-id-1","active":true}]'
+export LOGANALYTICS_RESOURCES='[{"id":"prod-functions","name":"Production Functions","workspaceId":"workspace-id-1","active":true}]'
+```
+
+**Benefits:**
+- Single app registration to manage
+- Consistent permission model
+- Simplified configuration
+- Lower maintenance overhead
+
+### Debugging Workflow: Complete Example
+
+Full workflow for investigating production issue:
+
+```javascript
+// 1. User reports: "ProcessOrders function is failing"
+
+// 2. Quick health check
+await mcpClient.invoke("loganalytics-get-function-stats", {
+  workspaceId: "prod-functions",
+  functionName: "ProcessOrders",
+  timespan: "PT1H"
+});
+// Result: 98.2% success rate (down from 99.5% baseline)
+
+// 3. Get recent errors
+await mcpClient.invoke("loganalytics-get-function-errors", {
+  workspaceId: "prod-functions",
+  functionName: "ProcessOrders",
+  timespan: "PT6H"
+});
+// Result: 8 database timeout errors
+
+// 4. Generate comprehensive troubleshooting report
+await mcpClient.invoke("loganalytics-function-troubleshooting", {
+  workspaceId: "prod-functions",
+  functionName: "ProcessOrders",
+  timespan: "PT6H"
+});
+// Result: AI identifies database connection pool exhaustion
+
+// 5. Correlate with Application Insights (if configured)
+await mcpClient.invoke("appinsights-get-failed-dependencies", {
+  resourceId: "prod-api",
+  timespan: "PT6H"
+});
+// Result: Confirms database calls are slow (avg 35s)
+
+// 6. Fix applied: Increase connection pool size
+
+// 7. Verify fix
+await mcpClient.invoke("loganalytics-get-function-stats", {
+  workspaceId: "prod-functions",
+  functionName: "ProcessOrders",
+  timespan: "PT15M"
+});
+// Result: 99.8% success rate (back to normal)
+```
+
+**Time to resolution: 15 minutes (vs. hours of manual investigation)**
 
 ## Figma Examples
 

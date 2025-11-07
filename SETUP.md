@@ -459,6 +459,98 @@ APPINSIGHTS_CLIENT_SECRET=your-service-principal-secret
 APPINSIGHTS_AUTH_METHOD=entra-id
 ```
 
+### Azure Log Analytics Workspace (Optional)
+
+**Authentication Methods (choose one):**
+
+**Option 1: Microsoft Entra ID (Recommended for Production)**
+- `LOGANALYTICS_AUTH_METHOD` (optional): Authentication method
+  - Options: `"entra-id"` or `"api-key"`
+  - Default: `"entra-id"`
+  - Entra ID provides higher rate limits (60 req/min vs 15 req/min)
+- `LOGANALYTICS_TENANT_ID` (required if using Entra ID): Azure tenant ID
+- `LOGANALYTICS_CLIENT_ID` (required if using Entra ID): Service principal client ID
+- `LOGANALYTICS_CLIENT_SECRET` (required if using Entra ID): Service principal client secret
+- `LOGANALYTICS_RESOURCES` (required): JSON array of Log Analytics workspaces to query
+
+**Option 2: API Key (Simpler for Single Workspaces)**
+- `LOGANALYTICS_WORKSPACE_ID` (required if not using LOGANALYTICS_RESOURCES): Log Analytics workspace ID (GUID)
+- `LOGANALYTICS_API_KEY` (required if using API key auth): Log Analytics API key
+
+**Multi-Workspace Configuration (Recommended):**
+
+Configure multiple Log Analytics workspaces with active/inactive flags:
+
+```json
+[
+  {
+    "id": "prod-functions",
+    "name": "Production Functions",
+    "workspaceId": "12345678-1234-1234-1234-123456789abc",
+    "active": true,
+    "description": "Production Azure Functions logs"
+  },
+  {
+    "id": "prod-appservices",
+    "name": "Production App Services",
+    "workspaceId": "87654321-4321-4321-4321-cba987654321",
+    "active": true,
+    "description": "Production App Services logs"
+  },
+  {
+    "id": "staging-functions",
+    "name": "Staging Functions",
+    "workspaceId": "11111111-2222-3333-4444-555555555555",
+    "active": false,
+    "description": "Staging Functions (inactive)"
+  }
+]
+```
+
+Set as environment variable (minified):
+```bash
+LOGANALYTICS_RESOURCES='[{"id":"prod-functions","name":"Production Functions","workspaceId":"12345678-1234-1234-1234-123456789abc","active":true},{"id":"prod-appservices","name":"Production App Services","workspaceId":"87654321-4321-4321-4321-cba987654321","active":true}]'
+```
+
+**Single-Workspace Configuration (Simple):**
+
+For a single Log Analytics workspace:
+
+```bash
+LOGANALYTICS_WORKSPACE_ID=12345678-1234-1234-1234-123456789abc
+LOGANALYTICS_API_KEY=your-api-key-here
+LOGANALYTICS_AUTH_METHOD=api-key
+```
+
+Or with Entra ID:
+
+```bash
+LOGANALYTICS_WORKSPACE_ID=12345678-1234-1234-1234-123456789abc
+LOGANALYTICS_TENANT_ID=your-tenant-id
+LOGANALYTICS_CLIENT_ID=your-service-principal-client-id
+LOGANALYTICS_CLIENT_SECRET=your-service-principal-secret
+LOGANALYTICS_AUTH_METHOD=entra-id
+```
+
+**Shared Credentials with Application Insights:**
+
+If you're using both Application Insights and Log Analytics, you can reuse the same Entra ID app registration. The Log Analytics integration will automatically fall back to Application Insights credentials if Log Analytics-specific credentials are not provided:
+
+```bash
+# Shared credentials (used by both)
+APPINSIGHTS_TENANT_ID=your-tenant-id
+APPINSIGHTS_CLIENT_ID=your-service-principal-client-id
+APPINSIGHTS_CLIENT_SECRET=your-service-principal-secret
+
+# Application Insights resources
+APPINSIGHTS_RESOURCES='[...]'
+
+# Log Analytics resources (will use APPINSIGHTS_* credentials automatically)
+LOGANALYTICS_RESOURCES='[...]'
+```
+
+This reduces configuration complexity when using both services.
+
 ### Azure SQL Database (Optional)
 
 **Connection Settings:**
@@ -678,6 +770,148 @@ APPINSIGHTS_AUTH_METHOD=api-key
 
 ---
 
+### Azure Log Analytics Workspace Credentials
+
+**Option 1: Entra ID (Service Principal) - Recommended**
+
+This is the recommended approach for production use with higher rate limits and better security.
+
+**Step 1: Create Service Principal (or Reuse Application Insights Service Principal)**
+
+If you already have an Application Insights service principal, you can reuse it for Log Analytics. Otherwise, create a new one:
+
+```bash
+# Create service principal
+az ad sp create-for-rbac \
+  --name "mcp-loganalytics-reader" \
+  --role "Log Analytics Reader" \
+  --scopes /subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.OperationalInsights/workspaces/{workspace-name}
+
+# Output (save these values):
+# {
+#   "appId": "87654321-4321-4321-4321-cba987654321",    # → LOGANALYTICS_CLIENT_ID
+#   "password": "your-client-secret",                    # → LOGANALYTICS_CLIENT_SECRET
+#   "tenant": "12345678-1234-1234-1234-123456789abc"    # → LOGANALYTICS_TENANT_ID
+# }
+```
+
+**Step 2: Get Log Analytics Workspace ID**
+
+1. Go to Azure Portal → Log Analytics workspaces → Your workspace
+2. Navigate to "Properties" under "Settings"
+3. Copy the **Workspace ID** (GUID format)
+4. This is your `workspaceId` for the resource configuration
+
+**Step 3: Assign Log Analytics Reader Role (if not done in Step 1)**
+
+```bash
+# Assign role to existing service principal
+az role assignment create \
+  --assignee {client-id} \
+  --role "Log Analytics Reader" \
+  --scope /subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.OperationalInsights/workspaces/{workspace-name}
+```
+
+**Step 4: Configure Environment Variables**
+
+For multiple workspaces (recommended):
+
+```bash
+LOGANALYTICS_AUTH_METHOD=entra-id
+LOGANALYTICS_TENANT_ID=your-tenant-id
+LOGANALYTICS_CLIENT_ID=your-service-principal-client-id
+LOGANALYTICS_CLIENT_SECRET=your-service-principal-secret
+LOGANALYTICS_RESOURCES='[{"id":"prod-functions","name":"Production Functions","workspaceId":"workspace-id-from-portal","active":true},{"id":"prod-appservices","name":"Production App Services","workspaceId":"another-workspace-id","active":true}]'
+```
+
+**Shared Credentials (Recommended):**
+
+If you're using both Application Insights and Log Analytics, assign both "Monitoring Reader" (for Application Insights) and "Log Analytics Reader" (for Log Analytics) roles to the same service principal:
+
+```bash
+# Assign both roles to the same service principal
+az role assignment create \
+  --assignee {client-id} \
+  --role "Monitoring Reader" \
+  --scope /subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Insights/components/{appinsights-name}
+
+az role assignment create \
+  --assignee {client-id} \
+  --role "Log Analytics Reader" \
+  --scope /subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.OperationalInsights/workspaces/{workspace-name}
+```
+
+Then configure only the Application Insights credentials - Log Analytics will automatically use them:
+
+```bash
+APPINSIGHTS_AUTH_METHOD=entra-id
+APPINSIGHTS_TENANT_ID=your-tenant-id
+APPINSIGHTS_CLIENT_ID=your-service-principal-client-id
+APPINSIGHTS_CLIENT_SECRET=your-service-principal-secret
+APPINSIGHTS_RESOURCES='[...]'
+
+# Log Analytics will automatically use APPINSIGHTS_* credentials
+LOGANALYTICS_RESOURCES='[...]'
+```
+
+**Option 2: API Key - Simpler for Single Workspaces**
+
+This is simpler but has lower rate limits (15 req/min vs 60 req/min).
+
+**Step 1: Create API Key**
+
+**Note:** Log Analytics API keys are deprecated by Microsoft and may be removed in the future. Use Entra ID authentication for new implementations.
+
+1. Go to Azure Portal → Log Analytics workspace → Your workspace
+2. Navigate to "API" under "Settings"
+3. Click "+ New key"
+4. Give it a name (e.g., "MCP Consultant Tools")
+5. Select permissions: **Read**
+6. Click "Create"
+7. Copy the generated key (only shown once!)
+
+**Step 2: Configure Environment Variables**
+
+For a single workspace:
+
+```bash
+LOGANALYTICS_WORKSPACE_ID=your-workspace-id-from-portal
+LOGANALYTICS_API_KEY=your-generated-api-key
+LOGANALYTICS_AUTH_METHOD=api-key
+```
+
+**Finding Required Information:**
+
+- **Workspace ID**: Azure Portal → Log Analytics workspaces → Properties → Workspace ID
+- **Subscription ID**: Azure Portal → Subscriptions → Subscription ID
+- **Resource Group**: Azure Portal → Log Analytics workspaces → Overview → Resource group
+- **Workspace Name**: The name of your Log Analytics workspace
+
+**Required Permissions:**
+
+- **Entra ID**: Service principal needs "Log Analytics Reader" or "Reader" role on the Log Analytics workspace
+- **API Key**: API key needs "Read" permission (deprecated - use Entra ID instead)
+
+**Common Tables in Log Analytics:**
+
+When configuring Log Analytics for Azure Functions, you'll typically query these tables:
+
+- **FunctionAppLogs**: Azure Function execution logs (messages, errors, exceptions)
+- **requests**: Incoming HTTP requests (for HTTP-triggered functions)
+- **dependencies**: Outbound calls (APIs, databases)
+- **traces**: Diagnostic traces
+- **exceptions**: Application exceptions
+- **customEvents**: Custom events
+
+**Security Note:**
+- Service principal secrets should be rotated regularly (every 90 days recommended)
+- API keys are deprecated by Microsoft - use Entra ID for new implementations
+- Store all credentials securely. Never commit them to version control.
+- Use Entra ID for production environments (better rate limits and security)
+- Consider using the same service principal for both Application Insights and Log Analytics
+
+---
+
 ### Azure SQL Database Credentials
 
 **Option 1: SQL Authentication (Username/Password) - Simpler**
@@ -855,6 +1089,23 @@ If you want to query stored procedures:
 - For API Key:
   - Verify API key hasn't been revoked
   - Check API key has "Read telemetry" permission
+
+**Log Analytics:**
+- Verify Workspace ID is correct (GUID format from Portal → Properties)
+- For Entra ID:
+  - Check service principal has "Log Analytics Reader" role
+  - Verify tenant ID and client credentials
+  - If using shared credentials, ensure APPINSIGHTS_* variables are set
+- For API Key:
+  - Note: API keys are deprecated by Microsoft - switch to Entra ID
+  - Verify API key hasn't been revoked
+  - Check API key has "Read" permission
+- Common errors:
+  - 401 Unauthorized: Invalid credentials or missing authentication
+  - 403 Forbidden: Service principal lacks "Log Analytics Reader" role
+  - 404 Not Found: Workspace ID is incorrect
+  - "Table 'X' not found": Use `loganalytics-get-metadata` to see available tables
+  - KQL syntax errors: Validate KQL query syntax before executing
 
 ### "Cannot find module" Errors
 
