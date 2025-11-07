@@ -6,6 +6,7 @@ This guide provides practical examples and use cases for the MCP Consultant Tool
 
 - [PowerPlatform Examples](#powerplatform-examples)
 - [Azure DevOps Examples](#azure-devops-examples)
+- [Application Insights Examples](#application-insights-examples)
 - [Figma Examples](#figma-examples)
 - [Integration Use Cases](#integration-use-cases)
 
@@ -1088,6 +1089,463 @@ WHERE [System.WorkItemType] = 'User Story'
 - `@today` - Today's date
 - `@project` - Current project
 - `@currentIteration` - Current iteration path
+
+## Application Insights Examples
+
+### Example 1: Troubleshoot Production Exceptions
+
+When users report errors in production, quickly investigate with Application Insights:
+
+```javascript
+// Get comprehensive exception summary with insights
+await mcpClient.callPrompt("appinsights-exception-summary", {
+  resourceId: "production-api",
+  timespan: "PT1H"  // Last hour
+});
+```
+
+**Sample Output:**
+```markdown
+# Application Insights Exception Summary Report
+
+**Resource**: production-api
+**Time Range**: PT1H
+
+## Key Insights
+
+- Found 3 unique exception type(s)
+- Total exceptions: 47
+- Most affected operation: POST /api/orders (42 exceptions)
+
+## Recent Exceptions
+
+| timestamp | type | outerMessage | operation_Name | cloud_RoleName |
+| --- | --- | --- | --- | --- |
+| 2024-01-15T14:32:15Z | NullReferenceException | Object reference not set | POST /api/orders | OrderAPI |
+| 2024-01-15T14:31:58Z | NullReferenceException | Object reference not set | POST /api/orders | OrderAPI |
+
+## Exception Types (Frequency)
+
+| type | Count |
+| --- | --- |
+| NullReferenceException | 42 |
+| TimeoutException | 3 |
+| SqlException | 2 |
+
+## Recommendations
+
+- Review the most frequent exception types to identify systemic issues
+- Investigate exceptions in critical operations first
+- Check for patterns in timestamps (e.g., deployment times, peak traffic)
+- Use operation_Id to correlate exceptions with requests and dependencies
+```
+
+### Example 2: Performance Analysis
+
+Identify slow operations and optimize performance:
+
+```javascript
+// Generate comprehensive performance report
+await mcpClient.callPrompt("appinsights-performance-report", {
+  resourceId: "production-api",
+  timespan: "PT6H"  // Last 6 hours
+});
+```
+
+**Sample Output:**
+```markdown
+# Application Insights Performance Report
+
+**Resource**: production-api
+**Time Range**: PT6H
+
+## Key Insights
+
+- Slowest operation: GET /api/customers/search (avg: 8234ms)
+- Operation with most failures: POST /api/orders (15 failures)
+
+## Operation Performance Summary
+
+| operation_Name | RequestCount | AvgDuration | P95Duration | P99Duration | FailureCount |
+| --- | --- | --- | --- | --- | --- |
+| GET /api/customers/search | 1523 | 8234 | 12450 | 18900 | 0 |
+| POST /api/orders | 4521 | 245 | 450 | 1200 | 15 |
+| GET /api/products | 8932 | 45 | 120 | 250 | 0 |
+
+## Slowest Requests (>5s)
+
+| timestamp | name | duration | resultCode | cloud_RoleName |
+| --- | --- | --- | --- | --- |
+| 2024-01-15T14:30:00Z | GET /api/customers/search | 18934 | 200 | CustomerAPI |
+| 2024-01-15T14:25:00Z | GET /api/customers/search | 15234 | 200 | CustomerAPI |
+
+## Performance Recommendations
+
+- Focus optimization efforts on operations with high P95/P99 duration
+- Investigate operations with high failure counts
+- Monitor operations with high request counts for scalability issues
+- Use operation_Id to trace slow requests through dependencies
+```
+
+### Example 3: Monitor External Dependencies
+
+Track health of external services and APIs:
+
+```javascript
+// Check dependency health for external integrations
+await mcpClient.callPrompt("appinsights-dependency-health", {
+  resourceId: "production-api",
+  timespan: "PT1H"
+});
+```
+
+**Sample Output:**
+```markdown
+# Application Insights Dependency Health Report
+
+**Resource**: production-api
+**Time Range**: PT1H
+
+## Key Insights
+
+- Affected targets: 2
+- Total failed dependency calls: 18
+- Most failing target: payment-gateway.company.com (15 failures)
+
+## Failed Dependencies
+
+| timestamp | name | target | type | duration | resultCode | cloud_RoleName |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2024-01-15T14:32:00Z | POST /charge | payment-gateway.company.com | HTTP | 30000 | 504 | PaymentService |
+| 2024-01-15T14:31:45Z | POST /charge | payment-gateway.company.com | HTTP | 30000 | 504 | PaymentService |
+
+## Dependency Success Rates
+
+| target | type | Total | Failed | AvgDuration | SuccessRate |
+| --- | --- | --- | --- | --- | --- |
+| payment-gateway.company.com | HTTP | 150 | 15 | 2450 | 90.00 |
+| crm.database.windows.net | SQL | 4523 | 3 | 45 | 99.93 |
+| storage.blob.core.windows.net | Azure blob | 892 | 0 | 23 | 100.00 |
+
+## Recommendations
+
+- Investigate dependencies with success rates below 99%
+- Check if external service degradation matches known incidents
+- Review timeout configurations for slow dependencies
+- Consider implementing circuit breakers for unreliable dependencies
+```
+
+### Example 4: SLA Monitoring with Availability Tests
+
+Track uptime and availability for SLA compliance:
+
+```javascript
+// Get 24-hour availability report
+await mcpClient.callPrompt("appinsights-availability-report", {
+  resourceId: "production-web",
+  timespan: "PT24H"
+});
+```
+
+**Sample Output:**
+```markdown
+# Application Insights Availability Report
+
+**Resource**: production-web
+**Time Range**: PT24H
+
+## Availability Test Results
+
+| name | TotalTests | SuccessCount | FailureCount | AvgDuration | SuccessRate |
+| --- | --- | --- | --- | --- | --- |
+| Homepage Health Check | 1440 | 1438 | 2 | 234 | 99.86 |
+| API Ping Test (US East) | 1440 | 1440 | 0 | 156 | 100.00 |
+| API Ping Test (EU West) | 1440 | 1432 | 8 | 289 | 99.44 |
+
+## Recommendations
+
+- Investigate any tests with success rates below 99.9%
+- Review failed tests for patterns (geographic, time-based)
+- Consider adding availability tests for critical endpoints if missing
+- Set up alerts for availability degradation
+```
+
+### Example 5: Execute Custom KQL Queries
+
+For advanced scenarios, execute custom KQL queries directly:
+
+```javascript
+// Find requests with specific error codes
+await mcpClient.invoke("appinsights-execute-query", {
+  resourceId: "production-api",
+  query: `
+    requests
+    | where timestamp > ago(1h)
+    | where resultCode startswith "5"
+    | summarize Count=count() by resultCode, operation_Name
+    | order by Count desc
+  `,
+  timespan: "PT1H"
+});
+```
+
+**Returns raw KQL results:**
+```json
+{
+  "tables": [
+    {
+      "name": "PrimaryResult",
+      "columns": [
+        { "name": "resultCode", "type": "string" },
+        { "name": "operation_Name", "type": "string" },
+        { "name": "Count", "type": "long" }
+      ],
+      "rows": [
+        ["503", "POST /api/orders", 15],
+        ["500", "GET /api/customers", 8],
+        ["504", "POST /api/payments", 3]
+      ]
+    }
+  ]
+}
+```
+
+### Example 6: First-Responder Incident Guide
+
+When production issues occur, get a comprehensive troubleshooting guide:
+
+```javascript
+// Generate complete troubleshooting workflow
+await mcpClient.callPrompt("appinsights-troubleshooting-guide", {
+  resourceId: "production-api",
+  timespan: "PT1H"
+});
+```
+
+**Sample Output:**
+```markdown
+# Application Insights Troubleshooting Guide
+
+**Resource**: production-api
+**Time Range**: PT1H
+
+## Health Status Overview
+
+- 🔴 **Exceptions**: 47 exceptions detected
+- 🟡 **Performance**: 12 slow requests (>5s)
+- 🟡 **Dependencies**: 18 dependency failures
+
+## Top Exceptions
+
+| type | Count | operation_Name |
+| --- | --- | --- |
+| NullReferenceException | 42 | POST /api/orders |
+| TimeoutException | 3 | GET /api/customers |
+| SqlException | 2 | POST /api/inventory |
+
+## Slowest Requests
+
+| operation_Name | duration | resultCode |
+| --- | --- | --- |
+| GET /api/customers/search | 18934 | 200 |
+| GET /api/customers/search | 15234 | 200 |
+
+## Failed Dependencies
+
+| target | type | FailureCount |
+| --- | --- | --- |
+| payment-gateway.company.com | HTTP | 15 |
+| crm.database.windows.net | SQL | 3 |
+
+## Troubleshooting Workflow
+
+### Step 1: Identify the Root Cause
+
+1. **Check for exceptions**
+   - Review top exception types and affected operations
+   - Look for correlation with recent deployments
+
+2. **Analyze performance degradation**
+   - Identify which operations are slow
+   - Check if slowness coincides with dependency failures
+
+3. **Verify external dependencies**
+   - Check if third-party services are degraded
+   - Review timeout and retry configurations
+
+### Step 2: Investigate Further
+
+Use these KQL queries for deeper investigation:
+
+```kql
+// Find all operations affected by NullReferenceException
+exceptions
+| where type == "NullReferenceException"
+| summarize count() by operation_Name, cloud_RoleName
+| order by count_ desc
+
+// Trace request flow with operation_Id
+union requests, dependencies, exceptions
+| where operation_Id == "YOUR_OPERATION_ID"
+| project timestamp, itemType, name, success, resultCode, duration
+| order by timestamp asc
+```
+
+### Step 3: Mitigate and Monitor
+
+- Roll back recent deployments if exceptions started after deployment
+- Enable circuit breakers for failing dependencies
+- Increase timeout values if seeing timeout exceptions
+- Scale up resources if seeing performance degradation under load
+
+## Next Steps
+
+1. Create incident work item in Azure DevOps
+2. Notify on-call engineer if issue persists
+3. Review and update runbooks based on findings
+4. Set up alerts to catch similar issues earlier
+```
+
+### Example 7: List and Select Application Insights Resources
+
+When you have multiple Application Insights resources configured:
+
+```javascript
+// List all active Application Insights resources
+await mcpClient.invoke("appinsights-list-resources", {});
+```
+
+**Sample Output:**
+```json
+{
+  "resources": [
+    {
+      "id": "production-api",
+      "name": "Production API",
+      "appId": "12345678-1234-1234-1234-123456789abc",
+      "active": true,
+      "description": "Main production API telemetry"
+    },
+    {
+      "id": "production-web",
+      "name": "Production Web App",
+      "appId": "87654321-4321-4321-4321-cba987654321",
+      "active": true,
+      "description": "Customer-facing web application"
+    },
+    {
+      "id": "staging-api",
+      "name": "Staging API",
+      "appId": "abcdef12-3456-7890-abcd-ef1234567890",
+      "active": false,
+      "description": "Staging environment API (inactive)"
+    }
+  ],
+  "totalCount": 3,
+  "activeCount": 2,
+  "authMethod": "entra-id"
+}
+```
+
+### Example 8: Get Schema and Available Tables
+
+Before writing custom KQL queries, check available tables and columns:
+
+```javascript
+// Get metadata (schema) for Application Insights resource
+await mcpClient.invoke("appinsights-get-metadata", {
+  resourceId: "production-api"
+});
+```
+
+**Returns schema information:**
+```json
+{
+  "tables": [
+    {
+      "name": "requests",
+      "columns": [
+        { "name": "timestamp", "type": "datetime" },
+        { "name": "id", "type": "string" },
+        { "name": "name", "type": "string" },
+        { "name": "duration", "type": "real" },
+        { "name": "resultCode", "type": "string" },
+        { "name": "success", "type": "bool" }
+      ]
+    },
+    {
+      "name": "exceptions",
+      "columns": [
+        { "name": "timestamp", "type": "datetime" },
+        { "name": "type", "type": "string" },
+        { "name": "outerMessage", "type": "string" }
+      ]
+    }
+  ]
+}
+```
+
+### Common KQL Query Patterns
+
+**Time-based filtering:**
+```kql
+// Last hour
+requests | where timestamp > ago(1h)
+
+// Specific time range
+requests | where timestamp between(datetime(2024-01-15) .. datetime(2024-01-16))
+
+// Last 7 days
+requests | where timestamp > ago(7d)
+```
+
+**Aggregation and grouping:**
+```kql
+// Count by operation
+requests
+| summarize Count=count() by operation_Name
+| order by Count desc
+
+// Average duration by operation
+requests
+| summarize AvgDuration=avg(duration), P95=percentile(duration, 95) by operation_Name
+
+// Success rate
+requests
+| summarize Total=count(), Failures=countif(success == false)
+| extend SuccessRate=100.0 * (Total - Failures) / Total
+```
+
+**Correlation across telemetry types:**
+```kql
+// Find all telemetry for a specific operation
+let operationId = "abc123";
+union requests, dependencies, exceptions, traces
+| where operation_Id == operationId
+| project timestamp, itemType, name, duration, success
+| order by timestamp asc
+```
+
+### ISO 8601 Duration Format
+
+Application Insights uses ISO 8601 duration format for timespans:
+
+| Duration | ISO 8601 | Description |
+|----------|----------|-------------|
+| 15 minutes | PT15M | Last 15 minutes |
+| 30 minutes | PT30M | Last 30 minutes |
+| 1 hour | PT1H | Last hour |
+| 6 hours | PT6H | Last 6 hours |
+| 12 hours | PT12H | Last 12 hours |
+| 1 day | P1D | Last day (24 hours) |
+| 7 days | P7D | Last week |
+| 30 days | P30D | Last month |
+
+**Format Rules:**
+- Start with `P` (period)
+- Add `T` before time components
+- Use `D` for days, `H` for hours, `M` for minutes, `S` for seconds
+- Examples: `P1DT6H` = 1 day 6 hours, `PT30M` = 30 minutes
 
 ## Figma Examples
 
