@@ -111,7 +111,19 @@ Edit the file and add:
 
         "FIGMA_API_KEY": "your-figma-personal-access-token",
         "FIGMA_OAUTH_TOKEN": "",
-        "FIGMA_USE_OAUTH": "false"
+        "FIGMA_USE_OAUTH": "false",
+
+        "APPINSIGHTS_AUTH_METHOD": "entra-id",
+        "APPINSIGHTS_TENANT_ID": "your-tenant-id",
+        "APPINSIGHTS_CLIENT_ID": "your-client-id",
+        "APPINSIGHTS_CLIENT_SECRET": "your-client-secret",
+        "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod-api\",\"name\":\"Production API\",\"appId\":\"your-app-id\",\"active\":true}]",
+
+        "AZURE_SQL_SERVER": "yourserver.database.windows.net",
+        "AZURE_SQL_DATABASE": "yourdatabase",
+        "AZURE_SQL_USERNAME": "your-username",
+        "AZURE_SQL_PASSWORD": "your-password",
+        "AZURE_SQL_USE_AZURE_AD": "false"
       }
     }
   }
@@ -160,7 +172,19 @@ Create `.vscode/mcp.json` in your project:
 
         "FIGMA_API_KEY": "your-figma-personal-access-token",
         "FIGMA_OAUTH_TOKEN": "",
-        "FIGMA_USE_OAUTH": "false"
+        "FIGMA_USE_OAUTH": "false",
+
+        "APPINSIGHTS_AUTH_METHOD": "entra-id",
+        "APPINSIGHTS_TENANT_ID": "your-tenant-id",
+        "APPINSIGHTS_CLIENT_ID": "your-client-id",
+        "APPINSIGHTS_CLIENT_SECRET": "your-client-secret",
+        "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod-api\",\"name\":\"Production API\",\"appId\":\"your-app-id\",\"active\":true}]",
+
+        "AZURE_SQL_SERVER": "yourserver.database.windows.net",
+        "AZURE_SQL_DATABASE": "yourdatabase",
+        "AZURE_SQL_USERNAME": "your-username",
+        "AZURE_SQL_PASSWORD": "your-password",
+        "AZURE_SQL_USE_AZURE_AD": "false"
       }
     }
   }
@@ -203,6 +227,18 @@ export AZUREDEVOPS_ENABLE_WIKI_WRITE="false"
 export FIGMA_API_KEY="your-figma-token"
 export FIGMA_OAUTH_TOKEN=""
 export FIGMA_USE_OAUTH="false"
+
+export APPINSIGHTS_AUTH_METHOD="entra-id"
+export APPINSIGHTS_TENANT_ID="your-tenant-id"
+export APPINSIGHTS_CLIENT_ID="your-client-id"
+export APPINSIGHTS_CLIENT_SECRET="your-client-secret"
+export APPINSIGHTS_RESOURCES='[{"id":"prod-api","name":"Production API","appId":"your-app-id","active":true}]'
+
+export AZURE_SQL_SERVER="yourserver.database.windows.net"
+export AZURE_SQL_DATABASE="yourdatabase"
+export AZURE_SQL_USERNAME="your-username"
+export AZURE_SQL_PASSWORD="your-password"
+export AZURE_SQL_USE_AZURE_AD="false"
 ```
 
 Then use a simpler configuration:
@@ -252,7 +288,19 @@ For local development and testing from a cloned repository:
 
         "FIGMA_API_KEY": "your-figma-personal-access-token",
         "FIGMA_OAUTH_TOKEN": "",
-        "FIGMA_USE_OAUTH": "false"
+        "FIGMA_USE_OAUTH": "false",
+
+        "APPINSIGHTS_AUTH_METHOD": "entra-id",
+        "APPINSIGHTS_TENANT_ID": "your-tenant-id",
+        "APPINSIGHTS_CLIENT_ID": "your-client-id",
+        "APPINSIGHTS_CLIENT_SECRET": "your-client-secret",
+        "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod-api\",\"name\":\"Production API\",\"appId\":\"your-app-id\",\"active\":true}]",
+
+        "AZURE_SQL_SERVER": "yourserver.database.windows.net",
+        "AZURE_SQL_DATABASE": "yourdatabase",
+        "AZURE_SQL_USERNAME": "your-username",
+        "AZURE_SQL_PASSWORD": "your-password",
+        "AZURE_SQL_USE_AZURE_AD": "false"
       }
     }
   }
@@ -410,6 +458,52 @@ APPINSIGHTS_CLIENT_ID=your-service-principal-client-id
 APPINSIGHTS_CLIENT_SECRET=your-service-principal-secret
 APPINSIGHTS_AUTH_METHOD=entra-id
 ```
+
+### Azure SQL Database (Optional)
+
+**Connection Settings:**
+
+- `AZURE_SQL_SERVER` (required if using SQL Database): SQL Server hostname
+  - Example: `yourserver.database.windows.net`
+  - Do not include `tcp:` prefix or port number
+- `AZURE_SQL_DATABASE` (required): Database name
+  - Example: `yourdatabase`
+- `AZURE_SQL_PORT` (optional): SQL Server port
+  - Default: `1433`
+
+**Authentication Methods (choose one):**
+
+**Option 1: SQL Authentication (Username/Password)**
+- `AZURE_SQL_USERNAME` (required if using SQL auth): SQL Server username
+  - Example: `mcp_readonly`
+- `AZURE_SQL_PASSWORD` (required if using SQL auth): SQL Server password
+- `AZURE_SQL_USE_AZURE_AD` (optional): Set to `"false"` (default)
+
+**Option 2: Azure AD Authentication (Recommended for Production)**
+- `AZURE_SQL_USE_AZURE_AD` (required): Set to `"true"` to enable Azure AD auth
+- `AZURE_SQL_CLIENT_ID` (required if using Azure AD): Service principal client ID
+- `AZURE_SQL_CLIENT_SECRET` (required if using Azure AD): Service principal client secret
+- `AZURE_SQL_TENANT_ID` (required if using Azure AD): Azure tenant ID
+
+**Query Safety Limits (Optional):**
+
+- `AZURE_SQL_QUERY_TIMEOUT` (optional): Query timeout in milliseconds
+  - Default: `30000` (30 seconds)
+  - Maximum: `300000` (5 minutes)
+- `AZURE_SQL_MAX_RESULT_ROWS` (optional): Maximum rows returned per query
+  - Default: `1000`
+  - Maximum: `10000`
+- `AZURE_SQL_CONNECTION_TIMEOUT` (optional): Connection timeout in milliseconds
+  - Default: `15000` (15 seconds)
+
+**Connection Pool Settings (Optional):**
+
+- `AZURE_SQL_POOL_MIN` (optional): Minimum pool connections
+  - Default: `0`
+- `AZURE_SQL_POOL_MAX` (optional): Maximum pool connections
+  - Default: `10`
+
+**Note:** The MCP server is read-only by design. Only `SELECT` queries are permitted. All write operations (INSERT, UPDATE, DELETE, DROP, etc.) are blocked by query validation.
 
 ---
 
@@ -584,6 +678,125 @@ APPINSIGHTS_AUTH_METHOD=api-key
 
 ---
 
+### Azure SQL Database Credentials
+
+**Option 1: SQL Authentication (Username/Password) - Simpler**
+
+This is the simplest approach for getting started.
+
+**Step 1: Create Read-Only SQL User**
+
+Connect to your Azure SQL Database using an admin account and run:
+
+```sql
+-- Create a login at the server level (master database)
+USE master;
+CREATE LOGIN mcp_readonly WITH PASSWORD = 'YourSecurePassword123!';
+
+-- Switch to your application database
+USE YourDatabaseName;
+CREATE USER mcp_readonly FOR LOGIN mcp_readonly;
+
+-- Grant read-only permissions
+ALTER ROLE db_datareader ADD MEMBER [mcp_readonly];
+GRANT VIEW DEFINITION TO [mcp_readonly];
+
+-- Optional: Grant execute permissions on specific stored procedures
+-- GRANT EXECUTE ON [dbo].[YourStoredProcedure] TO [mcp_readonly];
+```
+
+**Step 2: Configure Firewall Rules**
+
+1. Go to Azure Portal → SQL Server → Networking/Firewall
+2. Add your client IP address to the firewall rules
+3. Or enable "Allow Azure services and resources to access this server" if running from Azure
+
+**Step 3: Configure Environment Variables**
+
+```bash
+AZURE_SQL_SERVER=yourserver.database.windows.net
+AZURE_SQL_DATABASE=yourdatabase
+AZURE_SQL_USERNAME=mcp_readonly
+AZURE_SQL_PASSWORD=YourSecurePassword123!
+AZURE_SQL_USE_AZURE_AD=false
+```
+
+---
+
+**Option 2: Azure AD Authentication (Recommended for Production)**
+
+This provides better security with token-based authentication and no stored passwords.
+
+**Step 1: Create Service Principal**
+
+```bash
+# Create service principal
+az ad sp create-for-rbac --name "mcp-sql-reader"
+
+# Output (save these values):
+# {
+#   "appId": "12345678-1234-1234-1234-123456789abc",       # → AZURE_SQL_CLIENT_ID
+#   "password": "your-client-secret",                       # → AZURE_SQL_CLIENT_SECRET
+#   "tenant": "87654321-4321-4321-4321-cba987654321"       # → AZURE_SQL_TENANT_ID
+# }
+```
+
+**Step 2: Grant Service Principal Database Access**
+
+Connect to your Azure SQL Database and run:
+
+```sql
+-- Create Azure AD user from the service principal
+CREATE USER [mcp-sql-reader] FROM EXTERNAL PROVIDER;
+
+-- Grant read-only permissions
+ALTER ROLE db_datareader ADD MEMBER [mcp-sql-reader];
+GRANT VIEW DEFINITION TO [mcp-sql-reader];
+```
+
+**Step 3: Configure Environment Variables**
+
+```bash
+AZURE_SQL_SERVER=yourserver.database.windows.net
+AZURE_SQL_DATABASE=yourdatabase
+AZURE_SQL_USE_AZURE_AD=true
+AZURE_SQL_CLIENT_ID=your-service-principal-app-id
+AZURE_SQL_CLIENT_SECRET=your-service-principal-secret
+AZURE_SQL_TENANT_ID=your-azure-tenant-id
+```
+
+---
+
+**Finding Required Information:**
+
+- **Server Name**: Azure Portal → SQL Database → Overview → Server name (format: `yourserver.database.windows.net`)
+- **Database Name**: Azure Portal → SQL Database → Overview → Database name
+- **Connection String**: Azure Portal → SQL Database → Connection strings (for reference)
+
+**Required Permissions:**
+
+For read-only database investigation, the user/service principal needs:
+- `db_datareader` role - Read access to all tables and views
+- `VIEW DEFINITION` permission - View schema metadata (tables, views, procedures, triggers)
+
+**Optional Permissions:**
+
+If you want to query stored procedures:
+- `EXECUTE` permission on specific procedures or schema
+
+**Security Notes:**
+
+- The MCP server is **read-only by design** - only SELECT queries are permitted
+- All write operations (INSERT, UPDATE, DELETE, DROP, etc.) are blocked by query validation
+- Connection strings are never logged or exposed
+- Credentials are sanitized from all error messages
+- Use Azure AD authentication for production (no stored passwords)
+- SQL passwords should be complex (at least 12 characters, mixed case, numbers, symbols)
+- Rotate credentials regularly (every 90 days recommended)
+- Use separate credentials for MCP (don't use admin/DBA accounts)
+
+---
+
 ## Troubleshooting
 
 ### Server Not Starting
@@ -621,6 +834,27 @@ APPINSIGHTS_AUTH_METHOD=api-key
 **Figma:**
 - Verify API key is valid
 - Check that you have access to the files you're trying to fetch
+
+**Azure SQL Database:**
+- Verify server name is correct (format: `yourserver.database.windows.net`)
+- Check database name is correct
+- For SQL Authentication:
+  - Verify username and password are correct
+  - Check firewall rules allow your IP address
+  - Ensure user has `db_datareader` and `VIEW DEFINITION` permissions
+- For Azure AD Authentication:
+  - Verify service principal credentials are correct
+  - Check service principal has database access (`CREATE USER FROM EXTERNAL PROVIDER`)
+  - Ensure Azure AD authentication is enabled on the SQL Server
+
+**Application Insights:**
+- Verify Application ID (appId) is correct
+- For Entra ID:
+  - Check service principal has "Monitoring Reader" role
+  - Verify tenant ID and client credentials
+- For API Key:
+  - Verify API key hasn't been revoked
+  - Check API key has "Read telemetry" permission
 
 ### "Cannot find module" Errors
 
