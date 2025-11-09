@@ -57,7 +57,8 @@ export class AzureDevOpsService {
     endpoint: string,
     method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE' = 'GET',
     data?: any,
-    useSearchUrl: boolean = false
+    useSearchUrl: boolean = false,
+    customHeaders?: Record<string, string>
   ): Promise<T> {
     try {
       const baseUrl = useSearchUrl ? this.searchUrl : this.baseUrl;
@@ -69,7 +70,8 @@ export class AzureDevOpsService {
         headers: {
           'Authorization': this.authHeader,
           'Content-Type': method === 'PATCH' ? 'application/json-patch+json' : 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          ...customHeaders  // Merge custom headers (can override defaults)
         },
         data
       });
@@ -207,38 +209,75 @@ export class AzureDevOpsService {
   async getWikiPage(project: string, wikiId: string, pagePath: string, includeContent: boolean = true): Promise<any> {
     this.validateProject(project);
 
-    // Auto-convert git paths to wiki paths for better compatibility
-    // If the path ends with .md, it's likely a git path from search results
-    let wikiPath = pagePath;
-    if (pagePath.endsWith('.md')) {
-      wikiPath = this.convertGitPathToWikiPath(pagePath);
-      // Log to stderr (not stdout) to avoid breaking MCP protocol
-      console.error(`Auto-converted git path to wiki path: ${pagePath} -> ${wikiPath}`);
+    // Always normalize paths to wiki format (removes .md, converts dashes to spaces)
+    // This ensures consistent behavior regardless of input format
+    const wikiPath = this.convertGitPathToWikiPath(pagePath);
+
+    // Log conversion if the path was changed (for debugging)
+    if (wikiPath !== pagePath) {
+      console.error(`Normalized wiki path: ${pagePath} -> ${wikiPath}`);
     }
 
-    const response = await this.makeRequest<any>(
-      `${project}/_apis/wiki/wikis/${wikiId}/pages?path=${encodeURIComponent(wikiPath)}&includeContent=${includeContent}&api-version=${this.apiVersion}`
-    );
+    // Use axios directly to access response headers (for ETag)
+    const url = `${this.baseUrl}/${project}/_apis/wiki/wikis/${wikiId}/pages?path=${encodeURIComponent(wikiPath)}&includeContent=${includeContent}&api-version=${this.apiVersion}`;
 
-    // The API returns the page data directly (not wrapped in a 'page' property)
-    return {
-      id: response.id,
-      path: response.path,
-      content: response.content,
-      gitItemPath: response.gitItemPath,
-      subPages: response.subPages || [],
-      url: response.url,
-      remoteUrl: response.remoteUrl,
-      project,
-      wikiId
-    };
+    try {
+      const axiosResponse = await axios({
+        method: 'GET',
+        url,
+        headers: {
+          'Authorization': this.authHeader,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+
+      const response = axiosResponse.data;
+
+      // Extract ETag from response headers (needed for updates)
+      const etag = axiosResponse.headers['etag'] || axiosResponse.headers['ETag'];
+
+      // The API returns the page data directly (not wrapped in a 'page' property)
+      return {
+        id: response.id,
+        path: response.path,
+        content: response.content,
+        gitItemPath: response.gitItemPath,
+        subPages: response.subPages || [],
+        url: response.url,
+        remoteUrl: response.remoteUrl,
+        version: etag,  // Include ETag for use with updateWikiPage
+        project,
+        wikiId
+      };
+    } catch (error: any) {
+      // Handle errors similar to makeRequest
+      const errorDetails = error.response?.data?.message || error.response?.data || error.message;
+      console.error('Azure DevOps API request failed:', {
+        url,
+        status: error.response?.status,
+        error: errorDetails
+      });
+
+      if (error.response?.status === 401) {
+        throw new Error('Azure DevOps authentication failed. Please check your PAT token and permissions.');
+      }
+      if (error.response?.status === 403) {
+        throw new Error('Azure DevOps access denied. Please check your PAT scopes and project permissions.');
+      }
+      if (error.response?.status === 404) {
+        throw new Error(`Wiki page not found: ${wikiPath} (original input: ${pagePath})`);
+      }
+
+      throw new Error(`Azure DevOps API request failed: ${error.message} - ${JSON.stringify(errorDetails)}`);
+    }
   }
 
   /**
    * Create a new wiki page
    * @param project The project name
    * @param wikiId The wiki identifier
-   * @param pagePath The path for the new page
+   * @param pagePath The path for the new page (will be normalized to wiki format)
    * @param content The markdown content
    * @returns Created page information
    */
@@ -249,8 +288,16 @@ export class AzureDevOpsService {
       throw new Error('Wiki write operations are disabled. Set AZUREDEVOPS_ENABLE_WIKI_WRITE=true to enable.');
     }
 
+    // Always normalize paths to wiki format (removes .md, converts dashes to spaces)
+    const wikiPath = this.convertGitPathToWikiPath(pagePath);
+
+    // Log conversion if the path was changed (for debugging)
+    if (wikiPath !== pagePath) {
+      console.error(`Normalized wiki path for creation: ${pagePath} -> ${wikiPath}`);
+    }
+
     const response = await this.makeRequest<any>(
-      `${project}/_apis/wiki/wikis/${wikiId}/pages?path=${encodeURIComponent(pagePath)}&api-version=${this.apiVersion}`,
+      `${project}/_apis/wiki/wikis/${wikiId}/pages?path=${encodeURIComponent(wikiPath)}&api-version=${this.apiVersion}`,
       'PUT',
       { content }
     );
@@ -268,9 +315,9 @@ export class AzureDevOpsService {
    * Update an existing wiki page
    * @param project The project name
    * @param wikiId The wiki identifier
-   * @param pagePath The path to the page
+   * @param pagePath The path to the page (will be normalized to wiki format)
    * @param content The updated markdown content
-   * @param version The ETag/version for optimistic concurrency
+   * @param version The ETag/version for optimistic concurrency (recommended to prevent conflicts)
    * @returns Updated page information
    */
   async updateWikiPage(project: string, wikiId: string, pagePath: string, content: string, version?: string): Promise<any> {
@@ -280,10 +327,23 @@ export class AzureDevOpsService {
       throw new Error('Wiki write operations are disabled. Set AZUREDEVOPS_ENABLE_WIKI_WRITE=true to enable.');
     }
 
+    // Always normalize paths to wiki format (removes .md, converts dashes to spaces)
+    const wikiPath = this.convertGitPathToWikiPath(pagePath);
+
+    // Log conversion if the path was changed (for debugging)
+    if (wikiPath !== pagePath) {
+      console.error(`Normalized wiki path for update: ${pagePath} -> ${wikiPath}`);
+    }
+
+    // Add If-Match header if version is provided (for optimistic concurrency control)
+    const customHeaders = version ? { 'If-Match': version } : undefined;
+
     const response = await this.makeRequest<any>(
-      `${project}/_apis/wiki/wikis/${wikiId}/pages?path=${encodeURIComponent(pagePath)}&api-version=${this.apiVersion}`,
+      `${project}/_apis/wiki/wikis/${wikiId}/pages?path=${encodeURIComponent(wikiPath)}&api-version=${this.apiVersion}`,
       'PUT',
-      { content }
+      { content },
+      false,  // useSearchUrl
+      customHeaders
     );
 
     return {

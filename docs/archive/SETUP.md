@@ -123,7 +123,16 @@ Edit the file and add:
         "AZURE_SQL_DATABASE": "yourdatabase",
         "AZURE_SQL_USERNAME": "your-username",
         "AZURE_SQL_PASSWORD": "your-password",
-        "AZURE_SQL_USE_AZURE_AD": "false"
+        "AZURE_SQL_USE_AZURE_AD": "false",
+
+        "GHE_URL": "https://github.yourcompany.com",
+        "GHE_PAT": "ghp_your_personal_access_token",
+        "GHE_AUTH_METHOD": "pat",
+        "GHE_REPOS": "[{\"id\":\"plugin-core\",\"owner\":\"yourorg\",\"repo\":\"PluginCore\",\"defaultBranch\":\"release/9.0\",\"active\":true}]",
+        "GHE_ENABLE_CACHE": "true",
+        "GHE_CACHE_TTL": "300",
+        "GHE_ENABLE_WRITE": "false",
+        "GHE_ENABLE_CREATE": "false"
       }
     }
   }
@@ -184,7 +193,16 @@ Create `.vscode/mcp.json` in your project:
         "AZURE_SQL_DATABASE": "yourdatabase",
         "AZURE_SQL_USERNAME": "your-username",
         "AZURE_SQL_PASSWORD": "your-password",
-        "AZURE_SQL_USE_AZURE_AD": "false"
+        "AZURE_SQL_USE_AZURE_AD": "false",
+
+        "GHE_URL": "https://github.yourcompany.com",
+        "GHE_PAT": "ghp_your_personal_access_token",
+        "GHE_AUTH_METHOD": "pat",
+        "GHE_REPOS": "[{\"id\":\"plugin-core\",\"owner\":\"yourorg\",\"repo\":\"PluginCore\",\"defaultBranch\":\"release/9.0\",\"active\":true}]",
+        "GHE_ENABLE_CACHE": "true",
+        "GHE_CACHE_TTL": "300",
+        "GHE_ENABLE_WRITE": "false",
+        "GHE_ENABLE_CREATE": "false"
       }
     }
   }
@@ -238,6 +256,15 @@ export AZURE_SQL_SERVER="yourserver.database.windows.net"
 export AZURE_SQL_DATABASE="yourdatabase"
 export AZURE_SQL_USERNAME="your-username"
 export AZURE_SQL_PASSWORD="your-password"
+
+export GHE_URL="https://github.yourcompany.com"
+export GHE_PAT="ghp_your_personal_access_token"
+export GHE_AUTH_METHOD="pat"
+export GHE_REPOS='[{"id":"plugin-core","owner":"yourorg","repo":"PluginCore","defaultBranch":"release/9.0","active":true}]'
+export GHE_ENABLE_CACHE="true"
+export GHE_CACHE_TTL="300"
+export GHE_ENABLE_WRITE="false"
+export GHE_ENABLE_CREATE="false"
 export AZURE_SQL_USE_AZURE_AD="false"
 ```
 
@@ -300,7 +327,16 @@ For local development and testing from a cloned repository:
         "AZURE_SQL_DATABASE": "yourdatabase",
         "AZURE_SQL_USERNAME": "your-username",
         "AZURE_SQL_PASSWORD": "your-password",
-        "AZURE_SQL_USE_AZURE_AD": "false"
+        "AZURE_SQL_USE_AZURE_AD": "false",
+
+        "GHE_URL": "https://github.yourcompany.com",
+        "GHE_PAT": "ghp_your_personal_access_token",
+        "GHE_AUTH_METHOD": "pat",
+        "GHE_REPOS": "[{\"id\":\"plugin-core\",\"owner\":\"yourorg\",\"repo\":\"PluginCore\",\"defaultBranch\":\"release/9.0\",\"active\":true}]",
+        "GHE_ENABLE_CACHE": "true",
+        "GHE_CACHE_TTL": "300",
+        "GHE_ENABLE_WRITE": "false",
+        "GHE_ENABLE_CREATE": "false"
       }
     }
   }
@@ -597,6 +633,116 @@ This reduces configuration complexity when using both services.
 
 **Note:** The MCP server is read-only by design. Only `SELECT` queries are permitted. All write operations (INSERT, UPDATE, DELETE, DROP, etc.) are blocked by query validation.
 
+### GitHub Enterprise (Optional)
+
+**Base Configuration:**
+
+- `GHE_URL` (required if using GitHub Enterprise): GitHub Enterprise base URL
+  - Example: `https://github.yourcompany.com`
+  - For GitHub.com: `https://github.com`
+  - No trailing slash
+- `GHE_AUTH_METHOD` (optional): Authentication method
+  - Options: `"pat"` or `"github-app"`
+  - Default: `"pat"` (Personal Access Token)
+  - PAT is simpler for individual use
+  - GitHub App for organization-wide deployments
+- `GHE_API_VERSION` (optional): GitHub API version header
+  - Default: `"2022-11-28"`
+
+**Authentication Methods (choose one):**
+
+**Option 1: Personal Access Token (PAT) - Recommended for Individual Use**
+- `GHE_PAT` (required if using PAT): GitHub Personal Access Token
+  - Required scopes: `repo` (full control of private repositories)
+  - Optional scopes: `read:org` (read organization membership)
+  - See "Obtaining Credentials" section below for setup instructions
+
+**Option 2: GitHub App - Advanced for Organization-Wide Deployments**
+- `GHE_APP_ID` (required if using GitHub App): GitHub App ID
+- `GHE_APP_PRIVATE_KEY` (required if using GitHub App): GitHub App private key (PEM format)
+- `GHE_APP_INSTALLATION_ID` (required if using GitHub App): GitHub App installation ID
+- **Advantages:**
+  - Higher API rate limits (5000 req/hour vs 5000 req/hour for PAT)
+  - Installation-level access control
+  - Automatic token refresh (1-hour expiry)
+
+**Repository Configuration:**
+
+- `GHE_REPOS` (required): JSON array of repositories to access
+  - Example: `[{"id":"plugin-core","owner":"yourorg","repo":"PluginCore","defaultBranch":"release/9.0","active":true}]`
+  - Each repository requires:
+    - `id`: Unique identifier for this repo (user-friendly, e.g., "plugin-core")
+    - `owner`: Organization or user name
+    - `repo`: Repository name
+    - `defaultBranch`: (optional) Default branch (empty = auto-detect from release branches)
+    - `active`: Enable/disable without removing config (true/false)
+    - `description`: (optional) Repository description
+
+**Multi-Repository Configuration Example:**
+
+```json
+[
+  {
+    "id": "plugin-core",
+    "owner": "yourorg",
+    "repo": "PluginCore",
+    "defaultBranch": "release/9.0",
+    "active": true,
+    "description": "Core CRM plugins"
+  },
+  {
+    "id": "custom-workflows",
+    "owner": "yourorg",
+    "repo": "CustomWorkflows",
+    "defaultBranch": "main",
+    "active": true,
+    "description": "Custom workflow assemblies"
+  },
+  {
+    "id": "shared-libraries",
+    "owner": "yourorg",
+    "repo": "SharedLibraries",
+    "active": false,
+    "description": "Inactive - shared utility libraries"
+  }
+]
+```
+
+Set as environment variable (minified):
+```bash
+GHE_REPOS='[{"id":"plugin-core","owner":"yourorg","repo":"PluginCore","defaultBranch":"release/9.0","active":true},{"id":"custom-workflows","owner":"yourorg","repo":"CustomWorkflows","defaultBranch":"main","active":true}]'
+```
+
+**Caching Configuration (Optional):**
+
+- `GHE_ENABLE_CACHE` (optional): Enable response caching
+  - Default: `"true"`
+  - Set to `"false"` to disable caching
+  - Caching improves performance by reducing API calls
+- `GHE_CACHE_TTL` (optional): Cache time-to-live in seconds
+  - Default: `300` (5 minutes)
+  - Range: 60-3600 seconds
+
+**Write Operations (Optional):**
+
+- `GHE_ENABLE_WRITE` (optional): Enable file update operations
+  - Default: `"false"`
+  - Set to `"true"` to allow `ghe-update-file` tool
+  - **WARNING:** Allows modifying files in repositories
+- `GHE_ENABLE_CREATE` (optional): Enable branch and file creation
+  - Default: `"false"`
+  - Set to `"true"` to allow `ghe-create-branch` and `ghe-create-file` tools
+  - **WARNING:** Allows creating branches and files
+
+**Performance Tuning (Optional):**
+
+- `GHE_MAX_FILE_SIZE` (optional): Maximum file size to fetch (bytes)
+  - Default: `1048576` (1 MB)
+  - Files larger than this will return an error
+- `GHE_MAX_SEARCH_RESULTS` (optional): Maximum search results
+  - Default: `100`
+  - Range: 1-100
+
 ---
 
 ## Obtaining Credentials
@@ -670,6 +816,118 @@ Contact your PowerPlatform administrator if you need help with app registration.
 7. Set it in `FIGMA_API_KEY` environment variable
 
 **Security Note:** Figma tokens have full access to your files. Keep them secure. Don't commit them to version control.
+
+---
+
+### GitHub Enterprise Credentials
+
+**Option 1: Personal Access Token (PAT) - Recommended for Individual Use**
+
+This is the simpler approach and recommended for most users.
+
+**Step 1: Generate Personal Access Token**
+
+1. Go to GitHub Enterprise → Click your profile photo → Settings
+2. Navigate to "Developer settings" (bottom of left sidebar)
+3. Click "Personal access tokens" → "Tokens (classic)"
+4. Click "Generate new token" → "Generate new token (classic)"
+5. Set token description (e.g., "MCP Consultant Tools")
+6. Set expiration (recommended: 90 days or less)
+7. Select scopes:
+   - ✅ **repo** (full control of private repositories) - **Required**
+   - ✅ **read:org** (read organization membership) - Optional but recommended
+8. Click "Generate token"
+9. **Copy the token immediately** (you won't be able to see it again)
+10. Store it securely (this is your `GHE_PAT`)
+
+**Step 2: Configure Repository Access**
+
+Create a JSON array of repositories you want to access:
+
+```json
+[
+  {
+    "id": "plugin-core",
+    "owner": "yourorg",
+    "repo": "PluginCore",
+    "defaultBranch": "release/9.0",
+    "active": true,
+    "description": "Core CRM plugins"
+  }
+]
+```
+
+Minify for environment variable:
+```bash
+GHE_REPOS='[{"id":"plugin-core","owner":"yourorg","repo":"PluginCore","defaultBranch":"release/9.0","active":true}]'
+```
+
+**Step 3: Set Environment Variables**
+
+```bash
+GHE_URL="https://github.yourcompany.com"  # Or https://github.com for GitHub.com
+GHE_PAT="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+GHE_AUTH_METHOD="pat"
+GHE_REPOS='[{"id":"plugin-core","owner":"yourorg","repo":"PluginCore","active":true}]'
+```
+
+**Option 2: GitHub App - Advanced for Organization-Wide Deployments**
+
+This approach provides higher rate limits and better organizational control but is more complex to set up.
+
+**Step 1: Create GitHub App**
+
+1. Go to Organization Settings → Developer settings → GitHub Apps
+2. Click "New GitHub App"
+3. Set app name (e.g., "MCP Consultant Tools")
+4. Set homepage URL (can be your organization's URL)
+5. Disable webhook (uncheck "Active")
+6. Set permissions:
+   - Repository permissions:
+     - Contents: **Read-only** (required)
+     - Metadata: **Read-only** (required)
+     - Pull requests: **Read-only** (optional)
+7. Click "Create GitHub App"
+8. Copy the **App ID** → This is your `GHE_APP_ID`
+
+**Step 2: Generate Private Key**
+
+1. In the GitHub App settings, scroll to "Private keys"
+2. Click "Generate a private key"
+3. Download the `.pem` file
+4. Copy the entire contents of the `.pem` file → This is your `GHE_APP_PRIVATE_KEY`
+
+**Step 3: Install the App**
+
+1. Go to your GitHub App page
+2. Click "Install App" in left sidebar
+3. Select your organization
+4. Choose "Only select repositories" and select the repositories you need
+5. Click "Install"
+6. After installation, copy the **Installation ID** from the URL (e.g., `https://github.com/organizations/yourorg/settings/installations/12345678`)
+7. This number is your `GHE_APP_INSTALLATION_ID`
+
+**Step 4: Set Environment Variables**
+
+```bash
+GHE_URL="https://github.yourcompany.com"
+GHE_AUTH_METHOD="github-app"
+GHE_APP_ID="123456"
+GHE_APP_INSTALLATION_ID="12345678"
+GHE_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEA...
+...
+-----END RSA PRIVATE KEY-----"
+GHE_REPOS='[{"id":"plugin-core","owner":"yourorg","repo":"PluginCore","active":true}]'
+```
+
+**Security Notes:**
+- PATs have full access to all repositories you can access - keep them secure
+- GitHub App tokens are scoped to specific repositories
+- Both methods support automatic token refresh
+- Rotate PATs regularly (90 days recommended)
+- Never commit tokens to version control
+- Use environment variables or secure secret management
 
 ---
 
