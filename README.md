@@ -1,6 +1,6 @@
 # MCP Consultant Tools
 
-A Model Context Protocol (MCP) server providing intelligent access to PowerPlatform/Dataverse, Azure DevOps, Figma, Azure Application Insights, Azure Log Analytics, Azure SQL Database, and GitHub Enterprise through an AI-friendly interface.
+A Model Context Protocol (MCP) server providing intelligent access to PowerPlatform/Dataverse, Azure DevOps, Figma, Azure Application Insights, Azure Log Analytics, Azure SQL Database, Azure Service Bus, and GitHub Enterprise through an AI-friendly interface.
 
 ## Overview
 
@@ -18,11 +18,12 @@ This MCP server enables AI assistants to:
 - **Application Insights** (10 tools): Query telemetry, analyze exceptions, monitor performance, troubleshoot issues
 - **Log Analytics** (10 tools): Query Azure Functions logs, analyze errors, monitor function performance, search workspace logs
 - **Azure SQL Database** (9 tools): Explore database schema, query tables safely with read-only access, investigate database structure
+- **Azure Service Bus** (8 tools): Inspect queues and dead letter queues, analyze message failures, monitor queue health, search messages by correlation ID
 - **GitHub Enterprise** (22 tools): Access source code, commits, branches, pull requests, correlate with deployed plugins and ADO work items
 
 All integrations are **optional** - configure only the services you need.
 
-**Total: 138 MCP tools & 28 prompts** providing comprehensive access to your development and operations lifecycle.
+**Total: 146 MCP tools & 33 prompts** providing comprehensive access to your development and operations lifecycle.
 
 ## Known limitations
 - Cannot create Model-Driven-Apps
@@ -95,6 +96,12 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
         "AZURE_SQL_PASSWORD": "your-password",
         "AZURE_SQL_USE_AZURE_AD": "false",
 
+        "SERVICEBUS_AUTH_METHOD": "entra-id",
+        "SERVICEBUS_TENANT_ID": "your-tenant-id",
+        "SERVICEBUS_CLIENT_ID": "your-client-id",
+        "SERVICEBUS_CLIENT_SECRET": "your-client-secret",
+        "SERVICEBUS_RESOURCES": "[{\"id\":\"prod\",\"name\":\"Production Service Bus\",\"namespace\":\"prod-namespace.servicebus.windows.net\",\"active\":true}]",
+
         "GHE_URL": "https://github.yourcompany.com",
         "GHE_PAT": "ghp_your_personal_access_token",
         "GHE_AUTH_METHOD": "pat",
@@ -158,6 +165,12 @@ Create `.vscode/mcp.json` in your project:
         "AZURE_SQL_USERNAME": "your-username",
         "AZURE_SQL_PASSWORD": "your-password",
         "AZURE_SQL_USE_AZURE_AD": "false",
+
+        "SERVICEBUS_AUTH_METHOD": "entra-id",
+        "SERVICEBUS_TENANT_ID": "your-tenant-id",
+        "SERVICEBUS_CLIENT_ID": "your-client-id",
+        "SERVICEBUS_CLIENT_SECRET": "your-client-secret",
+        "SERVICEBUS_RESOURCES": "[{\"id\":\"prod\",\"name\":\"Production Service Bus\",\"namespace\":\"prod-namespace.servicebus.windows.net\",\"active\":true}]",
 
         "GHE_URL": "https://github.yourcompany.com",
         "GHE_PAT": "ghp_your_personal_access_token",

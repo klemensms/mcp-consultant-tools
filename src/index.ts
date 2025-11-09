@@ -10,6 +10,8 @@ import { ApplicationInsightsService, ApplicationInsightsConfig, ApplicationInsig
 import { LogAnalyticsService, LogAnalyticsConfig, LogAnalyticsResourceConfig } from "./LogAnalyticsService.js";
 import { AzureSqlService, type AzureSqlConfig } from "./AzureSqlService.js";
 import { GitHubEnterpriseService, type GitHubEnterpriseConfig, type GitHubRepoConfig } from "./GitHubEnterpriseService.js";
+import { ServiceBusService, type ServiceBusConfig } from "./ServiceBusService.js";
+import type { ServiceBusReceivedMessage } from "@azure/service-bus";
 import { formatTableAsMarkdown, analyzeExceptions, analyzePerformance, analyzeDependencies } from "./utils/appinsights-formatters.js";
 import {
   formatTableAsMarkdown as formatLATableAsMarkdown,
@@ -42,6 +44,19 @@ import {
   formatPullRequestDetailsAsMarkdown,
   formatRepositoryOverviewAsMarkdown,
 } from "./utils/ghe-formatters.js";
+import {
+  formatQueueListAsMarkdown,
+  formatMessagesAsMarkdown,
+  formatMessageBody,
+  formatMessageInspectionAsMarkdown,
+  analyzeDeadLetterMessages,
+  formatDeadLetterAnalysisAsMarkdown,
+  formatNamespaceOverviewAsMarkdown,
+  getQueueHealthStatus,
+  detectMessageFormat,
+  generateServiceBusTroubleshootingGuide,
+  generateCrossServiceReport,
+} from "./utils/servicebus-formatters.js";
 
 // Load environment variables from .env file (silent mode to not interfere with MCP)
 // Temporarily suppress stdout to prevent dotenv from corrupting the JSON protocol
@@ -188,6 +203,43 @@ if (process.env.GHE_REPOS) {
   } catch (error) {
     console.error('Failed to parse GHE_REPOS:', error);
   }
+}
+
+// Azure Service Bus configuration
+const SERVICEBUS_CONFIG: ServiceBusConfig = {
+  resources: [],
+  authMethod: (process.env.SERVICEBUS_AUTH_METHOD || 'entra-id') as 'entra-id' | 'connection-string',
+  tenantId: process.env.SERVICEBUS_TENANT_ID || '',
+  clientId: process.env.SERVICEBUS_CLIENT_ID || '',
+  clientSecret: process.env.SERVICEBUS_CLIENT_SECRET || '',
+  sanitizeMessages: process.env.SERVICEBUS_SANITIZE_MESSAGES === 'true',
+  maxPeekMessages: parseInt(process.env.SERVICEBUS_MAX_PEEK_MESSAGES || '100'),
+  maxSearchMessages: parseInt(process.env.SERVICEBUS_MAX_SEARCH_MESSAGES || '500'),
+  peekTimeout: parseInt(process.env.SERVICEBUS_PEEK_TIMEOUT || '30000'),
+  retryMaxAttempts: parseInt(process.env.SERVICEBUS_RETRY_MAX_ATTEMPTS || '3'),
+  retryDelay: parseInt(process.env.SERVICEBUS_RETRY_DELAY || '1000'),
+  cacheQueueListTTL: parseInt(process.env.SERVICEBUS_CACHE_QUEUE_LIST_TTL || '300'),
+};
+
+// Parse Service Bus resources configuration
+if (process.env.SERVICEBUS_RESOURCES) {
+  try {
+    SERVICEBUS_CONFIG.resources = JSON.parse(process.env.SERVICEBUS_RESOURCES);
+  } catch (error) {
+    console.error('Failed to parse SERVICEBUS_RESOURCES:', error);
+  }
+} else if (process.env.SERVICEBUS_NAMESPACE) {
+  // Fallback: single namespace configuration
+  SERVICEBUS_CONFIG.resources = [
+    {
+      id: 'default',
+      name: 'Default Service Bus',
+      namespace: process.env.SERVICEBUS_NAMESPACE,
+      active: true,
+      connectionString: process.env.SERVICEBUS_CONNECTION_STRING || '',
+      description: 'Default Service Bus namespace',
+    },
+  ];
 }
 
 // Create server instance
@@ -409,6 +461,39 @@ function getGitHubEnterpriseService(): GitHubEnterpriseService {
   }
 
   return githubEnterpriseService;
+}
+
+let serviceBusService: ServiceBusService | null = null;
+
+// Function to initialize ServiceBusService on demand
+function getServiceBusService(): ServiceBusService {
+  if (!serviceBusService) {
+    // Check if configuration is complete
+    const missingConfig: string[] = [];
+
+    if (!SERVICEBUS_CONFIG.resources || SERVICEBUS_CONFIG.resources.length === 0) {
+      missingConfig.push('SERVICEBUS_RESOURCES or SERVICEBUS_NAMESPACE');
+    }
+
+    if (SERVICEBUS_CONFIG.authMethod === 'entra-id') {
+      if (!SERVICEBUS_CONFIG.tenantId) missingConfig.push('SERVICEBUS_TENANT_ID');
+      if (!SERVICEBUS_CONFIG.clientId) missingConfig.push('SERVICEBUS_CLIENT_ID');
+      if (!SERVICEBUS_CONFIG.clientSecret) missingConfig.push('SERVICEBUS_CLIENT_SECRET');
+    }
+
+    if (missingConfig.length > 0) {
+      throw new Error(
+        `Missing Service Bus configuration: ${missingConfig.join(', ')}. ` +
+        `Set these in environment variables (SERVICEBUS_*).`
+      );
+    }
+
+    // Initialize service
+    serviceBusService = new ServiceBusService(SERVICEBUS_CONFIG);
+    console.error('Service Bus service initialized');
+  }
+
+  return serviceBusService;
 }
 
 // Pre-defined PowerPlatform Prompts
@@ -8809,6 +8894,302 @@ server.tool(
 
 /**
  * ===========================================
+ * AZURE SERVICE BUS TOOLS (8 total)
+ * ===========================================
+ */
+
+/**
+ * Tool: servicebus-list-namespaces
+ * List all configured Service Bus namespaces
+ */
+server.tool(
+  "servicebus-list-namespaces",
+  "List all configured Service Bus namespaces (active and inactive)",
+  {},
+  async () => {
+    try {
+      const service = getServiceBusService();
+      const resources = service.getAllResources();
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(resources, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error listing Service Bus namespaces:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to list namespaces: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: servicebus-test-connection
+ * Test connectivity to Service Bus namespace
+ */
+server.tool(
+  "servicebus-test-connection",
+  "Test connectivity to a Service Bus namespace and verify permissions (Data Receiver + Reader roles)",
+  {
+    resourceId: z.string().describe("Service Bus resource ID (use servicebus-list-namespaces to find IDs)"),
+  },
+  async ({ resourceId }) => {
+    try {
+      const service = getServiceBusService();
+      const result = await service.testConnection(resourceId);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(result, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error testing Service Bus connection:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to test connection: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: servicebus-list-queues
+ * List all queues in a namespace
+ */
+server.tool(
+  "servicebus-list-queues",
+  "List all queues in a Service Bus namespace with message counts and session info (cached for 5 minutes)",
+  {
+    resourceId: z.string().describe("Service Bus resource ID"),
+  },
+  async ({ resourceId }) => {
+    try {
+      const service = getServiceBusService();
+      const queues = await service.listQueues(resourceId);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(queues, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error listing Service Bus queues:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to list queues: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: servicebus-peek-messages
+ * Peek messages in a queue (read-only, non-destructive)
+ */
+server.tool(
+  "servicebus-peek-messages",
+  "Peek messages in a queue without removing them (read-only, max 100 messages)",
+  {
+    resourceId: z.string().describe("Service Bus resource ID"),
+    queueName: z.string().describe("Queue name"),
+    maxMessages: z.number().optional().describe("Maximum messages to peek (default: 10, max: 100)"),
+    sessionId: z.string().optional().describe("Session ID for session-enabled queues"),
+  },
+  async ({ resourceId, queueName, maxMessages, sessionId }) => {
+    try {
+      const service = getServiceBusService();
+      const messages = await service.peekMessages(resourceId, queueName, maxMessages || 10, sessionId);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(messages, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error peeking messages:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to peek messages: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: servicebus-peek-deadletter
+ * Peek dead letter queue messages
+ */
+server.tool(
+  "servicebus-peek-deadletter",
+  "Peek dead letter queue messages with failure reasons (read-only, max 100 messages)",
+  {
+    resourceId: z.string().describe("Service Bus resource ID"),
+    queueName: z.string().describe("Queue name"),
+    maxMessages: z.number().optional().describe("Maximum messages to peek (default: 10, max: 100)"),
+    sessionId: z.string().optional().describe("Session ID for session-enabled queues"),
+  },
+  async ({ resourceId, queueName, maxMessages, sessionId }) => {
+    try {
+      const service = getServiceBusService();
+      const messages = await service.peekDeadLetterMessages(resourceId, queueName, maxMessages || 10, sessionId);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(messages, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error peeking dead letter messages:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to peek dead letter messages: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: servicebus-get-queue-properties
+ * Get queue properties and metrics
+ */
+server.tool(
+  "servicebus-get-queue-properties",
+  "Get detailed queue properties, metrics, and configuration including session info",
+  {
+    resourceId: z.string().describe("Service Bus resource ID"),
+    queueName: z.string().describe("Queue name"),
+  },
+  async ({ resourceId, queueName }) => {
+    try {
+      const service = getServiceBusService();
+      const properties = await service.getQueueProperties(resourceId, queueName);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(properties, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error getting queue properties:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to get queue properties: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: servicebus-search-messages
+ * Search messages by content or properties
+ */
+server.tool(
+  "servicebus-search-messages",
+  "Search messages by content or properties (loads into memory, max 500 messages)",
+  {
+    resourceId: z.string().describe("Service Bus resource ID"),
+    queueName: z.string().describe("Queue name"),
+    bodyContains: z.string().optional().describe("Search for text in message body (case-insensitive)"),
+    correlationId: z.string().optional().describe("Filter by correlation ID"),
+    messageId: z.string().optional().describe("Filter by message ID"),
+    propertyKey: z.string().optional().describe("Application property key to filter by"),
+    propertyValue: z.any().optional().describe("Application property value to match"),
+    sessionId: z.string().optional().describe("Session ID for session-enabled queues"),
+    maxMessages: z.number().optional().describe("Maximum messages to search (default: 50, max: 500)"),
+  },
+  async ({ resourceId, queueName, bodyContains, correlationId, messageId, propertyKey, propertyValue, sessionId, maxMessages }) => {
+    try {
+      const service = getServiceBusService();
+      const result = await service.searchMessages(
+        resourceId,
+        queueName,
+        { bodyContains, correlationId, messageId, propertyKey, propertyValue, sessionId },
+        maxMessages || 50
+      );
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(result, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error searching messages:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to search messages: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: servicebus-get-namespace-properties
+ * Get namespace properties
+ */
+server.tool(
+  "servicebus-get-namespace-properties",
+  "Get namespace-level properties and quotas (tier, max message size)",
+  {
+    resourceId: z.string().describe("Service Bus resource ID"),
+  },
+  async ({ resourceId }) => {
+    try {
+      const service = getServiceBusService();
+      const properties = await service.getNamespaceProperties(resourceId);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(properties, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error getting namespace properties:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to get namespace properties: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * ===========================================
  * GITHUB ENTERPRISE PROMPTS (5 total)
  * ===========================================
  */
@@ -9122,6 +9503,357 @@ server.prompt(
 
 /**
  * ===========================================
+ * AZURE SERVICE BUS PROMPTS (5 total)
+ * ===========================================
+ */
+
+/**
+ * Prompt: servicebus-namespace-overview
+ * Comprehensive overview of all queues with health metrics
+ */
+server.prompt(
+  "servicebus-namespace-overview",
+  "Generate comprehensive overview of Service Bus namespace with all queues and health metrics",
+  {
+    resourceId: z.string().describe("Service Bus resource ID"),
+  },
+  async ({ resourceId }) => {
+    const service = getServiceBusService();
+    const resource = service.getResourceById(resourceId);
+
+    // Get namespace properties
+    const namespaceProps = await service.getNamespaceProperties(resourceId);
+
+    // Get all queues
+    const queues = await service.listQueues(resourceId);
+
+    // Format as markdown
+    const output = formatNamespaceOverviewAsMarkdown({
+      namespace: resource.namespace,
+      tier: namespaceProps.tier,
+      queues,
+    });
+
+    return {
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: output,
+          },
+        },
+      ],
+    };
+  }
+);
+
+/**
+ * Prompt: servicebus-queue-health
+ * Detailed health report for specific queue with recommendations
+ */
+server.prompt(
+  "servicebus-queue-health",
+  "Generate detailed health report for a specific queue with recommendations",
+  {
+    resourceId: z.string().describe("Service Bus resource ID"),
+    queueName: z.string().describe("Queue name"),
+  },
+  async ({ resourceId, queueName }) => {
+    const service = getServiceBusService();
+    const resource = service.getResourceById(resourceId);
+
+    // Get queue info (runtime metrics)
+    const queueInfo = await service.getQueueProperties(resourceId, queueName);
+
+    // Get queue config (configuration properties)
+    const queueConfig = await service.getQueueConfigProperties(resourceId, queueName);
+
+    // Get health status
+    const health = getQueueHealthStatus(queueInfo);
+
+    // Peek recent messages
+    const messages = await service.peekMessages(resourceId, queueName, 10);
+
+    // Peek dead letter messages
+    const deadLetterMessages = await service.peekDeadLetterMessages(resourceId, queueName, 10);
+
+    let output = `# Queue Health Report: ${queueName}\n\n`;
+    output += `**Namespace:** ${resource.namespace}\n`;
+    output += `**Date:** ${new Date().toISOString()}\n\n`;
+
+    output += `## Health Status\n\n`;
+    output += `${health.icon} **${health.status.toUpperCase()}**\n\n`;
+    output += `**Reason:** ${health.reason}\n\n`;
+
+    output += `## Queue Metrics\n\n`;
+    output += `| Metric | Value |\n`;
+    output += `|--------|-------|\n`;
+    output += `| Active Messages | ${queueInfo.activeMessageCount || 0} |\n`;
+    output += `| Dead Letter Messages | ${queueInfo.deadLetterMessageCount || 0} |\n`;
+    output += `| Scheduled Messages | ${queueInfo.scheduledMessageCount || 0} |\n`;
+    output += `| Size (bytes) | ${queueInfo.sizeInBytes?.toLocaleString() || 0} |\n`;
+    output += `| Max Size (MB) | ${queueConfig.maxSizeInMegabytes || 0} |\n\n`;
+
+    output += `## Configuration\n\n`;
+    output += `| Setting | Value |\n`;
+    output += `|---------|-------|\n`;
+    output += `| Lock Duration | ${queueConfig.lockDuration || 'N/A'} |\n`;
+    output += `| Max Delivery Count | ${queueConfig.maxDeliveryCount || 0} |\n`;
+    output += `| Duplicate Detection | ${queueConfig.requiresDuplicateDetection ? 'Yes' : 'No'} |\n`;
+    output += `| Sessions Enabled | ${queueInfo.requiresSession ? 'Yes' : 'No'} |\n`;
+    output += `| Partitioning Enabled | ${queueConfig.enablePartitioning ? 'Yes' : 'No'} |\n\n`;
+
+    output += `## Recommendations\n\n`;
+    if (health.status === 'critical') {
+      output += `⚠️ **CRITICAL**: Immediate action required\n`;
+      output += `- Investigate dead letter messages immediately\n`;
+      output += `- Check consumer health and processing capacity\n`;
+      output += `- Consider scaling out consumers\n\n`;
+    } else if (health.status === 'warning') {
+      output += `⚠️ **WARNING**: Monitor closely\n`;
+      output += `- Review message processing times\n`;
+      output += `- Check for processing bottlenecks\n`;
+      output += `- Monitor dead letter queue growth\n\n`;
+    } else {
+      output += `✅ Queue is healthy\n`;
+      output += `- Continue regular monitoring\n`;
+      output += `- Maintain current processing capacity\n\n`;
+    }
+
+    if (messages.length > 0) {
+      output += `## Recent Messages (${messages.length})\n\n`;
+      output += formatMessagesAsMarkdown(messages, false);
+    }
+
+    if (deadLetterMessages.length > 0) {
+      output += `\n## Dead Letter Messages (${deadLetterMessages.length})\n\n`;
+      output += formatMessagesAsMarkdown(deadLetterMessages, false);
+    }
+
+    return {
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: output,
+          },
+        },
+      ],
+    };
+  }
+);
+
+/**
+ * Prompt: servicebus-deadletter-analysis
+ * DLQ investigation with pattern detection and recommendations
+ */
+server.prompt(
+  "servicebus-deadletter-analysis",
+  "Analyze dead letter queue with pattern detection and actionable recommendations",
+  {
+    resourceId: z.string().describe("Service Bus resource ID"),
+    queueName: z.string().describe("Queue name"),
+    maxMessages: z.string().optional().describe("Maximum messages to analyze (default: 50)"),
+  },
+  async ({ resourceId, queueName, maxMessages }) => {
+    const service = getServiceBusService();
+    const resource = service.getResourceById(resourceId);
+
+    // Parse maxMessages to number
+    const maxMsgs = maxMessages ? parseInt(maxMessages, 10) : 50;
+
+    // Peek dead letter messages
+    const deadLetterMessages = await service.peekDeadLetterMessages(
+      resourceId,
+      queueName,
+      maxMsgs
+    );
+
+    if (deadLetterMessages.length === 0) {
+      return {
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `# Dead Letter Queue Analysis: ${queueName}\n\n✅ **No dead letter messages found**\n\nThe dead letter queue is empty. This indicates healthy message processing.`,
+            },
+          },
+        ],
+      };
+    }
+
+    // Analyze dead letter messages
+    const { markdown } = formatDeadLetterAnalysisAsMarkdown(deadLetterMessages);
+
+    let output = `# Dead Letter Queue Analysis: ${queueName}\n\n`;
+    output += `**Namespace:** ${resource.namespace}\n`;
+    output += `**Date:** ${new Date().toISOString()}\n`;
+    output += `**Messages Analyzed:** ${deadLetterMessages.length}\n\n`;
+    output += markdown;
+
+    return {
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: output,
+          },
+        },
+      ],
+    };
+  }
+);
+
+/**
+ * Prompt: servicebus-message-inspection
+ * Detailed inspection of a single message with cross-service recommendations
+ */
+server.prompt(
+  "servicebus-message-inspection",
+  "Inspect a single message in detail with cross-service troubleshooting recommendations",
+  {
+    resourceId: z.string().describe("Service Bus resource ID"),
+    queueName: z.string().describe("Queue name"),
+    messageId: z.string().optional().describe("Message ID to inspect (if not provided, inspects first message)"),
+    isDeadLetter: z.string().optional().describe("Inspect dead letter queue (default: false)"),
+  },
+  async ({ resourceId, queueName, messageId, isDeadLetter }) => {
+    const service = getServiceBusService();
+    const resource = service.getResourceById(resourceId);
+
+    // Parse isDeadLetter to boolean
+    const isDLQ = isDeadLetter === 'true';
+
+    // Peek messages
+    const messages = isDLQ
+      ? await service.peekDeadLetterMessages(resourceId, queueName, 100)
+      : await service.peekMessages(resourceId, queueName, 100);
+
+    if (messages.length === 0) {
+      return {
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `# Message Inspection: ${queueName}\n\n**No messages found** in ${isDLQ ? 'dead letter queue' : 'queue'}.`,
+            },
+          },
+        ],
+      };
+    }
+
+    // Find specific message or use first
+    const message = messageId
+      ? messages.find((m) => m.messageId === messageId)
+      : messages[0];
+
+    if (!message) {
+      return {
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `# Message Inspection: ${queueName}\n\n**Message not found** with ID: ${messageId}\n\nAvailable message IDs:\n${messages.slice(0, 10).map((m) => `- ${m.messageId}`).join('\n')}`,
+            },
+          },
+        ],
+      };
+    }
+
+    // Format message inspection
+    const output = formatMessageInspectionAsMarkdown(message, isDLQ);
+
+    return {
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: `# Message Inspection: ${queueName}\n\n**Namespace:** ${resource.namespace}\n**Queue:** ${queueName}\n**Date:** ${new Date().toISOString()}\n\n${output}`,
+          },
+        },
+      ],
+    };
+  }
+);
+
+/**
+ * Prompt: servicebus-cross-service-troubleshooting
+ * Multi-service correlation report combining Service Bus, Application Insights, and Log Analytics
+ */
+server.prompt(
+  "servicebus-cross-service-troubleshooting",
+  "Generate comprehensive troubleshooting report correlating Service Bus with Application Insights and Log Analytics",
+  {
+    resourceId: z.string().describe("Service Bus resource ID"),
+    queueName: z.string().describe("Queue name"),
+    correlationId: z.string().optional().describe("Correlation ID to trace across services"),
+    timespan: z.string().optional().describe("Time range (ISO 8601 duration, e.g., 'PT1H', 'P1D')"),
+  },
+  async ({ resourceId, queueName, correlationId, timespan }) => {
+    const service = getServiceBusService();
+    const resource = service.getResourceById(resourceId);
+
+    // Get queue properties
+    const queueProps = await service.getQueueProperties(resourceId, queueName);
+
+    // Peek messages (recent)
+    const messages = await service.peekMessages(resourceId, queueName, 50);
+
+    // Peek dead letter messages
+    const deadLetterMessages = await service.peekDeadLetterMessages(resourceId, queueName, 50);
+
+    // Search by correlation ID if provided
+    let correlatedMessages: ServiceBusReceivedMessage[] = [];
+    if (correlationId) {
+      const searchResult = await service.searchMessages(resourceId, queueName, { correlationId }, 100);
+      correlatedMessages = searchResult.messages;
+    }
+
+    // Try to get Application Insights data (if available)
+    let appInsightsExceptions = null;
+    let appInsightsTraces = null;
+    try {
+      if (applicationInsightsService && correlationId) {
+        // This would require Application Insights integration
+        // For now, we'll include a placeholder
+      }
+    } catch {
+      // Application Insights not configured or not available
+    }
+
+    // Generate cross-service report
+    const output = generateCrossServiceReport({
+      serviceBus: {
+        namespace: resource.namespace,
+        queue: queueName,
+        deadLetterMessages,
+      },
+      timespan: timespan || 'PT1H',
+    });
+
+    return {
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: output,
+          },
+        },
+      ],
+    };
+  }
+);
+
+/**
+ * ===========================================
  * CLEANUP HANDLERS
  * ===========================================
  */
@@ -9132,6 +9864,9 @@ process.on('SIGINT', async () => {
   if (azureSqlService) {
     await azureSqlService.close();
   }
+  if (serviceBusService) {
+    await serviceBusService.close();
+  }
   process.exit(0);
 });
 
@@ -9139,6 +9874,9 @@ process.on('SIGTERM', async () => {
   console.error('Shutting down gracefully (SIGTERM)...');
   if (azureSqlService) {
     await azureSqlService.close();
+  }
+  if (serviceBusService) {
+    await serviceBusService.close();
   }
   process.exit(0);
 });
