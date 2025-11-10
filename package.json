@@ -1,6 +1,6 @@
 {
   "name": "mcp-consultant-tools",
-  "version": "12.0.0",
+  "version": "13.0.0",
   "description": "MCP server providing access to PowerPlatform/Dataverse, Azure DevOps, Figma, Azure Application Insights, Azure Log Analytics, Azure SQL Database, Azure Service Bus, SharePoint Online, and GitHub Enterprise through unified interface",
   "main": "build/index.js",
   "bin": {
