@@ -1,6 +1,6 @@
 # MCP Consultant Tools
 
-A Model Context Protocol (MCP) server providing intelligent access to PowerPlatform/Dataverse, Azure DevOps, Figma, Azure Application Insights, Azure Log Analytics, Azure SQL Database, Azure Service Bus, and GitHub Enterprise through an AI-friendly interface.
+A Model Context Protocol (MCP) server providing intelligent access to PowerPlatform/Dataverse, Azure DevOps, Figma, Azure Application Insights, Azure Log Analytics, Azure SQL Database, Azure Service Bus, SharePoint Online, and GitHub Enterprise through an AI-friendly interface.
 
 ## Overview
 
@@ -13,17 +13,18 @@ This MCP server enables AI assistants to:
     - Business rules, web resources
     - Solutions, publishers, import/export
     - Publishing & validation
-- **Azure DevOps** (12 tools): Search wikis, manage work items, execute WIQL queries
+- **Azure DevOps** (13 tools): Search wikis, manage work items, execute WIQL queries
 - **Figma** (2 tools): Extract design data in simplified, AI-friendly format
 - **Application Insights** (10 tools): Query telemetry, analyze exceptions, monitor performance, troubleshoot issues
 - **Log Analytics** (10 tools): Query Azure Functions logs, analyze errors, monitor function performance, search workspace logs
 - **Azure SQL Database** (9 tools): Explore database schema, query tables safely with read-only access, investigate database structure
 - **Azure Service Bus** (8 tools): Inspect queues and dead letter queues, analyze message failures, monitor queue health, search messages by correlation ID
+- **SharePoint Online** (15 tools + 10 prompts): Access sites, document libraries, files; validate PowerPlatform document location configurations; verify document migrations
 - **GitHub Enterprise** (22 tools): Access source code, commits, branches, pull requests, correlate with deployed plugins and ADO work items
 
 All integrations are **optional** - configure only the services you need.
 
-**Total: 146 MCP tools & 33 prompts** providing comprehensive access to your development and operations lifecycle.
+**Total: 161 MCP tools & 43 prompts** providing comprehensive access to your development and operations lifecycle.
 
 ## Known limitations
 - Cannot create Model-Driven-Apps
@@ -101,6 +102,11 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
         "SERVICEBUS_CLIENT_ID": "your-client-id",
         "SERVICEBUS_CLIENT_SECRET": "your-client-secret",
         "SERVICEBUS_RESOURCES": "[{\"id\":\"prod\",\"name\":\"Production Service Bus\",\"namespace\":\"prod-namespace.servicebus.windows.net\",\"active\":true}]",
+
+        "SHAREPOINT_TENANT_ID": "your-tenant-id",
+        "SHAREPOINT_CLIENT_ID": "your-client-id",
+        "SHAREPOINT_CLIENT_SECRET": "your-client-secret",
+        "SHAREPOINT_SITES": "[{\"id\":\"main\",\"name\":\"Main Site\",\"siteUrl\":\"https://yourtenant.sharepoint.com/sites/main\",\"active\":true}]",
 
         "GHE_URL": "https://github.yourcompany.com",
         "GHE_PAT": "ghp_your_personal_access_token",
@@ -287,7 +293,7 @@ Reload VS Code window after saving.
 - `get-workflows` - List classic workflows
 - `get-workflow-definition` - Get workflow definition
 
-### Azure DevOps (12 tools)
+### Azure DevOps (13 tools)
 
 **Wikis:**
 - `get-wikis` - List wikis in project
@@ -295,6 +301,7 @@ Reload VS Code window after saving.
 - `get-wiki-page` - Get wiki page content
 - `create-wiki-page` - Create new wiki page (requires write permission)
 - `update-wiki-page` - Update wiki page (requires write permission)
+- `azuredevops-str-replace-wiki-page` - Replace string in wiki page efficiently (requires write permission)
 
 **Work Items:**
 - `get-work-item` - Get work item by ID
@@ -437,7 +444,7 @@ The server includes **28 prompts** that provide formatted, context-rich output:
 Comprehensive documentation for each integration with setup, tools, prompts, examples, best practices, and troubleshooting:
 
 - **[PowerPlatform/Dataverse](docs/documentation/POWERPLATFORM.md)** - 76 tools, 9 prompts (entity metadata, plugins, workflows, customization API)
-- **[Azure DevOps](docs/documentation/AZURE_DEVOPS.md)** - 11 tools, 4 prompts (wikis, work items, WIQL queries)
+- **[Azure DevOps](docs/documentation/AZURE_DEVOPS.md)** - 13 tools, 4 prompts (wikis, work items, WIQL queries)
 - **[Figma](docs/documentation/FIGMA.md)** - 2 tools (design data extraction, AI-friendly format)
 - **[Application Insights](docs/documentation/APPLICATION_INSIGHTS.md)** - 10 tools, 5 prompts (telemetry, exceptions, performance, dependencies)
 - **[Log Analytics](docs/documentation/LOG_ANALYTICS.md)** - 10 tools, 5 prompts (Azure Functions logs, KQL queries, function diagnostics)

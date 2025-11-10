@@ -12,6 +12,7 @@ import { AzureSqlService, type AzureSqlConfig } from "./AzureSqlService.js";
 import { GitHubEnterpriseService, type GitHubEnterpriseConfig, type GitHubRepoConfig } from "./GitHubEnterpriseService.js";
 import { ServiceBusService, type ServiceBusConfig } from "./ServiceBusService.js";
 import type { ServiceBusReceivedMessage } from "@azure/service-bus";
+import { SharePointService, type SharePointConfig, type SharePointSiteConfig } from "./SharePointService.js";
 import { formatTableAsMarkdown, analyzeExceptions, analyzePerformance, analyzeDependencies } from "./utils/appinsights-formatters.js";
 import {
   formatTableAsMarkdown as formatLATableAsMarkdown,
@@ -21,6 +22,7 @@ import {
   analyzeFunctionStats,
   generateRecommendations,
 } from "./utils/loganalytics-formatters.js";
+import * as spoFormatters from './utils/sharepoint-formatters.js';
 import {
   formatSqlResultsAsMarkdown,
   formatTableList,
@@ -238,6 +240,37 @@ if (process.env.SERVICEBUS_RESOURCES) {
       active: true,
       connectionString: process.env.SERVICEBUS_CONNECTION_STRING || '',
       description: 'Default Service Bus namespace',
+    },
+  ];
+}
+
+// SharePoint Online configuration
+const SHAREPOINT_CONFIG: SharePointConfig = {
+  sites: [],
+  authMethod: 'entra-id',  // Graph API only supports Entra ID
+  tenantId: process.env.SHAREPOINT_TENANT_ID || '',
+  clientId: process.env.SHAREPOINT_CLIENT_ID || '',
+  clientSecret: process.env.SHAREPOINT_CLIENT_SECRET || '',
+  cacheTTL: parseInt(process.env.SHAREPOINT_CACHE_TTL || '300'),
+  maxSearchResults: parseInt(process.env.SHAREPOINT_MAX_SEARCH_RESULTS || '100'),
+};
+
+// Parse SharePoint sites configuration
+if (process.env.SHAREPOINT_SITES) {
+  try {
+    SHAREPOINT_CONFIG.sites = JSON.parse(process.env.SHAREPOINT_SITES);
+  } catch (error) {
+    console.error('Failed to parse SHAREPOINT_SITES:', error);
+  }
+} else if (process.env.SHAREPOINT_SITE_URL) {
+  // Fallback: single site configuration
+  SHAREPOINT_CONFIG.sites = [
+    {
+      id: 'default',
+      name: 'Default SharePoint Site',
+      siteUrl: process.env.SHAREPOINT_SITE_URL,
+      active: true,
+      description: 'Default SharePoint site',
     },
   ];
 }
@@ -494,6 +527,37 @@ function getServiceBusService(): ServiceBusService {
   }
 
   return serviceBusService;
+}
+
+let sharePointService: SharePointService | null = null;
+
+// Function to initialize SharePointService on demand
+function getSharePointService(): SharePointService {
+  if (!sharePointService) {
+    // Check if configuration is complete
+    const missingConfig: string[] = [];
+
+    if (!SHAREPOINT_CONFIG.sites || SHAREPOINT_CONFIG.sites.length === 0) {
+      missingConfig.push('SHAREPOINT_SITES or SHAREPOINT_SITE_URL');
+    }
+
+    if (!SHAREPOINT_CONFIG.tenantId) missingConfig.push('SHAREPOINT_TENANT_ID');
+    if (!SHAREPOINT_CONFIG.clientId) missingConfig.push('SHAREPOINT_CLIENT_ID');
+    if (!SHAREPOINT_CONFIG.clientSecret) missingConfig.push('SHAREPOINT_CLIENT_SECRET');
+
+    if (missingConfig.length > 0) {
+      throw new Error(
+        `Missing SharePoint configuration: ${missingConfig.join(', ')}. ` +
+        `Set these in environment variables (SHAREPOINT_*).`
+      );
+    }
+
+    // Initialize service
+    sharePointService = new SharePointService(SHAREPOINT_CONFIG);
+    console.error('SharePoint service initialized');
+  }
+
+  return sharePointService;
 }
 
 // Pre-defined PowerPlatform Prompts
@@ -3587,6 +3651,58 @@ server.tool(
             text: `Failed to update wiki page: ${error.message}`,
           },
         ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// String Replace Wiki Page Tool
+server.tool(
+  "azuredevops-str-replace-wiki-page",
+  "Replace a specific string in an Azure DevOps wiki page without rewriting entire content. More efficient than update-wiki-page for small changes. (requires AZUREDEVOPS_ENABLE_WIKI_WRITE=true)",
+  {
+    project: z.string().describe("The project name"),
+    wikiId: z.string().describe("The wiki identifier (ID or name)"),
+    pagePath: z.string().describe("The path to the wiki page (e.g., '/SharePoint-Online/04-DEV-Configuration')"),
+    old_str: z.string().describe("The exact string to replace (must be unique unless replace_all is true)"),
+    new_str: z.string().describe("The replacement string"),
+    replace_all: z.boolean().optional().describe("If true, replace all occurrences. If false (default), old_str must be unique in the page."),
+    description: z.string().optional().describe("Optional description of the change (for audit logging)")
+  },
+  async ({ project, wikiId, pagePath, old_str, new_str, replace_all, description }) => {
+    try {
+      const service = getAzureDevOpsService();
+      const result = await service.strReplaceWikiPage(
+        project,
+        wikiId,
+        pagePath,
+        old_str,
+        new_str,
+        replace_all ?? false,
+        description
+      );
+
+      const resultStr = JSON.stringify(result, null, 2);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Successfully replaced "${old_str}" with "${new_str}" in wiki page '${pagePath}' (${result.occurrences} occurrence(s)):\n\n${resultStr}\n\nDiff:\n${result.diff}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error replacing text in wiki page:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to replace text in wiki page: ${error.message}`,
+          },
+        ],
+        isError: true,
       };
     }
   }
@@ -9854,6 +9970,1351 @@ server.prompt(
 
 /**
  * ===========================================
+ * SHAREPOINT ONLINE TOOLS (15 total)
+ * ===========================================
+ */
+
+/**
+ * Tool: spo-list-sites
+ * List all configured SharePoint sites
+ */
+server.tool(
+  "spo-list-sites",
+  "List all configured SharePoint sites (active and inactive)",
+  {},
+  async () => {
+    try {
+      const service = getSharePointService();
+      const sites = service.getAllSites();
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(sites, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error listing SharePoint sites:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to list sites: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: spo-get-site-info
+ * Get detailed information about a SharePoint site
+ */
+server.tool(
+  "spo-get-site-info",
+  "Get detailed site information including metadata, created/modified dates, and owner info",
+  {
+    siteId: z.string().describe("Site ID from configuration (use spo-list-sites to find IDs)"),
+  },
+  async ({ siteId }) => {
+    try {
+      const service = getSharePointService();
+      const siteInfo = await service.getSiteInfo(siteId);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(siteInfo, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error getting SharePoint site info:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to get site info: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: spo-test-connection
+ * Test connectivity to a SharePoint site
+ */
+server.tool(
+  "spo-test-connection",
+  "Test connectivity to a SharePoint site and verify permissions (Sites.Read.All and Files.Read.All required)",
+  {
+    siteId: z.string().describe("Site ID from configuration"),
+  },
+  async ({ siteId }) => {
+    try {
+      const service = getSharePointService();
+      const result = await service.testConnection(siteId);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(result, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error testing SharePoint connection:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to test connection: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: spo-list-drives
+ * List all document libraries in a site
+ */
+server.tool(
+  "spo-list-drives",
+  "List all document libraries (drives) in a SharePoint site with metadata",
+  {
+    siteId: z.string().describe("Site ID from configuration"),
+  },
+  async ({ siteId }) => {
+    try {
+      const service = getSharePointService();
+      const drives = await service.listDrives(siteId);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(drives, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error listing SharePoint drives:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to list drives: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: spo-get-drive-info
+ * Get detailed information about a document library
+ */
+server.tool(
+  "spo-get-drive-info",
+  "Get detailed document library information including quota, owner, and created/modified dates",
+  {
+    siteId: z.string().describe("Site ID from configuration"),
+    driveId: z.string().describe("Drive ID (use spo-list-drives to find IDs)"),
+  },
+  async ({ siteId, driveId }) => {
+    try {
+      const service = getSharePointService();
+      const driveInfo = await service.getDriveInfo(siteId, driveId);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(driveInfo, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error getting SharePoint drive info:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to get drive info: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: spo-clear-cache
+ * Clear cached SharePoint responses
+ */
+server.tool(
+  "spo-clear-cache",
+  "Clear cached SharePoint responses (useful after site changes or for troubleshooting)",
+  {
+    siteId: z.string().optional().describe("Clear cache for specific site only (optional)"),
+    pattern: z.string().optional().describe("Clear only cache entries matching this pattern (optional)"),
+  },
+  async ({ siteId, pattern }) => {
+    try {
+      const service = getSharePointService();
+      const clearedCount = service.clearCache(pattern, siteId);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ clearedCount, message: `Cleared ${clearedCount} cache entries` }, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error clearing SharePoint cache:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to clear cache: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: spo-list-items
+ * List files and folders in a drive or folder
+ */
+server.tool(
+  "spo-list-items",
+  "List all files and folders in a document library or folder",
+  {
+    siteId: z.string().describe("Site ID from configuration"),
+    driveId: z.string().describe("Drive ID"),
+    folderId: z.string().optional().describe("Folder ID (optional, defaults to root)"),
+  },
+  async ({ siteId, driveId, folderId }) => {
+    try {
+      const service = getSharePointService();
+      const items = await service.listItems(siteId, driveId, folderId);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(items, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error listing SharePoint items:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to list items: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: spo-get-item
+ * Get file or folder metadata by ID
+ */
+server.tool(
+  "spo-get-item",
+  "Get detailed file or folder metadata by ID",
+  {
+    siteId: z.string().describe("Site ID from configuration"),
+    driveId: z.string().describe("Drive ID"),
+    itemId: z.string().describe("Item ID"),
+  },
+  async ({ siteId, driveId, itemId }) => {
+    try {
+      const service = getSharePointService();
+      const item = await service.getItem(siteId, driveId, itemId);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(item, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error getting SharePoint item:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to get item: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: spo-get-item-by-path
+ * Get file or folder metadata by path
+ */
+server.tool(
+  "spo-get-item-by-path",
+  "Get file or folder metadata by path (relative to drive root)",
+  {
+    siteId: z.string().describe("Site ID from configuration"),
+    driveId: z.string().describe("Drive ID"),
+    path: z.string().describe("Item path (e.g., '/folder/file.docx' or 'folder/subfolder')"),
+  },
+  async ({ siteId, driveId, path }) => {
+    try {
+      const service = getSharePointService();
+      const item = await service.getItemByPath(siteId, driveId, path);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(item, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error getting SharePoint item by path:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to get item by path: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: spo-search-items
+ * Search for files by filename or metadata
+ */
+server.tool(
+  "spo-search-items",
+  "Search for files by filename or metadata (filename and metadata search only, not full-text)",
+  {
+    siteId: z.string().describe("Site ID from configuration"),
+    query: z.string().describe("Search query"),
+    driveId: z.string().optional().describe("Limit search to specific drive (optional)"),
+    limit: z.number().optional().describe("Maximum results (default: 100, max configured in SHAREPOINT_MAX_SEARCH_RESULTS)"),
+  },
+  async ({ siteId, query, driveId, limit }) => {
+    try {
+      const service = getSharePointService();
+      const result = await service.searchItems(siteId, query, driveId, limit);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(result, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error searching SharePoint items:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to search items: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: spo-get-recent-items
+ * Get recently modified items in a drive
+ */
+server.tool(
+  "spo-get-recent-items",
+  "Get recently modified items in a document library",
+  {
+    siteId: z.string().describe("Site ID from configuration"),
+    driveId: z.string().describe("Drive ID"),
+    limit: z.number().optional().describe("Maximum results (default: 20, max: 100)"),
+    days: z.number().optional().describe("Days back to search (default: 30)"),
+  },
+  async ({ siteId, driveId, limit, days }) => {
+    try {
+      const service = getSharePointService();
+      const items = await service.getRecentItems(siteId, driveId, limit, days);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(items, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error getting recent SharePoint items:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to get recent items: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: spo-get-folder-structure
+ * Get recursive folder tree structure
+ */
+server.tool(
+  "spo-get-folder-structure",
+  "Get recursive folder tree structure (useful for understanding site organization)",
+  {
+    siteId: z.string().describe("Site ID from configuration"),
+    driveId: z.string().describe("Drive ID"),
+    folderId: z.string().optional().describe("Root folder ID (optional, defaults to drive root)"),
+    depth: z.number().optional().describe("Recursion depth (default: 3, max: 10)"),
+  },
+  async ({ siteId, driveId, folderId, depth }) => {
+    try {
+      const service = getSharePointService();
+      const tree = await service.getFolderStructure(siteId, driveId, folderId, depth);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(tree, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error getting SharePoint folder structure:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to get folder structure: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * ===========================================
+ * SHAREPOINT POWERPLATFORM VALIDATION TOOLS (3 total)
+ * ===========================================
+ * These tools integrate SharePoint with PowerPlatform for document location validation
+ */
+
+/**
+ * Tool: spo-get-crm-document-locations
+ * Get SharePoint document locations from PowerPlatform Dataverse
+ */
+server.tool(
+  "spo-get-crm-document-locations",
+  "Get SharePoint document locations configured in PowerPlatform Dataverse (sharepointdocumentlocation entity)",
+  {
+    entityName: z.string().optional().describe("Filter by entity logical name (e.g., 'account', 'contact')"),
+    recordId: z.string().optional().describe("Filter by specific record ID (GUID)"),
+  },
+  async ({ entityName, recordId }) => {
+    try {
+      const spoService = getSharePointService();
+      const ppService = getPowerPlatformService();
+
+      const locations = await spoService.getCrmDocumentLocations(ppService, entityName, recordId);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(locations, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error getting CRM document locations:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to get CRM document locations: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: spo-validate-document-location
+ * Validate a PowerPlatform document location against actual SharePoint structure
+ */
+server.tool(
+  "spo-validate-document-location",
+  "Validate that a PowerPlatform document location configuration matches the actual SharePoint site structure. Checks site accessibility, folder existence, and file counts. Returns validation status (valid/warning/error) with issues and recommendations.",
+  {
+    documentLocationId: z.string().describe("GUID of the sharepointdocumentlocation record in PowerPlatform"),
+  },
+  async ({ documentLocationId }) => {
+    try {
+      const spoService = getSharePointService();
+      const ppService = getPowerPlatformService();
+
+      const result = await spoService.validateDocumentLocation(ppService, documentLocationId);
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(result, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error validating document location:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to validate document location: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: spo-verify-document-migration
+ * Verify document migration between two SharePoint folders
+ */
+server.tool(
+  "spo-verify-document-migration",
+  "Verify that documents were successfully migrated from source to target SharePoint folder. Compares file counts, sizes, names, and modified dates. Returns migration status (complete/incomplete/failed) with success rate and detailed comparison.",
+  {
+    sourceSiteId: z.string().describe("Source SharePoint site ID"),
+    sourcePath: z.string().describe("Source folder path (e.g., '/Documents/Archive')"),
+    targetSiteId: z.string().describe("Target SharePoint site ID"),
+    targetPath: z.string().describe("Target folder path (e.g., '/NewLibrary/Archive')"),
+  },
+  async ({ sourceSiteId, sourcePath, targetSiteId, targetPath }) => {
+    try {
+      const spoService = getSharePointService();
+      const ppService = getPowerPlatformService();
+
+      const result = await spoService.verifyDocumentMigration(
+        ppService,
+        sourceSiteId,
+        sourcePath,
+        targetSiteId,
+        targetPath
+      );
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(result, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      console.error("Error verifying document migration:", error);
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to verify document migration: ${error.message}`,
+        }],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * ===========================================
+ * SHAREPOINT ONLINE PROMPTS (10 total)
+ * ===========================================
+ * Formatted, context-rich SharePoint reports with PowerPlatform integration validation
+ */
+
+/**
+ * Prompt: spo-site-overview
+ * Comprehensive site overview with drives and recent activity
+ */
+server.prompt(
+  "spo-site-overview",
+  {
+    siteId: z.string().describe("Site ID from configuration"),
+  },
+  async ({ siteId }) => {
+    try {
+      const service = getSharePointService();
+
+      // Get site info
+      const site = await service.getSiteInfo(siteId);
+
+      // Get drives (document libraries)
+      const drives = await service.listDrives(siteId);
+
+      // Build report
+      const sections: string[] = [];
+
+      sections.push(spoFormatters.formatSiteOverviewAsMarkdown(site));
+      sections.push('');
+      sections.push('## Document Libraries');
+      sections.push(spoFormatters.formatDrivesAsMarkdown(drives));
+
+      return {
+        description: `SharePoint site overview: ${site.displayName}`,
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `Show overview of SharePoint site ${siteId}`,
+            },
+          },
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text: sections.join('\n'),
+            },
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error generating site overview:", error);
+      throw error;
+    }
+  }
+);
+
+/**
+ * Prompt: spo-library-details
+ * Detailed document library report with quota and recent items
+ */
+server.prompt(
+  "spo-library-details",
+  {
+    siteId: z.string().describe("Site ID"),
+    driveId: z.string().describe("Drive (library) ID"),
+  },
+  async ({ siteId, driveId }) => {
+    try {
+      const service = getSharePointService();
+
+      // Get drive info
+      const drive = await service.getDriveInfo(siteId, driveId);
+
+      // Get recent items
+      const recentItems = await service.getRecentItems(siteId, driveId, 10, 30);
+
+      // Build report
+      const sections: string[] = [];
+
+      sections.push(spoFormatters.formatDriveDetailsAsMarkdown(drive));
+      sections.push('');
+      sections.push('## Recent Activity (Last 30 days)');
+      sections.push(spoFormatters.formatItemsAsMarkdown(recentItems));
+
+      return {
+        description: `Document library details: ${drive.name}`,
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `Show details for document library ${driveId} in site ${siteId}`,
+            },
+          },
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text: sections.join('\n'),
+            },
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error generating library details:", error);
+      throw error;
+    }
+  }
+);
+
+/**
+ * Prompt: spo-document-search
+ * Search results with formatted file listing
+ */
+server.prompt(
+  "spo-document-search",
+  {
+    siteId: z.string().describe("Site ID"),
+    driveId: z.string().describe("Drive ID"),
+    query: z.string().describe("Search query (filename or keywords)"),
+  },
+  async ({ siteId, driveId, query }) => {
+    try {
+      const service = getSharePointService();
+
+      // Search items
+      const searchResults = await service.searchItems(siteId, driveId, query);
+
+      // Build report
+      const sections: string[] = [];
+
+      sections.push(`# 🔍 Search Results: "${query}"`);
+      sections.push('');
+      sections.push(`Found ${searchResults.items.length} result(s)`);
+      sections.push('');
+      sections.push(spoFormatters.formatItemsAsMarkdown(searchResults.items));
+
+      return {
+        description: `Search results for "${query}"`,
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `Search for "${query}" in drive ${driveId} of site ${siteId}`,
+            },
+          },
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text: sections.join('\n'),
+            },
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error generating search results:", error);
+      throw error;
+    }
+  }
+);
+
+/**
+ * Prompt: spo-recent-activity
+ * Recent document activity report
+ */
+server.prompt(
+  "spo-recent-activity",
+  {
+    siteId: z.string().describe("Site ID"),
+    driveId: z.string().describe("Drive ID"),
+    days: z.string().optional().describe("Number of days to look back (default: 7)"),
+  },
+  async ({ siteId, driveId, days }) => {
+    try {
+      const service = getSharePointService();
+
+      const daysBack = days ? parseInt(days) : 7;
+      const recentItems = await service.getRecentItems(siteId, driveId, 50, daysBack);
+
+      // Build report
+      const sections: string[] = [];
+
+      sections.push(`# 📅 Recent Activity (Last ${daysBack} days)`);
+      sections.push('');
+      sections.push(`**Document Library:** ${driveId}`);
+      sections.push(`**Total Changes:** ${recentItems.length}`);
+      sections.push('');
+      sections.push(spoFormatters.formatItemsAsMarkdown(recentItems));
+
+      return {
+        description: `Recent activity for last ${daysBack} days`,
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `Show recent activity in drive ${driveId} for last ${daysBack} days`,
+            },
+          },
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text: sections.join('\n'),
+            },
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error generating recent activity report:", error);
+      throw error;
+    }
+  }
+);
+
+/**
+ * Prompt: spo-validate-crm-integration
+ * Validate PowerPlatform document location configuration
+ */
+server.prompt(
+  "spo-validate-crm-integration",
+  {
+    documentLocationId: z.string().describe("Document location ID from PowerPlatform"),
+  },
+  async ({ documentLocationId }) => {
+    try {
+      const spoService = getSharePointService();
+      const ppService = getPowerPlatformService();
+
+      // Validate document location
+      const result = await spoService.validateDocumentLocation(ppService, documentLocationId);
+
+      // Generate analysis
+      const sections: string[] = [];
+
+      sections.push(spoFormatters.formatValidationResultAsMarkdown(result));
+
+      return {
+        description: `Validation result for document location ${documentLocationId}`,
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `Validate PowerPlatform document location ${documentLocationId}`,
+            },
+          },
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text: sections.join('\n'),
+            },
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error validating CRM integration:", error);
+      throw error;
+    }
+  }
+);
+
+/**
+ * Prompt: spo-document-location-audit
+ * Audit all document locations for an entity or record
+ */
+server.prompt(
+  "spo-document-location-audit",
+  {
+    entityName: z.string().optional().describe("Entity logical name (e.g., 'account')"),
+    recordId: z.string().optional().describe("Record ID (GUID)"),
+  },
+  async ({ entityName, recordId }) => {
+    try {
+      const spoService = getSharePointService();
+      const ppService = getPowerPlatformService();
+
+      // Get document locations
+      const locations = await spoService.getCrmDocumentLocations(ppService, entityName, recordId);
+
+      // Analyze
+      const analysis = spoFormatters.analyzeCrmDocumentLocations(locations);
+
+      // Build report
+      const sections: string[] = [];
+
+      sections.push('# 📋 Document Location Audit');
+      sections.push('');
+
+      if (entityName) {
+        sections.push(`**Entity:** ${entityName}`);
+      }
+
+      if (recordId) {
+        sections.push(`**Record ID:** ${recordId}`);
+      }
+
+      sections.push('');
+      sections.push('## Insights');
+      analysis.insights.forEach(insight => {
+        sections.push(insight);
+      });
+
+      sections.push('');
+      sections.push('## Document Locations');
+      sections.push(spoFormatters.formatCrmDocumentLocationsAsMarkdown(locations));
+
+      if (analysis.recommendations.length > 0) {
+        sections.push('');
+        sections.push('## Recommendations');
+        analysis.recommendations.forEach(rec => {
+          sections.push(`- ${rec}`);
+        });
+      }
+
+      return {
+        description: `Document location audit${entityName ? ` for ${entityName}` : ''}`,
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `Audit document locations${entityName ? ` for entity ${entityName}` : ''}${recordId ? ` record ${recordId}` : ''}`,
+            },
+          },
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text: sections.join('\n'),
+            },
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error generating document location audit:", error);
+      throw error;
+    }
+  }
+);
+
+/**
+ * Prompt: spo-migration-verification-report
+ * Comprehensive migration verification report
+ */
+server.prompt(
+  "spo-migration-verification-report",
+  {
+    sourceSiteId: z.string().describe("Source site ID"),
+    sourcePath: z.string().describe("Source folder path"),
+    targetSiteId: z.string().describe("Target site ID"),
+    targetPath: z.string().describe("Target folder path"),
+  },
+  async ({ sourceSiteId, sourcePath, targetSiteId, targetPath }) => {
+    try {
+      const spoService = getSharePointService();
+      const ppService = getPowerPlatformService();
+
+      // Verify migration
+      const result = await spoService.verifyDocumentMigration(
+        ppService,
+        sourceSiteId,
+        sourcePath,
+        targetSiteId,
+        targetPath
+      );
+
+      // Analyze
+      const analysis = spoFormatters.analyzeMigrationVerification(result);
+
+      // Build report
+      const sections: string[] = [];
+
+      sections.push(spoFormatters.formatMigrationReportAsMarkdown(result));
+      sections.push('');
+      sections.push('## Analysis');
+      analysis.insights.forEach(insight => {
+        sections.push(`- ${insight}`);
+      });
+
+      sections.push('');
+      sections.push('## Recommendations');
+      analysis.recommendations.forEach(rec => {
+        sections.push(`- ${rec}`);
+      });
+
+      return {
+        description: `Migration verification: ${result.status} (${result.successRate}% success)`,
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `Verify document migration from ${sourcePath} to ${targetPath}`,
+            },
+          },
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text: sections.join('\n'),
+            },
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error generating migration verification report:", error);
+      throw error;
+    }
+  }
+);
+
+/**
+ * Prompt: spo-setup-validation-guide
+ * Guide for validating SharePoint integration setup
+ */
+server.prompt(
+  "spo-setup-validation-guide",
+  {},
+  async () => {
+    const guide = `# SharePoint Integration Setup Validation Guide
+
+## Prerequisites Checklist
+
+### 1. Azure AD App Registration
+- ✅ App registered in Azure Active Directory
+- ✅ Client ID and Client Secret generated
+- ✅ Tenant ID noted
+
+### 2. API Permissions
+Required Microsoft Graph API permissions (Application permissions):
+- ✅ Sites.Read.All or Sites.ReadWrite.All
+- ✅ Files.Read.All or Files.ReadWrite.All
+- ✅ Admin consent granted
+
+### 3. SharePoint Site Access
+- ✅ Service principal added to site(s) as Site Collection Admin
+- ✅ Site URLs accessible and correct
+
+### 4. Configuration
+Environment variables configured:
+- ✅ SHAREPOINT_TENANT_ID
+- ✅ SHAREPOINT_CLIENT_ID
+- ✅ SHAREPOINT_CLIENT_SECRET
+- ✅ SHAREPOINT_SITES (JSON array) or SHAREPOINT_SITE_URL
+
+## Testing Steps
+
+### Step 1: Test Connection
+\`\`\`
+Use tool: spo-test-connection
+Parameters: { siteId: "your-site-id" }
+Expected: Site information returned with no errors
+\`\`\`
+
+### Step 2: List Document Libraries
+\`\`\`
+Use tool: spo-list-drives
+Parameters: { siteId: "your-site-id" }
+Expected: List of document libraries with quota info
+\`\`\`
+
+### Step 3: List Files
+\`\`\`
+Use tool: spo-list-items
+Parameters: { siteId: "your-site-id", driveId: "library-id" }
+Expected: List of files and folders
+\`\`\`
+
+### Step 4: Test PowerPlatform Integration (Optional)
+\`\`\`
+Use tool: spo-get-crm-document-locations
+Expected: List of document locations from Dataverse
+\`\`\`
+
+## Common Issues
+
+### Issue: "Access denied" error
+**Solution:**
+1. Verify API permissions are granted
+2. Ensure admin consent is granted
+3. Check service principal is Site Collection Admin
+
+### Issue: "Site not found"
+**Solution:**
+1. Verify site URL is correct (use full URL)
+2. Check site exists and is accessible
+3. Ensure site is in SHAREPOINT_SITES configuration
+
+### Issue: "Authentication failed"
+**Solution:**
+1. Verify tenant ID, client ID, and client secret
+2. Check client secret hasn't expired
+3. Ensure app registration is active
+
+## Next Steps
+
+Once setup is validated:
+1. Configure additional sites in SHAREPOINT_SITES
+2. Set up PowerPlatform integration for document location validation
+3. Use validation tools to audit document locations
+4. Set up migration verification workflows
+
+For more help, refer to SETUP.md documentation.
+`;
+
+    return {
+      description: "SharePoint integration setup validation guide",
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: "Show SharePoint integration setup validation guide",
+          },
+        },
+        {
+          role: "assistant",
+          content: {
+            type: "text",
+            text: guide,
+          },
+        },
+      ],
+    };
+  }
+);
+
+/**
+ * Prompt: spo-troubleshooting-guide
+ * Troubleshooting guide for common SharePoint issues
+ */
+server.prompt(
+  "spo-troubleshooting-guide",
+  {
+    errorType: z.string().optional().describe("Type of error (e.g., 'access-denied', 'site-not-found')"),
+  },
+  async ({ errorType }) => {
+    const guide = `# SharePoint Integration Troubleshooting Guide
+
+## Common Error Scenarios
+
+### 1. Access Denied (403 Forbidden)
+
+**Symptoms:**
+- "Access denied" errors when accessing sites or files
+- "Insufficient permissions" messages
+
+**Causes:**
+- Missing API permissions
+- Admin consent not granted
+- Service principal not added to site
+
+**Solutions:**
+1. Verify Microsoft Graph API permissions:
+   - Sites.Read.All (or Sites.ReadWrite.All)
+   - Files.Read.All (or Files.ReadWrite.All)
+2. Grant admin consent in Azure AD
+3. Add service principal as Site Collection Admin:
+   - Go to site settings → Site permissions
+   - Add app with client ID
+   - Grant Full Control or Read permissions
+
+### 2. Site Not Found (404 Not Found)
+
+**Symptoms:**
+- "Site not found" errors
+- "Resource does not exist" messages
+
+**Causes:**
+- Incorrect site URL
+- Site not in SHAREPOINT_SITES configuration
+- Site deleted or moved
+
+**Solutions:**
+1. Verify site URL format: https://tenant.sharepoint.com/sites/sitename
+2. Check site exists by visiting in browser
+3. Add site to SHAREPOINT_SITES configuration
+4. Ensure site is not archived or deleted
+
+### 3. Authentication Failed (401 Unauthorized)
+
+**Symptoms:**
+- "Authentication failed" errors
+- "Invalid credentials" messages
+
+**Causes:**
+- Incorrect tenant ID, client ID, or client secret
+- Client secret expired
+- App registration disabled
+
+**Solutions:**
+1. Verify credentials in environment variables
+2. Check client secret expiration in Azure AD
+3. Generate new client secret if expired
+4. Ensure app registration is active
+
+### 4. Token Acquisition Failed
+
+**Symptoms:**
+- "Failed to acquire access token" errors
+- MSAL errors
+
+**Causes:**
+- Network connectivity issues
+- Firewall blocking Azure AD
+- Incorrect tenant ID
+
+**Solutions:**
+1. Verify network connectivity to login.microsoftonline.com
+2. Check firewall rules
+3. Verify tenant ID is correct
+4. Test authentication manually
+
+### 5. Folder Not Found
+
+**Symptoms:**
+- "Folder not accessible" in validation results
+- "Item not found" errors
+
+**Causes:**
+- Incorrect folder path
+- Folder deleted or moved
+- Permissions issue
+
+**Solutions:**
+1. Verify folder path format: /LibraryName/Folder1/Folder2
+2. Check folder exists in SharePoint
+3. Ensure service principal has access
+4. Use spo-list-items to browse folder structure
+
+### 6. Document Location Validation Fails
+
+**Symptoms:**
+- Validation status: "error" or "warning"
+- Missing or inaccessible folders
+
+**Causes:**
+- CRM absolute URL incorrect
+- Site not configured
+- Folder path mismatch
+
+**Solutions:**
+1. Verify absolute URL in PowerPlatform
+2. Add site to SHAREPOINT_SITES configuration
+3. Check folder path matches SharePoint structure
+4. Use spo-validate-document-location tool
+
+## Diagnostic Tools
+
+### Test Connection
+\`\`\`
+Use: spo-test-connection
+Purpose: Verify site accessibility and permissions
+\`\`\`
+
+### List Sites
+\`\`\`
+Use: spo-list-sites
+Purpose: Verify configured sites and status
+\`\`\`
+
+### Validate Document Location
+\`\`\`
+Use: spo-validate-document-location
+Purpose: Check PowerPlatform integration
+\`\`\`
+
+## Getting Help
+
+If issues persist:
+1. Check application logs for detailed error messages
+2. Review audit logs in Azure AD
+3. Test permissions using Microsoft Graph Explorer
+4. Refer to SETUP.md for detailed configuration steps
+
+For API-specific errors, refer to Microsoft Graph API documentation.
+`;
+
+    return {
+      description: `SharePoint troubleshooting guide${errorType ? ` for ${errorType}` : ''}`,
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: `Show SharePoint troubleshooting guide${errorType ? ` for ${errorType}` : ''}`,
+          },
+        },
+        {
+          role: "assistant",
+          content: {
+            type: "text",
+            text: guide,
+          },
+        },
+      ],
+    };
+  }
+);
+
+/**
+ * Prompt: spo-powerplatform-integration-health
+ * Health check for PowerPlatform-SharePoint integration
+ */
+server.prompt(
+  "spo-powerplatform-integration-health",
+  {
+    entityName: z.string().optional().describe("Entity to check (e.g., 'account')"),
+  },
+  async ({ entityName }) => {
+    try {
+      const spoService = getSharePointService();
+      const ppService = getPowerPlatformService();
+
+      // Get all document locations for entity
+      const locations = await spoService.getCrmDocumentLocations(ppService, entityName);
+
+      // Analyze
+      const analysis = spoFormatters.analyzeCrmDocumentLocations(locations);
+
+      // Build health report
+      const sections: string[] = [];
+
+      sections.push('# 🏥 PowerPlatform-SharePoint Integration Health Check');
+      sections.push('');
+
+      if (entityName) {
+        sections.push(`**Entity:** ${entityName}`);
+        sections.push('');
+      }
+
+      sections.push('## Health Summary');
+      sections.push('');
+      analysis.insights.forEach(insight => {
+        sections.push(insight);
+      });
+
+      sections.push('');
+      sections.push('## Configured Document Locations');
+      sections.push(spoFormatters.formatCrmDocumentLocationsAsMarkdown(locations));
+
+      if (analysis.recommendations.length > 0) {
+        sections.push('');
+        sections.push('## Recommendations');
+        analysis.recommendations.forEach(rec => {
+          sections.push(`- 💡 ${rec}`);
+        });
+      }
+
+      sections.push('');
+      sections.push('## Next Steps');
+      sections.push('');
+      sections.push('1. Use `spo-validate-document-location` to validate individual locations');
+      sections.push('2. Check for missing or inaccessible folders');
+      sections.push('3. Verify service principal has access to all sites');
+      sections.push('4. Review empty folders and upload documents');
+
+      return {
+        description: `Integration health check${entityName ? ` for ${entityName}` : ''}`,
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `Check PowerPlatform-SharePoint integration health${entityName ? ` for ${entityName}` : ''}`,
+            },
+          },
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text: sections.join('\n'),
+            },
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error checking integration health:", error);
+      throw error;
+    }
+  }
+);
+
+/**
+ * ===========================================
  * CLEANUP HANDLERS
  * ===========================================
  */
@@ -9867,6 +11328,9 @@ process.on('SIGINT', async () => {
   if (serviceBusService) {
     await serviceBusService.close();
   }
+  if (sharePointService) {
+    await sharePointService.close();
+  }
   process.exit(0);
 });
 
@@ -9877,6 +11341,9 @@ process.on('SIGTERM', async () => {
   }
   if (serviceBusService) {
     await serviceBusService.close();
+  }
+  if (sharePointService) {
+    await sharePointService.close();
   }
   process.exit(0);
 });

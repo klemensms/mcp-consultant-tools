@@ -119,6 +119,98 @@ export class AzureDevOpsService {
   }
 
   /**
+   * Count occurrences of a string in content
+   * @param content The content to search in
+   * @param searchStr The string to search for
+   * @returns Number of occurrences
+   */
+  private countOccurrences(content: string, searchStr: string): number {
+    const regex = new RegExp(this.escapeRegExp(searchStr), 'g');
+    const matches = content.match(regex);
+    return matches ? matches.length : 0;
+  }
+
+  /**
+   * Get locations where a string appears in content
+   * @param content The content to search in
+   * @param searchStr The string to search for
+   * @returns Formatted string showing line numbers and context
+   */
+  private getMatchLocations(content: string, searchStr: string): string {
+    const lines = content.split('\n');
+    const matches: string[] = [];
+
+    lines.forEach((line, index) => {
+      if (line.includes(searchStr)) {
+        matches.push(`Line ${index + 1}: ${this.truncate(line.trim(), 100)}`);
+      }
+    });
+
+    const maxDisplay = 10;
+    const result = matches.slice(0, maxDisplay).join('\n');
+    if (matches.length > maxDisplay) {
+      return result + `\n... and ${matches.length - maxDisplay} more`;
+    }
+    return result;
+  }
+
+  /**
+   * Generate a unified diff showing changes
+   * @param oldContent Original content
+   * @param newContent Updated content
+   * @param oldStr The string that was replaced
+   * @param newStr The replacement string
+   * @returns Formatted diff output
+   */
+  private generateUnifiedDiff(
+    oldContent: string,
+    newContent: string,
+    oldStr: string,
+    newStr: string
+  ): string {
+    const oldLines = oldContent.split('\n');
+    const newLines = newContent.split('\n');
+
+    // Find changed lines
+    const changedLineNumbers: number[] = [];
+    oldLines.forEach((line, index) => {
+      if (line.includes(oldStr)) {
+        changedLineNumbers.push(index);
+      }
+    });
+
+    // Build diff output
+    const diffLines: string[] = [];
+    changedLineNumbers.forEach(lineNum => {
+      diffLines.push(`@@ Line ${lineNum + 1} @@`);
+      diffLines.push(`- ${oldLines[lineNum]}`);
+      diffLines.push(`+ ${newLines[lineNum]}`);
+      diffLines.push('');
+    });
+
+    return diffLines.join('\n');
+  }
+
+  /**
+   * Escape special regex characters
+   * @param str String to escape
+   * @returns Escaped string safe for use in regex
+   */
+  private escapeRegExp(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
+   * Truncate a string for display
+   * @param str String to truncate
+   * @param maxLen Maximum length
+   * @returns Truncated string with ellipsis if needed
+   */
+  private truncate(str: string, maxLen: number): string {
+    return str.length > maxLen ? str.substring(0, maxLen) + '...' : str;
+  }
+
+  /**
    * Get all wikis in a project
    * @param project The project name
    * @returns List of wikis in the project
@@ -352,6 +444,115 @@ export class AzureDevOpsService {
       gitItemPath: response.page?.gitItemPath,
       project,
       wikiId
+    };
+  }
+
+  /**
+   * Replace a specific string in a wiki page without rewriting entire content
+   * @param project The project name
+   * @param wikiId The wiki identifier
+   * @param pagePath The path to the page (will be normalized to wiki format)
+   * @param oldStr The exact string to replace
+   * @param newStr The replacement string
+   * @param replaceAll If true, replace all occurrences; if false, old_str must be unique
+   * @param description Optional description of the change for audit logging
+   * @returns Result with diff, occurrence count, version, and message
+   */
+  async strReplaceWikiPage(
+    project: string,
+    wikiId: string,
+    pagePath: string,
+    oldStr: string,
+    newStr: string,
+    replaceAll: boolean = false,
+    description?: string
+  ): Promise<any> {
+    this.validateProject(project);
+
+    // 1. Validate write permission
+    if (!this.config.enableWikiWrite) {
+      throw new Error('Wiki write operations are disabled. Set AZUREDEVOPS_ENABLE_WIKI_WRITE=true to enable.');
+    }
+
+    // 2. Fetch current page content and version (auto-fetch latest)
+    const currentPage = await this.getWikiPage(project, wikiId, pagePath, true);
+    const currentContent = currentPage.content;
+    const currentVersion = currentPage.version;
+
+    // 3. Count occurrences of old_str
+    const occurrences = this.countOccurrences(currentContent, oldStr);
+
+    if (occurrences === 0) {
+      throw new Error(
+        `String not found in page.\n\n` +
+        `Looking for: "${this.truncate(oldStr, 200)}"\n\n` +
+        `Page excerpt:\n${this.truncate(currentContent, 500)}`
+      );
+    }
+
+    if (occurrences > 1 && !replaceAll) {
+      throw new Error(
+        `String appears ${occurrences} times in the page. ` +
+        `Either provide more context to make old_str unique, or set replace_all=true.\n\n` +
+        `Matching locations:\n${this.getMatchLocations(currentContent, oldStr)}`
+      );
+    }
+
+    // 4. Perform replacement
+    const regex = new RegExp(this.escapeRegExp(oldStr), replaceAll ? 'g' : '');
+    const newContent = currentContent.replace(regex, newStr);
+
+    // 5. Validate replacement succeeded
+    if (newContent === currentContent) {
+      throw new Error('Replacement failed - content unchanged');
+    }
+
+    // 6. Update wiki page with version conflict retry
+    let updateResult;
+    try {
+      updateResult = await this.updateWikiPage(
+        project,
+        wikiId,
+        pagePath,
+        newContent,
+        currentVersion
+      );
+    } catch (error: any) {
+      // Version conflict - retry once with fresh version
+      if (error.message.includes('412') || error.message.includes('version') || error.message.includes('conflict')) {
+        console.error('Version conflict detected, retrying with fresh version...');
+
+        const freshPage = await this.getWikiPage(project, wikiId, pagePath, true);
+        const freshContent = freshPage.content;
+        const freshVersion = freshPage.version;
+
+        // Re-apply replacement to fresh content
+        const freshRegex = new RegExp(this.escapeRegExp(oldStr), replaceAll ? 'g' : '');
+        const freshNewContent = freshContent.replace(freshRegex, newStr);
+
+        updateResult = await this.updateWikiPage(
+          project,
+          wikiId,
+          pagePath,
+          freshNewContent,
+          freshVersion
+        );
+      } else {
+        throw error;
+      }
+    }
+
+    // 7. Generate diff output
+    const diff = this.generateUnifiedDiff(currentContent, newContent, oldStr, newStr);
+
+    // 8. Return result with diff
+    return {
+      success: true,
+      diff,
+      occurrences: replaceAll ? occurrences : 1,
+      version: currentVersion,
+      message: `Successfully replaced ${replaceAll ? occurrences : 1} occurrence(s)`,
+      ...updateResult
     };
   }
 
