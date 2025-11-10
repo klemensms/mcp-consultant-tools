@@ -17,8 +17,9 @@ Complete documentation for the PowerPlatform/Dynamics 365 integration in `mcp-co
    - [Configuration Example](#configuration-example)
    - [Enabling Customization](#enabling-customization)
 
-3. [Tools (76 Total)](#tools-76-total)
+3. [Tools (79 Total)](#tools-79-total)
    - [Entity Metadata & Data Tools (7)](#entity-metadata--data-tools)
+   - [Data CRUD Operations (3)](#data-crud-operations)
    - [Plugin Registration & Validation Tools (4)](#plugin-registration--validation-tools)
    - [Workflow & Power Automate Flow Tools (5)](#workflow--power-automate-flow-tools)
    - [Entity Customization Tools (4)](#entity-customization-tools)
@@ -200,6 +201,13 @@ POWERPLATFORM_TENANT_ID=your-azure-tenant-id
 # Customization Control (Optional - defaults to false)
 POWERPLATFORM_ENABLE_CUSTOMIZATION=false
 POWERPLATFORM_DEFAULT_SOLUTION=DefaultSolution
+
+# Data CRUD Operations (Optional - defaults to false)
+# WARNING: These allow AI agents to modify data in your Dataverse environment
+# Only enable in development/sandbox environments
+POWERPLATFORM_ENABLE_CREATE=false
+POWERPLATFORM_ENABLE_UPDATE=false
+POWERPLATFORM_ENABLE_DELETE=false
 ```
 
 **Environment Variable Details:**
@@ -210,8 +218,11 @@ POWERPLATFORM_DEFAULT_SOLUTION=DefaultSolution
 | `POWERPLATFORM_CLIENT_ID` | Yes | - | Azure AD app registration client ID (GUID) |
 | `POWERPLATFORM_CLIENT_SECRET` | Yes | - | Azure AD app registration client secret |
 | `POWERPLATFORM_TENANT_ID` | Yes | - | Azure tenant ID (GUID) |
-| `POWERPLATFORM_ENABLE_CUSTOMIZATION` | No | `false` | Enable write operations (create/update/delete) |
+| `POWERPLATFORM_ENABLE_CUSTOMIZATION` | No | `false` | Enable metadata customization (create entities, forms, etc.) |
 | `POWERPLATFORM_DEFAULT_SOLUTION` | No | - | Default solution for customizations |
+| `POWERPLATFORM_ENABLE_CREATE` | No | `false` | ⚠️ Enable record creation (data modification) |
+| `POWERPLATFORM_ENABLE_UPDATE` | No | `false` | ⚠️ Enable record updates (data modification) |
+| `POWERPLATFORM_ENABLE_DELETE` | No | `false` | ⚠️ Enable record deletion (permanent data loss) |
 
 **Regional Endpoints:**
 
@@ -321,7 +332,7 @@ POWERPLATFORM_ENABLE_CUSTOMIZATION=true
 
 ---
 
-## Tools (76 Total)
+## Tools (79 Total)
 
 ### Entity Metadata & Data Tools
 
@@ -535,6 +546,154 @@ await mcpClient.invoke("query-records", {
 - **Logical**: `statecode eq 0 and industrycode eq 1`
 - **Contains**: `contains(name, 'Corp')`
 - **Date**: `createdon gt 2025-01-01`
+
+---
+
+### Data CRUD Operations
+
+**⚠️ SECURITY WARNING**: These tools modify production data and are disabled by default. Only enable in development/sandbox environments with proper safeguards.
+
+#### create-record
+
+Create a new record in Dataverse.
+
+**Security:** Requires `POWERPLATFORM_ENABLE_CREATE=true`
+
+**Parameters:**
+- `entityNamePlural` (string, required): Plural name of the entity (e.g., "accounts", "contacts", "sic_applications")
+- `data` (object, required): Record data as JSON object with field names matching logical names
+
+**Data Format:**
+- **Simple fields**: `{"name": "Acme Corp", "telephone1": "555-1234"}`
+- **Lookups**: Use `@odata.bind` syntax: `{"parentaccountid@odata.bind": "/accounts(guid)"}`
+- **Option sets**: Use integer values: `{"statecode": 0, "statuscode": 1}`
+- **Money**: Use decimal values: `{"revenue": 1000000.00}`
+- **Dates**: Use ISO 8601 format: `{"birthdate": "1990-01-15"}`
+
+**Returns:**
+- Created record with ID and all fields
+
+**Example:**
+```javascript
+await mcpClient.invoke("create-record", {
+  entityNamePlural: "accounts",
+  data: {
+    name: "Contoso Corporation",
+    telephone1: "425-555-0100",
+    websiteurl: "https://contoso.com",
+    address1_city: "Redmond",
+    address1_stateorprovince: "WA"
+  }
+});
+```
+
+**Use Cases:**
+- Bulk data import from external systems
+- Test data generation for development
+- Automated record creation workflows
+- Integration scenarios
+
+**Security Considerations:**
+- Operation is audited via audit logger
+- Empty data validation prevents incomplete records
+- User must have Create privilege on target entity
+- Follow principle of least privilege
+
+---
+
+#### update-record
+
+Update an existing record in Dataverse.
+
+**Security:** Requires `POWERPLATFORM_ENABLE_UPDATE=true`
+
+**Parameters:**
+- `entityNamePlural` (string, required): Plural name of the entity
+- `recordId` (string, required): GUID of the record to update
+- `data` (object, required): Partial record data (only fields being changed)
+
+**Validation:**
+- Record ID must be a valid GUID format
+- Data cannot be empty
+- Uses PATCH method (not PUT) for partial updates
+
+**Returns:**
+- Updated record with all current field values
+
+**Example:**
+```javascript
+await mcpClient.invoke("update-record", {
+  entityNamePlural: "accounts",
+  recordId: "12345678-1234-1234-1234-123456789012",
+  data: {
+    telephone1: "425-555-0101",
+    websiteurl: "https://contoso.com"
+  }
+});
+```
+
+**Use Cases:**
+- Bulk data updates
+- Status transitions
+- Field corrections
+- Data synchronization
+
+**Security Considerations:**
+- GUID validation before API call
+- Operation is audited with record ID
+- User must have Write privilege on target entity
+- Updates are partial (only specified fields changed)
+
+---
+
+#### delete-record
+
+Delete a record from Dataverse permanently.
+
+**Security:** Requires `POWERPLATFORM_ENABLE_DELETE=true` + explicit confirmation
+
+**Parameters:**
+- `entityNamePlural` (string, required): Plural name of the entity
+- `recordId` (string, required): GUID of the record to delete
+- `confirm` (boolean, optional): Must be `true` to proceed (safety check)
+
+**Safety Features:**
+- Two-step confirmation required
+- First call without `confirm: true` shows warning
+- Second call with `confirm: true` executes deletion
+- GUID validation before operation
+
+**Returns:**
+- Success confirmation message
+
+**Example:**
+```javascript
+// Step 1: Shows confirmation warning
+await mcpClient.invoke("delete-record", {
+  entityNamePlural: "accounts",
+  recordId: "12345678-1234-1234-1234-123456789012"
+});
+
+// Step 2: Actually deletes the record
+await mcpClient.invoke("delete-record", {
+  entityNamePlural: "accounts",
+  recordId: "12345678-1234-1234-1234-123456789012",
+  confirm: true
+});
+```
+
+**Use Cases:**
+- Test data cleanup
+- Bulk deletion workflows
+- Data archiving (after backup)
+- Removing duplicate records
+
+**Security Considerations:**
+- ⚠️ **PERMANENT OPERATION** - Cannot be undone
+- Requires explicit confirmation flag
+- Operation is audited with record ID
+- User must have Delete privilege on target entity
+- Consider soft deletes (status updates) instead
 
 ---
 

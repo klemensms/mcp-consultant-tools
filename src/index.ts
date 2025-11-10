@@ -76,9 +76,27 @@ const POWERPLATFORM_CONFIG: PowerPlatformConfig = {
   tenantId: process.env.POWERPLATFORM_TENANT_ID || "",
 };
 
-// PowerPlatform Customization Feature Flags
+// PowerPlatform Customization Feature Flags (metadata operations)
 const POWERPLATFORM_CUSTOMIZATION_ENABLED = process.env.POWERPLATFORM_ENABLE_CUSTOMIZATION === "true";
 const POWERPLATFORM_DEFAULT_SOLUTION = process.env.POWERPLATFORM_DEFAULT_SOLUTION || "";
+
+// PowerPlatform Data CRUD Feature Flags (data operations)
+// CRITICAL SECURITY: These MUST default to false if not explicitly set to "true"
+// This prevents accidental data modifications in production environments
+// Only explicit "true" string enables the operation - all other values (undefined, "false", "1", etc.) = disabled
+const POWERPLATFORM_CREATE_ENABLED = process.env.POWERPLATFORM_ENABLE_CREATE === "true";
+const POWERPLATFORM_UPDATE_ENABLED = process.env.POWERPLATFORM_ENABLE_UPDATE === "true";
+const POWERPLATFORM_DELETE_ENABLED = process.env.POWERPLATFORM_ENABLE_DELETE === "true";
+
+// Log CRUD permission state on startup (helps prevent accidental production modifications)
+console.error('PowerPlatform CRUD Permissions:', {
+  create: POWERPLATFORM_CREATE_ENABLED,
+  update: POWERPLATFORM_UPDATE_ENABLED,
+  delete: POWERPLATFORM_DELETE_ENABLED,
+  warning: (!POWERPLATFORM_CREATE_ENABLED && !POWERPLATFORM_UPDATE_ENABLED && !POWERPLATFORM_DELETE_ENABLED)
+    ? 'All CRUD operations disabled (safe mode)'
+    : '⚠️  CRUD operations enabled - ensure this is intended for this environment'
+});
 
 // Azure DevOps configuration
 const AZUREDEVOPS_CONFIG: AzureDevOpsConfig = {
@@ -2760,6 +2778,167 @@ server.tool(
   }
 );
 
+// PowerPlatform create record
+server.tool(
+  "create-record",
+  "Create a new record in Dataverse. Requires POWERPLATFORM_ENABLE_CREATE=true.",
+  {
+    entityNamePlural: z
+      .string()
+      .describe("The plural name of the entity (e.g., 'accounts', 'contacts', 'sic_applications')"),
+    data: z
+      .record(z.any())
+      .describe(
+        "Record data as JSON object. Field names must match logical names (e.g., {'name': 'Acme Corp', 'telephone1': '555-1234'}). " +
+        "For lookup fields, use '@odata.bind' syntax: {'parentaccountid@odata.bind': '/accounts(guid)'}. " +
+        "For option sets, use integer values."
+      ),
+  },
+  async ({ entityNamePlural, data }) => {
+    try {
+      checkCreateEnabled();
+      const service = getPowerPlatformService();
+      const result = await service.createRecord(entityNamePlural, data);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `✅ Record created successfully in ${entityNamePlural}\n\n` +
+              `**Record ID:** ${result.id || result[Object.keys(result).find(k => k.endsWith('id')) || ''] || 'N/A'}\n\n` +
+              `**Created Record:**\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``,
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error creating record:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Failed to create record: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// PowerPlatform update record
+server.tool(
+  "update-record",
+  "Update an existing record in Dataverse. Requires POWERPLATFORM_ENABLE_UPDATE=true.",
+  {
+    entityNamePlural: z
+      .string()
+      .describe("The plural name of the entity (e.g., 'accounts', 'contacts', 'sic_applications')"),
+    recordId: z
+      .string()
+      .describe("The GUID of the record to update"),
+    data: z
+      .record(z.any())
+      .describe(
+        "Partial record data to update (only fields being changed). " +
+        "Field names must match logical names. " +
+        "Use '@odata.bind' syntax for lookups, integer values for option sets."
+      ),
+  },
+  async ({ entityNamePlural, recordId, data }) => {
+    try {
+      checkUpdateEnabled();
+      const service = getPowerPlatformService();
+      const result = await service.updateRecord(entityNamePlural, recordId, data);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `✅ Record updated successfully in ${entityNamePlural}\n\n` +
+              `**Record ID:** ${recordId}\n\n` +
+              `**Updated Record:**\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``,
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error updating record:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Failed to update record: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// PowerPlatform delete record
+server.tool(
+  "delete-record",
+  "Delete a record from Dataverse. Requires POWERPLATFORM_ENABLE_DELETE=true. WARNING: This operation is permanent and cannot be undone.",
+  {
+    entityNamePlural: z
+      .string()
+      .describe("The plural name of the entity (e.g., 'accounts', 'contacts', 'sic_applications')"),
+    recordId: z
+      .string()
+      .describe("The GUID of the record to delete"),
+    confirm: z
+      .boolean()
+      .optional()
+      .describe("Confirmation flag - must be true to proceed with deletion (safety check)"),
+  },
+  async ({ entityNamePlural, recordId, confirm }) => {
+    try {
+      checkDeleteEnabled();
+
+      // Require explicit confirmation for deletion
+      if (confirm !== true) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `⚠️  Delete operation requires explicit confirmation.\n\n` +
+                `You are about to delete record **${recordId}** from **${entityNamePlural}**.\n\n` +
+                `This operation is **permanent** and **cannot be undone**.\n\n` +
+                `To proceed, call this tool again with \`confirm: true\`.`,
+            },
+          ],
+        };
+      }
+
+      const service = getPowerPlatformService();
+      await service.deleteRecord(entityNamePlural, recordId);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `✅ Record deleted successfully\n\n` +
+              `**Entity:** ${entityNamePlural}\n` +
+              `**Record ID:** ${recordId}\n\n` +
+              `⚠️  This operation is permanent.`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error deleting record:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Failed to delete record: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
 // Plugin Assemblies List Tool
 server.tool(
   "get-plugin-assemblies",
@@ -4068,6 +4247,48 @@ function checkCustomizationEnabled(): void {
     throw new Error(
       "PowerPlatform customization features are disabled. " +
       "Set POWERPLATFORM_ENABLE_CUSTOMIZATION=true in your environment to enable these tools."
+    );
+  }
+}
+
+/**
+ * Helper: Check if record creation is enabled
+ */
+function checkCreateEnabled(): void {
+  if (!POWERPLATFORM_CREATE_ENABLED) {
+    throw new Error(
+      "PowerPlatform record creation is disabled. " +
+      "Set POWERPLATFORM_ENABLE_CREATE=true in your environment to enable record creation. " +
+      "⚠️  WARNING: This allows AI agents to create data in your Dataverse environment. " +
+      "Only enable in development/sandbox environments."
+    );
+  }
+}
+
+/**
+ * Helper: Check if record updates are enabled
+ */
+function checkUpdateEnabled(): void {
+  if (!POWERPLATFORM_UPDATE_ENABLED) {
+    throw new Error(
+      "PowerPlatform record updates are disabled. " +
+      "Set POWERPLATFORM_ENABLE_UPDATE=true in your environment to enable record updates. " +
+      "⚠️  WARNING: This allows AI agents to modify data in your Dataverse environment. " +
+      "Only enable in development/sandbox environments."
+    );
+  }
+}
+
+/**
+ * Helper: Check if record deletion is enabled
+ */
+function checkDeleteEnabled(): void {
+  if (!POWERPLATFORM_DELETE_ENABLED) {
+    throw new Error(
+      "PowerPlatform record deletion is disabled. " +
+      "Set POWERPLATFORM_ENABLE_DELETE=true in your environment to enable record deletion. " +
+      "⚠️  DANGER: This allows AI agents to permanently delete data from your Dataverse environment. " +
+      "Only enable in development/sandbox environments with proper backups."
     );
   }
 }

@@ -66,6 +66,9 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
         "POWERPLATFORM_TENANT_ID": "your-tenant-id",
         "POWERPLATFORM_ENABLE_CUSTOMIZATION": "false",
         "POWERPLATFORM_DEFAULT_SOLUTION": "",
+        "POWERPLATFORM_ENABLE_CREATE": "false",
+        "POWERPLATFORM_ENABLE_UPDATE": "false",
+        "POWERPLATFORM_ENABLE_DELETE": "false",
 
         "AZUREDEVOPS_ORGANIZATION": "your-org",
         "AZUREDEVOPS_PAT": "your-pat",
@@ -141,6 +144,9 @@ Create `.vscode/mcp.json` in your project:
         "POWERPLATFORM_TENANT_ID": "your-tenant-id",
         "POWERPLATFORM_ENABLE_CUSTOMIZATION": "false",
         "POWERPLATFORM_DEFAULT_SOLUTION": "",
+        "POWERPLATFORM_ENABLE_CREATE": "false",
+        "POWERPLATFORM_ENABLE_UPDATE": "false",
+        "POWERPLATFORM_ENABLE_DELETE": "false",
 
         "AZUREDEVOPS_ORGANIZATION": "your-org",
         "AZUREDEVOPS_PAT": "your-pat",
@@ -198,7 +204,7 @@ Reload VS Code window after saving.
 
 ## Available Tools
 
-### PowerPlatform/Dataverse (72 tools)
+### PowerPlatform/Dataverse (75 tools)
 
 **Entity & Data (Read - 7 tools):**
 - `get-entity-metadata` - Get entity metadata
@@ -208,6 +214,11 @@ Reload VS Code window after saving.
 - `get-global-option-set` - Get option set definitions
 - `get-record` - Get a specific record
 - `query-records` - Query records with OData filters
+
+**Data CRUD Operations (Write - 3 tools) - Requires respective feature flags:**
+- `create-record` - Create new record (requires POWERPLATFORM_ENABLE_CREATE=true)
+- `update-record` - Update existing record (requires POWERPLATFORM_ENABLE_UPDATE=true)
+- `delete-record` - Delete record permanently (requires POWERPLATFORM_ENABLE_DELETE=true and confirmation)
 
 **Entity Management (Write - 8 tools) - Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true:**
 - `create-entity` - Create new custom entity (table)
