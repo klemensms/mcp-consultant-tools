@@ -71,6 +71,53 @@ When adding a new integration (e.g., SharePoint Online):
 
 **Implementation is NOT complete until all documentation is created.**
 
+### ⚠️ CRITICAL: Adding Features to Existing Integrations ⚠️
+
+When adding new features to an **existing** integration (e.g., adding CRUD operations to PowerPlatform):
+
+**MANDATORY CHECKLIST - ALL STEPS REQUIRED:**
+
+1. ✅ **Write the code**
+   - Service methods in the service file (e.g., [src/PowerPlatformService.ts](src/PowerPlatformService.ts))
+   - Tool registrations in [src/index.ts](src/index.ts)
+   - Environment variables and permission helpers in [src/index.ts](src/index.ts)
+
+2. ✅ **Update [.env.example](.env.example)**
+   - Add new environment variables with clear descriptions
+   - Include security warnings for dangerous operations
+
+3. ✅ **Update [README.md](README.md)**
+   - Update tool/prompt counts in the overview
+   - Add new configuration examples
+   - Update feature lists
+
+4. ✅ **Update [CLAUDE.md](CLAUDE.md)** (this file)
+   - Add technical documentation to the relevant architecture section
+   - Include code examples and design patterns
+   - Document security considerations
+
+5. ✅ **⚠️ MOST COMMONLY FORGOTTEN: Update `docs/documentation/{integration}.md`**
+   - **This is the user-facing documentation that users actually read**
+   - Update tool counts in table of contents
+   - Add new environment variables to configuration section
+   - Add comprehensive tool documentation with examples
+   - Include security warnings and use cases
+   - **DO NOT skip this step - it is CRITICAL for users**
+
+**Why this matters:**
+- `docs/documentation/` contains the **primary user-facing documentation**
+- Users rely on these files to understand how to use the tools
+- Missing documentation leads to confusion and support issues
+- This is the **most commonly forgotten step** in the implementation process
+
+**Verification:**
+Before considering implementation complete, verify that ALL five documentation files have been updated:
+- [ ] Service code updated
+- [ ] .env.example updated
+- [ ] README.md updated
+- [ ] CLAUDE.md updated
+- [ ] **docs/documentation/{integration}.md updated** ← Check this twice!
+
 ## Architecture
 
 ### Two-Layer Architecture
@@ -291,6 +338,71 @@ The server validates configuration on first use of each service and throws an er
 - `wiki-page-content`: Get formatted wiki page with navigation context
 - `work-item-summary`: Comprehensive work item summary with details and comments
 - `work-items-query-report`: Execute WIQL query and get formatted results
+
+### Data CRUD Operations
+
+**IMPORTANT:** Data modification operations are disabled by default and must be explicitly enabled via environment variables.
+
+**Service Methods** ([src/PowerPlatformService.ts](src/PowerPlatformService.ts)):
+- `createRecord(entityNamePlural, data)` - Create new record
+- `updateRecord(entityNamePlural, recordId, data)` - Update existing record (PATCH)
+- `deleteRecord(entityNamePlural, recordId)` - Delete record (permanent)
+
+**Tools:**
+1. **create-record** - Create new Dataverse records
+   - Requires `POWERPLATFORM_ENABLE_CREATE=true`
+   - Parameters: entityNamePlural, data (JSON object)
+   - Returns: Created record with ID
+
+2. **update-record** - Update existing Dataverse records
+   - Requires `POWERPLATFORM_ENABLE_UPDATE=true`
+   - Parameters: entityNamePlural, recordId, data (partial JSON)
+   - Returns: Updated record
+
+3. **delete-record** - Delete Dataverse records (permanent)
+   - Requires `POWERPLATFORM_ENABLE_DELETE=true`
+   - Parameters: entityNamePlural, recordId, confirm (boolean)
+   - Requires explicit `confirm: true` for safety
+   - Returns: Success confirmation
+
+**Data Format:**
+- **Field Names:** Use logical names (e.g., `name`, `emailaddress1`, `telephone1`)
+- **Lookups:** Use `@odata.bind` syntax: `{"parentaccountid@odata.bind": "/accounts(guid)"}`
+- **Option Sets:** Use integer values: `{"statecode": 0, "statuscode": 1}`
+- **Money:** Use decimal values: `{"revenue": 1000000.00}`
+- **Dates:** Use ISO 8601 format: `{"birthdate": "1990-01-15"}`
+
+**Security Considerations:**
+- All operations are audited via audit-logger
+- GUID validation for record IDs
+- Empty data validation
+- Delete operations require explicit confirmation
+- Follow principle of least privilege - only enable needed operations
+- Use separate Azure AD apps with limited permissions for production
+
+**Error Handling:**
+- Clear error messages for missing permissions
+- Detailed API error responses from Dataverse
+- Audit logs for both success and failure
+- Validation errors before API calls
+
+**Example Usage:**
+```typescript
+// Create account
+await createRecord('accounts', {
+  name: 'Acme Corporation',
+  telephone1: '555-1234',
+  websiteurl: 'https://acme.com'
+});
+
+// Update account
+await updateRecord('accounts', 'guid-here', {
+  telephone1: '555-5678'
+});
+
+// Delete account (requires confirmation)
+await deleteRecord('accounts', 'guid-here', true);
+```
 
 ### API Integration
 

@@ -288,6 +288,165 @@ export class PowerPlatformService {
   }
 
   /**
+   * Create a new record in Dataverse
+   * @param entityNamePlural The plural name of the entity (e.g., 'accounts', 'contacts')
+   * @param data Record data as JSON object (field names must match logical names)
+   * @returns Created record with ID and OData context
+   */
+  async createRecord(entityNamePlural: string, data: Record<string, any>): Promise<any> {
+    const timer = auditLogger.startTimer();
+
+    try {
+      // Validate data is not empty
+      if (!data || Object.keys(data).length === 0) {
+        throw new Error('Record data cannot be empty');
+      }
+
+      // Make POST request to create record
+      const response = await this.makeRequest(
+        `api/data/v9.2/${entityNamePlural}`,
+        'POST',
+        data,
+        {
+          'Prefer': 'return=representation', // Return the created record
+        }
+      );
+
+      // Audit logging
+      auditLogger.log({
+        operation: 'create-record',
+        operationType: 'CREATE',
+        componentType: 'Record',
+        componentName: entityNamePlural,
+        success: true,
+        executionTimeMs: timer(),
+      });
+
+      return response;
+    } catch (error: any) {
+      // Audit failed operation
+      auditLogger.log({
+        operation: 'create-record',
+        operationType: 'CREATE',
+        componentType: 'Record',
+        componentName: entityNamePlural,
+        success: false,
+        error: error.message,
+        executionTimeMs: timer(),
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Update an existing record in Dataverse
+   * @param entityNamePlural The plural name of the entity (e.g., 'accounts', 'contacts')
+   * @param recordId The GUID of the record to update
+   * @param data Partial record data to update (only fields being changed)
+   * @returns Updated record (if Prefer header used) or void
+   */
+  async updateRecord(
+    entityNamePlural: string,
+    recordId: string,
+    data: Record<string, any>
+  ): Promise<any> {
+    const timer = auditLogger.startTimer();
+
+    try {
+      // Validate data is not empty
+      if (!data || Object.keys(data).length === 0) {
+        throw new Error('Update data cannot be empty');
+      }
+
+      // Validate recordId is a valid GUID
+      const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!guidRegex.test(recordId)) {
+        throw new Error(`Invalid record ID format: ${recordId}. Must be a valid GUID.`);
+      }
+
+      // Make PATCH request to update record
+      const response = await this.makeRequest(
+        `api/data/v9.2/${entityNamePlural}(${recordId})`,
+        'PATCH',
+        data,
+        {
+          'Prefer': 'return=representation', // Return the updated record
+        }
+      );
+
+      // Audit logging
+      auditLogger.log({
+        operation: 'update-record',
+        operationType: 'UPDATE',
+        componentType: 'Record',
+        componentName: `${entityNamePlural}(${recordId})`,
+        success: true,
+        executionTimeMs: timer(),
+      });
+
+      return response;
+    } catch (error: any) {
+      // Audit failed operation
+      auditLogger.log({
+        operation: 'update-record',
+        operationType: 'UPDATE',
+        componentType: 'Record',
+        componentName: `${entityNamePlural}(${recordId})`,
+        success: false,
+        error: error.message,
+        executionTimeMs: timer(),
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a record from Dataverse
+   * @param entityNamePlural The plural name of the entity (e.g., 'accounts', 'contacts')
+   * @param recordId The GUID of the record to delete
+   * @returns Void (successful deletion returns 204 No Content)
+   */
+  async deleteRecord(entityNamePlural: string, recordId: string): Promise<void> {
+    const timer = auditLogger.startTimer();
+
+    try {
+      // Validate recordId is a valid GUID
+      const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!guidRegex.test(recordId)) {
+        throw new Error(`Invalid record ID format: ${recordId}. Must be a valid GUID.`);
+      }
+
+      // Make DELETE request
+      await this.makeRequest(
+        `api/data/v9.2/${entityNamePlural}(${recordId})`,
+        'DELETE'
+      );
+
+      // Audit logging
+      auditLogger.log({
+        operation: 'delete-record',
+        operationType: 'DELETE',
+        componentType: 'Record',
+        componentName: `${entityNamePlural}(${recordId})`,
+        success: true,
+        executionTimeMs: timer(),
+      });
+    } catch (error: any) {
+      // Audit failed operation
+      auditLogger.log({
+        operation: 'delete-record',
+        operationType: 'DELETE',
+        componentType: 'Record',
+        componentName: `${entityNamePlural}(${recordId})`,
+        success: false,
+        error: error.message,
+        executionTimeMs: timer(),
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Get all plugin assemblies in the environment
    * @param includeManaged Include managed assemblies (default: false)
    * @param maxRecords Maximum number of assemblies to return (default: 100)
