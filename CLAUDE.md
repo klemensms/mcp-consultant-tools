@@ -25,132 +25,51 @@ Or run directly with npx (without installing):
 npx mcp-consultant-tools
 ```
 
-## Documentation Guidelines
+## Documentation Structure
 
-## ⚠️ CRITICAL: DOCUMENTATION IS MANDATORY FOR ALL NEW FEATURES ⚠️
+### ⚠️ CRITICAL: DOCUMENTATION IS MANDATORY FOR ALL NEW FEATURES ⚠️
 
-**When adding ANY new feature, integration, or tool, you MUST update ALL FIVE documentation files BEFORE considering the implementation complete. This is NOT optional.**
+This project uses a **streamlined documentation approach**:
 
-**Implementation is NOT complete until ALL documentation is updated.**
+### Documentation Files
 
-### Required Documentation Files (ALL MUST BE UPDATED)
-
-1. **[README.md](README.md)** - MUST UPDATE
-   - High-level overview section
-   - Tool counts (update totals)
-   - Complete configuration example at the top showing ALL integrations
+1. **[README.md](README.md)** - Brief project overview
    - Quick start guide
-   - Feature list
+   - Tool/prompt counts
+   - Basic configuration example
+   - Links to detailed integration docs
 
-2. **[SETUP.md](SETUP.md)** - MUST UPDATE
-   - Detailed setup instructions for the new feature
-   - Step-by-step credential creation (with screenshots if Azure)
-   - Environment variable documentation
-   - Permissions required
-   - Troubleshooting section
-   - Complete working configuration example
+2. **[CLAUDE.md](CLAUDE.md)** (this file) - Development guidance
+   - Architecture overview
+   - Design patterns and best practices
+   - MCP protocol requirements
+   - Build and development commands
 
-3. **[TOOLS.md](TOOLS.md)** - MUST UPDATE
-   - Document EVERY new tool with:
-     - Tool name
-     - Description
-     - All parameters with types and examples
-     - Return value structure
-     - Example usage
-   - Document EVERY new prompt with:
-     - Prompt name
-     - Description
-     - Parameters
-     - Output format
-   - Update table of contents
-   - Update tool count totals
+3. **Integration-Specific Documentation** - `docs/documentation/{integration}/`
+   - Each integration has its own comprehensive documentation folder
+   - Contains: setup guide, tool reference, usage examples, troubleshooting
+   - Examples:
+     - `docs/documentation/powerplatform/`
+     - `docs/documentation/azure-devops/`
+     - `docs/documentation/sharepoint/`
+     - etc.
 
-4. **[USAGE.md](USAGE.md)** - MUST UPDATE
-   - Add practical, real-world usage examples
-   - Show complete workflows (not just isolated tool calls)
-   - Include common use cases
-   - Add troubleshooting examples
-   - Show integration with other features
+### Adding a New Integration
 
-5. **[CLAUDE.md](CLAUDE.md)** (this file) - MUST UPDATE
-   - Architecture section for the new service
-   - Design patterns used
-   - Security considerations
-   - Authentication methods
-   - API integration details
-   - Dependencies added
-
-### Documentation Update Checklist (MANDATORY)
-
-Copy this checklist and verify ALL items before marking implementation complete:
-
-```
-NEW FEATURE: [Feature Name]
-
-README.md Updates:
-- [ ] Updated project overview to include new feature
-- [ ] Updated tool count (XX tools → YY tools)
-- [ ] Updated prompt count if applicable
-- [ ] Added complete configuration example showing new feature
-- [ ] Updated features list
-- [ ] Added new integration to supported services list
-
-SETUP.md Updates:
-- [ ] Added new section for feature setup
-- [ ] Documented credential creation process
-- [ ] Listed all environment variables with defaults
-- [ ] Documented permissions required
-- [ ] Added troubleshooting section for common issues
-- [ ] Included complete working configuration example
-
-TOOLS.md Updates:
-- [ ] Documented ALL new tools (X tools)
-- [ ] Documented ALL new prompts (Y prompts)
-- [ ] Updated table of contents
-- [ ] Included parameter descriptions for all tools
-- [ ] Included example usage for each tool
-- [ ] Updated tool count summary at top
-- [ ] Updated prompt count summary at top
-
-USAGE.md Updates:
-- [ ] Added practical usage examples section
-- [ ] Included at least 3 real-world scenarios
-- [ ] Showed integration with existing features
-- [ ] Added troubleshooting examples
-- [ ] Included complete workflow examples
-
-CLAUDE.md Updates:
-- [ ] Added architecture section
-- [ ] Documented service design patterns
-- [ ] Documented security considerations
-- [ ] Updated dependencies section
-- [ ] Updated tool/prompt counts in overview
-```
-
-### Why This Matters
-
-**Users rely on documentation to:**
-1. Understand what the tool can do
-2. Configure it correctly
-3. Use it effectively
-4. Troubleshoot issues
-
-**Incomplete documentation = Unusable feature, regardless of code quality.**
-
-### Example: Adding a New Integration
-
-When adding a new integration (like Azure SQL Database):
+When adding a new integration (e.g., SharePoint Online):
 
 1. ✅ Write the code (service, tools, prompts)
-2. ✅ Update package.json (dependencies, description)
+2. ✅ Update package.json (dependencies, description, keywords)
 3. ✅ Update .env.example (configuration variables)
-4. ✅ **Update README.md** (overview, config example, tool counts)
-5. ✅ **Update SETUP.md** (setup instructions, credentials, troubleshooting)
-6. ✅ **Update TOOLS.md** (document all tools and prompts)
-7. ✅ **Update USAGE.md** (practical examples, workflows)
-8. ✅ **Update CLAUDE.md** (architecture, patterns, security)
+4. ✅ **Update README.md** (add to overview, update tool counts)
+5. ✅ **Create `docs/documentation/{integration}/` folder** with:
+   - `setup.md` - Detailed setup instructions, credentials, permissions
+   - `tools.md` - Complete tool and prompt reference
+   - `usage.md` - Real-world examples and workflows
+   - `troubleshooting.md` - Common issues and solutions
+6. ✅ **Update CLAUDE.md** - Add architecture section for the service
 
-**Only after steps 1-8 are complete can you mark the implementation done.**
+**Implementation is NOT complete until all documentation is created.**
 
 ## Architecture
 
@@ -158,8 +77,8 @@ When adding a new integration (like Azure SQL Database):
 
 1. **MCP Server Layer** ([src/index.ts](src/index.ts))
    - Initializes the MCP server using `@modelcontextprotocol/sdk`
-   - Registers 138 tools and 28 prompts across PowerPlatform, Azure DevOps, Figma, Application Insights, Log Analytics, Azure SQL Database, and GitHub Enterprise integrations
-   - Handles environment configuration and lazy-initialization of services (PowerPlatformService, AzureDevOpsService, FigmaService, ApplicationInsightsService, LogAnalyticsService, AzureSqlService, GitHubEnterpriseService)
+   - Registers 161 tools and 43 prompts across PowerPlatform, Azure DevOps, Figma, Application Insights, Log Analytics, Azure SQL Database, Azure Service Bus, SharePoint Online, and GitHub Enterprise integrations
+   - Handles environment configuration and lazy-initialization of services (PowerPlatformService, AzureDevOpsService, FigmaService, ApplicationInsightsService, LogAnalyticsService, AzureSqlService, ServiceBusService, SharePointService, GitHubEnterpriseService)
    - Uses Zod schemas for parameter validation
    - Communicates via stdio transport (StdioServerTransport)
 
@@ -201,15 +120,30 @@ When adding a new integration (like Azure SQL Database):
      - Implements query validation and safety mechanisms
      - Supports SQL Authentication and Azure AD Authentication
 
+   - **ServiceBusService** ([src/ServiceBusService.ts](src/ServiceBusService.ts))
+     - Manages authentication using Entra ID (OAuth 2.0) or Connection String
+     - Provides read-only message inspection (peek only, no receive/delete)
+     - Implements dual client architecture (ServiceBusClient + ServiceBusAdministrationClient)
+     - Supports queue health monitoring and dead letter queue analysis
+     - Supports multiple Service Bus namespaces with active/inactive flags
+
+   - **SharePointService** ([src/SharePointService.ts](src/SharePointService.ts))
+     - Manages authentication using Entra ID (OAuth 2.0) via Microsoft Graph API
+     - Provides access to SharePoint sites, document libraries, and files
+     - Implements PowerPlatform validation methods (document location validation, migration verification)
+     - Supports multiple SharePoint sites with active/inactive flags
+     - Implements caching with configurable TTL (5-minute default)
+
 ### Key Design Patterns
 
-- **Lazy Initialization**: All services (PowerPlatform, AzureDevOps, Figma, ApplicationInsights, LogAnalytics, AzureSql) are created on-demand only when their respective tools/prompts are first invoked
+- **Lazy Initialization**: All services (PowerPlatform, AzureDevOps, Figma, ApplicationInsights, LogAnalytics, AzureSql, ServiceBus, SharePoint, GitHubEnterprise) are created on-demand only when their respective tools/prompts are first invoked
 - **Token Caching**: Access tokens are cached and reused until near expiration to minimize authentication calls
 - **Prompt Templates**: Pre-defined prompt templates with placeholder replacement for consistent, formatted responses
 - **Dual Interface**: Functionality exposed both as MCP tools (for raw data) and prompts (for formatted, context-rich output)
 - **Stdout Suppression for dotenv**: The server temporarily suppresses stdout during dotenv initialization to prevent non-JSON output from corrupting the MCP JSON protocol (which requires clean JSON-only stdout)
-- **Optional Integrations**: All integrations are optional - users can configure any combination of PowerPlatform, Azure DevOps, Figma, Application Insights, Log Analytics, and Azure SQL Database
+- **Optional Integrations**: All integrations are optional - users can configure any combination of PowerPlatform, Azure DevOps, Figma, Application Insights, Log Analytics, Azure SQL Database, Azure Service Bus, SharePoint Online, and GitHub Enterprise
 - **Shared Credentials**: Log Analytics can automatically reuse Application Insights credentials, reducing configuration complexity
+- **Cross-Service Integration**: SharePoint validates PowerPlatform document locations; Service Bus correlates with Application Insights/Log Analytics
 
 ### ⚠️ CRITICAL: MCP Protocol Requirements
 
@@ -621,6 +555,9 @@ The Azure DevOps service provides wiki search and retrieval capabilities:
 - `get-wikis`: List all wikis in a project
 - `search-wiki-pages`: Full-text search across wiki pages with highlighting
 - `get-wiki-page`: Retrieve page content using wiki paths (auto-converts git paths)
+- `create-wiki-page`: Create new wiki pages (requires `AZUREDEVOPS_ENABLE_WIKI_WRITE=true`)
+- `update-wiki-page`: Update existing wiki pages (requires `AZUREDEVOPS_ENABLE_WIKI_WRITE=true`)
+- `azuredevops-str-replace-wiki-page`: Efficiently replace strings in wiki pages (requires `AZUREDEVOPS_ENABLE_WIKI_WRITE=true`)
 
 **Usage Example:**
 ```javascript
@@ -633,6 +570,143 @@ const page = await getWikiPage("RTPI", results.results[0].wikiId, results.result
 // Extract content
 const items = page.content.matchAll(/\|\s*#(\d+)\s*\|/g);
 ```
+
+### Wiki String Replacement Tool
+
+The `azuredevops-str-replace-wiki-page` tool enables efficient wiki updates by replacing specific strings without rewriting the entire page content. This provides ~98% token savings for common update scenarios.
+
+**Implementation:** [src/AzureDevOpsService.ts](src/AzureDevOpsService.ts:461)
+
+**Key Features:**
+- **Uniqueness Enforcement**: By default, old_str must be unique in the page (prevents accidental bulk replacements)
+- **Replace All Option**: Set `replace_all=true` to replace multiple occurrences
+- **Version Conflict Handling**: Automatically retries with fresh content if concurrent edit detected
+- **Unified Diff Output**: Shows exactly what changed (line numbers and before/after)
+- **Match Location Preview**: Shows line numbers when multiple matches found
+
+**Algorithm:**
+
+```typescript
+async strReplaceWikiPage(
+  project: string,
+  wikiId: string,
+  pagePath: string,
+  oldStr: string,
+  newStr: string,
+  replaceAll: boolean = false,
+  description?: string
+): Promise<any> {
+  // 1. Validate write permission
+  if (!this.config.enableWikiWrite) {
+    throw new Error('Wiki write operations are disabled');
+  }
+
+  // 2. Fetch current page content and version
+  const currentPage = await this.getWikiPage(project, wikiId, pagePath, true);
+
+  // 3. Count occurrences of old_str
+  const occurrences = this.countOccurrences(currentPage.content, oldStr);
+
+  // 4. Enforce uniqueness (error if multiple matches and replaceAll=false)
+  if (occurrences === 0) {
+    throw new Error(`String not found: "${oldStr}"`);
+  }
+  if (occurrences > 1 && !replaceAll) {
+    throw new Error(`String appears ${occurrences} times. Use replace_all=true or make old_str unique.`);
+  }
+
+  // 5. Perform replacement
+  const newContent = currentPage.content.replace(
+    new RegExp(this.escapeRegExp(oldStr), replaceAll ? 'g' : ''),
+    newStr
+  );
+
+  // 6. Update with version conflict retry
+  try {
+    updateResult = await this.updateWikiPage(project, wikiId, pagePath, newContent, currentPage.version);
+  } catch (error) {
+    if (error.message.includes('version') || error.message.includes('conflict')) {
+      // Retry with fresh version
+      const freshPage = await this.getWikiPage(project, wikiId, pagePath, true);
+      const freshNewContent = freshPage.content.replace(...);
+      updateResult = await this.updateWikiPage(project, wikiId, pagePath, freshNewContent, freshPage.version);
+    }
+  }
+
+  // 7. Generate unified diff
+  const diff = this.generateUnifiedDiff(currentPage.content, newContent, oldStr, newStr);
+
+  // 8. Return result with diff and metadata
+  return { success: true, diff, occurrences, version, message };
+}
+```
+
+**Helper Methods:**
+- `countOccurrences()`: Count string matches using regex
+- `getMatchLocations()`: Find line numbers of matches (up to 10 displayed)
+- `generateUnifiedDiff()`: Create unified diff output showing changes
+- `escapeRegExp()`: Escape special regex characters for safe matching
+- `truncate()`: Truncate strings for display in error messages
+
+**Use Cases:**
+
+1. **Cross-Environment Updates** (DEV/UAT/PROD):
+```javascript
+// Update verification date across all environments
+const environments = ['DEV', 'UAT', 'PROD'];
+for (const env of environments) {
+  await strReplaceWikiPage(
+    'RTPI',
+    'RTPI.Crm.wiki',
+    `/SharePoint-Online/04-${env}-Configuration`,
+    'Last Verified: November 5, 2025',
+    'Last Verified: November 10, 2025'
+  );
+}
+
+// Token savings: ~30,000 → ~450 tokens (98.5% reduction)
+```
+
+2. **Multi-line Replacement**:
+```javascript
+await strReplaceWikiPage(
+  'RTPI',
+  'RTPI.Crm.wiki',
+  '/SharePoint-Online/04-DEV-Configuration',
+  `## Document Libraries
+- Forms
+- Templates`,
+  `## Document Libraries
+- Forms
+- Templates
+- Archives`
+);
+```
+
+3. **Replace All Occurrences**:
+```javascript
+await strReplaceWikiPage(
+  'RTPI',
+  'RTPI.Crm.wiki',
+  '/SharePoint-Online/04-DEV-Configuration',
+  'TODO',
+  'DONE',
+  true  // replace_all=true
+);
+```
+
+**Error Handling:**
+
+- **String Not Found**: Shows page excerpt to help locate the issue
+- **Multiple Matches**: Lists all matching line numbers with context
+- **Version Conflict**: Automatically retries with fresh content (1 retry max)
+- **Write Permission**: Clear message about environment flag requirement
+
+**Benefits:**
+- **98% Token Reduction**: For typical date/version updates
+- **Safety**: Uniqueness enforcement prevents unintended replacements
+- **Auditability**: Diff output shows exactly what changed
+- **Reliability**: Automatic version conflict handling
 
 ## Figma Integration
 

@@ -15,9 +15,9 @@ Complete documentation for the Azure DevOps integration in `mcp-consultant-tools
    - [Environment Variables](#environment-variables)
    - [Configuration Example](#configuration-example)
 
-3. [Tools (11 Total)](#tools-11-total)
-   - [Wiki Tools (5)](#wiki-tools)
-   - [Work Item Tools (6)](#work-item-tools)
+3. [Tools (13 Total)](#tools-13-total)
+   - [Wiki Tools (6)](#wiki-tools)
+   - [Work Item Tools (7)](#work-item-tools)
 
 4. [Prompts (4 Total)](#prompts-4-total)
    - [Wiki Prompts (2)](#wiki-prompts)
@@ -227,7 +227,7 @@ AZUREDEVOPS_ENABLE_WIKI_WRITE=true
 
 ---
 
-## Tools (11 Total)
+## Tools (13 Total)
 
 ### Wiki Tools
 
@@ -405,6 +405,122 @@ await mcpClient.invoke("update-wiki-page", {
 - Sync documentation with code changes
 
 **Important:** Requires current page version (ETag) to prevent concurrent edit conflicts.
+
+---
+
+#### azuredevops-str-replace-wiki-page
+
+Replace a specific string in a wiki page without rewriting entire content. **Much more efficient** than `update-wiki-page` for small changes.
+
+**⚠️ REQUIRES: `AZUREDEVOPS_ENABLE_WIKI_WRITE=true`**
+
+**Parameters:**
+- `project` (string, required): Project name
+- `wikiId` (string, required): Wiki identifier
+- `pagePath` (string, required): Page path (wiki format, e.g., '/SharePoint-Online/04-DEV-Configuration')
+- `old_str` (string, required): Exact string to replace (must be unique unless `replace_all=true`)
+- `new_str` (string, required): Replacement string
+- `replace_all` (boolean, optional, default: false): If true, replace all occurrences; if false, `old_str` must be unique
+- `description` (string, optional): Description of the change for audit logging
+
+**Returns:**
+- Success status
+- Diff output (unified format showing line numbers and changes)
+- Number of occurrences replaced
+- Updated page version
+- Success message
+
+**Example 1: Simple Date Update**
+```javascript
+await mcpClient.invoke("azuredevops-str-replace-wiki-page", {
+  project: "MyProject",
+  wikiId: "MyProject.wiki",
+  pagePath: "/SharePoint-Online/04-DEV-Configuration",
+  old_str: "Last Verified: November 5, 2025",
+  new_str: "Last Verified: November 10, 2025",
+  description: "Update verification date"
+});
+
+// Returns:
+// {
+//   success: true,
+//   diff: "@@ Line 42 @@\n- Last Verified: November 5, 2025\n+ Last Verified: November 10, 2025",
+//   occurrences: 1,
+//   version: "W/\"datetime'2025-11-10T15%3A30%3A00.000Z'\"",
+//   message: "Successfully replaced 1 occurrence(s)"
+// }
+```
+
+**Example 2: Multi-Environment Updates**
+```javascript
+// Update across DEV/UAT/PROD environments
+const environments = ['DEV', 'UAT', 'PROD'];
+for (const env of environments) {
+  await mcpClient.invoke("azuredevops-str-replace-wiki-page", {
+    project: "MyProject",
+    wikiId: "MyProject.wiki",
+    pagePath: `/SharePoint-Online/04-${env}-Configuration`,
+    old_str: "Last Verified: November 5, 2025",
+    new_str: "Last Verified: November 10, 2025"
+  });
+}
+
+// Token savings: ~30,000 → ~450 tokens (98.5% reduction!)
+```
+
+**Example 3: Multi-line Replacement**
+```javascript
+await mcpClient.invoke("azuredevops-str-replace-wiki-page", {
+  project: "MyProject",
+  wikiId: "MyProject.wiki",
+  pagePath: "/Architecture/API Design",
+  old_str: `## Document Libraries
+- Forms
+- Templates`,
+  new_str: `## Document Libraries
+- Forms
+- Templates
+- Archives`
+});
+```
+
+**Example 4: Replace All Occurrences**
+```javascript
+await mcpClient.invoke("azuredevops-str-replace-wiki-page", {
+  project: "MyProject",
+  wikiId: "MyProject.wiki",
+  pagePath: "/Project-Status",
+  old_str: "TODO",
+  new_str: "DONE",
+  replace_all: true
+});
+```
+
+**Use Cases:**
+- **Cross-environment updates**: Update dates/versions across DEV/UAT/PROD wiki pages
+- **Status updates**: Change status markers (TODO → DONE)
+- **Version updates**: Update version numbers in documentation
+- **Date updates**: Update "Last Verified" or "Last Updated" dates
+- **Template updates**: Update common text across multiple pages
+
+**Key Features:**
+- **98% Token Reduction**: For typical date/version updates vs. full content rewrite
+- **Uniqueness Enforcement**: Prevents accidental bulk replacements (safe default)
+- **Version Conflict Auto-Retry**: Automatically handles concurrent edits (1 retry max)
+- **Unified Diff Output**: Shows exactly what changed (line numbers and before/after)
+- **Match Location Preview**: Lists line numbers when multiple matches found
+
+**Error Handling:**
+- **String Not Found**: Shows page excerpt to help locate the issue
+- **Multiple Matches**: Lists all matching line numbers with context (when `replace_all=false`)
+- **Version Conflict**: Automatically retries with fresh content
+- **Write Permission**: Clear message about environment flag requirement
+
+**Important Notes:**
+- Default behavior requires `old_str` to be unique in the page (safety first!)
+- Set `replace_all=true` to replace multiple occurrences
+- Automatically handles version conflicts (fetches fresh content and re-applies)
+- Returns unified diff for verification before committing changes elsewhere
 
 ---
 
