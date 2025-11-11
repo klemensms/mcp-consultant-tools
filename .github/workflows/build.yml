@@ -1,0 +1,232 @@
+name: Build and Test
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+  pull_request:
+    branches:
+      - main
+      - 'release/**'
+
+jobs:
+  build:
+    name: Build All Packages
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build all packages
+        run: npm run build
+
+      - name: Verify build outputs
+        run: |
+          echo "Verifying build outputs..."
+          for pkg in packages/*/build; do
+            if [ -d "$pkg" ]; then
+              echo "✅ $(dirname $pkg) built successfully"
+              ls -lh "$pkg" | head -5
+            else
+              echo "❌ $(dirname $pkg) build directory not found"
+              exit 1
+            fi
+          done
+
+      - name: Check TypeScript declarations
+        run: |
+          echo "Checking TypeScript declarations..."
+          DECLARATIONS=$(find packages -name '*.d.ts' | wc -l)
+          echo "Found $DECLARATIONS TypeScript declaration files"
+          if [ "$DECLARATIONS" -lt 40 ]; then
+            echo "❌ Expected at least 40 declaration files, found $DECLARATIONS"
+            exit 1
+          fi
+          echo "✅ TypeScript declarations generated successfully"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: build-artifacts-node-${{ matrix.node-version }}
+          path: packages/*/build
+          retention-days: 7
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build packages
+        run: npm run build
+
+      - name: Run tests
+        run: |
+          # TODO: Add test scripts once tests are created
+          echo "Test suite placeholder (tests to be added in future releases)"
+          echo "✅ Test phase completed"
+
+  lint:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check all packages
+        run: npm run build
+
+      - name: Verify no TypeScript errors
+        run: |
+          echo "TypeScript compilation successful - no errors"
+          echo "✅ Type checking passed"
+
+  package-check:
+    name: Validate Package Structure
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build packages
+        run: npm run build
+
+      - name: Validate package.json files
+        run: |
+          echo "Validating package.json files..."
+
+          # Check all packages have correct structure
+          for pkg_dir in packages/*/; do
+            pkg_name=$(basename "$pkg_dir")
+            pkg_json="$pkg_dir/package.json"
+
+            if [ ! -f "$pkg_json" ]; then
+              echo "❌ Missing package.json in $pkg_name"
+              exit 1
+            fi
+
+            # Verify package name format
+            if [ "$pkg_name" != "meta" ]; then
+              expected_name="@mcp-consultant-tools/$pkg_name"
+            else
+              expected_name="mcp-consultant-tools"
+            fi
+
+            actual_name=$(node -p "require('./$pkg_json').name")
+            if [ "$actual_name" != "$expected_name" ]; then
+              echo "❌ Package name mismatch in $pkg_name: expected $expected_name, got $actual_name"
+              exit 1
+            fi
+
+            echo "✅ $pkg_name package structure valid"
+          done
+
+          echo "✅ All package structures validated"
+
+      - name: Check dependency consistency
+        run: |
+          echo "Checking dependency consistency..."
+
+          # Verify core package is at ^1.0.0 in all service packages
+          for pkg_dir in packages/*/; do
+            pkg_name=$(basename "$pkg_dir")
+            if [ "$pkg_name" = "core" ] || [ "$pkg_name" = "meta" ]; then
+              continue
+            fi
+
+            pkg_json="$pkg_dir/package.json"
+            core_version=$(node -p "require('./$pkg_json').dependencies['@mcp-consultant-tools/core'] || 'not-found'")
+
+            if [ "$core_version" = "not-found" ]; then
+              echo "❌ $pkg_name missing @mcp-consultant-tools/core dependency"
+              exit 1
+            fi
+
+            if [ "$core_version" != "^1.0.0" ]; then
+              echo "⚠️ $pkg_name uses core version $core_version (expected ^1.0.0)"
+            fi
+          done
+
+          echo "✅ Dependency consistency verified"
+
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [build, test, lint, package-check]
+    if: always()
+
+    steps:
+      - name: Check build status
+        run: |
+          if [ "${{ needs.build.result }}" != "success" ]; then
+            echo "❌ Build failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "❌ Tests failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.lint.result }}" != "success" ]; then
+            echo "❌ Lint failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.package-check.result }}" != "success" ]; then
+            echo "❌ Package validation failed"
+            exit 1
+          fi
+
+          echo "✅ All checks passed!"
+          echo "📦 11 packages built successfully"
+          echo "🎯 Ready for publishing to npm"

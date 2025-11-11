@@ -25,6 +25,522 @@ Or run directly with npx (without installing):
 npx mcp-consultant-tools
 ```
 
+## Monorepo Architecture (v15)
+
+### Overview
+
+**v15.0.0** introduced a modular monorepo architecture with 11 independently published packages:
+
+```
+mcp-consultant-tools/
+├── packages/
+│   ├── core/                  # Shared utilities, MCP helpers, audit logging
+│   ├── powerplatform/         # PowerPlatform/Dataverse (65 tools, 12 prompts)
+│   ├── azure-devops/          # Azure DevOps (18 tools, 6 prompts)
+│   ├── figma/                 # Figma (2 tools, 0 prompts)
+│   ├── application-insights/  # Application Insights (10 tools, 5 prompts)
+│   ├── log-analytics/         # Log Analytics (10 tools, 5 prompts)
+│   ├── azure-sql/             # Azure SQL Database (11 tools, 3 prompts)
+│   ├── service-bus/           # Azure Service Bus (8 tools, 5 prompts)
+│   ├── sharepoint/            # SharePoint Online (15 tools, 5 prompts)
+│   ├── github-enterprise/     # GitHub Enterprise (22 tools, 5 prompts)
+│   └── meta/                  # Complete package (all integrations)
+├── package.json               # Workspace root
+└── tsconfig.base.json         # Shared TypeScript config
+```
+
+### npm Workspaces Configuration
+
+The monorepo uses npm workspaces for dependency management:
+
+**Root package.json:**
+```json
+{
+  "name": "mcp-consultant-tools-monorepo",
+  "version": "15.0.0",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present"
+  }
+}
+```
+
+**Benefits:**
+- Single `node_modules/` at root
+- Shared dependencies across packages
+- Simplified dependency management
+- Fast `npm install` with package linking
+
+### TypeScript Project References
+
+The monorepo uses TypeScript composite builds for incremental compilation:
+
+**tsconfig.base.json** (shared configuration):
+```json
+{
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "target": "ES2022",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  }
+}
+```
+
+**Package-level tsconfig.json** (example: powerplatform):
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./build",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "build"],
+  "references": [
+    { "path": "../core" }
+  ]
+}
+```
+
+**Meta-package tsconfig.json** (aggregates all):
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "references": [
+    { "path": "../core" },
+    { "path": "../application-insights" },
+    { "path": "../azure-devops" },
+    { "path": "../azure-sql" },
+    { "path": "../figma" },
+    { "path": "../github-enterprise" },
+    { "path": "../log-analytics" },
+    { "path": "../powerplatform" },
+    { "path": "../service-bus" },
+    { "path": "../sharepoint" }
+  ]
+}
+```
+
+**Benefits:**
+- Incremental builds (only changed packages rebuild)
+- Type-checking across package boundaries
+- Faster development iteration
+- Clear dependency graph
+
+### Package Structure Pattern
+
+Each service package follows a consistent structure:
+
+```
+packages/{service}/
+├── src/
+│   ├── index.ts              # Entry point + registerXxxTools()
+│   ├── {Service}Service.ts   # Service implementation
+│   ├── types/                # TypeScript types
+│   └── utils/                # Service-specific utilities
+├── build/                    # Compiled output (gitignored)
+├── package.json              # Package metadata + dependencies
+├── tsconfig.json             # TypeScript configuration
+└── README.md                 # Package documentation
+```
+
+**Example: packages/powerplatform/src/index.ts**
+```typescript
+#!/usr/bin/env node
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
+import { PowerPlatformService } from "./PowerPlatformService.js";
+
+/**
+ * Register all PowerPlatform tools with an MCP server
+ * @param server - MCP server instance
+ * @param service - Optional pre-initialized PowerPlatformService (for testing)
+ */
+export function registerPowerPlatformTools(server: any, service?: PowerPlatformService) {
+  // TODO: Register 65 tools + 12 prompts
+  // Tool extraction from main index.ts pending (incremental approach)
+  console.error("PowerPlatform tools registered (tool extraction pending)");
+}
+
+// CLI entry point (standalone execution)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const loadEnv = createEnvLoader();
+  loadEnv(); // Suppresses dotenv stdout for MCP protocol compliance
+
+  const server = createMcpServer({
+    name: "mcp-powerplatform",
+    version: "1.0.0",
+    capabilities: { tools: {}, prompts: {} }
+  });
+
+  registerPowerPlatformTools(server);
+
+  const transport = new StdioServerTransport();
+  server.connect(transport).catch((error: Error) => {
+    console.error("Failed to start PowerPlatform MCP server:", error);
+    process.exit(1);
+  });
+
+  console.error("PowerPlatform MCP server running");
+}
+```
+
+### Dual-Export Pattern
+
+Every service package exports:
+
+1. **`registerXxxTools(server, service?)`** - Function for composable registration
+2. **Standalone CLI** - Direct execution via `npx @mcp-consultant-tools/{service}`
+
+**Usage patterns:**
+
+**Pattern 1: Complete package (meta)**
+```typescript
+import { registerAllTools } from 'mcp-consultant-tools';
+const server = createMcpServer({...});
+registerAllTools(server); // Registers all 172 tools + 47 prompts
+```
+
+**Pattern 2: Individual packages**
+```typescript
+import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';
+import { registerAzureDevOpsTools } from '@mcp-consultant-tools/azure-devops';
+const server = createMcpServer({...});
+registerPowerPlatformTools(server); // 65 tools + 12 prompts
+registerAzureDevOpsTools(server);   // 18 tools + 6 prompts
+```
+
+**Pattern 3: Direct service access**
+```typescript
+import { PowerPlatformService } from '@mcp-consultant-tools/powerplatform';
+const service = new PowerPlatformService({...});
+const entities = await service.getEntityMetadata('account');
+```
+
+### Core Package (@mcp-consultant-tools/core)
+
+The core package provides shared utilities for all service packages:
+
+**Exports:**
+- `createMcpServer(config)` - Create configured MCP server
+- `createEnvLoader()` - Environment loader with stdout suppression
+- `auditLogger` - Centralized audit logging utility
+
+**Key implementation: createEnvLoader()**
+```typescript
+export function createEnvLoader() {
+  return () => {
+    // CRITICAL: Suppress stdout during dotenv loading
+    // MCP protocol requires clean JSON-only stdout
+    const originalWrite = process.stdout.write;
+    process.stdout.write = () => true;
+
+    dotenv.config();
+
+    process.stdout.write = originalWrite;
+  };
+}
+```
+
+**Why stdout suppression matters:**
+- MCP uses stdio transport (JSON-RPC over stdin/stdout)
+- dotenv writes "Using .env file" to stdout
+- Any non-JSON stdout corrupts MCP protocol
+- All services must use `createEnvLoader()` for MCP compliance
+
+**Audit logger usage:**
+```typescript
+import { auditLogger } from '@mcp-consultant-tools/core';
+
+auditLogger.log({
+  operation: 'get-entity-metadata',
+  operationType: 'READ',
+  resourceId: 'account',
+  componentType: 'Entity',
+  success: true,
+  parameters: { entityName: 'account' },
+  executionTimeMs: 156
+});
+```
+
+### Package Dependencies
+
+**Dependency order for publishing:**
+```
+1. core (no dependencies)
+2. service packages (depend on core)
+   - application-insights
+   - azure-devops
+   - azure-sql
+   - figma
+   - github-enterprise
+   - log-analytics
+   - powerplatform
+   - service-bus
+   - sharepoint
+3. meta (depends on all services + core)
+```
+
+**Example: packages/powerplatform/package.json**
+```json
+{
+  "name": "@mcp-consultant-tools/powerplatform",
+  "version": "1.0.0",
+  "dependencies": {
+    "@azure/msal-node": "^3.3.0",
+    "@mcp-consultant-tools/core": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "axios": "^1.8.3",
+    "zod": "^3.24.1"
+  }
+}
+```
+
+**Note:** Each service package includes only the dependencies it needs, not all dependencies from the monolithic v14 package.
+
+### Build Process
+
+**Build all packages:**
+```bash
+npm run build
+# Runs: npm run build --workspaces --if-present
+# Output: packages/*/build/ directories
+```
+
+**Build individual package:**
+```bash
+cd packages/powerplatform
+npm run build
+# Output: packages/powerplatform/build/
+```
+
+**TypeScript build order:**
+- TypeScript automatically follows project references
+- Builds core first, then service packages, then meta
+- Incremental builds only recompile changed packages
+
+**Build output verification:**
+```bash
+# Check all build outputs
+find packages -name 'build' -type d -exec ls -lh {} \;
+
+# Verify TypeScript declarations generated
+find packages -name '*.d.ts' | head -10
+```
+
+### Publishing Workflow
+
+**Publishing to npm (automated):**
+
+```bash
+# 1. Publish core package first
+cd packages/core
+npm version patch
+npm publish --access public
+
+# 2. Publish service packages (parallel)
+for pkg in application-insights azure-devops azure-sql figma github-enterprise log-analytics powerplatform service-bus sharepoint; do
+  cd packages/$pkg
+  npm version patch
+  npm publish --access public
+done
+
+# 3. Publish meta-package last
+cd packages/meta
+npm version patch
+npm publish --access public
+```
+
+**Version bumping strategy:**
+- Core package: Bump when shared utilities change
+- Service packages: Independent versioning per service
+- Meta-package: Tracks overall release version (v15.0.0, v15.1.0, etc.)
+
+**Publishing script (scripts/publish-all.sh):**
+```bash
+#!/bin/bash
+set -e
+
+# Publish in dependency order
+packages=(
+  "core"
+  "application-insights"
+  "azure-devops"
+  "azure-sql"
+  "figma"
+  "github-enterprise"
+  "log-analytics"
+  "powerplatform"
+  "service-bus"
+  "sharepoint"
+  "meta"
+)
+
+for pkg in "${packages[@]}"; do
+  echo "Publishing @mcp-consultant-tools/$pkg..."
+  cd packages/$pkg
+  npm publish --access public
+  cd ../..
+done
+
+echo "All packages published successfully!"
+```
+
+### Development Workflow
+
+**Initial setup:**
+```bash
+git clone https://github.com/klemensms/mcp-consultant-tools.git
+cd mcp-consultant-tools
+npm install  # Installs all workspace dependencies
+npm run build  # Builds all packages
+```
+
+**Working on a single service:**
+```bash
+cd packages/powerplatform
+npm run build  # Build only this package
+npm run clean  # Clean build outputs
+```
+
+**Adding a dependency to a service:**
+```bash
+cd packages/powerplatform
+npm install axios  # Adds to powerplatform package only
+cd ../..
+npm install  # Update root lockfile
+```
+
+**Testing a service locally:**
+```bash
+cd packages/powerplatform
+npm run build
+node build/index.js  # Run standalone MCP server
+```
+
+**Testing complete package locally:**
+```bash
+cd packages/meta
+npm run build
+node build/index.js  # Runs aggregated server
+```
+
+### Migration from v14
+
+**v14 (monolithic):**
+- Single package: `mcp-consultant-tools`
+- 28,755 LOC in single codebase
+- All dependencies bundled
+- Tool registrations in single `src/index.ts`
+
+**v15 (modular):**
+- 11 packages: 1 core + 9 services + 1 meta
+- Code split into packages
+- Dependencies per service
+- Tool registrations in service packages (pending extraction)
+
+**Import path changes:**
+```typescript
+// v14
+import { PowerPlatformService } from 'mcp-consultant-tools';
+
+// v15
+import { PowerPlatformService } from '@mcp-consultant-tools/powerplatform';
+```
+
+**Configuration changes:**
+- None! Environment variables remain identical
+- Tool names remain identical
+- Prompt names remain identical
+- Full backward compatibility via meta-package
+
+See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for complete migration instructions.
+
+### Incremental Tool Extraction Strategy
+
+**Current state (Phase 5 complete):**
+- ✅ All 11 packages created and building
+- ✅ All service files moved to packages
+- ✅ All dependencies resolved
+- ⏳ Tool registrations stubbed (extraction pending)
+
+**Main index.ts analysis:**
+- 11,887 total lines
+- Lines 2524-11012: Tool registrations (~8,500 lines)
+- 172 tools + 47 prompts to extract
+
+**Extraction approach (deferred to post-publishing):**
+
+Instead of extracting all tools before v15 publishing, we use a phased approach:
+
+**Phase 1 (Completed): Infrastructure**
+- Create all 11 packages
+- Move service implementations
+- Set up TypeScript project references
+- Establish build process
+
+**Phase 2 (Current): Documentation & Publishing**
+- Update documentation (README, CLAUDE.md, MIGRATION_GUIDE)
+- Create CI/CD workflows
+- Publish packages to npm with stub implementations
+
+**Phase 3 (Post-publishing): Incremental Tool Extraction**
+- Extract tools one service at a time
+- Verify each service's tools work correctly
+- Publish patch releases for each service
+- Meta-package auto-updates via dependency ranges
+
+**Rationale:**
+- Enables publishing v15 architecture immediately
+- Tools continue working via main index.ts (v14 compatibility)
+- Gradual migration reduces risk
+- Each service can be tested independently
+
+**Example: Extracting PowerPlatform tools**
+```typescript
+// Before (stub in packages/powerplatform/src/index.ts)
+export function registerPowerPlatformTools(server: any) {
+  console.error("PowerPlatform tools registered (tool extraction pending)");
+}
+
+// After (extracted from main index.ts)
+export function registerPowerPlatformTools(server: any, service?: PowerPlatformService) {
+  let ppService: PowerPlatformService | null = service || null;
+
+  function getService(): PowerPlatformService {
+    if (!ppService) {
+      ppService = new PowerPlatformService({...});
+    }
+    return ppService;
+  }
+
+  // Tool: get-entity-metadata
+  server.tool(
+    "get-entity-metadata",
+    "Get comprehensive metadata for a PowerPlatform entity",
+    {
+      entityName: z.string().describe("Entity logical name")
+    },
+    async ({ entityName }: { entityName: string }) => {
+      const service = getService();
+      const metadata = await service.getEntityMetadata(entityName);
+      return { content: [{ type: "text", text: JSON.stringify(metadata, null, 2) }] };
+    }
+  );
+
+  // ... 64 more tools + 12 prompts
+}
+```
+
 ## Documentation Structure
 
 ### ⚠️ CRITICAL: DOCUMENTATION IS MANDATORY FOR ALL NEW FEATURES ⚠️

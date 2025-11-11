@@ -179,3 +179,13 @@ desktop.ini
 test-data/
 temp/
 scratch/
+
+# Workspace-specific
+packages/*/node_modules/
+packages/*/build/
+packages/*/.env
+*.tsbuildinfo
+
+# Backup files from package split
+package.json.v14-backup
+tsconfig.json.v14-backup
