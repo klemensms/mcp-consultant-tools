@@ -74,7 +74,16 @@ npm install @mcp-consultant-tools/azure-devops
 }
 ```
 
-#### Claude Desktop (Individual Package)
+## 📦 Individual Integration Setup
+
+Each integration can be installed and configured independently. Choose only what you need:
+
+### PowerPlatform/Dataverse
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform
+```
+
+**Claude Desktop Config:**
 ```json
 {
   "mcpServers": {
@@ -83,16 +92,202 @@ npm install @mcp-consultant-tools/azure-devops
       "args": ["@mcp-consultant-tools/powerplatform"],
       "env": {
         "POWERPLATFORM_URL": "https://yourenv.crm.dynamics.com",
-        "POWERPLATFORM_CLIENT_ID": "your-client-id",
-        "POWERPLATFORM_CLIENT_SECRET": "your-secret",
-        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
+        "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-secret",
+        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id"
       }
     }
   }
 }
 ```
+**📖 [Full PowerPlatform Documentation](docs/documentation/POWERPLATFORM.md)**
 
-## 🔧 Service Integrations
+### Azure DevOps
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/azure-devops
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "azure-devops": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/azure-devops"],
+      "env": {
+        "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
+        "AZUREDEVOPS_PAT": "your-personal-access-token",
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2"
+      }
+    }
+  }
+}
+```
+**📖 [Full Azure DevOps Documentation](docs/documentation/AZURE_DEVOPS.md)**
+
+### SharePoint Online
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/sharepoint
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "sharepoint": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/sharepoint"],
+      "env": {
+        "SHAREPOINT_SITES": "[{\"id\":\"main\",\"name\":\"Main Site\",\"siteUrl\":\"https://yourtenant.sharepoint.com/sites/yoursite\",\"active\":true}]",
+        "SHAREPOINT_TENANT_ID": "your-azure-tenant-id",
+        "SHAREPOINT_CLIENT_ID": "your-azure-app-client-id",
+        "SHAREPOINT_CLIENT_SECRET": "your-azure-app-secret"
+      }
+    }
+  }
+}
+```
+**📖 [Full SharePoint Documentation](docs/documentation/SHAREPOINT.md)**
+
+### GitHub Enterprise
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/github-enterprise
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "github-enterprise": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/github-enterprise"],
+      "env": {
+        "GHE_REPOS": "[{\"id\":\"my-repo\",\"owner\":\"myorg\",\"repo\":\"MyRepository\",\"defaultBranch\":\"main\",\"active\":true}]",
+        "GHE_TOKEN": "your-github-personal-access-token"
+      }
+    }
+  }
+}
+```
+**📖 [Full GitHub Enterprise Documentation](docs/documentation/GITHUB_ENTERPRISE.md)**
+
+### Application Insights
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/application-insights
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "application-insights": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/application-insights"],
+      "env": {
+        "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod\",\"name\":\"Production\",\"appId\":\"your-app-insights-app-id\",\"active\":true}]",
+        "APPINSIGHTS_TENANT_ID": "your-azure-tenant-id",
+        "APPINSIGHTS_CLIENT_ID": "your-azure-app-client-id",
+        "APPINSIGHTS_CLIENT_SECRET": "your-azure-app-secret"
+      }
+    }
+  }
+}
+```
+**📖 [Full Application Insights Documentation](docs/documentation/APPLICATION_INSIGHTS.md)**
+
+### Log Analytics
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/log-analytics
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "log-analytics": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/log-analytics"],
+      "env": {
+        "LOGANALYTICS_RESOURCES": "[{\"id\":\"prod\",\"name\":\"Production\",\"workspaceId\":\"your-workspace-id\",\"active\":true}]",
+        "LOGANALYTICS_TENANT_ID": "your-azure-tenant-id",
+        "LOGANALYTICS_CLIENT_ID": "your-azure-app-client-id",
+        "LOGANALYTICS_CLIENT_SECRET": "your-azure-app-secret"
+      }
+    }
+  }
+}
+```
+**📖 [Full Log Analytics Documentation](docs/documentation/LOG_ANALYTICS.md)**
+
+### Azure SQL Database
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/azure-sql
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "azure-sql": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/azure-sql"],
+      "env": {
+        "AZURE_SQL_SERVERS": "[{\"id\":\"prod\",\"name\":\"Production\",\"server\":\"yourserver.database.windows.net\",\"port\":1433,\"active\":true,\"databases\":[{\"name\":\"YourDatabase\",\"active\":true}],\"username\":\"your-username\",\"password\":\"your-password\"}]"
+      }
+    }
+  }
+}
+```
+**📖 [Full Azure SQL Documentation](docs/documentation/AZURE_SQL.md)**
+
+### Azure Service Bus
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/service-bus
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "service-bus": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/service-bus"],
+      "env": {
+        "SERVICEBUS_RESOURCES": "[{\"id\":\"prod\",\"name\":\"Production\",\"namespace\":\"yournamespace.servicebus.windows.net\",\"active\":true}]",
+        "SERVICEBUS_TENANT_ID": "your-azure-tenant-id",
+        "SERVICEBUS_CLIENT_ID": "your-azure-app-client-id",
+        "SERVICEBUS_CLIENT_SECRET": "your-azure-app-secret"
+      }
+    }
+  }
+}
+```
+**📖 [Full Service Bus Documentation](docs/documentation/SERVICE_BUS.md)**
+
+### Figma
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/figma
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "figma": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/figma"],
+      "env": {
+        "FIGMA_API_KEY": "your-figma-personal-access-token"
+      }
+    }
+  }
+}
+```
+**📖 [Full Figma Documentation](docs/documentation/FIGMA.md)**
+
+---
+
+## 🔧 Service Integrations (Overview)
 
 ### PowerPlatform/Dataverse
 Entity metadata, plugin inspection, workflows, business rules, data CRUD operations, and customization management.
