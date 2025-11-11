@@ -1,38 +1,3 @@
-#!/usr/bin/env node
-
-/**
- * @mcp-consultant-tools/azure-sql
- *
- * MCP server for azure-sql integration.
- */
-
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
-import { AzureSqlService } from "./AzureSqlService.js";
-import type { AzureSqlConfig } from "./AzureSqlService.js";
-import { z } from 'zod';
-import { createErrorResponse, createSuccessResponse } from '@mcp-consultant-tools/core';
-import { formatTableAsMarkdown, formatSqlResultsAsMarkdown, formatDatabaseOverview, formatTableSchemaAsMarkdown } from './utils/sql-formatters.js';
-
-/**
- * Register azure-sql tools and prompts to an MCP server
- * @param server - The MCP server instance
- * @param azuresqlService - Optional pre-configured AzureSqlService (for testing or custom configs)
- */
-export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlService) {
-  let service: AzureSqlService | null = azuresqlService || null;
-
-  function getAzureSqlService(): AzureSqlService {
-    if (!service) {
-      // Configuration validation would go here
-      // For now, just initialize from environment
-      service = new AzureSqlService(/* config */);
-      console.error("AzureSqlService initialized");
-    }
-
-    return service;
-  }
-
   // ========================================
   // PROMPTS
   // ========================================
@@ -513,38 +478,3 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
   );
 
   console.error("azure-sql tools registered: 11 tools, 3 prompts");
-
-}
-
-/**
- * Export service class for direct usage
- */
-export { AzureSqlService } from "./AzureSqlService.js";
-export type { AzureSqlConfig } from "./AzureSqlService.js";
-
-/**
- * Standalone CLI server (when run directly)
- */
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const loadEnv = createEnvLoader();
-  loadEnv();
-
-  const server = createMcpServer({
-    name: "@mcp-consultant-tools/azure-sql",
-    version: "1.0.0",
-    capabilities: {
-      tools: {},
-      prompts: {},
-    },
-  });
-
-  registerAzureSqlTools(server);
-
-  const transport = new StdioServerTransport();
-  server.connect(transport).catch((error: Error) => {
-    console.error("Failed to start @mcp-consultant-tools/azure-sql MCP server:", error);
-    process.exit(1);
-  });
-
-  console.error("@mcp-consultant-tools/azure-sql server running on stdio");
-}

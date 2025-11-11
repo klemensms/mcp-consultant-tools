@@ -1,38 +1,3 @@
-#!/usr/bin/env node
-
-/**
- * @mcp-consultant-tools/log-analytics
- *
- * MCP server for log-analytics integration.
- */
-
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
-import { LogAnalyticsService } from "./LogAnalyticsService.js";
-import type { LogAnalyticsConfig } from "./LogAnalyticsService.js";
-import { z } from 'zod';
-import { createErrorResponse, createSuccessResponse } from '@mcp-consultant-tools/core';
-import { formatTableAsMarkdown, analyzeLogs, analyzeFunctionLogs, analyzeFunctionErrors, analyzeFunctionStats, generateRecommendations } from './utils/loganalytics-formatters.js';
-
-/**
- * Register log-analytics tools and prompts to an MCP server
- * @param server - The MCP server instance
- * @param loganalyticsService - Optional pre-configured LogAnalyticsService (for testing or custom configs)
- */
-export function registerLogAnalyticsTools(server: any, loganalyticsService?: LogAnalyticsService) {
-  let service: LogAnalyticsService | null = loganalyticsService || null;
-
-  function getLogAnalyticsService(): LogAnalyticsService {
-    if (!service) {
-      // Configuration validation would go here
-      // For now, just initialize from environment
-      service = new LogAnalyticsService(/* config */);
-      console.error("LogAnalyticsService initialized");
-    }
-
-    return service;
-  }
-
   // ========================================
   // PROMPTS
   // ========================================
@@ -668,38 +633,3 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
   );
 
   console.error("log-analytics tools registered: 9 tools, 4 prompts");
-
-}
-
-/**
- * Export service class for direct usage
- */
-export { LogAnalyticsService } from "./LogAnalyticsService.js";
-export type { LogAnalyticsConfig } from "./LogAnalyticsService.js";
-
-/**
- * Standalone CLI server (when run directly)
- */
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const loadEnv = createEnvLoader();
-  loadEnv();
-
-  const server = createMcpServer({
-    name: "@mcp-consultant-tools/log-analytics",
-    version: "1.0.0",
-    capabilities: {
-      tools: {},
-      prompts: {},
-    },
-  });
-
-  registerLogAnalyticsTools(server);
-
-  const transport = new StdioServerTransport();
-  server.connect(transport).catch((error: Error) => {
-    console.error("Failed to start @mcp-consultant-tools/log-analytics MCP server:", error);
-    process.exit(1);
-  });
-
-  console.error("@mcp-consultant-tools/log-analytics server running on stdio");
-}

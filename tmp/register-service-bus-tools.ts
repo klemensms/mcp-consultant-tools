@@ -1,38 +1,3 @@
-#!/usr/bin/env node
-
-/**
- * @mcp-consultant-tools/service-bus
- *
- * MCP server for service-bus integration.
- */
-
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
-import { ServiceBusService } from "./ServiceBusService.js";
-import type { ConfigBusService } from "./ServiceBusService.js";
-import { z } from 'zod';
-import { createErrorResponse, createSuccessResponse } from '@mcp-consultant-tools/core';
-import { formatQueueListAsMarkdown, formatMessagesAsMarkdown, formatMessageInspectionAsMarkdown, analyzeDeadLetterMessages, formatDeadLetterAnalysisAsMarkdown, formatNamespaceOverviewAsMarkdown, generateServiceBusTroubleshootingGuide, generateCrossServiceReport } from './utils/servicebus-formatters.js';
-
-/**
- * Register service-bus tools and prompts to an MCP server
- * @param server - The MCP server instance
- * @param servicebusService - Optional pre-configured ServiceBusService (for testing or custom configs)
- */
-export function registerServiceBusTools(server: any, servicebusService?: ServiceBusService) {
-  let service: ServiceBusService | null = servicebusService || null;
-
-  function getServiceBusService(): ServiceBusService {
-    if (!service) {
-      // Configuration validation would go here
-      // For now, just initialize from environment
-      service = new ServiceBusService(/* config */);
-      console.error("ServiceBusService initialized");
-    }
-
-    return service;
-  }
-
   // ========================================
   // PROMPTS
   // ========================================
@@ -560,38 +525,3 @@ export function registerServiceBusTools(server: any, servicebusService?: Service
   );
 
   console.error("service-bus tools registered: 8 tools, 4 prompts");
-
-}
-
-/**
- * Export service class for direct usage
- */
-export { ServiceBusService } from "./ServiceBusService.js";
-export type { ConfigBusService } from "./ServiceBusService.js";
-
-/**
- * Standalone CLI server (when run directly)
- */
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const loadEnv = createEnvLoader();
-  loadEnv();
-
-  const server = createMcpServer({
-    name: "@mcp-consultant-tools/service-bus",
-    version: "1.0.0",
-    capabilities: {
-      tools: {},
-      prompts: {},
-    },
-  });
-
-  registerServiceBusTools(server);
-
-  const transport = new StdioServerTransport();
-  server.connect(transport).catch((error: Error) => {
-    console.error("Failed to start @mcp-consultant-tools/service-bus MCP server:", error);
-    process.exit(1);
-  });
-
-  console.error("@mcp-consultant-tools/service-bus server running on stdio");
-}

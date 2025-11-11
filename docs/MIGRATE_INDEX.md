@@ -1,10 +1,10 @@
 # MCP Server Migration: Monolithic → Multiple Packages
 
-## Migration Status: 🔴 BLOCKED
+## Migration Status: 🟡 IN PROGRESS
 
-**Current Phase:** Option C - Tool Extraction
-**Blocker:** Build failures due to malformed extracted code
-**Last Updated:** 2025-11-11
+**Current Phase:** Phase 1 - Tool Extraction & Integration (Partially Complete)
+**Progress:** 99+ tools/prompts extracted successfully, TypeScript type annotations needed
+**Last Updated:** 2025-11-11 (Updated by Claude AI Assistant)
 
 ---
 
@@ -15,10 +15,18 @@
 **Progress:**
 - ✅ 9 package structures created with service files
 - ✅ Meta package configured to call all `registerXxxTools()` functions
-- 🔴 Tool/prompt extraction BLOCKED on build errors
-- ⏳ Documentation updates pending (Option A)
+- ✅ AST-based extraction script created (scripts/extract-tools.js)
+- ✅ 99+ tools/prompts extracted successfully
+- ✅ Integration script created and executed (scripts/integrate-tools.js)
+- ✅ Formatter imports fixed (scripts/fix-imports.sh)
+- ✅ Core package builds successfully
+- ✅ Figma package complete and working
+- 🟡 TypeScript type annotations needed for extracted code
+- 🟡 Service initialization needs config parsing for most packages
+- ⏳ SharePoint tools extraction pending (spo- prefix issue)
+- ⏳ Documentation updates pending (Phase 2)
 
-**Current Approach:** Extracting line ranges using `sed` has proven fragile and error-prone. Need alternative strategy.
+**Current Approach:** Successfully implemented AST-based extraction using custom Node.js script. Extracted tools/prompts are syntactically correct but need type annotations.
 
 ---
 
@@ -425,3 +433,44 @@ sed -n '4172,4254p' src/index.ts
 **Last Updated:** 2025-11-11
 **Status:** 🔴 BLOCKED on Phase 1 extraction
 **Next Action:** Choose extraction strategy and test with Figma package
+
+---
+
+## Progress Update - 2025-11-11
+
+### ✅ Completed Work
+
+**Extraction Scripts Created:**
+1. `scripts/extract-tools.js` - AST-based tool/prompt extraction from src/index.ts
+2. `scripts/integrate-tools.js` - Integration of extracted code into package index.ts files
+3. `scripts/fix-imports.sh` - Fixed namespace imports to named imports for formatters
+4. `scripts/fix-azure-devops-init.sh` - Fixed Azure DevOps service initialization (example)
+
+**Packages Extracted:**
+- ✅ PowerPlatform: 24 tools, 9 prompts (extracted)
+- ✅ Azure DevOps: 13 tools, 4 prompts (extracted + init fixed)
+- ✅ Figma: 2 tools, 0 prompts (already complete)
+- ✅ Application Insights: 10 tools, 5 prompts (extracted)
+- ✅ Log Analytics: 9 tools, 4 prompts (extracted)
+- ✅ Azure SQL: 11 tools, 3 prompts (extracted)
+- ✅ Service Bus: 8 tools, 4 prompts (extracted)
+- ✅ GitHub Enterprise: 22 tools, 5 prompts (extracted)
+- ⏳ SharePoint: 0 tools, 0 prompts (needs spo- prefix mapping)
+
+**Total Extracted:** 99 tools, 34 prompts
+
+**Build Status:**
+- ✅ Core package: Builds successfully
+- ✅ Figma package: Builds successfully
+- 🟡 Other packages: TypeScript errors (type annotations needed)
+
+### 🟡 Remaining Work
+
+**Immediate Next Steps:**
+1. Add TypeScript type annotations to extracted tool handlers (~99 handlers)
+2. Fix service initialization config parsing for 7 packages
+3. Extract SharePoint tools with spo- prefix
+4. Extract remaining PowerPlatform schema tools (~40 tools)
+5. Build and test all packages
+
+See full details in sections above.
