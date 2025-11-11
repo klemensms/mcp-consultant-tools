@@ -17,7 +17,7 @@ This MCP server enables AI assistants to:
 - **Figma** (2 tools): Extract design data in simplified, AI-friendly format
 - **Application Insights** (10 tools): Query telemetry, analyze exceptions, monitor performance, troubleshoot issues
 - **Log Analytics** (10 tools): Query Azure Functions logs, analyze errors, monitor function performance, search workspace logs
-- **Azure SQL Database** (9 tools): Explore database schema, query tables safely with read-only access, investigate database structure
+- **Azure SQL Database** (11 tools): List servers/databases, explore schema, query tables safely with read-only access across multiple servers
 - **Azure Service Bus** (8 tools): Inspect queues and dead letter queues, analyze message failures, monitor queue health, search messages by correlation ID
 - **SharePoint Online** (15 tools + 10 prompts): Access sites, document libraries, files; validate PowerPlatform document location configurations; verify document migrations
 - **GitHub Enterprise** (22 tools): Access source code, commits, branches, pull requests, correlate with deployed plugins and ADO work items
@@ -96,9 +96,18 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 
         "AZURE_SQL_SERVER": "yourserver.database.windows.net",
         "AZURE_SQL_DATABASE": "yourdatabase",
+        "AZURE_SQL_PORT": "1433",
         "AZURE_SQL_USERNAME": "your-username",
         "AZURE_SQL_PASSWORD": "your-password",
         "AZURE_SQL_USE_AZURE_AD": "false",
+        "AZURE_SQL_CLIENT_ID": "",
+        "AZURE_SQL_CLIENT_SECRET": "",
+        "AZURE_SQL_TENANT_ID": "",
+        "AZURE_SQL_QUERY_TIMEOUT": "30000",
+        "AZURE_SQL_MAX_RESULT_ROWS": "1000",
+        "AZURE_SQL_CONNECTION_TIMEOUT": "15000",
+        "AZURE_SQL_POOL_MIN": "0",
+        "AZURE_SQL_POOL_MAX": "10",
 
         "SERVICEBUS_AUTH_METHOD": "entra-id",
         "SERVICEBUS_TENANT_ID": "your-tenant-id",
@@ -174,9 +183,18 @@ Create `.vscode/mcp.json` in your project:
 
         "AZURE_SQL_SERVER": "yourserver.database.windows.net",
         "AZURE_SQL_DATABASE": "yourdatabase",
+        "AZURE_SQL_PORT": "1433",
         "AZURE_SQL_USERNAME": "your-username",
         "AZURE_SQL_PASSWORD": "your-password",
         "AZURE_SQL_USE_AZURE_AD": "false",
+        "AZURE_SQL_CLIENT_ID": "",
+        "AZURE_SQL_CLIENT_SECRET": "",
+        "AZURE_SQL_TENANT_ID": "",
+        "AZURE_SQL_QUERY_TIMEOUT": "30000",
+        "AZURE_SQL_MAX_RESULT_ROWS": "1000",
+        "AZURE_SQL_CONNECTION_TIMEOUT": "15000",
+        "AZURE_SQL_POOL_MIN": "0",
+        "AZURE_SQL_POOL_MAX": "10",
 
         "SERVICEBUS_AUTH_METHOD": "entra-id",
         "SERVICEBUS_TENANT_ID": "your-tenant-id",
@@ -354,8 +372,10 @@ Reload VS Code window after saving.
 - `loganalytics-search-logs` - Search logs across tables
 - `loganalytics-test-workspace-access` - Validate workspace access
 
-### Azure SQL Database (9 tools)
+### Azure SQL Database (11 tools)
 
+- `sql-list-servers` - List all configured SQL servers with status
+- `sql-list-databases` - List databases on a server (configured or discovered)
 - `sql-test-connection` - Test database connectivity
 - `sql-list-tables` - List all tables with row counts and sizes
 - `sql-list-views` - List all views
@@ -459,7 +479,7 @@ Comprehensive documentation for each integration with setup, tools, prompts, exa
 - **[Figma](docs/documentation/FIGMA.md)** - 2 tools (design data extraction, AI-friendly format)
 - **[Application Insights](docs/documentation/APPLICATION_INSIGHTS.md)** - 10 tools, 5 prompts (telemetry, exceptions, performance, dependencies)
 - **[Log Analytics](docs/documentation/LOG_ANALYTICS.md)** - 10 tools, 5 prompts (Azure Functions logs, KQL queries, function diagnostics)
-- **[Azure SQL Database](docs/documentation/AZURE_SQL.md)** - 9 tools, 3 prompts (schema exploration, read-only querying)
+- **[Azure SQL Database](docs/documentation/AZURE_SQL.md)** - 11 tools, 3 prompts (multi-server support, schema exploration, read-only querying)
 - **[GitHub Enterprise](docs/documentation/GITHUB_ENTERPRISE.md)** - 22 tools, 5 prompts (source code, commits, branches, PRs, code correlation)
 
 ### General Documentation
@@ -546,7 +566,9 @@ All integrations are optional and can be configured independently:
 - Read-only access to design files
 
 **Azure SQL Database:**
-- Supports SQL Authentication or Azure AD authentication
+- **Multi-server support** - Configure multiple SQL servers with individual credentials per server
+- **Per-server database configuration** - Specify databases per server or access all databases
+- Supports SQL Authentication or Azure AD authentication (per server)
 - **Read-only access by design** - only SELECT queries permitted
 - Safety mechanisms:
   - Query validation blocks INSERT, UPDATE, DELETE, DROP, EXEC, and other write operations

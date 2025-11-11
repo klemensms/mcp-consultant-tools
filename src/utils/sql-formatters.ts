@@ -244,3 +244,64 @@ export function formatDatabaseOverview(
 
   return md;
 }
+
+/**
+ * Format server list as markdown
+ */
+export function formatServerListAsMarkdown(servers: any[]): string {
+  if (servers.length === 0) {
+    return 'No SQL servers configured.';
+  }
+
+  let md = `# Configured SQL Servers\n\n`;
+  md += `**Total Servers:** ${servers.length}\n`;
+  md += `**Active Servers:** ${servers.filter(s => s.active).length}\n\n`;
+
+  md += `| Server ID | Name | Server | Port | Status | Databases | Auth Method | Description |\n`;
+  md += `|-----------|------|--------|------|--------|-----------|-------------|-------------|\n`;
+
+  for (const server of servers) {
+    const status = server.active ? '✅ Active' : '❌ Inactive';
+    const dbCount = server.databaseCount || 0;
+    const description = server.description || '-';
+
+    md += `| ${server.id} | ${server.name} | ${server.server} | ${server.port} | ${status} | ${dbCount} | ${server.authMethod} | ${description} |\n`;
+  }
+
+  md += `\n\n**Usage:**\n`;
+  md += `- Use \`sql-list-databases\` to see databases on a server\n`;
+  md += `- Use \`sql-test-connection\` to test connectivity to a specific database\n`;
+  md += `- Use \`sql-list-tables\` and other schema tools to explore database objects\n`;
+
+  return md;
+}
+
+/**
+ * Format database list as markdown
+ */
+export function formatDatabaseListAsMarkdown(serverId: string, databases: any[]): string {
+  if (databases.length === 0) {
+    return `No databases configured on server '${serverId}'.`;
+  }
+
+  let md = `# Databases on Server: ${serverId}\n\n`;
+  md += `**Total Databases:** ${databases.length}\n`;
+  md += `**Active Databases:** ${databases.filter(d => d.active).length}\n\n`;
+
+  md += `| Database Name | Status | Description |\n`;
+  md += `|---------------|--------|-------------|\n`;
+
+  for (const db of databases) {
+    const status = db.active ? '✅ Active' : '❌ Inactive';
+    const description = db.description || '-';
+
+    md += `| ${db.name} | ${status} | ${description} |\n`;
+  }
+
+  md += `\n\n**Next Steps:**\n`;
+  md += `- Use \`sql-test-connection\` to verify connectivity to a database\n`;
+  md += `- Use \`sql-list-tables\` to see tables in a database\n`;
+  md += `- Use \`sql-execute-query\` to run queries against a database\n`;
+
+  return md;
+}
