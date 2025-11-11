@@ -4,11 +4,25 @@ import { auditLogger } from './utils/audit-logger.js';
 // Configuration constants
 const MAX_RESPONSE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
-// Configuration interface
-export interface AzureSqlConfig {
-  server: string;
-  database: string;
-  port?: number;
+/**
+ * Database configuration within a server
+ */
+export interface AzureSqlDatabaseConfig {
+  name: string;           // Database name
+  active: boolean;        // Enable/disable per database
+  description?: string;   // Optional description
+}
+
+/**
+ * SQL Server resource configuration
+ */
+export interface AzureSqlServerResource {
+  id: string;                          // User-friendly ID (e.g., "prod-sql", "dev-sql")
+  name: string;                        // Display name
+  server: string;                      // SQL server hostname
+  port: number;                        // Server port (default: 1433)
+  active: boolean;                     // Enable/disable per server
+  databases: AzureSqlDatabaseConfig[]; // Empty array = access all databases
 
   // SQL Authentication (Method 1)
   username?: string;
@@ -16,16 +30,23 @@ export interface AzureSqlConfig {
 
   // Azure AD Authentication (Method 2)
   useAzureAd?: boolean;
-  clientId?: string;
-  clientSecret?: string;
-  tenantId?: string;
+  azureAdClientId?: string;
+  azureAdClientSecret?: string;
+  azureAdTenantId?: string;
 
-  // Query safety limits
+  description?: string;                // Optional description
+}
+
+/**
+ * Multi-server Azure SQL configuration
+ */
+export interface AzureSqlConfig {
+  resources: AzureSqlServerResource[];  // Multi-server array
+
+  // Global settings (apply to all servers)
   queryTimeout?: number;
   maxResultRows?: number;
   connectionTimeout?: number;
-
-  // Connection pooling
   poolMin?: number;
   poolMax?: number;
 }
@@ -131,53 +152,130 @@ export interface ConnectionTestResult {
   error?: string;
 }
 
+export interface ServerInfo {
+  id: string;
+  name: string;
+  server: string;
+  port: number;
+  active: boolean;
+  databaseCount: number;
+  description?: string;
+  authMethod: 'SQL' | 'Azure AD';
+}
+
+export interface DatabaseInfo {
+  name: string;
+  active: boolean;
+  description?: string;
+}
+
 /**
  * Azure SQL Database Service
  *
  * Provides read-only access to Azure SQL Database for investigation and analysis.
+ * Supports multiple servers and databases with per-server credentials and active/inactive toggles.
  * Implements security controls including query validation, result limits, and audit logging.
  */
 export class AzureSqlService {
   private config: AzureSqlConfig;
-  private pool: sql.ConnectionPool | null = null;
+  // Multi-pool: Map<"serverId:database", ConnectionPool>
+  private pools: Map<string, sql.ConnectionPool> = new Map();
 
   constructor(config: AzureSqlConfig) {
+    // Normalize server configurations
     this.config = {
-      ...config,
-      port: config.port || 1433,
+      resources: config.resources.map(resource => ({
+        ...resource,
+        port: resource.port || 1433,
+        useAzureAd: resource.useAzureAd ?? false,
+      })),
       queryTimeout: config.queryTimeout || 30000,
       maxResultRows: config.maxResultRows || 1000,
       connectionTimeout: config.connectionTimeout || 15000,
       poolMin: config.poolMin || 0,
       poolMax: config.poolMax || 10,
-      useAzureAd: config.useAzureAd ?? false,
     };
   }
 
   /**
-   * Initialize connection pool on demand with health checks
+   * Get server resource by ID with validation
    */
-  private async getPool(): Promise<sql.ConnectionPool> {
-    // Check if pool exists, is connected, and is healthy
-    if (this.pool && this.pool.connected && this.pool.healthy) {
-      return this.pool;
+  private getServerById(serverId: string): AzureSqlServerResource {
+    const server = this.config.resources.find(r => r.id === serverId);
+    if (!server) {
+      const available = this.config.resources.map(r => `${r.id} (${r.name})`).join(', ');
+      throw new Error(
+        `Server '${serverId}' not found. Available servers: ${available || 'none configured'}. ` +
+        `Use sql-list-servers to see all configured servers.`
+      );
+    }
+    if (!server.active) {
+      throw new Error(
+        `Server '${serverId}' is inactive. Set active=true in configuration to enable access.`
+      );
+    }
+    return server;
+  }
+
+  /**
+   * Get database configuration with validation
+   * Empty databases array = access all databases on server
+   */
+  private getDatabaseConfig(server: AzureSqlServerResource, database: string): AzureSqlDatabaseConfig {
+    // Empty databases array = access all databases (discovery mode)
+    if (server.databases.length === 0) {
+      return { name: database, active: true };
     }
 
-    // Close unhealthy pool if it exists
-    if (this.pool && !this.pool.healthy) {
-      try {
-        await this.pool.close();
-      } catch (error) {
-        console.error('Error closing unhealthy pool:', error);
-      }
-      this.pool = null;
+    const dbConfig = server.databases.find(db => db.name === database);
+    if (!dbConfig) {
+      const available = server.databases.map(db => db.name).join(', ');
+      throw new Error(
+        `Database '${database}' not configured on server '${server.id}'. ` +
+        `Available databases: ${available || 'none configured'}. ` +
+        `Use sql-list-databases to see all databases on this server.`
+      );
     }
+    if (!dbConfig.active) {
+      throw new Error(
+        `Database '${database}' is inactive on server '${server.id}'. ` +
+        `Set active=true in configuration to enable access.`
+      );
+    }
+    return dbConfig;
+  }
+
+  /**
+   * Get or create connection pool for specific server and database
+   */
+  private async getPool(serverId: string, database: string): Promise<sql.ConnectionPool> {
+    const poolKey = `${serverId}:${database}`;
+
+    // Check if pool exists and is healthy
+    if (this.pools.has(poolKey)) {
+      const pool = this.pools.get(poolKey)!;
+      if (pool.connected && pool.healthy) {
+        return pool;
+      }
+
+      // Close unhealthy pool
+      try {
+        await pool.close();
+      } catch (error) {
+        console.error(`Error closing unhealthy pool ${poolKey}:`, error);
+      }
+      this.pools.delete(poolKey);
+    }
+
+    // Validate server and database configuration
+    const server = this.getServerById(serverId);
+    this.getDatabaseConfig(server, database);
 
     try {
       const poolConfig: sql.config = {
-        server: this.config.server,
-        database: this.config.database,
-        port: this.config.port!,
+        server: server.server,
+        database: database,
+        port: server.port,
         connectionTimeout: this.config.connectionTimeout!,
         requestTimeout: this.config.queryTimeout!,
         pool: {
@@ -192,33 +290,35 @@ export class AzureSqlService {
         },
       };
 
-      if (this.config.useAzureAd) {
-        // Azure AD Authentication
+      // Per-server authentication
+      if (server.useAzureAd) {
         poolConfig.authentication = {
           type: 'azure-active-directory-service-principal-secret',
           options: {
-            clientId: this.config.clientId!,
-            clientSecret: this.config.clientSecret!,
-            tenantId: this.config.tenantId!,
+            clientId: server.azureAdClientId!,
+            clientSecret: server.azureAdClientSecret!,
+            tenantId: server.azureAdTenantId!,
           },
         };
       } else {
-        // SQL Authentication
-        poolConfig.user = this.config.username;
-        poolConfig.password = this.config.password;
+        poolConfig.user = server.username;
+        poolConfig.password = server.password;
       }
 
-      this.pool = await sql.connect(poolConfig);
-      console.error('Azure SQL connection pool established');
+      const pool = await sql.connect(poolConfig);
+      this.pools.set(poolKey, pool);
+      console.error(`Azure SQL connection pool established: ${poolKey}`);
 
-      return this.pool;
+      return pool;
     } catch (error: any) {
-      console.error('Failed to connect to Azure SQL Database:', {
-        server: this.config.server,
-        database: this.config.database,
+      console.error(`Failed to connect to Azure SQL Database (${poolKey}):`, {
+        server: server.server,
+        database: database,
         error: this.sanitizeErrorMessage(error.message),
       });
-      throw new Error(`Database connection failed: ${this.sanitizeErrorMessage(error.message)}`);
+      throw new Error(
+        `Database connection failed for '${serverId}/${database}': ${this.sanitizeErrorMessage(error.message)}`
+      );
     }
   }
 
@@ -237,11 +337,13 @@ export class AzureSqlService {
    * Execute a query with safety limits and size protection
    */
   private async executeQuery<T = any>(
+    serverId: string,
+    database: string,
     query: string,
     parameters?: Record<string, any>
   ): Promise<SqlApiCollectionResponse<T>> {
     try {
-      const pool = await this.getPool();
+      const pool = await this.getPool(serverId, database);
       const request = pool.request();
 
       // Add parameters if provided
@@ -278,7 +380,7 @@ export class AzureSqlService {
         truncated,
       };
     } catch (error: any) {
-      console.error('SQL query execution failed:', {
+      console.error(`SQL query execution failed (${serverId}/${database}):`, {
         error: this.sanitizeErrorMessage(error.message),
         query: query.substring(0, 200), // Log first 200 chars
       });
@@ -302,26 +404,96 @@ export class AzureSqlService {
   }
 
   /**
-   * Close connection pool (cleanup)
+   * Close all connection pools (cleanup)
    */
   async close(): Promise<void> {
-    if (this.pool) {
+    const closedPools: string[] = [];
+    const errors: string[] = [];
+
+    for (const [poolKey, pool] of this.pools.entries()) {
       try {
-        await this.pool.close();
-        this.pool = null;
-        console.error('Azure SQL connection pool closed');
+        await pool.close();
+        closedPools.push(poolKey);
       } catch (error: any) {
-        console.error('Error closing connection pool:', this.sanitizeErrorMessage(error.message));
+        const errorMsg = this.sanitizeErrorMessage(error.message);
+        errors.push(`${poolKey}: ${errorMsg}`);
+        console.error(`Error closing pool ${poolKey}:`, errorMsg);
       }
+    }
+
+    this.pools.clear();
+
+    if (closedPools.length > 0) {
+      console.error(`Azure SQL connection pools closed: ${closedPools.join(', ')}`);
+    }
+    if (errors.length > 0) {
+      console.error(`Errors closing pools: ${errors.join('; ')}`);
+    }
+  }
+
+  /**
+   * List all configured SQL servers
+   */
+  async listServers(): Promise<ServerInfo[]> {
+    return this.config.resources.map(resource => ({
+      id: resource.id,
+      name: resource.name,
+      server: resource.server,
+      port: resource.port,
+      active: resource.active,
+      databaseCount: resource.databases.length,
+      description: resource.description,
+      authMethod: resource.useAzureAd ? 'Azure AD' : 'SQL',
+    }));
+  }
+
+  /**
+   * List databases on a server
+   * If server.databases is configured (non-empty), return configured databases
+   * If server.databases is empty, query sys.databases for all databases
+   */
+  async listDatabases(serverId: string): Promise<DatabaseInfo[]> {
+    const server = this.getServerById(serverId);
+
+    // If databases configured, return them
+    if (server.databases.length > 0) {
+      return server.databases.map(db => ({
+        name: db.name,
+        active: db.active,
+        description: db.description,
+      }));
+    }
+
+    // Otherwise, query SQL Server for all databases (discovery mode)
+    try {
+      const pool = await this.getPool(serverId, 'master');
+      const result = await pool.request().query(`
+        SELECT name
+        FROM sys.databases
+        WHERE database_id > 4  -- Exclude system databases (master, tempdb, model, msdb)
+        ORDER BY name
+      `);
+
+      return result.recordset.map((r: any) => ({
+        name: r.name,
+        active: true,
+        description: 'Discovered database',
+      }));
+    } catch (error: any) {
+      throw new Error(
+        `Failed to query databases on server '${serverId}': ${this.sanitizeErrorMessage(error.message)}`
+      );
     }
   }
 
   /**
    * Test database connectivity
    */
-  async testConnection(): Promise<ConnectionTestResult> {
+  async testConnection(serverId: string, database: string): Promise<ConnectionTestResult> {
+    const server = this.getServerById(serverId);
+
     try {
-      const pool = await this.getPool();
+      const pool = await this.getPool(serverId, database);
       const result = await pool.request().query(`
         SELECT
           @@VERSION as sqlVersion,
@@ -332,8 +504,8 @@ export class AzureSqlService {
 
       return {
         connected: true,
-        server: this.config.server,
-        database: this.config.database,
+        server: server.server,
+        database: database,
         sqlVersion: result.recordset[0].sqlVersion,
         currentDatabase: result.recordset[0].currentDatabase,
         loginName: result.recordset[0].loginName,
@@ -342,8 +514,8 @@ export class AzureSqlService {
     } catch (error: any) {
       return {
         connected: false,
-        server: this.config.server,
-        database: this.config.database,
+        server: server.server,
+        database: database,
         error: this.sanitizeErrorMessage(error.message),
       };
     }
@@ -352,7 +524,7 @@ export class AzureSqlService {
   /**
    * List all user tables in the database
    */
-  async listTables(): Promise<TableInfo[]> {
+  async listTables(serverId: string, database: string): Promise<TableInfo[]> {
     const query = `
       SELECT
         t.TABLE_SCHEMA as schemaName,
@@ -369,14 +541,14 @@ export class AzureSqlService {
       ORDER BY t.TABLE_SCHEMA, t.TABLE_NAME
     `;
 
-    const result = await this.executeQuery<TableInfo>(query);
+    const result = await this.executeQuery<TableInfo>(serverId, database, query);
     return result.rows;
   }
 
   /**
    * List all views in the database
    */
-  async listViews(): Promise<ViewInfo[]> {
+  async listViews(serverId: string, database: string): Promise<ViewInfo[]> {
     const query = `
       SELECT
         TABLE_SCHEMA as schemaName,
@@ -387,14 +559,14 @@ export class AzureSqlService {
       ORDER BY TABLE_SCHEMA, TABLE_NAME
     `;
 
-    const result = await this.executeQuery<ViewInfo>(query);
+    const result = await this.executeQuery<ViewInfo>(serverId, database, query);
     return result.rows;
   }
 
   /**
    * List all stored procedures
    */
-  async listStoredProcedures(): Promise<StoredProcedureInfo[]> {
+  async listStoredProcedures(serverId: string, database: string): Promise<StoredProcedureInfo[]> {
     const query = `
       SELECT
         ROUTINE_SCHEMA as schemaName,
@@ -407,14 +579,14 @@ export class AzureSqlService {
       ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME
     `;
 
-    const result = await this.executeQuery<StoredProcedureInfo>(query);
+    const result = await this.executeQuery<StoredProcedureInfo>(serverId, database, query);
     return result.rows;
   }
 
   /**
    * List all database triggers
    */
-  async listTriggers(): Promise<TriggerInfo[]> {
+  async listTriggers(serverId: string, database: string): Promise<TriggerInfo[]> {
     const query = `
       SELECT
         s.name as schemaName,
@@ -436,14 +608,14 @@ export class AzureSqlService {
       ORDER BY s.name, t.name
     `;
 
-    const result = await this.executeQuery<TriggerInfo>(query);
+    const result = await this.executeQuery<TriggerInfo>(serverId, database, query);
     return result.rows;
   }
 
   /**
    * List all user-defined functions
    */
-  async listFunctions(): Promise<FunctionInfo[]> {
+  async listFunctions(serverId: string, database: string): Promise<FunctionInfo[]> {
     const query = `
       SELECT
         ROUTINE_SCHEMA as schemaName,
@@ -457,20 +629,30 @@ export class AzureSqlService {
       ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME
     `;
 
-    const result = await this.executeQuery<FunctionInfo>(query);
+    const result = await this.executeQuery<FunctionInfo>(serverId, database, query);
     return result.rows;
   }
 
   /**
    * Get detailed schema information for a table
    */
-  async getTableSchema(schemaName: string, tableName: string): Promise<TableSchema> {
+  async getTableSchema(
+    serverId: string,
+    database: string,
+    schemaName: string,
+    tableName: string
+  ): Promise<TableSchema> {
     // First, verify table exists
     const existsQuery = `
       SELECT 1 FROM INFORMATION_SCHEMA.TABLES
       WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @table
     `;
-    const existsResult = await this.executeQuery(existsQuery, { schema: schemaName, table: tableName });
+    const existsResult = await this.executeQuery(
+      serverId,
+      database,
+      existsQuery,
+      { schema: schemaName, table: tableName }
+    );
 
     if (existsResult.rows.length === 0) {
       throw new Error(
@@ -531,10 +713,10 @@ export class AzureSqlService {
     // Query all schema information with graceful degradation
     try {
       const [columnsResult, indexesResult, foreignKeysResult] = await Promise.all([
-        this.executeQuery<ColumnInfo>(columnsQuery, { schema: schemaName, table: tableName }),
-        this.executeQuery<IndexInfo>(indexesQuery, { schema: schemaName, table: tableName })
+        this.executeQuery<ColumnInfo>(serverId, database, columnsQuery, { schema: schemaName, table: tableName }),
+        this.executeQuery<IndexInfo>(serverId, database, indexesQuery, { schema: schemaName, table: tableName })
           .catch(() => ({ rows: [], rowCount: 0, columns: [] })),
-        this.executeQuery<ForeignKeyInfo>(foreignKeysQuery, { schema: schemaName, table: tableName })
+        this.executeQuery<ForeignKeyInfo>(serverId, database, foreignKeysQuery, { schema: schemaName, table: tableName })
           .catch(() => ({ rows: [], rowCount: 0, columns: [] })),
       ]);
 
@@ -554,6 +736,8 @@ export class AzureSqlService {
    * Get the SQL definition for views, stored procedures, functions, or triggers
    */
   async getObjectDefinition(
+    serverId: string,
+    database: string,
     schemaName: string,
     objectName: string,
     objectType: 'VIEW' | 'PROCEDURE' | 'FUNCTION' | 'TRIGGER'
@@ -573,7 +757,7 @@ export class AzureSqlService {
         AND o.type_desc LIKE '%' + @type + '%'
     `;
 
-    const result = await this.executeQuery<ObjectDefinition>(query, {
+    const result = await this.executeQuery<ObjectDefinition>(serverId, database, query, {
       schema: schemaName,
       object: objectName,
       type: objectType,
@@ -592,7 +776,11 @@ export class AzureSqlService {
   /**
    * Execute a user-provided SELECT query with enhanced safety validation
    */
-  async executeSelectQuery(query: string): Promise<SqlApiCollectionResponse<any>> {
+  async executeSelectQuery(
+    serverId: string,
+    database: string,
+    query: string
+  ): Promise<SqlApiCollectionResponse<any>> {
     const timer = auditLogger.startTimer();
 
     // Step 1: Remove comments (SQL and C-style)
@@ -610,6 +798,7 @@ export class AzureSqlService {
         operation: 'execute-select-query',
         operationType: 'READ',
         componentType: 'Query',
+        componentName: `${serverId}/${database}`,
         success: false,
         error,
         parameters: { query: query.substring(0, 500) },
@@ -636,6 +825,7 @@ export class AzureSqlService {
           operation: 'execute-select-query',
           operationType: 'READ',
           componentType: 'Query',
+          componentName: `${serverId}/${database}`,
           success: false,
           error,
           parameters: { query: query.substring(0, 500) },
@@ -647,12 +837,13 @@ export class AzureSqlService {
 
     // Execute query with audit logging
     try {
-      const result = await this.executeQuery(query);
+      const result = await this.executeQuery(serverId, database, query);
 
       auditLogger.log({
         operation: 'execute-select-query',
         operationType: 'READ',
         componentType: 'Query',
+        componentName: `${serverId}/${database}`,
         parameters: {
           query: query.substring(0, 500),
           rowCount: result.rowCount,
@@ -675,6 +866,7 @@ export class AzureSqlService {
         operation: 'execute-select-query',
         operationType: 'READ',
         componentType: 'Query',
+        componentName: `${serverId}/${database}`,
         success: false,
         error: error instanceof Error ? error.message : String(error),
         parameters: { query: query.substring(0, 500) },

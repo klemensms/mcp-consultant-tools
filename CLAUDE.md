@@ -1647,11 +1647,19 @@ The Azure SQL Database integration provides read-only access to Azure SQL Databa
    - Uses `mssql` library's built-in Azure AD support
 
 **Configuration:**
-Supports flexible configuration through environment variables:
-- Connection settings (server, database, port)
-- Authentication credentials (SQL or Azure AD)
-- Query safety limits (timeout, max rows, max response size)
-- Connection pool settings (min/max connections)
+Supports two configuration modes:
+1. **Multi-server configuration** (RECOMMENDED) - JSON array with per-server settings:
+   - Multiple SQL servers with individual credentials per server
+   - Multiple databases per server with active/inactive flags
+   - Empty databases[] array enables access to all databases on that server
+   - Per-server authentication (SQL or Azure AD)
+2. **Legacy single-server** - Backward compatible with existing environment variables
+
+**Multi-Server Architecture:**
+- Connection pooling: `Map<"serverId:database", ConnectionPool>` for isolated per-database connections
+- Per-server credentials: Each server can use different authentication methods
+- Database discovery: Empty databases[] triggers `sys.databases` query
+- Active/inactive flags: Quick toggle at server and database levels
 
 Each connection is validated on first use and maintains a health-checked connection pool.
 
@@ -1660,39 +1668,85 @@ Each connection is validated on first use and maintains a health-checked connect
 **Core Architecture:**
 
 ```typescript
+export interface AzureSqlDatabaseConfig {
+  name: string;
+  active: boolean;
+  description?: string;
+}
+
+export interface AzureSqlServerResource {
+  id: string;                          // Unique server identifier
+  name: string;                        // Display name
+  server: string;                      // Server hostname
+  port: number;                        // SQL Server port
+  active: boolean;                     // Server active flag
+  databases: AzureSqlDatabaseConfig[]; // Databases (empty = all)
+
+  // SQL Authentication
+  username?: string;
+  password?: string;
+
+  // Azure AD Authentication
+  useAzureAd?: boolean;
+  azureAdClientId?: string;
+  azureAdClientSecret?: string;
+  azureAdTenantId?: string;
+
+  description?: string;
+}
+
+export interface AzureSqlConfig {
+  resources: AzureSqlServerResource[];
+
+  // Global settings (apply to all servers)
+  queryTimeout?: number;
+  maxResultRows?: number;
+  connectionTimeout?: number;
+  poolMin?: number;
+  poolMax?: number;
+}
+
 class AzureSqlService {
-  // Private connection pool (lazy-initialized)
-  private pool: ConnectionPool | null = null;
+  // Multi-pool connection management
+  private pools: Map<string, ConnectionPool> = new Map();
 
   // Configuration
   private config: AzureSqlConfig;
 
-  // Connection pool with health checks
-  private async getPool(): Promise<ConnectionPool>
+  // Helper methods
+  private getServerById(serverId: string): AzureSqlServerResource
+  private getDatabaseConfig(server, database): AzureSqlDatabaseConfig
+
+  // Connection pool management (per database)
+  private async getPool(serverId, database): Promise<ConnectionPool>
 
   // Security and execution
   private sanitizeErrorMessage(error: Error): string
-  private async executeQuery<T>(query: string): Promise<IResult<T>>
+  private async executeQuery<T>(serverId, database, query): Promise<IResult<T>>
 
-  // Public API methods
-  async testConnection(): Promise<ConnectionTestResult>
-  async listTables(): Promise<TableInfo[]>
-  async listViews(): Promise<ViewInfo[]>
-  async listStoredProcedures(): Promise<StoredProcedureInfo[]>
-  async listTriggers(): Promise<TriggerInfo[]>
-  async listFunctions(): Promise<FunctionInfo[]>
-  async getTableSchema(schema, table): Promise<TableSchema>
-  async getObjectDefinition(schema, name, type): Promise<ObjectDefinition>
-  async executeSelectQuery(query: string): Promise<SqlApiCollectionResponse>
+  // Public API methods (all require serverId and database)
+  async listServers(): Promise<ServerInfo[]>
+  async listDatabases(serverId): Promise<DatabaseInfo[]>
+  async testConnection(serverId, database): Promise<ConnectionTestResult>
+  async listTables(serverId, database): Promise<TableInfo[]>
+  async listViews(serverId, database): Promise<ViewInfo[]>
+  async listStoredProcedures(serverId, database): Promise<StoredProcedureInfo[]>
+  async listTriggers(serverId, database): Promise<TriggerInfo[]>
+  async listFunctions(serverId, database): Promise<FunctionInfo[]>
+  async getTableSchema(serverId, database, schema, table): Promise<TableSchema>
+  async getObjectDefinition(serverId, database, schema, name, type): Promise<ObjectDefinition>
+  async executeSelectQuery(serverId, database, query): Promise<SqlApiCollectionResponse>
   async close(): Promise<void>
 }
 ```
 
 **Connection Pooling:**
 - Uses `mssql` library's built-in connection pooling
-- Default pool: 0 min connections, 10 max connections (configurable)
+- **Multi-pool architecture**: Separate connection pool per `serverId:database` combination
+- Pool key format: `"prod-sql:AppDB"`, `"dev-sql:TestDB"`, etc.
+- Default pool: 0 min connections, 10 max connections per database (configurable)
 - Automatic connection health checks and reconnection
-- Graceful pool disposal on service shutdown
+- Graceful pool disposal on service shutdown (closes all pools)
 
 **Enhanced Query Validation ([src/AzureSqlService.ts](src/AzureSqlService.ts:338)):**
 
@@ -1809,20 +1863,24 @@ private sanitizeErrorMessage(error: Error): string {
 }
 ```
 
-### Available Tools (9 total)
+### Available Tools (11 total)
+
+**Server & Database Discovery Tools:**
+1. **`sql-list-servers`** - List all configured SQL servers with active/inactive status
+2. **`sql-list-databases`** - List databases on a server (configured or discovered via sys.databases)
 
 **Schema Exploration Tools:**
-1. **`sql-test-connection`** - Test database connectivity and server information
-2. **`sql-list-tables`** - List all tables with row counts and sizes
-3. **`sql-list-views`** - List all views with definitions
-4. **`sql-list-stored-procedures`** - List all stored procedures
-5. **`sql-list-triggers`** - List all triggers with event types
-6. **`sql-list-functions`** - List all user-defined functions
-7. **`sql-get-table-schema`** - Get complete table schema (columns, indexes, foreign keys)
-8. **`sql-get-object-definition`** - Get SQL definition for views, procedures, functions, triggers
+3. **`sql-test-connection`** - Test database connectivity and server information
+4. **`sql-list-tables`** - List all tables with row counts and sizes
+5. **`sql-list-views`** - List all views with definitions
+6. **`sql-list-stored-procedures`** - List all stored procedures
+7. **`sql-list-triggers`** - List all triggers with event types
+8. **`sql-list-functions`** - List all user-defined functions
+9. **`sql-get-table-schema`** - Get complete table schema (columns, indexes, foreign keys)
+10. **`sql-get-object-definition`** - Get SQL definition for views, procedures, functions, triggers
 
 **Query Execution Tools:**
-9. **`sql-execute-query`** - Execute SELECT queries safely with validation
+11. **`sql-execute-query`** - Execute SELECT queries safely with validation
 
 ### Available Prompts (3 total)
 
@@ -1835,21 +1893,48 @@ private sanitizeErrorMessage(error: Error): string {
 **Configuration Parsing:**
 ```typescript
 const AZURE_SQL_CONFIG: AzureSqlConfig = {
-  server: process.env.AZURE_SQL_SERVER || "",
-  database: process.env.AZURE_SQL_DATABASE || "",
-  port: parseInt(process.env.AZURE_SQL_PORT || "1433"),
-  username: process.env.AZURE_SQL_USERNAME || "",
-  password: process.env.AZURE_SQL_PASSWORD || "",
-  useAzureAd: process.env.AZURE_SQL_USE_AZURE_AD === "true",
-  azureAdClientId: process.env.AZURE_SQL_CLIENT_ID,
-  azureAdClientSecret: process.env.AZURE_SQL_CLIENT_SECRET,
-  azureAdTenantId: process.env.AZURE_SQL_TENANT_ID,
+  resources: [],
   queryTimeout: parseInt(process.env.AZURE_SQL_QUERY_TIMEOUT || "30000"),
   maxResultRows: parseInt(process.env.AZURE_SQL_MAX_RESULT_ROWS || "1000"),
   connectionTimeout: parseInt(process.env.AZURE_SQL_CONNECTION_TIMEOUT || "15000"),
   poolMin: parseInt(process.env.AZURE_SQL_POOL_MIN || "0"),
-  poolMax: parseInt(process.env.AZURE_SQL_POOL_MAX || "10")
+  poolMax: parseInt(process.env.AZURE_SQL_POOL_MAX || "10"),
 };
+
+// Multi-server configuration (RECOMMENDED)
+if (process.env.AZURE_SQL_SERVERS) {
+  try {
+    AZURE_SQL_CONFIG.resources = JSON.parse(process.env.AZURE_SQL_SERVERS);
+  } catch (error) {
+    console.error('Failed to parse AZURE_SQL_SERVERS:', error);
+  }
+}
+// Legacy single-server configuration (backward compatibility)
+else if (process.env.AZURE_SQL_SERVER && process.env.AZURE_SQL_DATABASE) {
+  AZURE_SQL_CONFIG.resources = [
+    {
+      id: 'default',
+      name: 'Default SQL Server',
+      server: process.env.AZURE_SQL_SERVER,
+      port: parseInt(process.env.AZURE_SQL_PORT || "1433"),
+      active: true,
+      databases: [
+        {
+          name: process.env.AZURE_SQL_DATABASE,
+          active: true,
+          description: 'Default database',
+        },
+      ],
+      username: process.env.AZURE_SQL_USERNAME || '',
+      password: process.env.AZURE_SQL_PASSWORD || '',
+      useAzureAd: process.env.AZURE_SQL_USE_AZURE_AD === "true",
+      azureAdClientId: process.env.AZURE_SQL_CLIENT_ID || '',
+      azureAdClientSecret: process.env.AZURE_SQL_CLIENT_SECRET || '',
+      azureAdTenantId: process.env.AZURE_SQL_TENANT_ID || '',
+      description: 'Migrated from single-server configuration',
+    },
+  ];
+}
 ```
 
 **Lazy Initialization Pattern:**
@@ -1860,12 +1945,16 @@ function getAzureSqlService(): AzureSqlService {
   if (!azureSqlService) {
     // Validate required configuration
     const missingConfig: string[] = [];
-    if (!AZURE_SQL_CONFIG.server) missingConfig.push("AZURE_SQL_SERVER");
-    if (!AZURE_SQL_CONFIG.database) missingConfig.push("AZURE_SQL_DATABASE");
-    // ... more validation
+
+    if (!AZURE_SQL_CONFIG.resources || AZURE_SQL_CONFIG.resources.length === 0) {
+      missingConfig.push("AZURE_SQL_SERVERS or AZURE_SQL_SERVER/AZURE_SQL_DATABASE");
+    }
 
     if (missingConfig.length > 0) {
-      throw new Error(`Missing required Azure SQL configuration: ${missingConfig.join(", ")}`);
+      throw new Error(
+        `Missing Azure SQL Database configuration: ${missingConfig.join(", ")}. ` +
+        `Configure via AZURE_SQL_SERVERS JSON array or legacy AZURE_SQL_SERVER/AZURE_SQL_DATABASE variables.`
+      );
     }
 
     azureSqlService = new AzureSqlService(AZURE_SQL_CONFIG);

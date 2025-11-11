@@ -148,25 +148,47 @@ if (process.env.APPINSIGHTS_RESOURCES) {
 
 // Azure SQL Database configuration
 const AZURE_SQL_CONFIG: AzureSqlConfig = {
-  server: process.env.AZURE_SQL_SERVER || "",
-  database: process.env.AZURE_SQL_DATABASE || "",
-  port: parseInt(process.env.AZURE_SQL_PORT || "1433"),
-
-  username: process.env.AZURE_SQL_USERNAME || "",
-  password: process.env.AZURE_SQL_PASSWORD || "",
-
-  useAzureAd: process.env.AZURE_SQL_USE_AZURE_AD === "true",
-  clientId: process.env.AZURE_SQL_CLIENT_ID || "",
-  clientSecret: process.env.AZURE_SQL_CLIENT_SECRET || "",
-  tenantId: process.env.AZURE_SQL_TENANT_ID || "",
-
+  resources: [],
   queryTimeout: parseInt(process.env.AZURE_SQL_QUERY_TIMEOUT || "30000"),
   maxResultRows: parseInt(process.env.AZURE_SQL_MAX_RESULT_ROWS || "1000"),
   connectionTimeout: parseInt(process.env.AZURE_SQL_CONNECTION_TIMEOUT || "15000"),
-
   poolMin: parseInt(process.env.AZURE_SQL_POOL_MIN || "0"),
   poolMax: parseInt(process.env.AZURE_SQL_POOL_MAX || "10"),
 };
+
+// Parse Azure SQL servers configuration
+if (process.env.AZURE_SQL_SERVERS) {
+  try {
+    AZURE_SQL_CONFIG.resources = JSON.parse(process.env.AZURE_SQL_SERVERS);
+  } catch (error) {
+    console.error('Failed to parse AZURE_SQL_SERVERS:', error);
+  }
+} else if (process.env.AZURE_SQL_SERVER && process.env.AZURE_SQL_DATABASE) {
+  // Backward compatibility: single server configuration
+  AZURE_SQL_CONFIG.resources = [
+    {
+      id: 'default',
+      name: 'Default SQL Server',
+      server: process.env.AZURE_SQL_SERVER,
+      port: parseInt(process.env.AZURE_SQL_PORT || "1433"),
+      active: true,
+      databases: [
+        {
+          name: process.env.AZURE_SQL_DATABASE,
+          active: true,
+          description: 'Default database',
+        },
+      ],
+      username: process.env.AZURE_SQL_USERNAME || '',
+      password: process.env.AZURE_SQL_PASSWORD || '',
+      useAzureAd: process.env.AZURE_SQL_USE_AZURE_AD === "true",
+      azureAdClientId: process.env.AZURE_SQL_CLIENT_ID || '',
+      azureAdClientSecret: process.env.AZURE_SQL_CLIENT_SECRET || '',
+      azureAdTenantId: process.env.AZURE_SQL_TENANT_ID || '',
+      description: 'Migrated from single-server configuration',
+    },
+  ];
+}
 
 // Log Analytics configuration
 const LOGANALYTICS_CONFIG: LogAnalyticsConfig = {
@@ -448,24 +470,15 @@ function getAzureSqlService(): AzureSqlService {
   if (!azureSqlService) {
     // Check if configuration is complete
     const missingConfig: string[] = [];
-    if (!AZURE_SQL_CONFIG.server) missingConfig.push("server");
-    if (!AZURE_SQL_CONFIG.database) missingConfig.push("database");
 
-    if (!AZURE_SQL_CONFIG.useAzureAd) {
-      // SQL Authentication requires username and password
-      if (!AZURE_SQL_CONFIG.username) missingConfig.push("username");
-      if (!AZURE_SQL_CONFIG.password) missingConfig.push("password");
-    } else {
-      // Azure AD requires service principal credentials
-      if (!AZURE_SQL_CONFIG.clientId) missingConfig.push("clientId");
-      if (!AZURE_SQL_CONFIG.clientSecret) missingConfig.push("clientSecret");
-      if (!AZURE_SQL_CONFIG.tenantId) missingConfig.push("tenantId");
+    if (!AZURE_SQL_CONFIG.resources || AZURE_SQL_CONFIG.resources.length === 0) {
+      missingConfig.push("AZURE_SQL_SERVERS or AZURE_SQL_SERVER/AZURE_SQL_DATABASE");
     }
 
     if (missingConfig.length > 0) {
       throw new Error(
         `Missing Azure SQL Database configuration: ${missingConfig.join(", ")}. ` +
-        `Set these in environment variables (AZURE_SQL_*).`
+        `Configure via AZURE_SQL_SERVERS JSON array or legacy AZURE_SQL_SERVER/AZURE_SQL_DATABASE variables.`
       );
     }
 
@@ -6185,9 +6198,17 @@ server.tool(
 );
 
 /**
- * Tool: set-default-view
- * Set a view as the default view for its entity
+ * TOOL DECOMMISSIONED (v14.0.0) - Use update-view instead
+ *
+ * MIGRATION: Use update-view with isDefault parameter:
+ * {
+ *   viewId: "your-view-id",
+ *   isDefault: true
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "set-default-view",
   "Set a view as the default view for its entity. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
@@ -6219,11 +6240,20 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: get-view-fetchxml
- * Get the FetchXML from a view
+ * TOOL DECOMMISSIONED (v14.0.0) - Use get-views instead
+ *
+ * MIGRATION: Use get-views to get all views for an entity (includes FetchXML):
+ * {
+ *   entityLogicalName: "your-entity"
+ * }
+ * Then filter the results for the specific view by viewId or name.
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "get-view-fetchxml",
   "Get the FetchXML query from a view",
@@ -6252,6 +6282,7 @@ server.tool(
     }
   }
 );
+*/
 
 // ===== PHASE 3: Web Resource Management =====
 
@@ -7149,9 +7180,19 @@ server.tool(
 );
 
 /**
- * Tool: appinsights-get-exceptions
- * Get recent exceptions from Application Insights
+ * TOOL DECOMMISSIONED (v14.0.0) - Commented out to reduce tool count from 170 to 145
+ * This tool was a convenience wrapper around appinsights-execute-query.
+ *
+ * MIGRATION: Use appinsights-execute-query with this KQL query:
+ * {
+ *   resourceId: "your-resource-id",
+ *   query: "exceptions | top 50 by timestamp desc",
+ *   timespan: "PT1H"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "appinsights-get-exceptions",
   "Get recent exceptions from Application Insights with timestamps, types, and messages",
@@ -7191,11 +7232,15 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: appinsights-get-slow-requests
- * Get slow HTTP requests from Application Insights
+ * TOOL DECOMMISSIONED (v14.0.0) - Use appinsights-execute-query instead
+ *
+ * MIGRATION: Use appinsights-execute-query with:
+ * query: "requests | where duration > 5000 | order by duration desc | top 50 by timestamp desc"
  */
+/*
 server.tool(
   "appinsights-get-slow-requests",
   "Get slow HTTP requests (above duration threshold) from Application Insights",
@@ -7237,11 +7282,21 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: appinsights-get-operation-performance
- * Get operation performance summary from Application Insights
+ * TOOL DECOMMISSIONED (v14.0.0) - Use appinsights-execute-query instead
+ *
+ * MIGRATION: Use appinsights-execute-query with:
+ * {
+ *   resourceId: "your-resource-id",
+ *   query: "requests | summarize count=count(), avgDuration=avg(duration), p50=percentile(duration, 50), p95=percentile(duration, 95), p99=percentile(duration, 99) by operation_Name | order by count desc",
+ *   timespan: "PT1H"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "appinsights-get-operation-performance",
   "Get performance summary by operation (request count, avg duration, percentiles)",
@@ -7279,11 +7334,21 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: appinsights-get-failed-dependencies
- * Get failed dependency calls from Application Insights
+ * TOOL DECOMMISSIONED (v14.0.0) - Use appinsights-execute-query instead
+ *
+ * MIGRATION: Use appinsights-execute-query with:
+ * {
+ *   resourceId: "your-resource-id",
+ *   query: "dependencies | where success == false | order by timestamp desc | take 50",
+ *   timespan: "PT1H"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "appinsights-get-failed-dependencies",
   "Get failed dependency calls (external APIs, databases, etc.) from Application Insights",
@@ -7323,11 +7388,21 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: appinsights-get-traces
- * Get diagnostic traces from Application Insights filtered by severity
+ * TOOL DECOMMISSIONED (v14.0.0) - Use appinsights-execute-query instead
+ *
+ * MIGRATION: Use appinsights-execute-query with:
+ * {
+ *   resourceId: "your-resource-id",
+ *   query: "traces | where severityLevel >= 2 | order by timestamp desc | take 100",
+ *   timespan: "PT1H"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "appinsights-get-traces",
   "Get diagnostic traces/logs from Application Insights filtered by severity level",
@@ -7369,11 +7444,21 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: appinsights-get-availability
- * Get availability test results from Application Insights
+ * TOOL DECOMMISSIONED (v14.0.0) - Use appinsights-execute-query instead
+ *
+ * MIGRATION: Use appinsights-execute-query with:
+ * {
+ *   resourceId: "your-resource-id",
+ *   query: "availabilityResults | summarize uptime=100.0*count(success == true)/count() by name | order by uptime asc",
+ *   timespan: "PT24H"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "appinsights-get-availability",
   "Get availability test results and uptime statistics from Application Insights",
@@ -7411,11 +7496,21 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: appinsights-get-custom-events
- * Get custom application events from Application Insights
+ * TOOL DECOMMISSIONED (v14.0.0) - Use appinsights-execute-query instead
+ *
+ * MIGRATION: Use appinsights-execute-query with:
+ * {
+ *   resourceId: "your-resource-id",
+ *   query: "customEvents | where name == 'EventName' | order by timestamp desc | take 100",
+ *   timespan: "PT1H"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "appinsights-get-custom-events",
   "Get custom application events from Application Insights",
@@ -7457,6 +7552,7 @@ server.tool(
     }
   }
 );
+*/
 
 /**
  * ===========================================
@@ -7617,9 +7713,18 @@ server.tool(
 );
 
 /**
- * Tool: loganalytics-get-recent-events
- * Get recent events from any table
+ * TOOL DECOMMISSIONED (v14.0.0) - Use loganalytics-execute-query instead
+ *
+ * MIGRATION: Use loganalytics-execute-query with:
+ * {
+ *   resourceId: "your-resource-id",
+ *   query: "TableName | order by TimeGenerated desc | take 100",
+ *   timespan: "PT1H"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "loganalytics-get-recent-events",
   "Get recent events from a specific Log Analytics table",
@@ -7661,11 +7766,21 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: loganalytics-search-logs
- * Search logs by text content
+ * TOOL DECOMMISSIONED (v14.0.0) - Use loganalytics-execute-query instead
+ *
+ * MIGRATION: Use loganalytics-execute-query with:
+ * {
+ *   resourceId: "your-resource-id",
+ *   query: "search 'SearchText' | where TableName == 'YourTable' | take 100",
+ *   timespan: "PT1H"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "loganalytics-search-logs",
   "Search logs by text content across tables or a specific table",
@@ -7709,11 +7824,21 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: loganalytics-get-function-logs
- * Get Azure Function logs
+ * TOOL DECOMMISSIONED (v14.0.0) - Use loganalytics-execute-query instead
+ *
+ * MIGRATION: Use loganalytics-execute-query with:
+ * {
+ *   resourceId: "your-resource-id",
+ *   query: "FunctionAppLogs | where FunctionName == 'YourFunction' and SeverityLevel >= 2 | order by TimeGenerated desc | take 100",
+ *   timespan: "PT1H"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "loganalytics-get-function-logs",
   "Get Azure Function logs from FunctionAppLogs table with optional filtering",
@@ -7757,11 +7882,21 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: loganalytics-get-function-errors
- * Get Azure Function errors
+ * TOOL DECOMMISSIONED (v14.0.0) - Use loganalytics-execute-query instead
+ *
+ * MIGRATION: Use loganalytics-execute-query with:
+ * {
+ *   resourceId: "your-resource-id",
+ *   query: "FunctionAppLogs | where FunctionName == 'YourFunction' and ExceptionDetails != '' | order by TimeGenerated desc | take 100",
+ *   timespan: "PT1H"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "loganalytics-get-function-errors",
   "Get Azure Function error logs with exception details",
@@ -7803,11 +7938,21 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: loganalytics-get-function-stats
- * Get Azure Function execution statistics
+ * TOOL DECOMMISSIONED (v14.0.0) - Use loganalytics-execute-query instead
+ *
+ * MIGRATION: Use loganalytics-execute-query with:
+ * {
+ *   resourceId: "your-resource-id",
+ *   query: "FunctionAppLogs | where FunctionName == 'YourFunction' | summarize count(), errors=countif(SeverityLevel >= 3) by FunctionName",
+ *   timespan: "PT1H"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "loganalytics-get-function-stats",
   "Get execution statistics for Azure Functions (count, success rate, errors)",
@@ -7847,11 +7992,21 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: loganalytics-get-function-invocations
- * Get Azure Function invocation history
+ * TOOL DECOMMISSIONED (v14.0.0) - Use loganalytics-execute-query instead
+ *
+ * MIGRATION: Use loganalytics-execute-query with:
+ * {
+ *   resourceId: "your-resource-id",
+ *   query: "union requests, traces | where operation_Name contains 'YourFunction' | order by timestamp desc | take 100",
+ *   timespan: "PT1H"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "loganalytics-get-function-invocations",
   "Get Azure Function invocation history from requests/traces tables",
@@ -7893,12 +8048,83 @@ server.tool(
     }
   }
 );
+*/
 
 /**
  * ===========================================
- * AZURE SQL DATABASE TOOLS (9 TOOLS)
+ * AZURE SQL DATABASE TOOLS (11 TOOLS)
  * ===========================================
  */
+
+/**
+ * Tool: sql-list-servers
+ * List all configured SQL servers
+ */
+server.tool(
+  "sql-list-servers",
+  "List all configured SQL servers with active/inactive status",
+  {},
+  async () => {
+    try {
+      const sqlService = getAzureSqlService();
+      const servers = await sqlService.listServers();
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(servers, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error listing servers: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+/**
+ * Tool: sql-list-databases
+ * List databases on a server
+ */
+server.tool(
+  "sql-list-databases",
+  "List databases on a SQL server (configured or discovered)",
+  {
+    serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
+  },
+  async ({ serverId }) => {
+    try {
+      const sqlService = getAzureSqlService();
+      const databases = await sqlService.listDatabases(serverId);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(databases, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error listing databases: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
 
 /**
  * Tool: sql-test-connection
@@ -7906,12 +8132,15 @@ server.tool(
  */
 server.tool(
   "sql-test-connection",
-  "Test Azure SQL Database connectivity and return connection information",
-  {},
-  async () => {
+  "Test SQL Server connectivity and return connection information",
+  {
+    serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
+    database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+  },
+  async ({ serverId, database }) => {
     try {
       const sqlService = getAzureSqlService();
-      const result = await sqlService.testConnection();
+      const result = await sqlService.testConnection(serverId, database);
       return {
         content: [
           {
@@ -7935,17 +8164,29 @@ server.tool(
 );
 
 /**
- * Tool: sql-list-tables
- * List all user tables in the database
+ * TOOL DECOMMISSIONED (v14.0.0) - Use sql-execute-query instead
+ *
+ * MIGRATION: Use sql-execute-query with:
+ * {
+ *   serverId: "your-server-id",
+ *   database: "your-database",
+ *   query: "SELECT s.name AS schema_name, t.name AS table_name, p.rows AS row_count FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id JOIN sys.partitions p ON t.object_id = p.object_id WHERE p.index_id IN (0, 1) ORDER BY s.name, t.name"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "sql-list-tables",
-  "List all user tables in the Azure SQL Database with row counts and sizes",
-  {},
-  async () => {
+  "List all user tables in the database with row counts and sizes",
+  {
+    serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
+    database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+  },
+  async ({ serverId, database }) => {
     try {
       const sqlService = getAzureSqlService();
-      const tables = await sqlService.listTables();
+      const tables = await sqlService.listTables(serverId, database);
       return {
         content: [
           {
@@ -7967,19 +8208,32 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: sql-list-views
- * List all views in the database
+ * TOOL DECOMMISSIONED (v14.0.0) - Use sql-execute-query instead
+ *
+ * MIGRATION: Use sql-execute-query with:
+ * {
+ *   serverId: "your-server-id",
+ *   database: "your-database",
+ *   query: "SELECT s.name AS schema_name, v.name AS view_name FROM sys.views v JOIN sys.schemas s ON v.schema_id = s.schema_id ORDER BY s.name, v.name"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "sql-list-views",
-  "List all views in the Azure SQL Database",
-  {},
-  async () => {
+  "List all views in the database",
+  {
+    serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
+    database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+  },
+  async ({ serverId, database }) => {
     try {
       const sqlService = getAzureSqlService();
-      const views = await sqlService.listViews();
+      const views = await sqlService.listViews(serverId, database);
       return {
         content: [
           {
@@ -8001,19 +8255,32 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: sql-list-stored-procedures
- * List all stored procedures
+ * TOOL DECOMMISSIONED (v14.0.0) - Use sql-execute-query instead
+ *
+ * MIGRATION: Use sql-execute-query with:
+ * {
+ *   serverId: "your-server-id",
+ *   database: "your-database",
+ *   query: "SELECT s.name AS schema_name, p.name AS procedure_name FROM sys.procedures p JOIN sys.schemas s ON p.schema_id = s.schema_id ORDER BY s.name, p.name"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "sql-list-stored-procedures",
   "List all stored procedures in the Azure SQL Database",
-  {},
-  async () => {
+  {
+    serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
+    database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+  },
+  async ({ serverId, database }) => {
     try {
       const sqlService = getAzureSqlService();
-      const procedures = await sqlService.listStoredProcedures();
+      const procedures = await sqlService.listStoredProcedures(serverId, database);
       return {
         content: [
           {
@@ -8035,19 +8302,32 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: sql-list-triggers
- * List all database triggers
+ * TOOL DECOMMISSIONED (v14.0.0) - Use sql-execute-query instead
+ *
+ * MIGRATION: Use sql-execute-query with:
+ * {
+ *   serverId: "your-server-id",
+ *   database: "your-database",
+ *   query: "SELECT s.name AS schema_name, t.name AS trigger_name, OBJECT_NAME(t.parent_id) AS table_name FROM sys.triggers t JOIN sys.schemas s ON OBJECTPROPERTY(t.parent_id, 'SchemaId') = s.schema_id WHERE t.parent_class = 1 ORDER BY s.name, OBJECT_NAME(t.parent_id), t.name"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "sql-list-triggers",
   "List all database triggers in the Azure SQL Database",
-  {},
-  async () => {
+  {
+    serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
+    database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+  },
+  async ({ serverId, database }) => {
     try {
       const sqlService = getAzureSqlService();
-      const triggers = await sqlService.listTriggers();
+      const triggers = await sqlService.listTriggers(serverId, database);
       return {
         content: [
           {
@@ -8069,19 +8349,32 @@ server.tool(
     }
   }
 );
+*/
 
 /**
- * Tool: sql-list-functions
- * List all user-defined functions
+ * TOOL DECOMMISSIONED (v14.0.0) - Use sql-execute-query instead
+ *
+ * MIGRATION: Use sql-execute-query with:
+ * {
+ *   serverId: "your-server-id",
+ *   database: "your-database",
+ *   query: "SELECT s.name AS schema_name, o.name AS function_name, o.type_desc AS function_type FROM sys.objects o JOIN sys.schemas s ON o.schema_id = s.schema_id WHERE o.type IN ('FN', 'IF', 'TF') ORDER BY s.name, o.name"
+ * }
+ *
+ * To restore this tool: Uncomment the block below
  */
+/*
 server.tool(
   "sql-list-functions",
   "List all user-defined functions in the Azure SQL Database",
-  {},
-  async () => {
+  {
+    serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
+    database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+  },
+  async ({ serverId, database }) => {
     try {
       const sqlService = getAzureSqlService();
-      const functions = await sqlService.listFunctions();
+      const functions = await sqlService.listFunctions(serverId, database);
       return {
         content: [
           {
@@ -8103,6 +8396,7 @@ server.tool(
     }
   }
 );
+*/
 
 /**
  * Tool: sql-get-table-schema
@@ -8112,13 +8406,15 @@ server.tool(
   "sql-get-table-schema",
   "Get detailed schema information for a table including columns, indexes, and foreign keys",
   {
+    serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
+    database: z.string().describe("Database name (use sql-list-databases to find databases)"),
     schemaName: z.string().describe("Schema name (e.g., 'dbo')"),
     tableName: z.string().describe("Table name (e.g., 'Users')"),
   },
-  async ({ schemaName, tableName }) => {
+  async ({ serverId, database, schemaName, tableName }) => {
     try {
       const sqlService = getAzureSqlService();
-      const schema = await sqlService.getTableSchema(schemaName, tableName);
+      const schema = await sqlService.getTableSchema(serverId, database, schemaName, tableName);
       return {
         content: [
           {
@@ -8149,14 +8445,16 @@ server.tool(
   "sql-get-object-definition",
   "Get the SQL definition for a view, stored procedure, function, or trigger",
   {
+    serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
+    database: z.string().describe("Database name (use sql-list-databases to find databases)"),
     schemaName: z.string().describe("Schema name (e.g., 'dbo')"),
     objectName: z.string().describe("Object name"),
     objectType: z.enum(['VIEW', 'PROCEDURE', 'FUNCTION', 'TRIGGER']).describe("Object type"),
   },
-  async ({ schemaName, objectName, objectType }) => {
+  async ({ serverId, database, schemaName, objectName, objectType }) => {
     try {
       const sqlService = getAzureSqlService();
-      const definition = await sqlService.getObjectDefinition(schemaName, objectName, objectType);
+      const definition = await sqlService.getObjectDefinition(serverId, database, schemaName, objectName, objectType);
       return {
         content: [
           {
@@ -8187,12 +8485,14 @@ server.tool(
   "sql-execute-query",
   "Execute a SELECT query against the Azure SQL Database (read-only, with result limits)",
   {
+    serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
+    database: z.string().describe("Database name (use sql-list-databases to find databases)"),
     query: z.string().describe("SELECT query to execute (e.g., 'SELECT TOP 10 * FROM dbo.Users WHERE IsActive = 1')"),
   },
-  async ({ query }) => {
+  async ({ serverId, database, query }) => {
     try {
       const sqlService = getAzureSqlService();
-      const result = await sqlService.executeSelectQuery(query);
+      const result = await sqlService.executeSelectQuery(serverId, database, query);
 
       let text = JSON.stringify(result, null, 2);
 
@@ -8235,16 +8535,19 @@ server.tool(
 server.prompt(
   "sql-database-overview",
   "Get a comprehensive overview of the Azure SQL Database schema",
-  {},
-  async () => {
+  {
+    serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
+    database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+  },
+  async ({ serverId, database }) => {
     const sqlService = getAzureSqlService();
 
     const [tables, views, procedures, triggers, functions] = await Promise.all([
-      sqlService.listTables(),
-      sqlService.listViews(),
-      sqlService.listStoredProcedures(),
-      sqlService.listTriggers(),
-      sqlService.listFunctions(),
+      sqlService.listTables(serverId, database),
+      sqlService.listViews(serverId, database),
+      sqlService.listStoredProcedures(serverId, database),
+      sqlService.listTriggers(serverId, database),
+      sqlService.listFunctions(serverId, database),
     ]);
 
     const formattedOverview = formatDatabaseOverview(tables, views, procedures, triggers, functions);
@@ -8271,12 +8574,14 @@ server.prompt(
   "sql-table-details",
   "Get detailed report for a specific table with columns, indexes, and relationships",
   {
+    serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
+    database: z.string().describe("Database name (use sql-list-databases to find databases)"),
     schemaName: z.string().describe("Schema name (e.g., 'dbo')"),
     tableName: z.string().describe("Table name"),
   },
-  async ({ schemaName, tableName }) => {
+  async ({ serverId, database, schemaName, tableName }) => {
     const sqlService = getAzureSqlService();
-    const schema = await sqlService.getTableSchema(schemaName, tableName);
+    const schema = await sqlService.getTableSchema(serverId, database, schemaName, tableName);
 
     let template = formatTableSchemaAsMarkdown(schema);
     template += `\n\n### Sample Query\n\n\`\`\`sql\nSELECT TOP 100 * FROM ${schemaName}.${tableName}\n\`\`\``;
@@ -8303,11 +8608,13 @@ server.prompt(
   "sql-query-results",
   "Execute a query and return formatted results with column headers",
   {
+    serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
+    database: z.string().describe("Database name (use sql-list-databases to find databases)"),
     query: z.string().describe("SELECT query to execute"),
   },
-  async ({ query }) => {
+  async ({ serverId, database, query }) => {
     const sqlService = getAzureSqlService();
-    const result = await sqlService.executeSelectQuery(query);
+    const result = await sqlService.executeSelectQuery(serverId, database, query);
 
     let template = `## Query Results\n\n`;
     template += `**Query:**\n\`\`\`sql\n${query}\n\`\`\`\n\n`;
