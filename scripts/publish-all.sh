@@ -259,7 +259,7 @@ main() {
   local success_count=0
   local skip_count=0
 
-  for pkg in "${packages[@]}"; do
+  for pkg in "${PACKAGES[@]}"; do
     publish_package "$pkg"
     ((success_count++))
   done
