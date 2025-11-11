@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./build",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "build"],
+  "references": [
+    { "path": "../core" },
+    { "path": "../application-insights" },
+    { "path": "../azure-devops" },
+    { "path": "../azure-sql" },
+    { "path": "../figma" },
+    { "path": "../github-enterprise" },
+    { "path": "../log-analytics" },
+    { "path": "../powerplatform" },
+    { "path": "../service-bus" },
+    { "path": "../sharepoint" }
+  ]
+}

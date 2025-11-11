@@ -1,0 +1,25 @@
+{
+  "name": "@mcp-consultant-tools/application-insights",
+  "version": "1.0.0",
+  "description": "MCP server for Azure Application Insights - telemetry and performance monitoring",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "bin": { "mcp-appinsights": "./build/index.js" },
+  "exports": { ".": { "import": "./build/index.js", "types": "./build/index.d.ts" } },
+  "files": ["build", "README.md"],
+  "scripts": { "build": "tsc", "clean": "rm -rf build *.tsbuildinfo", "prepublishOnly": "npm run build" },
+  "keywords": ["mcp", "model-context-protocol", "azure", "application-insights", "telemetry", "monitoring"],
+  "author": "Michal Sobieraj",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/klemensms/mcp-consultant-tools.git", "directory": "packages/application-insights" },
+  "engines": { "node": ">=16.0.0" },
+  "dependencies": {
+    "@azure/msal-node": "^3.3.0",
+    "@mcp-consultant-tools/core": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "axios": "^1.8.3",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": { "@types/node": "^22.10.5", "typescript": "^5.8.2" }
+}
