@@ -1,6 +1,6 @@
 {
   "name": "mcp-consultant-tools",
-  "version": "16.0.0",
+  "version": "17.0.0",
   "description": "Complete MCP Consultant Tools package with all integrations: PowerPlatform, Azure DevOps, Figma, Application Insights, Log Analytics, Azure SQL, Service Bus, SharePoint, and GitHub Enterprise",
   "type": "module",
   "main": "./build/index.js",
@@ -52,15 +52,15 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "@mcp-consultant-tools/core": "^1.0.0",
     "@mcp-consultant-tools/application-insights": "^1.0.0",
     "@mcp-consultant-tools/azure-devops": "^1.0.0",
     "@mcp-consultant-tools/azure-sql": "^1.0.0",
+    "@mcp-consultant-tools/core": "^1.0.0",
     "@mcp-consultant-tools/figma": "^1.0.0",
     "@mcp-consultant-tools/github-enterprise": "^1.0.0",
     "@mcp-consultant-tools/log-analytics": "^1.0.0",
-    "@mcp-consultant-tools/powerplatform": "^1.0.0",
-    "@mcp-consultant-tools/powerplatform-customization": "^1.0.0",
+    "@mcp-consultant-tools/powerplatform": "^1.0.1",
+    "@mcp-consultant-tools/powerplatform-customization": "^2.0.0",
     "@mcp-consultant-tools/powerplatform-data": "^1.0.0",
     "@mcp-consultant-tools/service-bus": "^1.0.0",
     "@mcp-consultant-tools/sharepoint": "^1.0.0",
