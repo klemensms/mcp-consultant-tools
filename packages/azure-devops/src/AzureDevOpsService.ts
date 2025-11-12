@@ -724,21 +724,62 @@ export class AzureDevOpsService {
    * @param project The project name
    * @param workItemType The work item type (e.g., "Bug", "Task", "User Story")
    * @param fields Object with field values (e.g., { "System.Title": "Bug title" })
+   * @param parentId Optional parent work item ID (for creating child items)
+   * @param relations Optional array of work item relationships
    * @returns Created work item
    */
-  async createWorkItem(project: string, workItemType: string, fields: any): Promise<any> {
+  async createWorkItem(
+    project: string,
+    workItemType: string,
+    fields: any,
+    parentId?: number,
+    relations?: Array<{
+      rel: string;
+      url: string;
+      attributes?: Record<string, any>;
+    }>
+  ): Promise<any> {
     this.validateProject(project);
 
     if (!this.config.enableWorkItemWrite) {
       throw new Error('Work item write operations are disabled. Set AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true to enable.');
     }
 
-    // Convert fields object to JSON Patch operations
-    const patchOperations = Object.keys(fields).map(field => ({
-      op: 'add',
-      path: `/fields/${field}`,
-      value: fields[field]
-    }));
+    // Build patch operations array
+    const patchOperations: any[] = [];
+
+    // Add field operations
+    Object.keys(fields).forEach(field => {
+      patchOperations.push({
+        op: 'add',
+        path: `/fields/${field}`,
+        value: fields[field]
+      });
+    });
+
+    // Handle parentId parameter (simplified parent relationship)
+    if (parentId !== undefined) {
+      const parentUrl = `${this.baseUrl}/${encodeURIComponent(project)}/_apis/wit/workItems/${parentId}`;
+      patchOperations.push({
+        op: 'add',
+        path: '/relations/-',
+        value: {
+          rel: 'System.LinkTypes.Hierarchy-Reverse',
+          url: parentUrl
+        }
+      });
+    }
+
+    // Handle relations array (advanced relationships)
+    if (relations && relations.length > 0) {
+      relations.forEach(relation => {
+        patchOperations.push({
+          op: 'add',
+          path: '/relations/-',
+          value: relation
+        });
+      });
+    }
 
     const response = await this.makeRequest<any>(
       `${project}/_apis/wit/workitems/$${workItemType}?api-version=${this.apiVersion}`,
@@ -750,6 +791,7 @@ export class AzureDevOpsService {
       id: response.id,
       rev: response.rev,
       fields: response.fields,
+      relations: response.relations || [],  // Include relations in response
       url: response._links?.html?.href,
       project
     };

@@ -7,7 +7,7 @@
 
 ## 🎯 Overview
 
-MCP Consultant Tools v15 is a **modular monorepo** with 11 independently published npm packages under the `@mcp-consultant-tools` organization. Use individual packages for specific integrations or install the complete meta-package for everything.
+MCP Consultant Tools v15 is a **modular monorepo** with **13 independently published npm packages** under the `@mcp-consultant-tools` organization. Use individual packages for specific integrations or install the complete meta-package for everything.
 
 **Total Capabilities:** 172 tools + 47 prompts across 10 service integrations
 
@@ -17,20 +17,40 @@ MCP Consultant Tools v15 is a **modular monorepo** with 11 independently publish
 - **[@mcp-consultant-tools/core](packages/core)** - Shared utilities, MCP helpers, audit logging
 
 ### Service Packages (Standalone)
-| Package | Integration | Tools | Prompts | Size |
-|---------|-------------|-------|---------|------|
-| **[@mcp-consultant-tools/powerplatform](packages/powerplatform)** | PowerPlatform/Dataverse | 65 | 12 | 328KB |
-| **[@mcp-consultant-tools/sharepoint](packages/sharepoint)** | SharePoint Online | 15 | 5 | 188KB |
-| **[@mcp-consultant-tools/github-enterprise](packages/github-enterprise)** | GitHub Enterprise | 22 | 5 | 152KB |
-| **[@mcp-consultant-tools/figma](packages/figma)** | Figma Design | 2 | 0 | 312KB |
-| **[@mcp-consultant-tools/service-bus](packages/service-bus)** | Azure Service Bus | 8 | 5 | 128KB |
-| **[@mcp-consultant-tools/azure-sql](packages/azure-sql)** | Azure SQL Database | 11 | 3 | 108KB |
-| **[@mcp-consultant-tools/log-analytics](packages/log-analytics)** | Log Analytics | 10 | 5 | 92KB |
-| **[@mcp-consultant-tools/azure-devops](packages/azure-devops)** | Azure DevOps | 18 | 6 | 76KB |
-| **[@mcp-consultant-tools/application-insights](packages/application-insights)** | Application Insights | 10 | 5 | 76KB |
+| Package | Integration | Tools | Prompts | Size | Security |
+|---------|-------------|-------|---------|------|----------|
+| **[@mcp-consultant-tools/powerplatform](packages/powerplatform)** | PowerPlatform/Dataverse (Read-Only) | 38 | 10 | 280KB | ✅ Production-Safe |
+| **[@mcp-consultant-tools/powerplatform-customization](packages/powerplatform-customization)** | PowerPlatform Schema Changes | 45 | 0 | 295KB | ⚠️ Dev/Config Only |
+| **[@mcp-consultant-tools/powerplatform-data](packages/powerplatform-data)** | PowerPlatform Data CRUD | 3 | 0 | 185KB | ⚠️ Requires Explicit Permissions |
+| **[@mcp-consultant-tools/sharepoint](packages/sharepoint)** | SharePoint Online | 15 | 5 | 188KB | ✅ Read-Only |
+| **[@mcp-consultant-tools/github-enterprise](packages/github-enterprise)** | GitHub Enterprise | 22 | 5 | 152KB | ✅ Read-Only (default) |
+| **[@mcp-consultant-tools/figma](packages/figma)** | Figma Design | 2 | 0 | 312KB | ✅ Read-Only |
+| **[@mcp-consultant-tools/service-bus](packages/service-bus)** | Azure Service Bus | 8 | 5 | 128KB | ✅ Read-Only (peek) |
+| **[@mcp-consultant-tools/azure-sql](packages/azure-sql)** | Azure SQL Database | 11 | 3 | 108KB | ✅ Read-Only |
+| **[@mcp-consultant-tools/log-analytics](packages/log-analytics)** | Log Analytics | 10 | 5 | 92KB | ✅ Read-Only |
+| **[@mcp-consultant-tools/azure-devops](packages/azure-devops)** | Azure DevOps | 18 | 6 | 76KB | ✅ Read-Only (default) |
+| **[@mcp-consultant-tools/application-insights](packages/application-insights)** | Application Insights | 10 | 5 | 76KB | ✅ Read-Only |
 
 ### Meta-Package (All Services)
 - **[mcp-consultant-tools](packages/meta)** - Complete package with all integrations
+
+## 🔒 PowerPlatform Security-Focused Split
+
+The PowerPlatform integration is split into **3 security-isolated packages** following the principle of least privilege:
+
+| Package | Use Case | Tools | Environment Flags | Production-Safe? |
+|---------|----------|-------|-------------------|------------------|
+| **powerplatform** | Read-only access | 38 | None required | ✅ **YES** - Safe for production |
+| **powerplatform-customization** | Schema changes (entities, attributes, forms, solutions) | 45 | `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` | ⚠️ **NO** - Dev/config environments only |
+| **powerplatform-data** | Data CRUD operations | 3 | `POWERPLATFORM_ENABLE_CREATE/UPDATE/DELETE=true` | ⚠️ **NO** - Operational use with explicit permissions |
+
+**Why split?**
+- **Security**: Install only the capabilities you need
+- **Safety**: Reduce risk of accidental schema changes or data modifications in production
+- **Compliance**: Easier to audit and approve specific capabilities
+- **Flexibility**: Mix and match based on environment needs
+
+**Migration**: Existing `@mcp-consultant-tools/powerplatform` users: Your package now contains only read-only tools. To access schema changes or data CRUD, install the additional packages.
 
 ## 🚀 Quick Start
 
@@ -74,7 +94,20 @@ npm install @mcp-consultant-tools/azure-devops
 }
 ```
 
-#### Claude Desktop (Individual Package)
+## 📦 Individual Integration Setup
+
+Each integration can be installed and configured independently. Choose only what you need:
+
+### PowerPlatform/Dataverse
+
+The PowerPlatform integration is split into **3 security-isolated packages**:
+
+#### 1. Read-Only Access (Production-Safe)
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform
+```
+
+**Claude Desktop Config:**
 ```json
 {
   "mcpServers": {
@@ -83,16 +116,256 @@ npm install @mcp-consultant-tools/azure-devops
       "args": ["@mcp-consultant-tools/powerplatform"],
       "env": {
         "POWERPLATFORM_URL": "https://yourenv.crm.dynamics.com",
-        "POWERPLATFORM_CLIENT_ID": "your-client-id",
-        "POWERPLATFORM_CLIENT_SECRET": "your-secret",
-        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
+        "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-secret",
+        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id"
       }
     }
   }
 }
 ```
 
-## 🔧 Service Integrations
+#### 2. Schema Customization (Dev/Config Environments Only)
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform-customization
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "powerplatform-customization": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/powerplatform-customization"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenv.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-secret",
+        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "true"
+      }
+    }
+  }
+}
+```
+
+#### 3. Data CRUD Operations (Operational Use)
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform-data
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "powerplatform-data": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/powerplatform-data"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenv.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-secret",
+        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+        "POWERPLATFORM_ENABLE_CREATE": "true",
+        "POWERPLATFORM_ENABLE_UPDATE": "true",
+        "POWERPLATFORM_ENABLE_DELETE": "true"
+      }
+    }
+  }
+}
+```
+
+**📖 Documentation:**
+- **[PowerPlatform Read-Only](docs/documentation/POWERPLATFORM.md)** - Metadata exploration, querying, plugins/workflows
+- **[PowerPlatform Customization](docs/documentation/POWERPLATFORM_CUSTOMIZATION.md)** - Schema changes, entity/attribute creation
+- **[PowerPlatform Data](docs/documentation/POWERPLATFORM_DATA.md)** - Record creation, updates, deletions
+
+### Azure DevOps
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/azure-devops
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "azure-devops": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/azure-devops"],
+      "env": {
+        "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
+        "AZUREDEVOPS_PAT": "your-personal-access-token",
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2"
+      }
+    }
+  }
+}
+```
+**📖 [Full Azure DevOps Documentation](docs/documentation/AZURE_DEVOPS.md)**
+
+### SharePoint Online
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/sharepoint
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "sharepoint": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/sharepoint"],
+      "env": {
+        "SHAREPOINT_SITES": "[{\"id\":\"main\",\"name\":\"Main Site\",\"siteUrl\":\"https://yourtenant.sharepoint.com/sites/yoursite\",\"active\":true}]",
+        "SHAREPOINT_TENANT_ID": "your-azure-tenant-id",
+        "SHAREPOINT_CLIENT_ID": "your-azure-app-client-id",
+        "SHAREPOINT_CLIENT_SECRET": "your-azure-app-secret"
+      }
+    }
+  }
+}
+```
+**📖 [Full SharePoint Documentation](docs/documentation/SHAREPOINT.md)**
+
+### GitHub Enterprise
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/github-enterprise
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "github-enterprise": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/github-enterprise"],
+      "env": {
+        "GHE_REPOS": "[{\"id\":\"my-repo\",\"owner\":\"myorg\",\"repo\":\"MyRepository\",\"defaultBranch\":\"main\",\"active\":true}]",
+        "GHE_TOKEN": "your-github-personal-access-token"
+      }
+    }
+  }
+}
+```
+**📖 [Full GitHub Enterprise Documentation](docs/documentation/GITHUB_ENTERPRISE.md)**
+
+### Application Insights
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/application-insights
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "application-insights": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/application-insights"],
+      "env": {
+        "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod\",\"name\":\"Production\",\"appId\":\"your-app-insights-app-id\",\"active\":true}]",
+        "APPINSIGHTS_TENANT_ID": "your-azure-tenant-id",
+        "APPINSIGHTS_CLIENT_ID": "your-azure-app-client-id",
+        "APPINSIGHTS_CLIENT_SECRET": "your-azure-app-secret"
+      }
+    }
+  }
+}
+```
+**📖 [Full Application Insights Documentation](docs/documentation/APPLICATION_INSIGHTS.md)**
+
+### Log Analytics
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/log-analytics
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "log-analytics": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/log-analytics"],
+      "env": {
+        "LOGANALYTICS_RESOURCES": "[{\"id\":\"prod\",\"name\":\"Production\",\"workspaceId\":\"your-workspace-id\",\"active\":true}]",
+        "LOGANALYTICS_TENANT_ID": "your-azure-tenant-id",
+        "LOGANALYTICS_CLIENT_ID": "your-azure-app-client-id",
+        "LOGANALYTICS_CLIENT_SECRET": "your-azure-app-secret"
+      }
+    }
+  }
+}
+```
+**📖 [Full Log Analytics Documentation](docs/documentation/LOG_ANALYTICS.md)**
+
+### Azure SQL Database
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/azure-sql
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "azure-sql": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/azure-sql"],
+      "env": {
+        "AZURE_SQL_SERVERS": "[{\"id\":\"prod\",\"name\":\"Production\",\"server\":\"yourserver.database.windows.net\",\"port\":1433,\"active\":true,\"databases\":[{\"name\":\"YourDatabase\",\"active\":true}],\"username\":\"your-username\",\"password\":\"your-password\"}]"
+      }
+    }
+  }
+}
+```
+**📖 [Full Azure SQL Documentation](docs/documentation/AZURE_SQL.md)**
+
+### Azure Service Bus
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/service-bus
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "service-bus": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/service-bus"],
+      "env": {
+        "SERVICEBUS_RESOURCES": "[{\"id\":\"prod\",\"name\":\"Production\",\"namespace\":\"yournamespace.servicebus.windows.net\",\"active\":true}]",
+        "SERVICEBUS_TENANT_ID": "your-azure-tenant-id",
+        "SERVICEBUS_CLIENT_ID": "your-azure-app-client-id",
+        "SERVICEBUS_CLIENT_SECRET": "your-azure-app-secret"
+      }
+    }
+  }
+}
+```
+**📖 [Full Service Bus Documentation](docs/documentation/SERVICE_BUS.md)**
+
+### Figma
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/figma
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "figma": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/figma"],
+      "env": {
+        "FIGMA_API_KEY": "your-figma-personal-access-token"
+      }
+    }
+  }
+}
+```
+**📖 [Full Figma Documentation](docs/documentation/FIGMA.md)**
+
+---
+
+## 🔧 Service Integrations (Overview)
 
 ### PowerPlatform/Dataverse
 Entity metadata, plugin inspection, workflows, business rules, data CRUD operations, and customization management.

@@ -376,16 +376,16 @@ The Application Insights credentials can be shared with Log Analytics integratio
 
 ### Configuration Examples
 
-#### Claude Desktop (macOS/Linux)
+#### Claude Desktop (macOS/Linux) - Published Package
 
 Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "mcp-consultant-tools": {
+    "application-insights": {
       "command": "npx",
-      "args": ["mcp-consultant-tools"],
+      "args": ["@mcp-consultant-tools/application-insights"],
       "env": {
         "APPINSIGHTS_AUTH_METHOD": "entra-id",
         "APPINSIGHTS_TENANT_ID": "your-tenant-id",
@@ -398,6 +398,30 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
+#### Claude Desktop - Local Development/Testing
+
+For local testing with your development build:
+
+```json
+{
+  "mcpServers": {
+    "appinsights-local": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp-consultant-tools/packages/application-insights/build/index.js"],
+      "env": {
+        "APPINSIGHTS_AUTH_METHOD": "entra-id",
+        "APPINSIGHTS_TENANT_ID": "your-tenant-id",
+        "APPINSIGHTS_CLIENT_ID": "your-client-id",
+        "APPINSIGHTS_CLIENT_SECRET": "your-client-secret",
+        "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod-api\",\"name\":\"Production API\",\"appId\":\"your-app-id\",\"active\":true}]"
+      }
+    }
+  }
+}
+```
+
+**Note:** Replace `/absolute/path/to/mcp-consultant-tools` with your actual repository path.
+
 #### VS Code Extension
 
 Edit `.vscode/settings.json`:
@@ -405,9 +429,9 @@ Edit `.vscode/settings.json`:
 ```json
 {
   "mcp.servers": {
-    "mcp-consultant-tools": {
+    "application-insights": {
       "command": "npx",
-      "args": ["mcp-consultant-tools"],
+      "args": ["@mcp-consultant-tools/application-insights"],
       "env": {
         "APPINSIGHTS_AUTH_METHOD": "entra-id",
         "APPINSIGHTS_TENANT_ID": "your-tenant-id",

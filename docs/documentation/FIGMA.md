@@ -197,16 +197,16 @@ The integration validates configuration on first use and throws an error if requ
 
 ### Configuration Examples
 
-#### Claude Desktop (macOS/Linux)
+#### Claude Desktop (macOS/Linux) - Published Package
 
 Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "mcp-consultant-tools": {
+    "figma": {
       "command": "npx",
-      "args": ["mcp-consultant-tools"],
+      "args": ["@mcp-consultant-tools/figma"],
       "env": {
         "FIGMA_API_KEY": "figd_your_personal_access_token_here",
         "FIGMA_OAUTH_TOKEN": "",
@@ -217,6 +217,28 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
+#### Claude Desktop - Local Development/Testing
+
+For local testing with your development build:
+
+```json
+{
+  "mcpServers": {
+    "figma-local": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp-consultant-tools/packages/figma/build/index.js"],
+      "env": {
+        "FIGMA_API_KEY": "figd_your_personal_access_token_here",
+        "FIGMA_OAUTH_TOKEN": "",
+        "FIGMA_USE_OAUTH": "false"
+      }
+    }
+  }
+}
+```
+
+**Note:** Replace `/absolute/path/to/mcp-consultant-tools` with your actual repository path.
+
 #### VS Code Extension
 
 Edit `.vscode/settings.json`:
@@ -224,9 +246,9 @@ Edit `.vscode/settings.json`:
 ```json
 {
   "mcp.servers": {
-    "mcp-consultant-tools": {
+    "figma": {
       "command": "npx",
-      "args": ["mcp-consultant-tools"],
+      "args": ["@mcp-consultant-tools/figma"],
       "env": {
         "FIGMA_API_KEY": "figd_your_personal_access_token_here",
         "FIGMA_OAUTH_TOKEN": "",

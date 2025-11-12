@@ -1,15 +1,18 @@
 {
-    "compilerOptions": {
-      "target": "ES2022",
-      "module": "Node16",
-      "moduleResolution": "Node16",
-      "outDir": "./build",
-      "rootDir": "./src",
-      "strict": true,
-      "esModuleInterop": true,
-      "skipLibCheck": true,
-      "forceConsistentCasingInFileNames": true
-    },
-    "include": ["src/**/*"],
-    "exclude": ["node_modules"]
-  }
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/application-insights" },
+    { "path": "./packages/azure-devops" },
+    { "path": "./packages/azure-sql" },
+    { "path": "./packages/figma" },
+    { "path": "./packages/github-enterprise" },
+    { "path": "./packages/log-analytics" },
+    { "path": "./packages/powerplatform" },
+    { "path": "./packages/powerplatform-customization" },
+    { "path": "./packages/powerplatform-data" },
+    { "path": "./packages/service-bus" },
+    { "path": "./packages/sharepoint" },
+    { "path": "./packages/meta" }
+  ]
+}

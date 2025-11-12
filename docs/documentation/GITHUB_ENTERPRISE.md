@@ -263,7 +263,7 @@ GHE_MAX_SEARCH_RESULTS="100"    # Max search results (default: 100)
 ```json
 {
   "mcpServers": {
-    "mcp-consultant-tools": {
+    "github-enterprise": {
       "command": "npx",
       "args": ["-y", "mcp-consultant-tools@latest"],
       "env": {
