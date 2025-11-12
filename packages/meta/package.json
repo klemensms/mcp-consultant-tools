@@ -1,14 +1,28 @@
 {
   "name": "mcp-consultant-tools",
-  "version": "15.0.0",
+  "version": "16.0.0",
   "description": "Complete MCP Consultant Tools package with all integrations: PowerPlatform, Azure DevOps, Figma, Application Insights, Log Analytics, Azure SQL, Service Bus, SharePoint, and GitHub Enterprise",
   "type": "module",
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
-  "bin": { "mcp-consultant-tools": "./build/index.js" },
-  "exports": { ".": { "import": "./build/index.js", "types": "./build/index.d.ts" } },
-  "files": ["build", "README.md"],
-  "scripts": { "build": "tsc", "clean": "rm -rf build *.tsbuildinfo", "prepublishOnly": "npm run build" },
+  "bin": {
+    "mcp-consultant-tools": "./build/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build *.tsbuildinfo",
+    "prepublishOnly": "npm run build"
+  },
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -31,8 +45,14 @@
   ],
   "author": "Michal Sobieraj",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/klemensms/mcp-consultant-tools.git", "directory": "packages/meta" },
-  "engines": { "node": ">=16.0.0" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klemensms/mcp-consultant-tools.git",
+    "directory": "packages/meta"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "dependencies": {
     "@mcp-consultant-tools/core": "^1.0.0",
     "@mcp-consultant-tools/application-insights": "^1.0.0",
@@ -48,5 +68,8 @@
     "@mcp-consultant-tools/sharepoint": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.0.4"
   },
-  "devDependencies": { "@types/node": "^22.10.5", "typescript": "^5.8.2" }
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.8.2"
+  }
 }
