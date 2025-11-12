@@ -2,6 +2,8 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { registerPowerPlatformTools } from "@mcp-consultant-tools/powerplatform";
+import { registerPowerplatformCustomizationTools } from "@mcp-consultant-tools/powerplatform-customization";
+import { registerPowerplatformDataTools } from "@mcp-consultant-tools/powerplatform-data";
 import { registerAzureDevOpsTools } from "@mcp-consultant-tools/azure-devops";
 import { registerFigmaTools } from "@mcp-consultant-tools/figma";
 import { registerApplicationInsightsTools } from "@mcp-consultant-tools/application-insights";
@@ -14,8 +16,10 @@ import { registerGitHubEnterpriseTools } from "@mcp-consultant-tools/github-ente
 /**
  * Register all MCP Consultant Tools
  *
- * This meta-package combines all 10 service packages:
- * - PowerPlatform (metadata, plugins, workflows, business rules, CRUD)
+ * This meta-package combines all 11 service packages (13 total with PowerPlatform split):
+ * - PowerPlatform (read-only: 38 tools, 10 prompts)
+ * - PowerPlatform Customization (schema changes: 40 tools)
+ * - PowerPlatform Data (CRUD: 3 tools)
  * - Azure DevOps (wikis, work items)
  * - Figma (design data extraction)
  * - Application Insights (telemetry, exceptions, performance)
@@ -25,13 +29,28 @@ import { registerGitHubEnterpriseTools } from "@mcp-consultant-tools/github-ente
  * - SharePoint (sites, document libraries, PowerPlatform validation)
  * - GitHub Enterprise (repositories, commits, PRs, code search)
  *
- * Total: 172 tools + 47 prompts
+ * Total: 172 tools + 45 prompts
  */
 export function registerAllTools(server: any) {
   console.error("Registering all MCP Consultant Tools...");
 
   // Register all service tools
   registerPowerPlatformTools(server);
+
+  // PowerPlatform Customization (optional - requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true)
+  try {
+    registerPowerplatformCustomizationTools(server);
+  } catch (error) {
+    console.error("⚠️  PowerPlatform Customization skipped:", (error as Error).message);
+  }
+
+  // PowerPlatform Data (optional - requires POWERPLATFORM_ENABLE_CREATE/UPDATE/DELETE=true)
+  try {
+    registerPowerplatformDataTools(server);
+  } catch (error) {
+    console.error("⚠️  PowerPlatform Data skipped:", (error as Error).message);
+  }
+
   registerAzureDevOpsTools(server);
   registerFigmaTools(server);
   registerApplicationInsightsTools(server);
@@ -42,7 +61,7 @@ export function registerAllTools(server: any) {
   registerGitHubEnterpriseTools(server);
 
   console.error("All tools registered successfully!");
-  console.error("Total integrations: 10 services | 172 tools | 47 prompts");
+  console.error("Total integrations: 11 services | 172 tools | 45 prompts");
 }
 
 // CLI entry point

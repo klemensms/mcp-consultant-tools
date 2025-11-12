@@ -29,25 +29,111 @@ npx mcp-consultant-tools
 
 ### Overview
 
-**v15.0.0** introduced a modular monorepo architecture with 11 independently published packages:
+**v15.0.0** introduced a modular monorepo architecture with **13 independently published packages** (including 3 security-isolated PowerPlatform packages):
 
 ```
 mcp-consultant-tools/
 ├── packages/
-│   ├── core/                  # Shared utilities, MCP helpers, audit logging
-│   ├── powerplatform/         # PowerPlatform/Dataverse (65 tools, 12 prompts)
-│   ├── azure-devops/          # Azure DevOps (18 tools, 6 prompts)
-│   ├── figma/                 # Figma (2 tools, 0 prompts)
-│   ├── application-insights/  # Application Insights (10 tools, 5 prompts)
-│   ├── log-analytics/         # Log Analytics (10 tools, 5 prompts)
-│   ├── azure-sql/             # Azure SQL Database (11 tools, 3 prompts)
-│   ├── service-bus/           # Azure Service Bus (8 tools, 5 prompts)
-│   ├── sharepoint/            # SharePoint Online (15 tools, 5 prompts)
-│   ├── github-enterprise/     # GitHub Enterprise (22 tools, 5 prompts)
-│   └── meta/                  # Complete package (all integrations)
+│   ├── core/                           # Shared utilities, MCP helpers, audit logging
+│   ├── powerplatform/                  # PowerPlatform read-only (38 tools, 10 prompts) ✅ PRODUCTION-SAFE
+│   ├── powerplatform-customization/    # PowerPlatform schema changes (40 tools, 2 prompts) ⚠️ DEV/CONFIG ONLY
+│   ├── powerplatform-data/             # PowerPlatform data CRUD (3 tools, 0 prompts) ⚠️ OPERATIONAL USE
+│   ├── azure-devops/                   # Azure DevOps (18 tools, 6 prompts)
+│   ├── figma/                          # Figma (2 tools, 0 prompts)
+│   ├── application-insights/           # Application Insights (10 tools, 5 prompts)
+│   ├── log-analytics/                  # Log Analytics (10 tools, 5 prompts)
+│   ├── azure-sql/                      # Azure SQL Database (11 tools, 3 prompts)
+│   ├── service-bus/                    # Azure Service Bus (8 tools, 5 prompts)
+│   ├── sharepoint/                     # SharePoint Online (15 tools, 5 prompts)
+│   ├── github-enterprise/              # GitHub Enterprise (22 tools, 5 prompts)
+│   └── meta/                           # Complete package (all integrations)
 ├── package.json               # Workspace root
 └── tsconfig.base.json         # Shared TypeScript config
 ```
+
+### PowerPlatform Security-Focused Split (v16)
+
+**NEW in v16.0.0:** The PowerPlatform integration is split into **3 security-isolated packages** following the principle of least privilege:
+
+| Package | Purpose | Tools | Prompts | Environment Flags | Production-Safe? |
+|---------|---------|-------|---------|-------------------|------------------|
+| **powerplatform** | Read-only access | 38 | 10 | None required | ✅ **YES** - Safe for production |
+| **powerplatform-customization** | Schema changes | 40 | 2 | `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` | ⚠️ **NO** - Dev/config only |
+| **powerplatform-data** | Data CRUD operations | 3 | 0 | `POWERPLATFORM_ENABLE_CREATE/UPDATE/DELETE=true` | ⚠️ **NO** - Operational use |
+
+**Rationale:**
+
+The split isolates dangerous operations into separate packages, allowing users to:
+1. **Production environments**: Install only `powerplatform` (read-only) for zero risk
+2. **Development environments**: Add `powerplatform-customization` for schema changes
+3. **Operational environments**: Add `powerplatform-data` for data management with explicit flags
+
+**Key Benefits:**
+- **Security**: Read-only package cannot modify system or data
+- **Compliance**: Clear separation enables audit trails per capability
+- **Flexibility**: Install only what you need
+- **Safety**: Environment flags prevent accidental operations
+
+**Base Package (powerplatform) - Read-Only Tools:**
+- Entity metadata exploration (attributes, relationships, option sets)
+- Record querying (OData filters, joins)
+- Plugin inspection (assemblies, steps, trace logs)
+- Workflow/Flow analysis (definitions, run history)
+- Business rules inspection
+- Form/view metadata
+- No write operations - production-safe
+
+**Customization Package (powerplatform-customization) - Schema Modification:**
+- Entity creation, updates, deletion
+- Attribute creation, updates, deletion
+- Relationship creation, updates, deletion
+- Option set management
+- Form/view customization
+- Solution management
+- Publishing customizations
+- Requires `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` flag
+
+**Data Package (powerplatform-data) - Record CRUD:**
+- `create-record`: Create new records
+- `update-record`: Update existing records
+- `delete-record`: Delete records (requires explicit confirmation)
+- Each operation requires individual flag: `POWERPLATFORM_ENABLE_CREATE/UPDATE/DELETE=true`
+
+**Usage Patterns:**
+
+```typescript
+// Pattern 1: Production (read-only only)
+import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';
+registerPowerPlatformTools(server); // 38 read-only tools
+
+// Pattern 2: Development (read + customization)
+import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';
+import { registerPowerplatformCustomizationTools } from '@mcp-consultant-tools/powerplatform-customization';
+registerPowerPlatformTools(server);
+registerPowerplatformCustomizationTools(server); // Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true
+
+// Pattern 3: Operational (read + data CRUD)
+import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';
+import { registerPowerplatformDataTools } from '@mcp-consultant-tools/powerplatform-data';
+registerPowerPlatformTools(server);
+registerPowerplatformDataTools(server); // Requires POWERPLATFORM_ENABLE_CREATE/UPDATE/DELETE=true
+
+// Pattern 4: Complete access (all 3 packages)
+import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';
+import { registerPowerplatformCustomizationTools } from '@mcp-consultant-tools/powerplatform-customization';
+import { registerPowerplatformDataTools } from '@mcp-consultant-tools/powerplatform-data';
+registerPowerPlatformTools(server);
+registerPowerplatformCustomizationTools(server);
+registerPowerplatformDataTools(server);
+```
+
+**Migration from v15:**
+
+Existing users of `@mcp-consultant-tools/powerplatform` will automatically get the read-only package in v16. To restore customization or data CRUD capabilities:
+
+1. Install additional packages: `npm install @mcp-consultant-tools/powerplatform-customization @mcp-consultant-tools/powerplatform-data`
+2. Add environment flags: `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` and/or `POWERPLATFORM_ENABLE_CREATE/UPDATE/DELETE=true`
+3. Register tools: Import and call `registerPowerplatformCustomizationTools()` and/or `registerPowerplatformDataTools()`
 
 ### npm Workspaces Configuration
 
@@ -284,11 +370,15 @@ auditLogger.log({
    - figma
    - github-enterprise
    - log-analytics
-   - powerplatform
+   - powerplatform (read-only)
+   - powerplatform-customization (depends on powerplatform)
+   - powerplatform-data (depends on powerplatform)
    - service-bus
    - sharepoint
 3. meta (depends on all services + core)
 ```
+
+**Note:** The `powerplatform-customization` and `powerplatform-data` packages depend on the base `powerplatform` package, so they must be published after it.
 
 **Example: packages/powerplatform/package.json**
 ```json
@@ -347,14 +437,19 @@ cd packages/core
 npm version patch
 npm publish --access public
 
-# 2. Publish service packages (parallel)
-for pkg in application-insights azure-devops azure-sql figma github-enterprise log-analytics powerplatform service-bus sharepoint; do
+# 2. Publish base PowerPlatform package first (other packages depend on it)
+cd packages/powerplatform
+npm version patch
+npm publish --access public
+
+# 3. Publish service packages (parallel) including PowerPlatform extensions
+for pkg in application-insights azure-devops azure-sql figma github-enterprise log-analytics powerplatform-customization powerplatform-data service-bus sharepoint; do
   cd packages/$pkg
   npm version patch
   npm publish --access public
 done
 
-# 3. Publish meta-package last
+# 4. Publish meta-package last
 cd packages/meta
 npm version patch
 npm publish --access public
@@ -380,6 +475,8 @@ packages=(
   "github-enterprise"
   "log-analytics"
   "powerplatform"
+  "powerplatform-customization"
+  "powerplatform-data"
   "service-bus"
   "sharepoint"
   "meta"

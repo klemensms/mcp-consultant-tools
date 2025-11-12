@@ -42,6 +42,8 @@
     "@mcp-consultant-tools/github-enterprise": "^1.0.0",
     "@mcp-consultant-tools/log-analytics": "^1.0.0",
     "@mcp-consultant-tools/powerplatform": "^1.0.0",
+    "@mcp-consultant-tools/powerplatform-customization": "^1.0.0",
+    "@mcp-consultant-tools/powerplatform-data": "^1.0.0",
     "@mcp-consultant-tools/service-bus": "^1.0.0",
     "@mcp-consultant-tools/sharepoint": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.0.4"

@@ -1,0 +1,38 @@
+{
+  "name": "mcp-consultant-tools-monorepo",
+  "version": "15.0.0",
+  "private": true,
+  "description": "Monorepo for MCP Consultant Tools - modular MCP servers for Microsoft ecosystem",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "publish:dry-run": "npm publish --dry-run --workspaces --access public"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "monorepo",
+    "powerplatform",
+    "azure",
+    "devops",
+    "figma",
+    "microsoft"
+  ],
+  "author": "Michal Sobieraj",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klemensms/mcp-consultant-tools.git"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  }
+}

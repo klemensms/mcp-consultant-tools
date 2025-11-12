@@ -3,22 +3,23 @@
 /**
  * @mcp-consultant-tools/azure-devops
  *
- * MCP server for Azure DevOps integration.
- * Provides wikis, work items, and project management capabilities.
+ * MCP server for azure-devops integration.
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { AzureDevOpsService } from "./AzureDevOpsService.js";
 import type { AzureDevOpsConfig } from "./AzureDevOpsService.js";
+import { z } from 'zod';
+import { createErrorResponse, createSuccessResponse } from '@mcp-consultant-tools/core';
 
 /**
- * Register Azure DevOps tools and prompts to an MCP server
+ * Register azure-devops tools and prompts to an MCP server
  * @param server - The MCP server instance
- * @param azureDevOpsService - Optional pre-configured AzureDevOpsService (for testing or custom configs)
+ * @param azuredevopsService - Optional pre-configured AzureDevOpsService (for testing or custom configs)
  */
-export function registerAzureDevOpsTools(server: any, azureDevOpsService?: AzureDevOpsService) {
-  let service: AzureDevOpsService | null = azureDevOpsService || null;
+export function registerAzureDevOpsTools(server: any, azuredevopsService?: AzureDevOpsService) {
+  let service: AzureDevOpsService | null = azuredevopsService || null;
 
   function getAzureDevOpsService(): AzureDevOpsService {
     if (!service) {
@@ -37,7 +38,7 @@ export function registerAzureDevOpsTools(server: any, azureDevOpsService?: Azure
       const config: AzureDevOpsConfig = {
         organization: process.env.AZUREDEVOPS_ORGANIZATION!,
         pat: process.env.AZUREDEVOPS_PAT!,
-        projects: process.env.AZUREDEVOPS_PROJECTS!.split(",").map(p => p.trim()),
+        projects: process.env.AZUREDEVOPS_PROJECTS!.split(",").map(p => p.trim()).filter(p => p),
         apiVersion: process.env.AZUREDEVOPS_API_VERSION || "7.1",
         enableWorkItemWrite: process.env.AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE === "true",
         enableWorkItemDelete: process.env.AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE === "true",
@@ -51,11 +52,813 @@ export function registerAzureDevOpsTools(server: any, azureDevOpsService?: Azure
     return service;
   }
 
-  // TODO: Extract and register all Azure DevOps tools here
-  // Tools include: wikis, work items, and search
-  // This will be filled during meta-package creation phase
+  // ========================================
+  // PROMPTS
+  // ========================================
 
-  console.error("Azure DevOps tools registered (tool extraction pending)");
+  server.prompt(
+    "wiki-search-results",
+    "Search Azure DevOps wiki pages and get formatted results with content snippets",
+    {
+      searchText: z.string().describe("The text to search for"),
+      project: z.string().optional().describe("Optional project filter"),
+      maxResults: z.string().optional().describe("Maximum number of results (default: 25)"),
+    },
+    async (args: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const { searchText, project, maxResults } = args;
+        const maxResultsNum = maxResults ? parseInt(maxResults, 10) : undefined;
+        const result = await service.searchWikiPages(searchText, project, maxResultsNum);
+  
+        let report = `# Wiki Search Results: "${searchText}"\n\n`;
+        report += `**Project:** ${project || 'All allowed projects'}\n`;
+        report += `**Total Results:** ${result.totalCount}\n\n`;
+  
+        if (result.results && result.results.length > 0) {
+          report += `## Results\n\n`;
+          result.results.forEach((item: any, index: number) => {
+            report += `### ${index + 1}. ${item.fileName}\n`;
+            report += `- **Path:** ${item.path}\n`;
+            report += `- **Wiki:** ${item.wikiName}\n`;
+            report += `- **Project:** ${item.project}\n`;
+            if (item.highlights && item.highlights.length > 0) {
+              report += `- **Highlights:**\n`;
+              item.highlights.forEach((highlight: string) => {
+                // Remove HTML tags for cleaner display
+                const cleanHighlight = highlight.replace(/<[^>]*>/g, '');
+                report += `  - ${cleanHighlight}\n`;
+              });
+            }
+            report += `\n`;
+          });
+        } else {
+          report += `No results found for "${searchText}".\n`;
+        }
+  
+        return {
+          messages: [
+            {
+              role: "assistant",
+              content: {
+                type: "text",
+                text: report
+              }
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error(`Error generating wiki search results:`, error);
+        return {
+          messages: [
+            {
+              role: "assistant",
+              content: {
+                type: "text",
+                text: `Error: ${error.message}`
+              }
+            }
+          ]
+        };
+      }
+    }
+  );
+
+  server.prompt(
+    "wiki-page-content",
+    "Get a formatted wiki page with navigation context from Azure DevOps",
+    {
+      project: z.string().describe("The project name"),
+      wikiId: z.string().describe("The wiki identifier"),
+      pagePath: z.string().describe("The path to the page"),
+    },
+    async (args: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const { project, wikiId, pagePath } = args;
+        const result = await service.getWikiPage(project, wikiId, pagePath, true);
+  
+        let report = `# Wiki Page: ${pagePath}\n\n`;
+        report += `**Project:** ${project}\n`;
+        report += `**Wiki:** ${wikiId}\n`;
+        report += `**Git Path:** ${result.gitItemPath || 'N/A'}\n\n`;
+  
+        if (result.subPages && result.subPages.length > 0) {
+          report += `## Sub-pages\n`;
+          result.subPages.forEach((subPage: any) => {
+            report += `- ${subPage.path}\n`;
+          });
+          report += `\n`;
+        }
+  
+        report += `## Content\n\n`;
+        report += result.content || '*No content available*';
+  
+        return {
+          messages: [
+            {
+              role: "assistant",
+              content: {
+                type: "text",
+                text: report
+              }
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error(`Error generating wiki page content:`, error);
+        return {
+          messages: [
+            {
+              role: "assistant",
+              content: {
+                type: "text",
+                text: `Error: ${error.message}`
+              }
+            }
+          ]
+        };
+      }
+    }
+  );
+
+  server.prompt(
+    "work-item-summary",
+    "Get a comprehensive summary of a work item with comments from Azure DevOps",
+    {
+      project: z.string().describe("The project name"),
+      workItemId: z.string().describe("The work item ID"),
+    },
+    async (args: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const { project, workItemId } = args;
+        const workItemIdNum = parseInt(workItemId, 10);
+  
+        // Get work item and comments in parallel
+        const [workItem, comments] = await Promise.all([
+          service.getWorkItem(project, workItemIdNum),
+          service.getWorkItemComments(project, workItemIdNum)
+        ]);
+  
+        const fields = workItem.fields || {};
+  
+        let report = `# Work Item #${workItemId}: ${fields['System.Title'] || 'Untitled'}\n\n`;
+  
+        report += `## Details\n`;
+        report += `- **Type:** ${fields['System.WorkItemType'] || 'N/A'}\n`;
+        report += `- **State:** ${fields['System.State'] || 'N/A'}\n`;
+        report += `- **Assigned To:** ${fields['System.AssignedTo']?.displayName || 'Unassigned'}\n`;
+        report += `- **Created By:** ${fields['System.CreatedBy']?.displayName || 'N/A'}\n`;
+        report += `- **Created Date:** ${fields['System.CreatedDate'] || 'N/A'}\n`;
+        report += `- **Changed Date:** ${fields['System.ChangedDate'] || 'N/A'}\n`;
+        report += `- **Area Path:** ${fields['System.AreaPath'] || 'N/A'}\n`;
+        report += `- **Iteration Path:** ${fields['System.IterationPath'] || 'N/A'}\n`;
+        if (fields['System.Tags']) {
+          report += `- **Tags:** ${fields['System.Tags']}\n`;
+        }
+        report += `\n`;
+  
+        if (fields['System.Description']) {
+          report += `## Description\n${fields['System.Description']}\n\n`;
+        }
+  
+        if (fields['Microsoft.VSTS.TCM.ReproSteps']) {
+          report += `## Repro Steps\n${fields['Microsoft.VSTS.TCM.ReproSteps']}\n\n`;
+        }
+  
+        if (workItem.relations && workItem.relations.length > 0) {
+          report += `## Related Items\n`;
+          workItem.relations.forEach((relation: any) => {
+            report += `- ${relation.rel}: ${relation.url}\n`;
+          });
+          report += `\n`;
+        }
+  
+        if (comments.comments && comments.comments.length > 0) {
+          report += `## Comments (${comments.totalCount})\n\n`;
+          comments.comments.forEach((comment: any) => {
+            report += `### ${comment.createdBy} - ${new Date(comment.createdDate).toLocaleString()}\n`;
+            report += `${comment.text}\n\n`;
+          });
+        }
+  
+        return {
+          messages: [
+            {
+              role: "assistant",
+              content: {
+                type: "text",
+                text: report
+              }
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error(`Error generating work item summary:`, error);
+        return {
+          messages: [
+            {
+              role: "assistant",
+              content: {
+                type: "text",
+                text: `Error: ${error.message}`
+              }
+            }
+          ]
+        };
+      }
+    }
+  );
+
+  server.prompt(
+    "work-items-query-report",
+    "Execute a WIQL query and get formatted results grouped by state/type",
+    {
+      project: z.string().describe("The project name"),
+      wiql: z.string().describe("The WIQL query string"),
+      maxResults: z.string().optional().describe("Maximum number of results (default: 200)"),
+    },
+    async (args: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const { project, wiql, maxResults } = args;
+        const maxResultsNum = maxResults ? parseInt(maxResults, 10) : undefined;
+        const result = await service.queryWorkItems(project, wiql, maxResultsNum);
+  
+        let report = `# Work Items Query Results\n\n`;
+        report += `**Project:** ${project}\n`;
+        report += `**Total Results:** ${result.totalCount}\n\n`;
+  
+        if (result.workItems && result.workItems.length > 0) {
+          // Group by state
+          const groupedByState = new Map<string, any[]>();
+          result.workItems.forEach((item: any) => {
+            const state = item.fields['System.State'] || 'Unknown';
+            if (!groupedByState.has(state)) {
+              groupedByState.set(state, []);
+            }
+            groupedByState.get(state)!.push(item);
+          });
+  
+          // Sort states: Active, Resolved, Closed, others
+          const stateOrder = ['Active', 'New', 'Resolved', 'Closed'];
+          const sortedStates = Array.from(groupedByState.keys()).sort((a, b) => {
+            const aIndex = stateOrder.indexOf(a);
+            const bIndex = stateOrder.indexOf(b);
+            if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
+            if (aIndex === -1) return 1;
+            if (bIndex === -1) return -1;
+            return aIndex - bIndex;
+          });
+  
+          sortedStates.forEach(state => {
+            const items = groupedByState.get(state)!;
+            report += `## ${state} (${items.length})\n\n`;
+            items.forEach((item: any) => {
+              const fields = item.fields;
+              report += `- **#${item.id}**: ${fields['System.Title'] || 'Untitled'}\n`;
+              report += `  - Type: ${fields['System.WorkItemType'] || 'N/A'}`;
+              report += `, Assigned: ${fields['System.AssignedTo']?.displayName || 'Unassigned'}\n`;
+            });
+            report += `\n`;
+          });
+        } else {
+          report += `No work items found matching the query.\n`;
+        }
+  
+        return {
+          messages: [
+            {
+              role: "assistant",
+              content: {
+                type: "text",
+                text: report
+              }
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error(`Error generating work items query report:`, error);
+        return {
+          messages: [
+            {
+              role: "assistant",
+              content: {
+                type: "text",
+                text: `Error: ${error.message}`
+              }
+            }
+          ]
+        };
+      }
+    }
+  );
+
+  // ========================================
+  // TOOLS
+  // ========================================
+
+  server.tool(
+    "get-wikis",
+    "Get all wikis in an Azure DevOps project",
+    {
+      project: z.string().describe("The project name"),
+    },
+    async ({ project }: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const result = await service.getWikis(project);
+  
+        const resultStr = JSON.stringify(result, null, 2);
+  
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Wikis in project '${project}':\n\n${resultStr}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error getting wikis:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to get wikis: ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "search-wiki-pages",
+    "Search wiki pages across Azure DevOps projects",
+    {
+      searchText: z.string().describe("The text to search for"),
+      project: z.string().optional().describe("Optional project filter"),
+      maxResults: z.number().optional().describe("Maximum number of results (default: 25)"),
+    },
+    async ({ searchText, project, maxResults }: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const result = await service.searchWikiPages(searchText, project, maxResults);
+  
+        const resultStr = JSON.stringify(result, null, 2);
+  
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Wiki search results for '${searchText}':\n\n${resultStr}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error searching wiki pages:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to search wiki pages: ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "get-wiki-page",
+    "Get a specific wiki page with content from Azure DevOps",
+    {
+      project: z.string().describe("The project name"),
+      wikiId: z.string().describe("The wiki identifier (ID or name)"),
+      pagePath: z.string().describe("The path to the page (e.g., '/Setup/Authentication')"),
+      includeContent: z.boolean().optional().describe("Include page content (default: true)"),
+    },
+    async ({ project, wikiId, pagePath, includeContent }: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const result = await service.getWikiPage(project, wikiId, pagePath, includeContent ?? true);
+  
+        const resultStr = JSON.stringify(result, null, 2);
+  
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Wiki page '${pagePath}':\n\n${resultStr}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error getting wiki page:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to get wiki page: ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "create-wiki-page",
+    "Create a new wiki page in Azure DevOps (requires AZUREDEVOPS_ENABLE_WIKI_WRITE=true)",
+    {
+      project: z.string().describe("The project name"),
+      wikiId: z.string().describe("The wiki identifier"),
+      pagePath: z.string().describe("The path for the new page (e.g., '/Setup/NewGuide')"),
+      content: z.string().describe("The markdown content for the page"),
+    },
+    async ({ project, wikiId, pagePath, content }: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const result = await service.createWikiPage(project, wikiId, pagePath, content);
+  
+        const resultStr = JSON.stringify(result, null, 2);
+  
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Created wiki page '${pagePath}':\n\n${resultStr}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error creating wiki page:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to create wiki page: ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "update-wiki-page",
+    "Update an existing wiki page in Azure DevOps (requires AZUREDEVOPS_ENABLE_WIKI_WRITE=true)",
+    {
+      project: z.string().describe("The project name"),
+      wikiId: z.string().describe("The wiki identifier"),
+      pagePath: z.string().describe("The path to the page"),
+      content: z.string().describe("The updated markdown content"),
+      version: z.string().optional().describe("The ETag/version for optimistic concurrency"),
+    },
+    async ({ project, wikiId, pagePath, content, version }: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const result = await service.updateWikiPage(project, wikiId, pagePath, content, version);
+  
+        const resultStr = JSON.stringify(result, null, 2);
+  
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Updated wiki page '${pagePath}':\n\n${resultStr}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error updating wiki page:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to update wiki page: ${error.message}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "azuredevops-str-replace-wiki-page",
+    "Replace a specific string in an Azure DevOps wiki page without rewriting entire content. More efficient than update-wiki-page for small changes. (requires AZUREDEVOPS_ENABLE_WIKI_WRITE=true)",
+    {
+      project: z.string().describe("The project name"),
+      wikiId: z.string().describe("The wiki identifier (ID or name)"),
+      pagePath: z.string().describe("The path to the wiki page (e.g., '/SharePoint-Online/04-DEV-Configuration')"),
+      old_str: z.string().describe("The exact string to replace (must be unique unless replace_all is true)"),
+      new_str: z.string().describe("The replacement string"),
+      replace_all: z.boolean().optional().describe("If true, replace all occurrences. If false (default), old_str must be unique in the page."),
+      description: z.string().optional().describe("Optional description of the change (for audit logging)")
+    },
+    async ({ project, wikiId, pagePath, old_str, new_str, replace_all, description }: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const result = await service.strReplaceWikiPage(
+          project,
+          wikiId,
+          pagePath,
+          old_str,
+          new_str,
+          replace_all ?? false,
+          description
+        );
+  
+        const resultStr = JSON.stringify(result, null, 2);
+  
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Successfully replaced "${old_str}" with "${new_str}" in wiki page '${pagePath}' (${result.occurrences} occurrence(s)):\n\n${resultStr}\n\nDiff:\n${result.diff}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error replacing text in wiki page:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to replace text in wiki page: ${error.message}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "get-work-item",
+    "Get a work item by ID with full details from Azure DevOps",
+    {
+      project: z.string().describe("The project name"),
+      workItemId: z.number().describe("The work item ID"),
+    },
+    async ({ project, workItemId }: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const result = await service.getWorkItem(project, workItemId);
+  
+        const resultStr = JSON.stringify(result, null, 2);
+  
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Work item ${workItemId}:\n\n${resultStr}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error getting work item:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to get work item: ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "query-work-items",
+    "Query work items using WIQL (Work Item Query Language) in Azure DevOps",
+    {
+      project: z.string().describe("The project name"),
+      wiql: z.string().describe("The WIQL query string (e.g., \"SELECT [System.Id], [System.Title] FROM WorkItems WHERE [System.State] = 'Active'\")"),
+      maxResults: z.number().optional().describe("Maximum number of results (default: 200)"),
+    },
+    async ({ project, wiql, maxResults }: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const result = await service.queryWorkItems(project, wiql, maxResults);
+  
+        const resultStr = JSON.stringify(result, null, 2);
+  
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Work items query results:\n\n${resultStr}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error querying work items:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to query work items: ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "get-work-item-comments",
+    "Get comments/discussion for a work item in Azure DevOps",
+    {
+      project: z.string().describe("The project name"),
+      workItemId: z.number().describe("The work item ID"),
+    },
+    async ({ project, workItemId }: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const result = await service.getWorkItemComments(project, workItemId);
+  
+        const resultStr = JSON.stringify(result, null, 2);
+  
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Comments for work item ${workItemId}:\n\n${resultStr}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error getting work item comments:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to get work item comments: ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "add-work-item-comment",
+    "Add a comment to a work item in Azure DevOps (requires AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true)",
+    {
+      project: z.string().describe("The project name"),
+      workItemId: z.number().describe("The work item ID"),
+      commentText: z.string().describe("The comment text (supports markdown)"),
+    },
+    async ({ project, workItemId, commentText }: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const result = await service.addWorkItemComment(project, workItemId, commentText);
+  
+        const resultStr = JSON.stringify(result, null, 2);
+  
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Added comment to work item ${workItemId}:\n\n${resultStr}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error adding work item comment:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to add work item comment: ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "update-work-item",
+    "Update a work item in Azure DevOps using JSON Patch operations (requires AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true)",
+    {
+      project: z.string().describe("The project name"),
+      workItemId: z.number().describe("The work item ID"),
+      patchOperations: z.array(z.object({
+        op: z.string().describe("The operation type (e.g., 'add', 'replace', 'remove')"),
+        path: z.string().describe("The field path (e.g., '/fields/System.State')"),
+        value: z.any().optional().describe("The value to set (not required for 'remove' operation)")
+      })).describe("Array of JSON Patch operations"),
+    },
+    async ({ project, workItemId, patchOperations }: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const result = await service.updateWorkItem(project, workItemId, patchOperations);
+  
+        const resultStr = JSON.stringify(result, null, 2);
+  
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Updated work item ${workItemId}:\n\n${resultStr}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error updating work item:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to update work item: ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "create-work-item",
+    "Create a new work item in Azure DevOps (requires AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true)",
+    {
+      project: z.string().describe("The project name"),
+      workItemType: z.string().describe("The work item type (e.g., 'Bug', 'Task', 'User Story')"),
+      fields: z.record(z.any()).describe("Object with field values (e.g., {\"System.Title\": \"Bug title\", \"System.Description\": \"Details\"})"),
+    },
+    async ({ project, workItemType, fields }: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const result = await service.createWorkItem(project, workItemType, fields);
+  
+        const resultStr = JSON.stringify(result, null, 2);
+  
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Created work item:\n\n${resultStr}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error creating work item:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to create work item: ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "delete-work-item",
+    "Delete a work item in Azure DevOps (requires AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE=true)",
+    {
+      project: z.string().describe("The project name"),
+      workItemId: z.number().describe("The work item ID"),
+    },
+    async ({ project, workItemId }: any) => {
+      try {
+        const service = getAzureDevOpsService();
+        const result = await service.deleteWorkItem(project, workItemId);
+  
+        const resultStr = JSON.stringify(result, null, 2);
+  
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Deleted work item ${workItemId}:\n\n${resultStr}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error deleting work item:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to delete work item: ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  console.error("azure-devops tools registered: 13 tools, 4 prompts");
+
 }
 
 /**
@@ -76,6 +879,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     version: "1.0.0",
     capabilities: {
       tools: {},
+      prompts: {},
     },
   });
 
@@ -83,7 +887,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
   const transport = new StdioServerTransport();
   server.connect(transport).catch((error: Error) => {
-    console.error("Failed to start Azure DevOps MCP server:", error);
+    console.error("Failed to start @mcp-consultant-tools/azure-devops MCP server:", error);
     process.exit(1);
   });
 

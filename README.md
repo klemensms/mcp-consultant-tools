@@ -7,7 +7,7 @@
 
 ## 🎯 Overview
 
-MCP Consultant Tools v15 is a **modular monorepo** with 11 independently published npm packages under the `@mcp-consultant-tools` organization. Use individual packages for specific integrations or install the complete meta-package for everything.
+MCP Consultant Tools v15 is a **modular monorepo** with **13 independently published npm packages** under the `@mcp-consultant-tools` organization. Use individual packages for specific integrations or install the complete meta-package for everything.
 
 **Total Capabilities:** 172 tools + 47 prompts across 10 service integrations
 
@@ -17,20 +17,40 @@ MCP Consultant Tools v15 is a **modular monorepo** with 11 independently publish
 - **[@mcp-consultant-tools/core](packages/core)** - Shared utilities, MCP helpers, audit logging
 
 ### Service Packages (Standalone)
-| Package | Integration | Tools | Prompts | Size |
-|---------|-------------|-------|---------|------|
-| **[@mcp-consultant-tools/powerplatform](packages/powerplatform)** | PowerPlatform/Dataverse | 65 | 12 | 328KB |
-| **[@mcp-consultant-tools/sharepoint](packages/sharepoint)** | SharePoint Online | 15 | 5 | 188KB |
-| **[@mcp-consultant-tools/github-enterprise](packages/github-enterprise)** | GitHub Enterprise | 22 | 5 | 152KB |
-| **[@mcp-consultant-tools/figma](packages/figma)** | Figma Design | 2 | 0 | 312KB |
-| **[@mcp-consultant-tools/service-bus](packages/service-bus)** | Azure Service Bus | 8 | 5 | 128KB |
-| **[@mcp-consultant-tools/azure-sql](packages/azure-sql)** | Azure SQL Database | 11 | 3 | 108KB |
-| **[@mcp-consultant-tools/log-analytics](packages/log-analytics)** | Log Analytics | 10 | 5 | 92KB |
-| **[@mcp-consultant-tools/azure-devops](packages/azure-devops)** | Azure DevOps | 18 | 6 | 76KB |
-| **[@mcp-consultant-tools/application-insights](packages/application-insights)** | Application Insights | 10 | 5 | 76KB |
+| Package | Integration | Tools | Prompts | Size | Security |
+|---------|-------------|-------|---------|------|----------|
+| **[@mcp-consultant-tools/powerplatform](packages/powerplatform)** | PowerPlatform/Dataverse (Read-Only) | 38 | 10 | 280KB | ✅ Production-Safe |
+| **[@mcp-consultant-tools/powerplatform-customization](packages/powerplatform-customization)** | PowerPlatform Schema Changes | 40 | 0 | 295KB | ⚠️ Dev/Config Only |
+| **[@mcp-consultant-tools/powerplatform-data](packages/powerplatform-data)** | PowerPlatform Data CRUD | 3 | 0 | 185KB | ⚠️ Requires Explicit Permissions |
+| **[@mcp-consultant-tools/sharepoint](packages/sharepoint)** | SharePoint Online | 15 | 5 | 188KB | ✅ Read-Only |
+| **[@mcp-consultant-tools/github-enterprise](packages/github-enterprise)** | GitHub Enterprise | 22 | 5 | 152KB | ✅ Read-Only (default) |
+| **[@mcp-consultant-tools/figma](packages/figma)** | Figma Design | 2 | 0 | 312KB | ✅ Read-Only |
+| **[@mcp-consultant-tools/service-bus](packages/service-bus)** | Azure Service Bus | 8 | 5 | 128KB | ✅ Read-Only (peek) |
+| **[@mcp-consultant-tools/azure-sql](packages/azure-sql)** | Azure SQL Database | 11 | 3 | 108KB | ✅ Read-Only |
+| **[@mcp-consultant-tools/log-analytics](packages/log-analytics)** | Log Analytics | 10 | 5 | 92KB | ✅ Read-Only |
+| **[@mcp-consultant-tools/azure-devops](packages/azure-devops)** | Azure DevOps | 18 | 6 | 76KB | ✅ Read-Only (default) |
+| **[@mcp-consultant-tools/application-insights](packages/application-insights)** | Application Insights | 10 | 5 | 76KB | ✅ Read-Only |
 
 ### Meta-Package (All Services)
 - **[mcp-consultant-tools](packages/meta)** - Complete package with all integrations
+
+## 🔒 PowerPlatform Security-Focused Split
+
+The PowerPlatform integration is split into **3 security-isolated packages** following the principle of least privilege:
+
+| Package | Use Case | Tools | Environment Flags | Production-Safe? |
+|---------|----------|-------|-------------------|------------------|
+| **powerplatform** | Read-only access | 38 | None required | ✅ **YES** - Safe for production |
+| **powerplatform-customization** | Schema changes (entities, attributes, forms, solutions) | 40 | `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` | ⚠️ **NO** - Dev/config environments only |
+| **powerplatform-data** | Data CRUD operations | 3 | `POWERPLATFORM_ENABLE_CREATE/UPDATE/DELETE=true` | ⚠️ **NO** - Operational use with explicit permissions |
+
+**Why split?**
+- **Security**: Install only the capabilities you need
+- **Safety**: Reduce risk of accidental schema changes or data modifications in production
+- **Compliance**: Easier to audit and approve specific capabilities
+- **Flexibility**: Mix and match based on environment needs
+
+**Migration**: Existing `@mcp-consultant-tools/powerplatform` users: Your package now contains only read-only tools. To access schema changes or data CRUD, install the additional packages.
 
 ## 🚀 Quick Start
 
@@ -79,6 +99,10 @@ npm install @mcp-consultant-tools/azure-devops
 Each integration can be installed and configured independently. Choose only what you need:
 
 ### PowerPlatform/Dataverse
+
+The PowerPlatform integration is split into **3 security-isolated packages**:
+
+#### 1. Read-Only Access (Production-Safe)
 ```bash
 npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform
 ```
@@ -100,7 +124,61 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform
   }
 }
 ```
-**📖 [Full PowerPlatform Documentation](docs/documentation/POWERPLATFORM.md)**
+
+#### 2. Schema Customization (Dev/Config Environments Only)
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform-customization
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "powerplatform-customization": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/powerplatform-customization"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenv.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-secret",
+        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "true"
+      }
+    }
+  }
+}
+```
+
+#### 3. Data CRUD Operations (Operational Use)
+```bash
+npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform-data
+```
+
+**Claude Desktop Config:**
+```json
+{
+  "mcpServers": {
+    "powerplatform-data": {
+      "command": "npx",
+      "args": ["@mcp-consultant-tools/powerplatform-data"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenv.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-secret",
+        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
+        "POWERPLATFORM_ENABLE_CREATE": "true",
+        "POWERPLATFORM_ENABLE_UPDATE": "true",
+        "POWERPLATFORM_ENABLE_DELETE": "true"
+      }
+    }
+  }
+}
+```
+
+**📖 Documentation:**
+- **[PowerPlatform Read-Only](docs/documentation/POWERPLATFORM.md)** - Metadata exploration, querying, plugins/workflows
+- **[PowerPlatform Customization](docs/documentation/POWERPLATFORM_CUSTOMIZATION.md)** - Schema changes, entity/attribute creation
+- **[PowerPlatform Data](docs/documentation/POWERPLATFORM_DATA.md)** - Record creation, updates, deletions
 
 ### Azure DevOps
 ```bash
