@@ -5,7 +5,7 @@
  * and loading environment variables across all packages.
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export interface MCPServerOptions {
   name: string;
@@ -20,8 +20,8 @@ export interface MCPServerOptions {
 /**
  * Create an MCP server with standard capabilities
  */
-export function createMcpServer(options: MCPServerOptions): Server {
-  return new Server(
+export function createMcpServer(options: MCPServerOptions): McpServer {
+  return new McpServer(
     {
       name: options.name,
       version: options.version
@@ -36,30 +36,24 @@ export function createMcpServer(options: MCPServerOptions): Server {
 }
 
 /**
- * Create a function that loads environment variables with stdout suppression
+ * Create a function that prepares environment loading (no-op for MCP usage)
  *
  * CRITICAL: The MCP protocol requires clean JSON-only output on stdout.
- * dotenv.config() writes to stdout, which corrupts the protocol.
- * This function suppresses stdout during config loading.
+ * dotenv has been removed to avoid ES module compatibility issues.
+ *
+ * Environment variables are passed by the MCP client (Claude Desktop config)
+ * and are available directly in process.env.
+ *
+ * For local testing with .env files, use: node --env-file=.env build/index.js
  *
  * Usage:
  * const loadEnv = createEnvLoader();
- * loadEnv(); // Safe - no stdout pollution
+ * loadEnv(); // No-op - kept for backward compatibility
  */
 export function createEnvLoader(): () => void {
   return () => {
-    const originalWrite = process.stdout.write;
-    try {
-      // Suppress stdout during dotenv load
-      process.stdout.write = () => true as any;
-
-      // Dynamically import dotenv to avoid top-level side effects
-      const dotenv = require('dotenv');
-      dotenv.config();
-    } finally {
-      // Always restore stdout
-      process.stdout.write = originalWrite;
-    }
+    // No-op: Environment variables are set by MCP client
+    // dotenv removed to avoid require() in ES modules
   };
 }
 
