@@ -1122,6 +1122,492 @@ To handle large plugin assemblies (25000+ tokens), the plugin tools use aggressi
 
 **Result**: Response size typically reduced by 70-80% compared to unfiltered queries, making large assemblies manageable within token limits.
 
+## Plugin Deployment Architecture
+
+### Overview
+
+The PowerPlatform Customization package (`@mcp-consultant-tools/powerplatform-customization`) provides **5 specialized tools** for automated plugin deployment to Dynamics 365/Dataverse environments. These tools enable AI-assisted deployment workflows, eliminating the need for manual Plugin Registration Tool operations.
+
+**Key Capabilities:**
+- Upload compiled .NET DLLs from local file system
+- Automatic assembly version extraction from PE headers
+- Polling mechanism for plugin type discovery (15 attempts × 2 seconds)
+- Plugin step registration on SDK messages with stage/mode configuration
+- Pre/Post image registration for plugin context
+- Orchestration tool for end-to-end deployment
+
+**Security Model:**
+- Requires `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` environment flag
+- All operations require System Customizer or System Administrator role
+- Plugins deployed with Sandbox isolation mode (isolationmode: 2)
+- All operations audited with assembly names and timestamps
+- 16MB assembly size limit enforced
+
+### Plugin Deployment Tools
+
+**Location:** `packages/powerplatform-customization/src/index.ts` (tools) and `packages/powerplatform-customization/src/PowerPlatformService.ts` (service methods)
+
+1. **create-plugin-assembly** - Upload and register new plugin assembly
+   - Reads DLL from local file system using dynamic `fs/promises` import
+   - Validates MZ header (PE file signature) to ensure valid .NET assembly
+   - Encodes DLL to base64 for Dataverse Web API transfer
+   - Extracts assembly version from PE header via `extractAssemblyVersion()` helper
+   - POSTs to `/api/data/v9.2/pluginassemblies` with content, name, version, culture, public key token
+   - Polls for plugin types (15 attempts, 2-second intervals, 30-second max timeout)
+   - Adds assembly to solution if `solutionUniqueName` provided
+   - Returns assembly ID, discovered plugin types, and deployment summary
+
+2. **update-plugin-assembly** - Update existing assembly with new DLL
+   - Reads updated DLL from file system
+   - Extracts new version number from PE header
+   - PATCHes to `/api/data/v9.2/pluginassemblies({id})` with updated content and version
+   - Existing step registrations automatically use new code (no re-registration needed)
+   - Adds to solution if specified
+
+3. **register-plugin-step** - Register plugin step on SDK message
+   - Resolves SDK message and filter IDs using `resolveSdkMessageAndFilter()` helper
+   - Maps enum values: PreValidation (10), PreOperation (20), PostOperation (40)
+   - Maps execution mode: Synchronous (0), Asynchronous (1)
+   - POSTs to `/api/data/v9.2/sdkmessageprocessingsteps` with configuration
+   - Supports filtering attributes for Update/Delete steps (performance optimization)
+   - Adds step to solution if specified
+   - Returns step ID for image registration
+
+4. **register-plugin-image** - Register pre/post image for plugin step
+   - Maps image type enum: PreImage (0), PostImage (1), Both (2)
+   - POSTs to `/api/data/v9.2/sdkmessageprocessingstepimages` with configuration
+   - Configures attributes to include in image snapshot
+   - Sets entity alias for plugin code access (e.g., "PreImage", "PostImage")
+   - Returns image ID
+
+5. **deploy-plugin-complete** - **Orchestration tool** for end-to-end deployment
+   - Uploads or updates assembly based on `updateExisting` flag
+   - Iterates through `stepConfigurations` array to register all steps
+   - For each step, registers associated images from nested `images` array
+   - Automatically publishes customizations if `publishAfterDeployment=true` (default)
+   - Returns comprehensive deployment summary with assembly ID, plugin types, step IDs, image IDs, and publishing status
+   - **Recommended approach** for complete plugin deployments
+
+### Service Implementation
+
+**File:** `packages/powerplatform-customization/src/PowerPlatformService.ts`
+
+**Core Helper Methods:**
+
+1. **extractAssemblyVersion()** - PE header parsing for .NET assembly version extraction
+   ```typescript
+   async extractAssemblyVersion(assemblyPath: string): Promise<string> {
+     const fs = await import('fs/promises');
+     const normalizedPath = assemblyPath.replace(/\\/g, '/'); // WSL compatibility
+     const buffer = await fs.readFile(normalizedPath);
+
+     // Validate MZ signature (PE file marker at offset 0)
+     if (buffer.length < 2 || buffer[0] !== 0x4D || buffer[1] !== 0x5A) {
+       return "1.0.0.0"; // Fallback for invalid PE files
+     }
+
+     // Read PE header offset from bytes 60-63 (little-endian DWORD)
+     const peHeaderOffset = buffer.readUInt32LE(60);
+
+     // Navigate to Optional Header → Data Directories → Resource Directory
+     // Extract version resource from RT_VERSION structure
+     // Parse VS_VERSIONINFO and VS_FIXEDFILEINFO structures
+     // Return formatted version string (e.g., "1.2.3.4")
+   }
+   ```
+   - Graceful fallback to "1.0.0.0" if PE parsing fails
+   - Handles invalid files, missing version resources, corrupted headers
+
+2. **resolveSdkMessageAndFilter()** - Reusable helper for message/filter ID lookup
+   ```typescript
+   async resolveSdkMessageAndFilter(
+     messageName: string,
+     entityName: string
+   ): Promise<{ messageId: string; filterId: string }> {
+     // Query 1: GET /sdkmessages?$filter=name eq '{messageName}'
+     const messageId = await this.querySdkMessage(messageName);
+
+     // Query 2: GET /sdkmessagefilters?$filter=...
+     //          _sdkmessageid_value eq '{messageId}' and
+     //          primaryobjecttypecode eq '{entityName}'
+     const filterId = await this.querySdkMessageFilter(messageId, entityName);
+
+     return { messageId, filterId };
+   }
+   ```
+   - Avoids code duplication across `registerPluginStep()` and potential future tools
+   - Handles message not found and filter not found errors with clear messages
+
+**Core Service Methods:**
+
+3. **createPluginAssembly()** - Upload DLL with polling for plugin types
+   ```typescript
+   async createPluginAssembly(options: {
+     assemblyPath: string;
+     assemblyName: string;
+     version?: string;
+     culture?: string;
+     publicKeyToken?: string;
+     description?: string;
+     solutionUniqueName?: string;
+   }): Promise<{
+     assemblyId: string;
+     pluginTypes: Array<{ id: string; typename: string; friendlyname: string }>;
+     message: string;
+   }> {
+     // 1. Read and validate DLL
+     const fs = await import('fs/promises');
+     const normalizedPath = options.assemblyPath.replace(/\\/g, '/');
+     const buffer = await fs.readFile(normalizedPath);
+
+     // 2. Validate file size (16MB Dataverse limit)
+     if (buffer.length > 16 * 1024 * 1024) {
+       throw new Error('Assembly exceeds 16MB size limit');
+     }
+
+     // 3. Validate MZ header
+     if (buffer[0] !== 0x4D || buffer[1] !== 0x5A) {
+       throw new Error('Invalid .NET assembly (missing MZ header)');
+     }
+
+     // 4. Extract version if not provided
+     const version = options.version || await this.extractAssemblyVersion(options.assemblyPath);
+
+     // 5. POST to /pluginassemblies
+     const response = await this.makeAuthenticatedRequest({
+       method: 'POST',
+       url: `${this.config.url}/api/data/v9.2/pluginassemblies`,
+       data: {
+         content: buffer.toString('base64'),
+         name: options.assemblyName,
+         version: version,
+         culture: options.culture || 'neutral',
+         publickeytoken: options.publicKeyToken || null,
+         isolationmode: 2, // Sandbox (required for D365)
+         description: options.description || ''
+       }
+     });
+
+     const assemblyId = response.data.pluginassemblyid;
+
+     // 6. Poll for plugin types (15 attempts, 2-second intervals)
+     let pluginTypes = [];
+     for (let attempt = 1; attempt <= 15; attempt++) {
+       await new Promise(resolve => setTimeout(resolve, 2000));
+
+       pluginTypes = await this.queryPluginTypes(assemblyId);
+       if (pluginTypes.length > 0) break;
+
+       if (attempt === 15) {
+         console.error(`Warning: Plugin types not found after ${attempt} attempts (30 seconds)`);
+       }
+     }
+
+     // 7. Add to solution if specified
+     if (options.solutionUniqueName) {
+       await this.addComponentToSolution(
+         options.solutionUniqueName,
+         assemblyId,
+         91 // PluginAssembly component type
+       );
+     }
+
+     return { assemblyId, pluginTypes, message: 'Plugin assembly created successfully' };
+   }
+   ```
+
+4. **updatePluginAssembly()** - Update existing assembly
+   ```typescript
+   async updatePluginAssembly(
+     assemblyId: string,
+     content: string, // base64-encoded DLL
+     version: string,
+     solutionUniqueName?: string
+   ): Promise<void> {
+     // PATCH to /pluginassemblies({id})
+     // Only updates content and version fields
+     // Existing step registrations automatically use new code
+   }
+   ```
+
+5. **registerPluginStep()** - Register step on SDK message
+   ```typescript
+   async registerPluginStep(options: {
+     pluginTypeId: string;
+     messageName: string;
+     entityName: string;
+     stage: number; // 10, 20, or 40
+     mode: number; // 0 or 1
+     rank?: number;
+     filteringAttributes?: string;
+     stepName?: string;
+     description?: string;
+     solutionUniqueName?: string;
+   }): Promise<{ stepId: string }> {
+     // 1. Resolve message and filter IDs
+     const { messageId, filterId } = await this.resolveSdkMessageAndFilter(
+       options.messageName,
+       options.entityName
+     );
+
+     // 2. Generate step name if not provided
+     const stepName = options.stepName ||
+       `${options.messageName} of ${options.entityName}`;
+
+     // 3. POST to /sdkmessageprocessingsteps
+     const response = await this.makeAuthenticatedRequest({
+       method: 'POST',
+       url: `${this.config.url}/api/data/v9.2/sdkmessageprocessingsteps`,
+       data: {
+         name: stepName,
+         'plugintypeid@odata.bind': `/plugintypes(${options.pluginTypeId})`,
+         'sdkmessageid@odata.bind': `/sdkmessages(${messageId})`,
+         'sdkmessagefilterid@odata.bind': `/sdkmessagefilters(${filterId})`,
+         stage: options.stage,
+         mode: options.mode,
+         rank: options.rank || 1,
+         filteringattributes: options.filteringAttributes || '',
+         description: options.description || ''
+       }
+     });
+
+     const stepId = response.data.sdkmessageprocessingstepid;
+
+     // 4. Add to solution if specified
+     if (options.solutionUniqueName) {
+       await this.addComponentToSolution(
+         options.solutionUniqueName,
+         stepId,
+         92 // SDKMessageProcessingStep component type
+       );
+     }
+
+     return { stepId };
+   }
+   ```
+
+6. **registerPluginImage()** - Register pre/post image
+   ```typescript
+   async registerPluginImage(options: {
+     stepId: string;
+     imageName: string;
+     imageType: number; // 0, 1, or 2
+     attributes: string; // comma-separated
+     entityAlias: string;
+     messagePropertyName?: string;
+   }): Promise<{ imageId: string }> {
+     // POST to /sdkmessageprocessingstepimages
+     // Links to step via sdkmessageprocessingstepid@odata.bind
+     // Returns image ID
+   }
+   ```
+
+### Tool Implementation Patterns
+
+**File:** `packages/powerplatform-customization/src/index.ts`
+
+**Common Patterns:**
+
+1. **File I/O with Dynamic Imports** - Avoids ESM/CJS compatibility issues
+   ```typescript
+   const fs = await import('fs/promises');
+   const normalizedPath = assemblyPath.replace(/\\/g, '/'); // Windows → WSL
+   const dllBuffer = await fs.readFile(normalizedPath);
+   ```
+
+2. **Base64 Encoding for Binary Transfer**
+   ```typescript
+   const dllBase64 = dllBuffer.toString('base64');
+   ```
+
+3. **MZ Header Validation** - Ensures valid .NET assembly
+   ```typescript
+   if (dllBuffer.length < 2 || dllBuffer[0] !== 0x4D || dllBuffer[1] !== 0x5A) {
+     throw new Error('Invalid .NET assembly: MZ header not found');
+   }
+   ```
+
+4. **Enum Value Mapping** - User-friendly strings to Dataverse integers
+   ```typescript
+   const stageMap: Record<string, number> = {
+     'PreValidation': 10,
+     'PreOperation': 20,
+     'PostOperation': 40
+   };
+   const stageValue = stageMap[stage];
+   ```
+
+5. **Audit Logging** - All write operations logged
+   ```typescript
+   auditLogger.log({
+     operation: 'create-plugin-assembly',
+     operationType: 'WRITE',
+     componentType: 'PluginAssembly',
+     componentName: assemblyName,
+     success: true,
+     parameters: {
+       assemblyPath: assemblyPath.substring(0, 100),
+       version: extractedVersion
+     },
+     executionTimeMs: timer()
+   });
+   ```
+
+### Workflow Examples
+
+**Scenario 1: Initial Plugin Deployment (Orchestration)**
+```typescript
+// Single command deploys entire plugin with multiple steps and images
+await mcpClient.callTool("deploy-plugin-complete", {
+  assemblyPath: "C:/Source/Plugins/bin/Release/ContactPlugin.dll",
+  assemblyName: "Contact Management Plugin",
+  stepConfigurations: [
+    {
+      messageName: "Create",
+      entityName: "contact",
+      stage: "PostOperation",
+      mode: "Asynchronous",
+      rank: 1,
+      images: []
+    },
+    {
+      messageName: "Update",
+      entityName: "contact",
+      stage: "PreOperation",
+      mode: "Synchronous",
+      rank: 1,
+      filteringAttributes: "firstname,lastname,emailaddress1",
+      images: [
+        {
+          imageName: "PreImage",
+          imageType: "PreImage",
+          attributes: "firstname,lastname,emailaddress1",
+          entityAlias: "PreImage"
+        }
+      ]
+    }
+  ],
+  solutionUniqueName: "ContactManagement",
+  publishAfterDeployment: true
+});
+```
+
+**Scenario 2: Bug Fix Deployment (Update Assembly)**
+```typescript
+// Update existing assembly with bug fix
+await mcpClient.callTool("update-plugin-assembly", {
+  assemblyId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  assemblyPath: "C:/Source/Plugins/bin/Release/ContactPlugin.dll",
+  version: "1.0.0.1"
+});
+
+// No need to re-register steps - they automatically use new code
+await mcpClient.callTool("publish-customizations", {});
+```
+
+**Scenario 3: Step-by-Step Registration (Advanced)**
+```typescript
+// 1. Upload assembly
+const assemblyResult = await mcpClient.callTool("create-plugin-assembly", {
+  assemblyPath: "C:/Source/Plugins/bin/Release/ContactPlugin.dll",
+  assemblyName: "Contact Management Plugin",
+  solutionUniqueName: "ContactManagement"
+});
+
+// 2. Register step
+const stepResult = await mcpClient.callTool("register-plugin-step", {
+  pluginTypeId: assemblyResult.pluginTypes[0].id,
+  messageName: "Update",
+  entityName: "contact",
+  stage: "PreOperation",
+  mode: "Synchronous",
+  filteringAttributes: "firstname,lastname,emailaddress1",
+  solutionUniqueName: "ContactManagement"
+});
+
+// 3. Register image
+await mcpClient.callTool("register-plugin-image", {
+  stepId: stepResult.stepId,
+  imageName: "PreImage",
+  imageType: "PreImage",
+  attributes: "firstname,lastname,emailaddress1",
+  entityAlias: "PreImage"
+});
+
+// 4. Publish
+await mcpClient.callTool("publish-customizations", {});
+```
+
+### Design Considerations
+
+**Why Windows-Only:**
+- Plugins are .NET Framework 4.6.2 assemblies (Windows-only)
+- Development typically done in Visual Studio on Windows
+- No cross-platform .NET build orchestration (by design - developers use IDE/CLI)
+- MCP tools focus on deployment, not build
+
+**Why Polling for Plugin Types:**
+- Dataverse asynchronously parses uploaded DLLs to discover plugin types
+- Parsing typically takes 2-10 seconds for small assemblies
+- 15 attempts × 2 seconds = 30-second max wait (reasonable timeout)
+- Alternative would be to return immediately and require manual type ID lookup
+
+**Why Base64 Encoding:**
+- Dataverse Web API requires base64-encoded binary content for DLLs
+- Standard approach for binary file transfer over REST APIs
+- Handled automatically by tools - users provide file paths only
+
+**Why Helper Methods:**
+- `extractAssemblyVersion()`: Avoids manual version entry, reduces errors
+- `resolveSdkMessageAndFilter()`: Avoids code duplication, reusable pattern
+
+**Why Orchestration Tool:**
+- 80% of deployments follow the same pattern: upload → register steps → register images → publish
+- Single-tool approach reduces complexity for common case
+- Step-by-step tools still available for advanced scenarios (e.g., updating existing steps)
+
+### Error Handling
+
+Common errors and solutions:
+
+1. **"Plugin types not found after polling"**
+   - Cause: Dataverse parsing timeout or invalid assembly
+   - Solution: Verify DLL is .NET Framework 4.6.2, implements IPlugin interface, has valid PE header
+
+2. **"Assembly exceeds 16MB limit"**
+   - Cause: Too many embedded dependencies
+   - Solution: Use ILMerge selectively, remove unnecessary dependencies, externalize large resources
+
+3. **"SDK message not found: {MessageName}"**
+   - Cause: Invalid message name or entity doesn't support the message
+   - Solution: Use standard messages (Create, Update, Delete, SetState, etc.), check entity capabilities
+
+4. **"DLL file not found: {Path}"**
+   - Cause: Invalid path or file doesn't exist
+   - Solution: Use absolute paths, verify build output directory, check for typos
+
+5. **"Step registration failed: missing required field"**
+   - Cause: Missing pluginTypeId or invalid stage/mode value
+   - Solution: Ensure assembly upload completed successfully, use valid enum values
+
+### Security Audit
+
+All plugin deployment operations are audited with:
+- Operation type (WRITE)
+- Component type (PluginAssembly, SDKMessageProcessingStep, SDKMessageProcessingStepImage)
+- Component name/ID
+- Assembly path (truncated for privacy)
+- Version number
+- Success/failure status
+- Execution time in milliseconds
+- Timestamps
+
+Audit logs enable:
+- Tracking who deployed what and when
+- Rollback decision support
+- Compliance reporting
+- Security incident investigation
+
 ## Workflow & Power Automate Flow Architecture
 
 ### Workflow Entity Overview

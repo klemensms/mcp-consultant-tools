@@ -3010,4 +3010,548 @@ export class PowerPlatformService {
       return v.toString(16);
     });
   }
+
+  // ============================================================
+  // PLUGIN DEPLOYMENT METHODS
+  // ============================================================
+
+  /**
+   * Extract assembly version from .NET DLL using PE header parsing
+   * @param assemblyPath - Path to the compiled .NET assembly (DLL)
+   * @returns Version string (e.g., "1.0.0.0")
+   */
+  async extractAssemblyVersion(assemblyPath: string): Promise<string> {
+    try {
+      // Dynamically import fs/promises for ESM compatibility
+      const fs = await import('fs/promises');
+
+      // Normalize path for cross-platform compatibility (Windows/WSL)
+      const normalizedPath = assemblyPath.replace(/\\/g, '/');
+
+      // Read the DLL file
+      const buffer = await fs.readFile(normalizedPath);
+
+      // Validate DLL format (should start with "MZ" header)
+      const header = buffer.toString('utf8', 0, 2);
+      if (header !== 'MZ') {
+        console.error('Invalid .NET assembly format - using default version');
+        return '1.0.0.0';
+      }
+
+      // Try to find version resource in PE header
+      // This is a simplified version - for production, you might want a more robust parser
+      // For now, we'll return a default version and let the user specify if needed
+
+      // Search for common version patterns in the assembly
+      const bufferStr = buffer.toString('utf16le');
+      const versionMatch = bufferStr.match(/\d+\.\d+\.\d+\.\d+/);
+
+      if (versionMatch) {
+        return versionMatch[0];
+      }
+
+      // Fallback to default version
+      console.error('Could not extract version from assembly - using default 1.0.0.0');
+      return '1.0.0.0';
+    } catch (error: any) {
+      console.error('Error extracting assembly version:', error.message);
+      return '1.0.0.0';
+    }
+  }
+
+  /**
+   * Query plugin type by typename
+   * @param typename - Plugin type typename (e.g., "MyNamespace.ContactPlugin")
+   * @returns Plugin type ID
+   */
+  async queryPluginTypeByTypename(typename: string): Promise<string> {
+    try {
+      const response = await this.makeRequest<ApiCollectionResponse<any>>(
+        `api/data/v9.2/plugintypes?$filter=typename eq '${typename}'&$select=plugintypeid`,
+        'GET'
+      );
+
+      if (!response.value || response.value.length === 0) {
+        throw new Error(
+          `Plugin type '${typename}' not found. ` +
+          `Did you upload the assembly first? Use 'create-plugin-assembly' tool.`
+        );
+      }
+
+      return response.value[0].plugintypeid;
+    } catch (error: any) {
+      throw new Error(`Failed to query plugin type: ${error.message}`);
+    }
+  }
+
+  /**
+   * Query plugin assembly by name
+   * @param assemblyName - Assembly name
+   * @returns Plugin assembly ID or null if not found
+   */
+  async queryPluginAssemblyByName(assemblyName: string): Promise<string | null> {
+    try {
+      const response = await this.makeRequest<ApiCollectionResponse<any>>(
+        `api/data/v9.2/pluginassemblies?$filter=name eq '${assemblyName}'&$select=pluginassemblyid`,
+        'GET'
+      );
+
+      if (!response.value || response.value.length === 0) {
+        return null;
+      }
+
+      return response.value[0].pluginassemblyid;
+    } catch (error: any) {
+      throw new Error(`Failed to query plugin assembly: ${error.message}`);
+    }
+  }
+
+  /**
+   * Resolve SDK Message and Filter IDs for plugin step registration
+   * @param messageName - SDK message name (e.g., "Create", "Update", "Delete")
+   * @param entityName - Entity logical name (e.g., "contact", "account")
+   * @returns Object containing messageId and filterId
+   */
+  async resolveSdkMessageAndFilter(
+    messageName: string,
+    entityName: string
+  ): Promise<{ messageId: string; filterId: string }> {
+    const timer = auditLogger.startTimer();
+
+    try {
+      // Step 1: Get SDK Message ID
+      const messages = await this.makeRequest<ApiCollectionResponse<any>>(
+        `api/data/v9.2/sdkmessages?$filter=name eq '${messageName}'&$select=sdkmessageid,name`,
+        'GET'
+      );
+
+      if (!messages.value || messages.value.length === 0) {
+        throw new Error(
+          `SDK message '${messageName}' not found. ` +
+          `Common messages: Create, Update, Delete, SetState, Assign, Merge, Retrieve, RetrieveMultiple`
+        );
+      }
+
+      const messageId = messages.value[0].sdkmessageid;
+
+      // Step 2: Get SDK Message Filter ID
+      const filters = await this.makeRequest<ApiCollectionResponse<any>>(
+        `api/data/v9.2/sdkmessagefilters?$filter=sdkmessageid/sdkmessageid eq ${messageId} and primaryobjecttypecode eq '${entityName}'&$select=sdkmessagefilterid`,
+        'GET'
+      );
+
+      if (!filters.value || filters.value.length === 0) {
+        throw new Error(
+          `SDK message filter not found for message '${messageName}' on entity '${entityName}'. ` +
+          `Verify the entity supports this message.`
+        );
+      }
+
+      const filterId = filters.value[0].sdkmessagefilterid;
+
+      auditLogger.log({
+        operation: 'resolve-sdk-message-filter',
+        operationType: 'READ',
+        componentType: 'SdkMessage',
+        success: true,
+        parameters: { messageName, entityName, messageId, filterId },
+        executionTimeMs: timer(),
+      });
+
+      return { messageId, filterId };
+    } catch (error: any) {
+      auditLogger.log({
+        operation: 'resolve-sdk-message-filter',
+        operationType: 'READ',
+        componentType: 'SdkMessage',
+        success: false,
+        error: error.message,
+        executionTimeMs: timer(),
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new plugin assembly in Dataverse
+   * @param options - Assembly creation options
+   * @returns Created assembly ID and plugin types
+   */
+  async createPluginAssembly(options: {
+    name: string;
+    content: string; // Base64-encoded DLL
+    version: string;
+    isolationMode?: number; // 2 = Sandbox (default, required for production)
+    sourceType?: number; // 0 = Database (default)
+    description?: string;
+    solutionUniqueName?: string;
+  }): Promise<{
+    pluginAssemblyId: string;
+    pluginTypes: Array<{
+      pluginTypeId: string;
+      typeName: string;
+      friendlyName: string;
+    }>;
+  }> {
+    const timer = auditLogger.startTimer();
+
+    try {
+      // Validate DLL size (16MB Dataverse limit)
+      const dllSize = Buffer.from(options.content, 'base64').length;
+      const maxSize = 16 * 1024 * 1024; // 16MB
+
+      if (dllSize > maxSize) {
+        throw new Error(
+          `Assembly exceeds 16MB limit (current: ${(dllSize / 1024 / 1024).toFixed(2)}MB). ` +
+          `Remove unused dependencies or split into multiple assemblies.`
+        );
+      }
+
+      // Create assembly payload
+      const assemblyData: any = {
+        name: options.name,
+        content: options.content,
+        version: options.version,
+        isolationmode: options.isolationMode ?? 2, // Default to Sandbox for security
+        sourcetype: options.sourceType ?? 0, // Default to Database
+        culture: 'neutral'
+      };
+
+      if (options.description) {
+        assemblyData.description = options.description;
+      }
+
+      // Upload assembly to Dataverse
+      const createResponse = await this.makeRequest<any>(
+        'api/data/v9.2/pluginassemblies',
+        'POST',
+        assemblyData
+      );
+
+      // Extract assembly ID from response header or body
+      const pluginAssemblyId = createResponse.pluginassemblyid || createResponse.id;
+
+      if (!pluginAssemblyId) {
+        throw new Error('Plugin assembly created but ID not returned');
+      }
+
+      // Add to solution if specified
+      if (options.solutionUniqueName) {
+        await this.addComponentToSolution(
+          options.solutionUniqueName,
+          pluginAssemblyId,
+          91 // Component type 91 = PluginAssembly
+        );
+      }
+
+      // Poll for plugin types (Dataverse creates them asynchronously)
+      // Wait up to 30 seconds with 2-second intervals
+      const pluginTypes: any[] = [];
+      const maxAttempts = 15;
+      const pollInterval = 2000; // 2 seconds
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        // Wait before polling (except first attempt)
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+        }
+
+        // Query for plugin types
+        const types = await this.makeRequest<ApiCollectionResponse<any>>(
+          `api/data/v9.2/plugintypes?$filter=_pluginassemblyid_value eq ${pluginAssemblyId}&$select=plugintypeid,typename,friendlyname`,
+          'GET'
+        );
+
+        if (types.value && types.value.length > 0) {
+          pluginTypes.push(...types.value.map((t: any) => ({
+            pluginTypeId: t.plugintypeid,
+            typeName: t.typename,
+            friendlyName: t.friendlyname
+          })));
+          break;
+        }
+      }
+
+      if (pluginTypes.length === 0) {
+        console.error(
+          `Warning: Plugin types not created after ${maxAttempts * pollInterval / 1000} seconds. ` +
+          `Check Dataverse System Jobs for async plugin type creation. ` +
+          `You may need to retry step registration later.`
+        );
+      }
+
+      auditLogger.log({
+        operation: 'create-plugin-assembly',
+        operationType: 'CREATE',
+        componentId: pluginAssemblyId,
+        componentType: 'PluginAssembly',
+        success: true,
+        parameters: {
+          name: options.name,
+          version: options.version,
+          size: dllSize,
+          pluginTypeCount: pluginTypes.length
+        },
+        executionTimeMs: timer(),
+      });
+
+      return {
+        pluginAssemblyId,
+        pluginTypes
+      };
+    } catch (error: any) {
+      auditLogger.log({
+        operation: 'create-plugin-assembly',
+        operationType: 'CREATE',
+        componentName: options.name,
+        componentType: 'PluginAssembly',
+        success: false,
+        error: error.message,
+        executionTimeMs: timer(),
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Update an existing plugin assembly with new DLL content
+   * @param assemblyId - Assembly GUID
+   * @param content - Base64-encoded DLL content
+   * @param version - New version string
+   * @param solutionUniqueName - Optional solution context
+   */
+  async updatePluginAssembly(
+    assemblyId: string,
+    content: string,
+    version: string,
+    solutionUniqueName?: string
+  ): Promise<void> {
+    const timer = auditLogger.startTimer();
+
+    try {
+      // Validate DLL size
+      const dllSize = Buffer.from(content, 'base64').length;
+      const maxSize = 16 * 1024 * 1024;
+
+      if (dllSize > maxSize) {
+        throw new Error(
+          `Assembly exceeds 16MB limit (current: ${(dllSize / 1024 / 1024).toFixed(2)}MB)`
+        );
+      }
+
+      // Update assembly
+      await this.makeRequest(
+        `api/data/v9.2/pluginassemblies(${assemblyId})`,
+        'PATCH',
+        {
+          content,
+          version
+        }
+      );
+
+      // Add to solution if specified
+      if (solutionUniqueName) {
+        await this.addComponentToSolution(
+          solutionUniqueName,
+          assemblyId,
+          91 // Component type 91 = PluginAssembly
+        );
+      }
+
+      auditLogger.log({
+        operation: 'update-plugin-assembly',
+        operationType: 'UPDATE',
+        componentId: assemblyId,
+        componentType: 'PluginAssembly',
+        success: true,
+        parameters: { assemblyId, version, size: dllSize },
+        executionTimeMs: timer(),
+      });
+    } catch (error: any) {
+      auditLogger.log({
+        operation: 'update-plugin-assembly',
+        operationType: 'UPDATE',
+        componentId: assemblyId,
+        componentType: 'PluginAssembly',
+        success: false,
+        error: error.message,
+        executionTimeMs: timer(),
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Register a plugin step on an SDK message
+   * @param options - Step registration options
+   * @returns Created step ID
+   */
+  async registerPluginStep(options: {
+    pluginTypeId: string;
+    name: string;
+    messageName: string;
+    primaryEntityName: string;
+    stage: number; // 10=PreValidation, 20=PreOperation, 40=PostOperation
+    executionMode: number; // 0=Sync, 1=Async
+    rank?: number;
+    filteringAttributes?: string; // Comma-separated
+    configuration?: string;
+    supportedDeployment?: number; // 0=Server, 1=MicrosoftDynamics365Client, 2=Both
+    solutionUniqueName?: string;
+  }): Promise<{ stepId: string }> {
+    const timer = auditLogger.startTimer();
+
+    try {
+      // Resolve SDK message and filter IDs
+      const { messageId, filterId } = await this.resolveSdkMessageAndFilter(
+        options.messageName,
+        options.primaryEntityName
+      );
+
+      // Create step payload
+      const stepData: any = {
+        name: options.name,
+        'plugintypeid@odata.bind': `/plugintypes(${options.pluginTypeId})`,
+        'sdkmessageid@odata.bind': `/sdkmessages(${messageId})`,
+        'sdkmessagefilterid@odata.bind': `/sdkmessagefilters(${filterId})`,
+        stage: options.stage,
+        mode: options.executionMode,
+        rank: options.rank ?? 1,
+        supporteddeployment: options.supportedDeployment ?? 0,
+        statuscode: 1 // Active
+      };
+
+      // Add optional fields
+      if (options.filteringAttributes) {
+        stepData.filteringattributes = options.filteringAttributes;
+      }
+
+      if (options.configuration) {
+        stepData.configuration = options.configuration;
+      }
+
+      // Register step
+      const createResponse = await this.makeRequest<any>(
+        'api/data/v9.2/sdkmessageprocessingsteps',
+        'POST',
+        stepData
+      );
+
+      const stepId = createResponse.sdkmessageprocessingstepid || createResponse.id;
+
+      if (!stepId) {
+        throw new Error('Plugin step created but ID not returned');
+      }
+
+      // Add to solution if specified
+      if (options.solutionUniqueName) {
+        await this.addComponentToSolution(
+          options.solutionUniqueName,
+          stepId,
+          92 // Component type 92 = SDKMessageProcessingStep
+        );
+      }
+
+      auditLogger.log({
+        operation: 'register-plugin-step',
+        operationType: 'CREATE',
+        componentId: stepId,
+        componentType: 'PluginStep',
+        success: true,
+        parameters: {
+          name: options.name,
+          messageName: options.messageName,
+          primaryEntity: options.primaryEntityName,
+          stage: options.stage,
+          mode: options.executionMode
+        },
+        executionTimeMs: timer(),
+      });
+
+      return { stepId };
+    } catch (error: any) {
+      auditLogger.log({
+        operation: 'register-plugin-step',
+        operationType: 'CREATE',
+        componentName: options.name,
+        componentType: 'PluginStep',
+        success: false,
+        error: error.message,
+        executionTimeMs: timer(),
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Register a pre/post image for a plugin step
+   * @param options - Image registration options
+   * @returns Created image ID
+   */
+  async registerPluginImage(options: {
+    stepId: string;
+    name: string;
+    imageType: number; // 0=PreImage, 1=PostImage, 2=Both
+    entityAlias: string;
+    attributes?: string; // Comma-separated (empty = all attributes)
+    messagePropertyName?: string; // Default: "Target"
+  }): Promise<{ imageId: string }> {
+    const timer = auditLogger.startTimer();
+
+    try {
+      // Create image payload
+      const imageData: any = {
+        name: options.name,
+        'sdkmessageprocessingstepid@odata.bind': `/sdkmessageprocessingsteps(${options.stepId})`,
+        imagetype: options.imageType,
+        entityalias: options.entityAlias,
+        messagepropertyname: options.messagePropertyName || 'Target'
+      };
+
+      // Add attributes if specified (empty string = all attributes)
+      if (options.attributes !== undefined) {
+        imageData.attributes = options.attributes;
+      }
+
+      // Register image
+      const createResponse = await this.makeRequest<any>(
+        'api/data/v9.2/sdkmessageprocessingstepimages',
+        'POST',
+        imageData
+      );
+
+      const imageId = createResponse.sdkmessageprocessingstepimageid || createResponse.id;
+
+      if (!imageId) {
+        throw new Error('Plugin image created but ID not returned');
+      }
+
+      auditLogger.log({
+        operation: 'register-plugin-image',
+        operationType: 'CREATE',
+        componentId: imageId,
+        componentType: 'PluginImage',
+        success: true,
+        parameters: {
+          name: options.name,
+          imageType: options.imageType,
+          stepId: options.stepId
+        },
+        executionTimeMs: timer(),
+      });
+
+      return { imageId };
+    } catch (error: any) {
+      auditLogger.log({
+        operation: 'register-plugin-image',
+        operationType: 'CREATE',
+        componentName: options.name,
+        componentType: 'PluginImage',
+        success: false,
+        error: error.message,
+        executionTimeMs: timer(),
+      });
+      throw error;
+    }
+  }
 }

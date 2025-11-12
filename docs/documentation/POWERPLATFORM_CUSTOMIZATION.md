@@ -23,7 +23,7 @@ As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isol
 | Package | Purpose | Tools | Prompts | Production-Safe? |
 |---------|---------|-------|---------|------------------|
 | **[@mcp-consultant-tools/powerplatform](POWERPLATFORM.md)** | Read-only access | 38 | 10 | ✅ **YES** |
-| **[@mcp-consultant-tools/powerplatform-customization](POWERPLATFORM_CUSTOMIZATION.md)** (This Package) | Schema changes | 40 | 2 | ⚠️ **NO** - Dev/config only |
+| **[@mcp-consultant-tools/powerplatform-customization](POWERPLATFORM_CUSTOMIZATION.md)** (This Package) | Schema changes | 45 | 2 | ⚠️ **NO** - Dev/config only |
 | **[@mcp-consultant-tools/powerplatform-data](POWERPLATFORM_DATA.md)** | Data CRUD | 3 | 0 | ⚠️ **NO** - Operational use |
 
 **This documentation covers the customization package only.** For read-only access or data CRUD operations, see the respective package documentation.
@@ -44,7 +44,7 @@ As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isol
    - [Environment Variables](#environment-variables)
    - [Required Permissions](#required-permissions)
 
-3. [Tools (40 Total)](#tools-40-total)
+3. [Tools (45 Total)](#tools-45-total)
    - [Entity Management (4)](#entity-management)
    - [Attribute Management (4)](#attribute-management)
    - [Relationship Management (4)](#relationship-management)
@@ -53,6 +53,7 @@ As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isol
    - [View Management (6)](#view-management)
    - [Model-Driven App Management (3)](#model-driven-app-management)
    - [Web Resource Management (3)](#web-resource-management)
+   - [Plugin Deployment (5)](#plugin-deployment)
    - [Solution Management (5)](#solution-management)
 
 4. [Prompts (2 Total)](#prompts-2-total)
@@ -426,30 +427,201 @@ The application user must have **System Customizer** or **System Administrator**
     - Returns: Confirmation
     - Use case: Remove unused web resources
 
+### Plugin Deployment
+
+**⚠️ WINDOWS-ONLY REQUIREMENT**: Plugin deployment tools require access to compiled .NET DLL files on the local file system. These tools are designed for Windows development environments where plugins are built using Visual Studio or .NET CLI.
+
+**Workflow**: Edit code in IDE → Build with `dotnet build` → Deploy with MCP → Verify in Dynamics 365
+
+36. **`create-plugin-assembly`** - Upload compiled plugin DLL and register assembly
+    - Parameters:
+      - `assemblyPath` (required): Local file path to compiled .NET DLL
+      - `assemblyName` (required): Friendly name for the assembly (e.g., "ContactPlugin")
+      - `version` (optional): Assembly version (auto-extracted from DLL if not provided)
+      - `culture` (optional): Culture string (default: "neutral")
+      - `publicKeyToken` (optional): Strong name token (default: null for unsigned assemblies)
+      - `description` (optional): Assembly description
+      - `solutionUniqueName` (optional): Solution to add assembly to
+    - Returns: Assembly ID, plugin types discovered, and deployment summary
+    - Use case: Initial deployment of new plugin assemblies
+    - **Note**: DLL must be compiled for .NET Framework 4.6.2 with "Sandbox" isolation mode
+    - **Automatic processing**: After upload, the system automatically parses plugin types (15 attempts over 30 seconds)
+
+37. **`update-plugin-assembly`** - Update existing plugin assembly with new DLL
+    - Parameters:
+      - `assemblyId` (required): GUID of existing plugin assembly
+      - `assemblyPath` (required): Local file path to updated DLL
+      - `version` (optional): New version number (auto-extracted if not provided)
+      - `solutionUniqueName` (optional): Solution context
+    - Returns: Update confirmation
+    - Use case: Deploy updated plugin code after bug fixes or enhancements
+    - **Important**: Updating an assembly does not modify existing step registrations. Steps continue to use the new code automatically.
+
+38. **`register-plugin-step`** - Register plugin step on SDK message
+    - Parameters:
+      - `pluginTypeId` (required): GUID of plugin type (from `create-plugin-assembly` output)
+      - `messageName` (required): SDK message name (e.g., "Create", "Update", "Delete", "SetState")
+      - `entityName` (required): Entity logical name (e.g., "contact", "account")
+      - `stage` (required): Execution stage - "PreValidation" (10), "PreOperation" (20), or "PostOperation" (40)
+      - `mode` (required): Execution mode - "Synchronous" (0) or "Asynchronous" (1)
+      - `rank` (optional): Execution order (default: 1). Lower numbers execute first.
+      - `filteringAttributes` (optional): Comma-separated attribute list for Update/Delete steps (performance optimization)
+      - `stepName` (optional): Custom step name (auto-generated if not provided)
+      - `description` (optional): Step description
+      - `solutionUniqueName` (optional): Solution to add step to
+    - Returns: Step ID
+    - Use case: Configure when and how plugin executes
+    - **Best practice**: Always specify `filteringAttributes` for Update and Delete steps to avoid unnecessary executions
+
+39. **`register-plugin-image`** - Register pre/post image for plugin step
+    - Parameters:
+      - `stepId` (required): GUID of plugin step (from `register-plugin-step` output)
+      - `imageName` (required): Image name (e.g., "PreImage", "PostImage")
+      - `imageType` (required): Image type - "PreImage" (0), "PostImage" (1), or "Both" (2)
+      - `attributes` (required): Comma-separated list of attributes to include in image
+      - `entityAlias` (required): Alias used in plugin code to access image (e.g., "PreImage", "Target")
+      - `messagePropertyName` (optional): Message property (default: "Target" for most operations, "Id" for Delete)
+    - Returns: Image ID
+    - Use case: Capture entity state before/after operation for plugin logic
+    - **Example**: For Update step, use PreImage to compare old values with new values in the plugin code
+
+40. **`deploy-plugin-complete`** - **Orchestration tool** - End-to-end plugin deployment
+    - Parameters:
+      - `assemblyPath` (required): Local file path to compiled DLL
+      - `assemblyName` (required): Friendly assembly name
+      - `updateExisting` (optional): If true, update existing assembly by name instead of creating new
+      - `stepConfigurations` (required): Array of step configurations, each containing:
+        - `messageName`: SDK message (e.g., "Create", "Update")
+        - `entityName`: Target entity
+        - `stage`: PreValidation/PreOperation/PostOperation
+        - `mode`: Synchronous/Asynchronous
+        - `rank`: Execution order
+        - `filteringAttributes`: Attributes (for Update/Delete)
+        - `images`: Array of image configurations (imageName, imageType, attributes, entityAlias)
+      - `solutionUniqueName` (optional): Solution to add all components to
+      - `publishAfterDeployment` (optional): Auto-publish after deployment (default: true)
+    - Returns: Comprehensive deployment summary with assembly ID, plugin types, steps, images, and publishing status
+    - Use case: **Single-command deployment** - upload DLL, register all steps and images, publish customizations
+    - **Recommended**: Use this tool for complete plugin deployments instead of calling individual tools
+
+**Plugin Deployment Workflow Example:**
+
+```typescript
+// Option 1: Use orchestration tool (RECOMMENDED)
+await client.callTool("deploy-plugin-complete", {
+  assemblyPath: "C:/Source/Plugins/bin/Release/MyPlugin.dll",
+  assemblyName: "Contact Plugin",
+  stepConfigurations: [
+    {
+      messageName: "Update",
+      entityName: "contact",
+      stage: "PreOperation",
+      mode: "Synchronous",
+      rank: 1,
+      filteringAttributes: "firstname,lastname,emailaddress1",
+      images: [
+        {
+          imageName: "PreImage",
+          imageType: "PreImage",
+          attributes: "firstname,lastname,emailaddress1",
+          entityAlias: "PreImage"
+        }
+      ]
+    }
+  ],
+  solutionUniqueName: "MyCustomizations",
+  publishAfterDeployment: true
+});
+
+// Option 2: Step-by-step (for advanced scenarios)
+// 1. Upload assembly
+const assemblyResult = await client.callTool("create-plugin-assembly", {
+  assemblyPath: "C:/Source/Plugins/bin/Release/MyPlugin.dll",
+  assemblyName: "Contact Plugin",
+  solutionUniqueName: "MyCustomizations"
+});
+
+// 2. Register step
+const stepResult = await client.callTool("register-plugin-step", {
+  pluginTypeId: assemblyResult.pluginTypes[0].id,
+  messageName: "Update",
+  entityName: "contact",
+  stage: "PreOperation",
+  mode: "Synchronous",
+  filteringAttributes: "firstname,lastname,emailaddress1",
+  solutionUniqueName: "MyCustomizations"
+});
+
+// 3. Register image
+await client.callTool("register-plugin-image", {
+  stepId: stepResult.stepId,
+  imageName: "PreImage",
+  imageType: "PreImage",
+  attributes: "firstname,lastname,emailaddress1",
+  entityAlias: "PreImage"
+});
+
+// 4. Publish
+await client.callTool("publish-customizations", {});
+```
+
+**Troubleshooting Plugin Deployment:**
+
+1. **"Plugin types not found after polling"**
+   - Cause: Dataverse takes time to parse uploaded DLL
+   - Solution: Tool automatically polls for 30 seconds. If still failing, verify DLL is valid .NET Framework 4.6.2 assembly with proper plugin interfaces.
+
+2. **"DLL file not found"**
+   - Cause: Path is incorrect or file doesn't exist
+   - Solution: Use absolute paths (e.g., `C:/Source/Plugins/bin/Release/MyPlugin.dll`). Verify file exists with `dir` or `ls`.
+
+3. **"Assembly size exceeds 16MB limit"**
+   - Cause: DLL includes too many dependencies
+   - Solution: Use ILMerge or remove unnecessary dependencies. Dataverse has a 16MB limit per assembly.
+
+4. **"Invalid assembly format"**
+   - Cause: DLL not compiled for .NET Framework 4.6.2 or not a valid PE file
+   - Solution: Rebuild plugin targeting .NET Framework 4.6.2 (NOT .NET Core or .NET 5+)
+
+5. **"SDK message not found"**
+   - Cause: Invalid message name or entity doesn't support the message
+   - Solution: Use valid SDK messages (Create, Update, Delete, SetState, etc.). Check entity capabilities in metadata.
+
+6. **"Step execution fails in Dynamics 365"**
+   - Cause: Plugin code has runtime errors
+   - Solution: Use `get-plugin-trace-logs` from the base PowerPlatform package to view exception details
+
+**Security Considerations:**
+
+- Plugin deployment requires **System Customizer** or **System Administrator** role in Dataverse
+- Plugins run in **Sandbox isolation mode** (isolationmode: 2) for security
+- All deployment operations are **audited** with assembly names, step configurations, and timestamps
+- **Important**: Only deploy plugins from trusted sources. Malicious plugins can access and modify Dataverse data.
+
 ### Solution Management
 
-36. **`add-to-solution`** - Add component to solution
+41. **`add-to-solution`** - Add component to solution
     - Parameters: `solutionUniqueName`, `componentId`, `componentType`
     - Component types: Entity (1), Attribute (2), Relationship (10), Form (60), View (26), etc.
     - Returns: Confirmation
     - Use case: Package customizations for deployment
 
-37. **`remove-from-solution`** - Remove component from solution
+42. **`remove-from-solution`** - Remove component from solution
     - Parameters: `solutionUniqueName`, `componentId`, `componentType`
     - Returns: Confirmation
     - Use case: Clean up solution contents
 
-38. **`export-solution`** - Export solution as zip
+43. **`export-solution`** - Export solution as zip
     - Parameters: `solutionUniqueName`, `managed` (boolean)
     - Returns: Base64-encoded solution zip
     - Use case: Export for deployment to other environments
 
-39. **`import-solution`** - Import solution zip
+44. **`import-solution`** - Import solution zip
     - Parameters: `solutionZip` (base64), `publishWorkflows`, `overwriteUnmanagedCustomizations`
     - Returns: Import job ID
     - Use case: Deploy solutions to environment
 
-40. **`publish-all-customizations`** - Publish all unpublished customizations
+45. **`publish-all-customizations`** - Publish all unpublished customizations
     - Parameters: None
     - Returns: Confirmation
     - Use case: Batch publish after multiple changes

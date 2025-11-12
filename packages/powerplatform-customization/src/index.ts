@@ -2189,7 +2189,406 @@ server.tool(
   }
 );
 
-  console.error(`✅ powerplatform-customization tools registered (${40} tools)`);
+// ============================================================
+// PLUGIN DEPLOYMENT TOOLS
+// ============================================================
+
+server.tool(
+  "create-plugin-assembly",
+  "Upload a compiled plugin DLL to Dynamics 365 from local file system. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  {
+    assemblyPath: z.string().describe(
+      "Local file path to compiled DLL (e.g., C:\\Dev\\MyPlugin\\bin\\Release\\net462\\MyPlugin.dll)"
+    ),
+    assemblyName: z.string().describe("Friendly name for the assembly (e.g., MyPlugin)"),
+    version: z.string().optional().describe("Version string (auto-extracted if omitted, e.g., '1.0.0.0')"),
+    isolationMode: z.number().optional().describe("Isolation mode: 2=Sandbox (default, required for production)"),
+    description: z.string().optional().describe("Assembly description"),
+    solutionUniqueName: z.string().optional().describe("Solution to add assembly to"),
+  },
+  async ({ assemblyPath, assemblyName, version, isolationMode, description, solutionUniqueName }: any) => {
+    try {
+      checkCustomizationEnabled();
+      const service = getPowerPlatformService();
+
+      // Read DLL file from file system (Windows or WSL compatible)
+      const fs = await import('fs/promises');
+      const normalizedPath = assemblyPath.replace(/\\/g, '/'); // Normalize path
+      const dllBuffer = await fs.readFile(normalizedPath);
+      const dllBase64 = dllBuffer.toString('base64');
+
+      // Validate DLL format (check for "MZ" header - .NET assembly signature)
+      const header = dllBuffer.toString('utf8', 0, 2);
+      if (header !== 'MZ') {
+        throw new Error('Invalid .NET assembly format (missing MZ header)');
+      }
+
+      // Extract version if not provided
+      const extractedVersion = version || await service.extractAssemblyVersion(assemblyPath);
+
+      // Upload assembly
+      const result = await service.createPluginAssembly({
+        name: assemblyName,
+        content: dllBase64,
+        version: extractedVersion,
+        isolationMode: isolationMode ?? 2, // Default to Sandbox for security
+        description,
+        solutionUniqueName: solutionUniqueName || POWERPLATFORM_DEFAULT_SOLUTION,
+      });
+
+      return {
+        content: [{
+          type: "text",
+          text: `✅ Plugin assembly '${assemblyName}' uploaded successfully\n\n` +
+                `📦 Assembly ID: ${result.pluginAssemblyId}\n` +
+                `🔢 Version: ${extractedVersion}\n` +
+                `💾 Size: ${(dllBuffer.length / 1024).toFixed(2)} KB\n` +
+                `🔌 Plugin Types Created: ${result.pluginTypes.length}\n\n` +
+                `Plugin Types:\n${result.pluginTypes.map(t => `  • ${t.typeName} (${t.pluginTypeId})`).join('\n') || '  (none created yet - check System Jobs)'}`
+        }]
+      };
+    } catch (error: any) {
+      console.error("Error creating plugin assembly:", error);
+      return {
+        content: [{ type: "text", text: `❌ Failed to create plugin assembly: ${error.message}` }],
+        isError: true
+      };
+    }
+  }
+);
+
+server.tool(
+  "update-plugin-assembly",
+  "Update an existing plugin assembly with new compiled DLL. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  {
+    assemblyId: z.string().describe("Assembly ID (GUID)"),
+    assemblyPath: z.string().describe("Local file path to new compiled DLL"),
+    version: z.string().optional().describe("Version string (auto-extracted if omitted)"),
+    solutionUniqueName: z.string().optional().describe("Solution context"),
+  },
+  async ({ assemblyId, assemblyPath, version, solutionUniqueName }: any) => {
+    try {
+      checkCustomizationEnabled();
+      const service = getPowerPlatformService();
+
+      // Read new DLL
+      const fs = await import('fs/promises');
+      const normalizedPath = assemblyPath.replace(/\\/g, '/');
+      const dllBuffer = await fs.readFile(normalizedPath);
+      const dllBase64 = dllBuffer.toString('base64');
+
+      // Extract version if not provided
+      const extractedVersion = version || await service.extractAssemblyVersion(assemblyPath);
+
+      // Update assembly
+      await service.updatePluginAssembly(
+        assemblyId,
+        dllBase64,
+        extractedVersion,
+        solutionUniqueName || POWERPLATFORM_DEFAULT_SOLUTION
+      );
+
+      return {
+        content: [{
+          type: "text",
+          text: `✅ Plugin assembly updated successfully\n\n` +
+                `📦 Assembly ID: ${assemblyId}\n` +
+                `🔢 Version: ${extractedVersion}\n` +
+                `💾 Size: ${(dllBuffer.length / 1024).toFixed(2)} KB\n\n` +
+                `⚠️ Note: Existing plugin steps remain registered and active.`
+        }]
+      };
+    } catch (error: any) {
+      console.error("Error updating plugin assembly:", error);
+      return {
+        content: [{ type: "text", text: `❌ Failed to update plugin assembly: ${error.message}` }],
+        isError: true
+      };
+    }
+  }
+);
+
+server.tool(
+  "register-plugin-step",
+  "Register a plugin step on an SDK message. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  {
+    assemblyName: z.string().describe("Assembly name (e.g., MyPlugin)"),
+    pluginTypeName: z.string().describe("Full type name (e.g., MyOrg.Plugins.ContactPlugin)"),
+    stepName: z.string().describe("Friendly step name (e.g., 'Contact: Update - Post-Operation')"),
+    messageName: z.string().describe("SDK message: Create, Update, Delete, SetState, etc."),
+    primaryEntity: z.string().describe("Entity logical name (e.g., contact, account)"),
+    stage: z.enum(['PreValidation', 'PreOperation', 'PostOperation']).describe("Execution stage"),
+    executionMode: z.enum(['Sync', 'Async']).describe("Execution mode"),
+    rank: z.number().optional().describe("Execution order (default: 1, lower runs first)"),
+    filteringAttributes: z.array(z.string()).optional().describe("Fields to monitor (e.g., ['firstname', 'lastname'])"),
+    configuration: z.string().optional().describe("Secure/unsecure config JSON"),
+    solutionUniqueName: z.string().optional(),
+  },
+  async (params: any) => {
+    try {
+      checkCustomizationEnabled();
+      const service = getPowerPlatformService();
+
+      // Resolve plugin type ID by typename
+      const pluginTypeId = await service.queryPluginTypeByTypename(params.pluginTypeName);
+
+      // Map stage and mode enums to numbers
+      const stageMap: Record<string, number> = {
+        PreValidation: 10,
+        PreOperation: 20,
+        PostOperation: 40
+      };
+      const modeMap: Record<string, number> = { Sync: 0, Async: 1 };
+
+      // Register step
+      const result = await service.registerPluginStep({
+        pluginTypeId,
+        name: params.stepName,
+        messageName: params.messageName,
+        primaryEntityName: params.primaryEntity,
+        stage: stageMap[params.stage],
+        executionMode: modeMap[params.executionMode],
+        rank: params.rank ?? 1,
+        filteringAttributes: params.filteringAttributes?.join(','),
+        configuration: params.configuration,
+        solutionUniqueName: params.solutionUniqueName || POWERPLATFORM_DEFAULT_SOLUTION,
+      });
+
+      return {
+        content: [{
+          type: "text",
+          text: `✅ Plugin step '${params.stepName}' registered successfully\n\n` +
+                `🆔 Step ID: ${result.stepId}\n` +
+                `📨 Message: ${params.messageName}\n` +
+                `📊 Entity: ${params.primaryEntity}\n` +
+                `⏱️ Stage: ${params.stage}\n` +
+                `🔄 Mode: ${params.executionMode}\n` +
+                `📋 Rank: ${params.rank ?? 1}\n` +
+                (params.filteringAttributes?.length ? `🔍 Filtering: ${params.filteringAttributes.join(', ')}\n` : '')
+        }]
+      };
+    } catch (error: any) {
+      console.error("Error registering plugin step:", error);
+      return {
+        content: [{ type: "text", text: `❌ Failed to register plugin step: ${error.message}` }],
+        isError: true
+      };
+    }
+  }
+);
+
+server.tool(
+  "register-plugin-image",
+  "Add a pre/post image to a plugin step for accessing entity data. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  {
+    stepId: z.string().describe("Plugin step ID (from register-plugin-step)"),
+    imageName: z.string().describe("Image name (e.g., 'PreImage', 'PostImage')"),
+    imageType: z.enum(['PreImage', 'PostImage', 'Both']).describe("Image type"),
+    entityAlias: z.string().describe("Alias for code access (e.g., 'target', 'preimage')"),
+    attributes: z.array(z.string()).optional().describe("Attributes to include (empty = all)"),
+    messagePropertyName: z.string().optional().describe("Message property (default: 'Target')"),
+  },
+  async (params: any) => {
+    try {
+      checkCustomizationEnabled();
+      const service = getPowerPlatformService();
+
+      const imageTypeMap: Record<string, number> = { PreImage: 0, PostImage: 1, Both: 2 };
+
+      const result = await service.registerPluginImage({
+        stepId: params.stepId,
+        name: params.imageName,
+        imageType: imageTypeMap[params.imageType],
+        entityAlias: params.entityAlias,
+        attributes: params.attributes?.join(','),
+        messagePropertyName: params.messagePropertyName || 'Target',
+      });
+
+      return {
+        content: [{
+          type: "text",
+          text: `✅ Plugin image '${params.imageName}' registered successfully\n\n` +
+                `🆔 Image ID: ${result.imageId}\n` +
+                `🖼️ Type: ${params.imageType}\n` +
+                `🏷️ Alias: ${params.entityAlias}\n` +
+                `📋 Attributes: ${params.attributes?.length ? params.attributes.join(', ') : 'All attributes'}`
+        }]
+      };
+    } catch (error: any) {
+      console.error("Error registering plugin image:", error);
+      return {
+        content: [{ type: "text", text: `❌ Failed to register plugin image: ${error.message}` }],
+        isError: true
+      };
+    }
+  }
+);
+
+server.tool(
+  "deploy-plugin-complete",
+  "End-to-end plugin deployment: upload DLL, register steps, configure images, and publish. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  {
+    assemblyPath: z.string().describe("Local DLL file path"),
+    assemblyName: z.string().describe("Assembly name"),
+    stepConfigurations: z.array(z.object({
+      pluginTypeName: z.string(),
+      stepName: z.string(),
+      messageName: z.string(),
+      primaryEntity: z.string(),
+      stage: z.enum(['PreValidation', 'PreOperation', 'PostOperation']),
+      executionMode: z.enum(['Sync', 'Async']),
+      rank: z.number().optional(),
+      filteringAttributes: z.array(z.string()).optional(),
+      preImage: z.object({
+        name: z.string(),
+        alias: z.string(),
+        attributes: z.array(z.string()).optional(),
+      }).optional(),
+      postImage: z.object({
+        name: z.string(),
+        alias: z.string(),
+        attributes: z.array(z.string()).optional(),
+      }).optional(),
+    })).optional().describe("Step configurations (manual registration)"),
+    solutionUniqueName: z.string().optional(),
+    replaceExisting: z.boolean().optional().describe("Update existing assembly vs. create new"),
+  },
+  async (params: any) => {
+    try {
+      checkCustomizationEnabled();
+      const service = getPowerPlatformService();
+
+      const summary: any = {
+        phases: {
+          deploy: {},
+          register: { stepsCreated: 0, imagesCreated: 0 },
+        },
+      };
+
+      // Read DLL file
+      const fs = await import('fs/promises');
+      const normalizedPath = params.assemblyPath.replace(/\\/g, '/');
+      const dllBuffer = await fs.readFile(normalizedPath);
+      const dllBase64 = dllBuffer.toString('base64');
+      const version = await service.extractAssemblyVersion(params.assemblyPath);
+
+      // Phase 1: Deploy assembly
+      if (params.replaceExisting) {
+        // Find existing assembly ID
+        const assemblyId = await service.queryPluginAssemblyByName(params.assemblyName);
+        if (assemblyId) {
+          await service.updatePluginAssembly(
+            assemblyId,
+            dllBase64,
+            version,
+            params.solutionUniqueName || POWERPLATFORM_DEFAULT_SOLUTION
+          );
+          summary.phases.deploy = {
+            action: 'updated',
+            assemblyId: assemblyId,
+            version,
+          };
+        } else {
+          throw new Error(`Assembly '${params.assemblyName}' not found for update`);
+        }
+      } else {
+        const uploadResult = await service.createPluginAssembly({
+          name: params.assemblyName,
+          content: dllBase64,
+          version,
+          solutionUniqueName: params.solutionUniqueName || POWERPLATFORM_DEFAULT_SOLUTION,
+        });
+        summary.phases.deploy = {
+          action: 'created',
+          assemblyId: uploadResult.pluginAssemblyId,
+          version,
+          pluginTypes: uploadResult.pluginTypes,
+        };
+      }
+
+      // Phase 2: Register steps
+      if (params.stepConfigurations) {
+        const stageMap: Record<string, number> = {
+          PreValidation: 10,
+          PreOperation: 20,
+          PostOperation: 40
+        };
+        const modeMap: Record<string, number> = { Sync: 0, Async: 1 };
+
+        for (const stepConfig of params.stepConfigurations) {
+          // Resolve plugin type ID
+          const pluginTypeId = await service.queryPluginTypeByTypename(stepConfig.pluginTypeName);
+
+          // Register step
+          const stepResult = await service.registerPluginStep({
+            pluginTypeId: pluginTypeId,
+            name: stepConfig.stepName,
+            messageName: stepConfig.messageName,
+            primaryEntityName: stepConfig.primaryEntity,
+            stage: stageMap[stepConfig.stage],
+            executionMode: modeMap[stepConfig.executionMode],
+            rank: stepConfig.rank ?? 1,
+            filteringAttributes: stepConfig.filteringAttributes?.join(','),
+            solutionUniqueName: params.solutionUniqueName || POWERPLATFORM_DEFAULT_SOLUTION,
+          });
+          summary.phases.register.stepsCreated++;
+
+          // Register pre-image
+          if (stepConfig.preImage) {
+            await service.registerPluginImage({
+              stepId: stepResult.stepId,
+              name: stepConfig.preImage.name,
+              imageType: 0,
+              entityAlias: stepConfig.preImage.alias,
+              attributes: stepConfig.preImage.attributes?.join(','),
+            });
+            summary.phases.register.imagesCreated++;
+          }
+
+          // Register post-image
+          if (stepConfig.postImage) {
+            await service.registerPluginImage({
+              stepId: stepResult.stepId,
+              name: stepConfig.postImage.name,
+              imageType: 1,
+              entityAlias: stepConfig.postImage.alias,
+              attributes: stepConfig.postImage.attributes?.join(','),
+            });
+            summary.phases.register.imagesCreated++;
+          }
+        }
+      }
+
+      // Phase 3: Publish customizations
+      await service.publishAllCustomizations();
+      summary.phases.publish = { success: true };
+
+      return {
+        content: [{
+          type: "text",
+          text: `✅ Plugin deployment completed successfully!\n\n` +
+                `📦 Assembly: ${summary.phases.deploy.action === 'created' ? 'Created' : 'Updated'}\n` +
+                `🆔 Assembly ID: ${summary.phases.deploy.assemblyId}\n` +
+                `🔢 Version: ${summary.phases.deploy.version}\n` +
+                `💾 Size: ${(dllBuffer.length / 1024).toFixed(2)} KB\n` +
+                (summary.phases.deploy.pluginTypes ? `🔌 Plugin Types: ${summary.phases.deploy.pluginTypes.length}\n` : '') +
+                `📝 Steps Created: ${summary.phases.register.stepsCreated}\n` +
+                `🖼️ Images Created: ${summary.phases.register.imagesCreated}\n` +
+                `📢 Published: ${summary.phases.publish.success ? 'Yes' : 'No'}\n\n` +
+                `⚡ Deployment is complete and active in the environment!`
+        }]
+      };
+    } catch (error: any) {
+      console.error("Error deploying plugin:", error);
+      return {
+        content: [{ type: "text", text: `❌ Failed to deploy plugin: ${error.message}` }],
+        isError: true
+      };
+    }
+  }
+);
+
+  console.error(`✅ powerplatform-customization tools registered (${45} tools)`);
 }
 
 // CLI entry point (standalone execution)

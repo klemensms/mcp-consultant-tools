@@ -20,7 +20,7 @@ MCP Consultant Tools v15 is a **modular monorepo** with **13 independently publi
 | Package | Integration | Tools | Prompts | Size | Security |
 |---------|-------------|-------|---------|------|----------|
 | **[@mcp-consultant-tools/powerplatform](packages/powerplatform)** | PowerPlatform/Dataverse (Read-Only) | 38 | 10 | 280KB | ✅ Production-Safe |
-| **[@mcp-consultant-tools/powerplatform-customization](packages/powerplatform-customization)** | PowerPlatform Schema Changes | 40 | 0 | 295KB | ⚠️ Dev/Config Only |
+| **[@mcp-consultant-tools/powerplatform-customization](packages/powerplatform-customization)** | PowerPlatform Schema Changes | 45 | 0 | 295KB | ⚠️ Dev/Config Only |
 | **[@mcp-consultant-tools/powerplatform-data](packages/powerplatform-data)** | PowerPlatform Data CRUD | 3 | 0 | 185KB | ⚠️ Requires Explicit Permissions |
 | **[@mcp-consultant-tools/sharepoint](packages/sharepoint)** | SharePoint Online | 15 | 5 | 188KB | ✅ Read-Only |
 | **[@mcp-consultant-tools/github-enterprise](packages/github-enterprise)** | GitHub Enterprise | 22 | 5 | 152KB | ✅ Read-Only (default) |
@@ -41,7 +41,7 @@ The PowerPlatform integration is split into **3 security-isolated packages** fol
 | Package | Use Case | Tools | Environment Flags | Production-Safe? |
 |---------|----------|-------|-------------------|------------------|
 | **powerplatform** | Read-only access | 38 | None required | ✅ **YES** - Safe for production |
-| **powerplatform-customization** | Schema changes (entities, attributes, forms, solutions) | 40 | `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` | ⚠️ **NO** - Dev/config environments only |
+| **powerplatform-customization** | Schema changes (entities, attributes, forms, solutions) | 45 | `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` | ⚠️ **NO** - Dev/config environments only |
 | **powerplatform-data** | Data CRUD operations | 3 | `POWERPLATFORM_ENABLE_CREATE/UPDATE/DELETE=true` | ⚠️ **NO** - Operational use with explicit permissions |
 
 **Why split?**
