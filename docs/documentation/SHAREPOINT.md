@@ -179,7 +179,7 @@ Add SharePoint configuration to your Claude Desktop config:
   "mcpServers": {
     "sharepoint": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/sharepoint"],
+      "args": ["-y", "--package=@mcp-consultant-tools/sharepoint", "mcp-spo"],
       "env": {
         "SHAREPOINT_TENANT_ID": "your-tenant-id",
         "SHAREPOINT_CLIENT_ID": "your-client-id",
@@ -223,7 +223,7 @@ Add to `.vscode/settings.json` or workspace settings:
   "mcp.servers": {
     "sharepoint": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/sharepoint"],
+      "args": ["-y", "--package=@mcp-consultant-tools/sharepoint", "mcp-spo"],
       "env": {
         "SHAREPOINT_TENANT_ID": "your-tenant-id",
         "SHAREPOINT_CLIENT_ID": "your-client-id",

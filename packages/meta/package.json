@@ -5,9 +5,7 @@
   "type": "module",
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
-  "bin": {
-    "mcp-consultant-tools": "./build/index.js"
-  },
+  "bin": "./build/index.js",
   "exports": {
     ".": {
       "import": "./build/index.js",

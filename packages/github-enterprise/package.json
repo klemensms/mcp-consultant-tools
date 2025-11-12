@@ -5,15 +5,39 @@
   "type": "module",
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
-  "bin": { "mcp-github": "./build/index.js" },
-  "exports": { ".": { "import": "./build/index.js", "types": "./build/index.d.ts" } },
-  "files": ["build", "README.md"],
-  "scripts": { "build": "tsc", "clean": "rm -rf build *.tsbuildinfo", "prepublishOnly": "npm run build" },
-  "keywords": ["mcp", "model-context-protocol", "github", "github-enterprise", "git", "repositories"],
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build *.tsbuildinfo",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "github",
+    "github-enterprise",
+    "git",
+    "repositories"
+  ],
   "author": "Michal Sobieraj",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/klemensms/mcp-consultant-tools.git", "directory": "packages/github-enterprise" },
-  "engines": { "node": ">=16.0.0" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klemensms/mcp-consultant-tools.git",
+    "directory": "packages/github-enterprise"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "dependencies": {
     "@mcp-consultant-tools/core": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.0.4",
@@ -22,5 +46,12 @@
     "jsonwebtoken": "^9.0.2",
     "zod": "^3.24.1"
   },
-  "devDependencies": { "@types/jsonwebtoken": "^9.0.10", "@types/node": "^22.10.5", "typescript": "^5.8.2" }
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.8.2"
+  },
+  "bin": {
+    "mcp-ghe": "./build/index.js"
+  }
 }

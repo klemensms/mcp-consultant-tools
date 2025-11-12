@@ -199,7 +199,7 @@ POWERPLATFORM_ENABLE_DELETE=true   # Enable record deletion
   "mcpServers": {
     "powerplatform-data": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/powerplatform-data"],
+      "args": ["-y", "--package=@mcp-consultant-tools/powerplatform-data", "mcp-pp-data"],
       "env": {
         "POWERPLATFORM_URL": "https://yourdevenv.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
@@ -220,7 +220,7 @@ POWERPLATFORM_ENABLE_DELETE=true   # Enable record deletion
   "mcpServers": {
     "powerplatform-data": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/powerplatform-data"],
+      "args": ["-y", "--package=@mcp-consultant-tools/powerplatform-data", "mcp-pp-data"],
       "env": {
         "POWERPLATFORM_URL": "https://yourprodenv.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",

@@ -68,9 +68,23 @@ npm install @mcp-consultant-tools/azure-devops
 # ... etc
 ```
 
-### Configuration
+### Configuration Modes
 
-#### Claude Desktop (All Services)
+There are **two ways** to run MCP servers depending on your use case:
+
+#### 🌐 Production/Published Packages (npx)
+Use `npx` with published packages from npm. Requires `--package` flag and binary name for scoped packages.
+
+**When to use:** Production deployments, Claude Desktop, VSCode MCP extension
+
+#### 💻 Local Development/Testing (node)
+Use `node` with direct file paths. No `--package` flag needed.
+
+**When to use:** Local development, testing unpublished changes, debugging
+
+---
+
+#### Claude Desktop (All Services - npx)
 ```json
 {
   "mcpServers": {
@@ -107,13 +121,13 @@ The PowerPlatform integration is split into **3 security-isolated packages**:
 npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform
 ```
 
-**Claude Desktop Config:**
+**Claude Desktop / VSCode Config:**
 ```json
 {
   "mcpServers": {
     "powerplatform": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/powerplatform"],
+      "args": ["-y", "--package=@mcp-consultant-tools/powerplatform", "mcp-pp"],
       "env": {
         "POWERPLATFORM_URL": "https://yourenv.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
@@ -136,7 +150,7 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform-custo
   "mcpServers": {
     "powerplatform-customization": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/powerplatform-customization"],
+      "args": ["-y", "--package=@mcp-consultant-tools/powerplatform-customization", "mcp-pp-custom"],
       "env": {
         "POWERPLATFORM_URL": "https://yourenv.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
@@ -160,7 +174,7 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform-data
   "mcpServers": {
     "powerplatform-data": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/powerplatform-data"],
+      "args": ["-y", "--package=@mcp-consultant-tools/powerplatform-data", "mcp-pp-data"],
       "env": {
         "POWERPLATFORM_URL": "https://yourenv.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
@@ -180,6 +194,36 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform-data
 - **[PowerPlatform Customization](docs/documentation/POWERPLATFORM_CUSTOMIZATION.md)** - Schema changes, entity/attribute creation
 - **[PowerPlatform Data](docs/documentation/POWERPLATFORM_DATA.md)** - Record creation, updates, deletions
 
+---
+
+#### 💻 Local Development Example (PowerPlatform)
+
+For local development and testing (e.g., testing changes before publishing):
+
+```json
+{
+  "mcpServers": {
+    "powerplatform-local": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp-consultant-tools/packages/powerplatform/build/index.js"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenv.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-secret",
+        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id"
+      }
+    }
+  }
+}
+```
+
+**Note:** Replace `/absolute/path/to/mcp-consultant-tools` with your actual repository path. Use this format for:
+- Testing local changes before publishing
+- Debugging during development
+- Running from a git clone instead of npm
+
+---
+
 ### Azure DevOps
 ```bash
 npm install @mcp-consultant-tools/core @mcp-consultant-tools/azure-devops
@@ -191,7 +235,7 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/azure-devops
   "mcpServers": {
     "azure-devops": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/azure-devops"],
+      "args": ["-y", "--package=@mcp-consultant-tools/azure-devops", "mcp-ado"],
       "env": {
         "AZUREDEVOPS_ORGANIZATION": "your-organization-name",
         "AZUREDEVOPS_PAT": "your-personal-access-token",
@@ -214,7 +258,7 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/sharepoint
   "mcpServers": {
     "sharepoint": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/sharepoint"],
+      "args": ["-y", "--package=@mcp-consultant-tools/sharepoint", "mcp-spo"],
       "env": {
         "SHAREPOINT_SITES": "[{\"id\":\"main\",\"name\":\"Main Site\",\"siteUrl\":\"https://yourtenant.sharepoint.com/sites/yoursite\",\"active\":true}]",
         "SHAREPOINT_TENANT_ID": "your-azure-tenant-id",
@@ -238,7 +282,7 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/github-enterprise
   "mcpServers": {
     "github-enterprise": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/github-enterprise"],
+      "args": ["-y", "--package=@mcp-consultant-tools/github-enterprise", "mcp-ghe"],
       "env": {
         "GHE_REPOS": "[{\"id\":\"my-repo\",\"owner\":\"myorg\",\"repo\":\"MyRepository\",\"defaultBranch\":\"main\",\"active\":true}]",
         "GHE_TOKEN": "your-github-personal-access-token"
@@ -260,7 +304,7 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/application-insight
   "mcpServers": {
     "application-insights": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/application-insights"],
+      "args": ["-y", "--package=@mcp-consultant-tools/application-insights", "mcp-appins"],
       "env": {
         "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod\",\"name\":\"Production\",\"appId\":\"your-app-insights-app-id\",\"active\":true}]",
         "APPINSIGHTS_TENANT_ID": "your-azure-tenant-id",
@@ -284,7 +328,7 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/log-analytics
   "mcpServers": {
     "log-analytics": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/log-analytics"],
+      "args": ["-y", "--package=@mcp-consultant-tools/log-analytics", "mcp-loganalytics"],
       "env": {
         "LOGANALYTICS_RESOURCES": "[{\"id\":\"prod\",\"name\":\"Production\",\"workspaceId\":\"your-workspace-id\",\"active\":true}]",
         "LOGANALYTICS_TENANT_ID": "your-azure-tenant-id",
@@ -308,7 +352,7 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/azure-sql
   "mcpServers": {
     "azure-sql": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/azure-sql"],
+      "args": ["-y", "--package=@mcp-consultant-tools/azure-sql", "mcp-sql"],
       "env": {
         "AZURE_SQL_SERVERS": "[{\"id\":\"prod\",\"name\":\"Production\",\"server\":\"yourserver.database.windows.net\",\"port\":1433,\"active\":true,\"databases\":[{\"name\":\"YourDatabase\",\"active\":true}],\"username\":\"your-username\",\"password\":\"your-password\"}]"
       }
@@ -329,7 +373,7 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/service-bus
   "mcpServers": {
     "service-bus": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/service-bus"],
+      "args": ["-y", "--package=@mcp-consultant-tools/service-bus", "mcp-sb"],
       "env": {
         "SERVICEBUS_RESOURCES": "[{\"id\":\"prod\",\"name\":\"Production\",\"namespace\":\"yournamespace.servicebus.windows.net\",\"active\":true}]",
         "SERVICEBUS_TENANT_ID": "your-azure-tenant-id",
@@ -353,7 +397,7 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/figma
   "mcpServers": {
     "figma": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/figma"],
+      "args": ["-y", "--package=@mcp-consultant-tools/figma", "mcp-figma"],
       "env": {
         "FIGMA_API_KEY": "your-figma-personal-access-token"
       }
