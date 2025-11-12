@@ -177,9 +177,9 @@ Add SharePoint configuration to your Claude Desktop config:
 ```json
 {
   "mcpServers": {
-    "mcp-consultant-tools": {
+    "sharepoint": {
       "command": "npx",
-      "args": ["-y", "mcp-consultant-tools"],
+      "args": ["@mcp-consultant-tools/sharepoint"],
       "env": {
         "SHAREPOINT_TENANT_ID": "your-tenant-id",
         "SHAREPOINT_CLIENT_ID": "your-client-id",
@@ -191,6 +191,29 @@ Add SharePoint configuration to your Claude Desktop config:
 }
 ```
 
+### Local Development/Testing Configuration
+
+For local testing with your development build:
+
+```json
+{
+  "mcpServers": {
+    "sharepoint-local": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp-consultant-tools/packages/sharepoint/build/index.js"],
+      "env": {
+        "SHAREPOINT_TENANT_ID": "your-tenant-id",
+        "SHAREPOINT_CLIENT_ID": "your-client-id",
+        "SHAREPOINT_CLIENT_SECRET": "your-client-secret",
+        "SHAREPOINT_SITES": "[{\"id\":\"main\",\"name\":\"Main Site\",\"siteUrl\":\"https://yourtenant.sharepoint.com/sites/main\",\"active\":true}]"
+      }
+    }
+  }
+}
+```
+
+**Note:** Replace `/absolute/path/to/mcp-consultant-tools` with your actual repository path.
+
 ### VS Code (Claude Code) Configuration
 
 Add to `.vscode/settings.json` or workspace settings:
@@ -198,9 +221,9 @@ Add to `.vscode/settings.json` or workspace settings:
 ```json
 {
   "mcp.servers": {
-    "mcp-consultant-tools": {
+    "sharepoint": {
       "command": "npx",
-      "args": ["-y", "mcp-consultant-tools"],
+      "args": ["@mcp-consultant-tools/sharepoint"],
       "env": {
         "SHAREPOINT_TENANT_ID": "your-tenant-id",
         "SHAREPOINT_CLIENT_ID": "your-client-id",
