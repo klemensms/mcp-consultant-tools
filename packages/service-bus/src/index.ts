@@ -1,35 +1,52 @@
 #!/usr/bin/env node
-
-/**
- * @mcp-consultant-tools/service-bus
- *
- * MCP server for service-bus integration.
- */
-
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { ServiceBusService } from "./ServiceBusService.js";
-import type { ConfigBusService } from "./ServiceBusService.js";
+import type { ServiceBusConfig } from "./ServiceBusService.js";
 import { z } from 'zod';
-import { createErrorResponse, createSuccessResponse } from '@mcp-consultant-tools/core';
-import { formatQueueListAsMarkdown, formatMessagesAsMarkdown, formatMessageInspectionAsMarkdown, analyzeDeadLetterMessages, formatDeadLetterAnalysisAsMarkdown, formatNamespaceOverviewAsMarkdown, generateServiceBusTroubleshootingGuide, generateCrossServiceReport } from './utils/servicebus-formatters.js';
+import { formatQueueListAsMarkdown, formatMessagesAsMarkdown, analyzeDeadLetterMessages, formatDeadLetterAnalysisAsMarkdown, generateServiceBusTroubleshootingGuide } from './utils/servicebus-formatters.js';
 
-/**
- * Register service-bus tools and prompts to an MCP server
- * @param server - The MCP server instance
- * @param servicebusService - Optional pre-configured ServiceBusService (for testing or custom configs)
- */
 export function registerServiceBusTools(server: any, servicebusService?: ServiceBusService) {
   let service: ServiceBusService | null = servicebusService || null;
 
   function getServiceBusService(): ServiceBusService {
     if (!service) {
-      // Configuration validation would go here
-      // For now, just initialize from environment
-      service = new ServiceBusService(/* config */);
-      console.error("ServiceBusService initialized");
-    }
+      const missingConfig: string[] = [];
+      let resources: any[] = [];
 
+      if (process.env.SERVICEBUS_RESOURCES) {
+        try {
+          resources = JSON.parse(process.env.SERVICEBUS_RESOURCES);
+        } catch (error) {
+          throw new Error("Failed to parse SERVICEBUS_RESOURCES JSON");
+        }
+      } else if (process.env.SERVICEBUS_NAMESPACE) {
+        resources = [{
+          id: 'default',
+          name: 'Default Service Bus',
+          namespace: process.env.SERVICEBUS_NAMESPACE,
+          active: true,
+          connectionString: process.env.SERVICEBUS_CONNECTION_STRING || '',
+        }];
+      } else {
+        missingConfig.push("SERVICEBUS_RESOURCES or SERVICEBUS_NAMESPACE");
+      }
+
+      if (missingConfig.length > 0) {
+        throw new Error(`Missing Service Bus configuration: ${missingConfig.join(", ")}`);
+      }
+
+      const config: ServiceBusConfig = {
+        resources,
+        authMethod: (process.env.SERVICEBUS_AUTH_METHOD || 'entra-id') as 'entra-id' | 'connection-string',
+        tenantId: process.env.SERVICEBUS_TENANT_ID || '',
+        clientId: process.env.SERVICEBUS_CLIENT_ID || '',
+        clientSecret: process.env.SERVICEBUS_CLIENT_SECRET || '',
+      };
+
+      service = new ServiceBusService(config);
+      console.error("Service Bus service initialized");
+    }
     return service;
   }
 
@@ -561,37 +578,22 @@ export function registerServiceBusTools(server: any, servicebusService?: Service
 
   console.error("service-bus tools registered: 8 tools, 4 prompts");
 
+  console.error("Service Bus tools registered: 8 tools, 4 prompts");
 }
 
-/**
- * Export service class for direct usage
- */
-export { ServiceBusService } from "./ServiceBusService.js";
-export type { ConfigBusService } from "./ServiceBusService.js";
-
-/**
- * Standalone CLI server (when run directly)
- */
 if (import.meta.url === `file://${process.argv[1]}`) {
   const loadEnv = createEnvLoader();
   loadEnv();
-
   const server = createMcpServer({
-    name: "@mcp-consultant-tools/service-bus",
+    name: "mcp-service-bus",
     version: "1.0.0",
-    capabilities: {
-      tools: {},
-      prompts: {},
-    },
+    capabilities: { tools: {}, prompts: {} }
   });
-
   registerServiceBusTools(server);
-
   const transport = new StdioServerTransport();
   server.connect(transport).catch((error: Error) => {
-    console.error("Failed to start @mcp-consultant-tools/service-bus MCP server:", error);
+    console.error("Failed to start Service Bus MCP server:", error);
     process.exit(1);
   });
-
-  console.error("@mcp-consultant-tools/service-bus server running on stdio");
+  console.error("Service Bus MCP server running");
 }

@@ -1,35 +1,51 @@
 #!/usr/bin/env node
-
-/**
- * @mcp-consultant-tools/application-insights
- *
- * MCP server for application-insights integration.
- */
-
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { ApplicationInsightsService } from "./ApplicationInsightsService.js";
 import type { ApplicationInsightsConfig } from "./ApplicationInsightsService.js";
 import { z } from 'zod';
-import { createErrorResponse, createSuccessResponse } from '@mcp-consultant-tools/core';
 import { formatTableAsMarkdown, analyzeExceptions, analyzePerformance, analyzeDependencies } from './utils/appinsights-formatters.js';
 
-/**
- * Register application-insights tools and prompts to an MCP server
- * @param server - The MCP server instance
- * @param applicationinsightsService - Optional pre-configured ApplicationInsightsService (for testing or custom configs)
- */
 export function registerApplicationInsightsTools(server: any, applicationinsightsService?: ApplicationInsightsService) {
   let service: ApplicationInsightsService | null = applicationinsightsService || null;
 
   function getApplicationInsightsService(): ApplicationInsightsService {
     if (!service) {
-      // Configuration validation would go here
-      // For now, just initialize from environment
-      service = new ApplicationInsightsService(/* config */);
-      console.error("ApplicationInsightsService initialized");
-    }
+      const missingConfig: string[] = [];
+      let resources: any[] = [];
 
+      if (process.env.APPINSIGHTS_RESOURCES) {
+        try {
+          resources = JSON.parse(process.env.APPINSIGHTS_RESOURCES);
+        } catch (error) {
+          throw new Error("Failed to parse APPINSIGHTS_RESOURCES JSON");
+        }
+      } else if (process.env.APPINSIGHTS_APP_ID) {
+        resources = [{
+          id: 'default',
+          name: 'Default Application Insights',
+          appId: process.env.APPINSIGHTS_APP_ID,
+          active: true,
+        }];
+      } else {
+        missingConfig.push("APPINSIGHTS_RESOURCES or APPINSIGHTS_APP_ID");
+      }
+
+      if (missingConfig.length > 0) {
+        throw new Error(`Missing Application Insights configuration: ${missingConfig.join(", ")}`);
+      }
+
+      const config: ApplicationInsightsConfig = {
+        resources,
+        authMethod: (process.env.APPINSIGHTS_AUTH_METHOD || 'entra-id') as 'entra-id' | 'api-key',
+        tenantId: process.env.APPINSIGHTS_TENANT_ID || '',
+        clientId: process.env.APPINSIGHTS_CLIENT_ID || '',
+        clientSecret: process.env.APPINSIGHTS_CLIENT_SECRET || '',
+      };
+
+      service = new ApplicationInsightsService(config);
+      console.error("Application Insights service initialized");
+    }
     return service;
   }
 
@@ -763,37 +779,22 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
 
   console.error("application-insights tools registered: 10 tools, 5 prompts");
 
+  console.error("Application Insights tools registered: 10 tools, 5 prompts");
 }
 
-/**
- * Export service class for direct usage
- */
-export { ApplicationInsightsService } from "./ApplicationInsightsService.js";
-export type { ApplicationInsightsConfig } from "./ApplicationInsightsService.js";
-
-/**
- * Standalone CLI server (when run directly)
- */
 if (import.meta.url === `file://${process.argv[1]}`) {
   const loadEnv = createEnvLoader();
   loadEnv();
-
   const server = createMcpServer({
-    name: "@mcp-consultant-tools/application-insights",
+    name: "mcp-application-insights",
     version: "1.0.0",
-    capabilities: {
-      tools: {},
-      prompts: {},
-    },
+    capabilities: { tools: {}, prompts: {} }
   });
-
   registerApplicationInsightsTools(server);
-
   const transport = new StdioServerTransport();
   server.connect(transport).catch((error: Error) => {
-    console.error("Failed to start @mcp-consultant-tools/application-insights MCP server:", error);
+    console.error("Failed to start Application Insights MCP server:", error);
     process.exit(1);
   });
-
-  console.error("@mcp-consultant-tools/application-insights server running on stdio");
+  console.error("Application Insights MCP server running");
 }

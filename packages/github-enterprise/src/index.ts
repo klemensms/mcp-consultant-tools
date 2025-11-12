@@ -1,35 +1,45 @@
 #!/usr/bin/env node
-
-/**
- * @mcp-consultant-tools/github-enterprise
- *
- * MCP server for github-enterprise integration.
- */
-
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { GitHubEnterpriseService } from "./GitHubEnterpriseService.js";
 import type { GitHubEnterpriseConfig } from "./GitHubEnterpriseService.js";
 import { z } from 'zod';
-import { createErrorResponse, createSuccessResponse } from '@mcp-consultant-tools/core';
-import { formatBranchListAsMarkdown, formatCommitHistoryAsMarkdown, formatCodeSearchResultsAsMarkdown, formatPullRequestsAsMarkdown, formatFileTreeAsMarkdown, formatDirectoryContentsAsMarkdown, analyzeBranchComparison, generateDeploymentChecklist, formatCommitDetailsAsMarkdown, formatPullRequestDetailsAsMarkdown, formatRepositoryOverviewAsMarkdown } from './utils/ghe-formatters.js';
+import { formatBranchListAsMarkdown, formatCommitHistoryAsMarkdown, formatCodeSearchResultsAsMarkdown } from './utils/ghe-formatters.js';
 
-/**
- * Register github-enterprise tools and prompts to an MCP server
- * @param server - The MCP server instance
- * @param githubenterpriseService - Optional pre-configured GitHubEnterpriseService (for testing or custom configs)
- */
 export function registerGitHubEnterpriseTools(server: any, githubenterpriseService?: GitHubEnterpriseService) {
   let service: GitHubEnterpriseService | null = githubenterpriseService || null;
 
   function getGitHubEnterpriseService(): GitHubEnterpriseService {
     if (!service) {
-      // Configuration validation would go here
-      // For now, just initialize from environment
-      service = new GitHubEnterpriseService(/* config */);
-      console.error("GitHubEnterpriseService initialized");
-    }
+      const missingConfig: string[] = [];
+      let repos: any[] = [];
 
+      if (process.env.GHE_REPOS) {
+        try {
+          repos = JSON.parse(process.env.GHE_REPOS);
+        } catch (error) {
+          throw new Error("Failed to parse GHE_REPOS JSON");
+        }
+      } else {
+        missingConfig.push("GHE_REPOS");
+      }
+
+      if (!process.env.GHE_TOKEN) missingConfig.push("GHE_TOKEN");
+
+      if (missingConfig.length > 0) {
+        throw new Error(`Missing GitHub Enterprise configuration: ${missingConfig.join(", ")}`);
+      }
+
+      const config: GitHubEnterpriseConfig = {
+        repos,
+        token: process.env.GHE_TOKEN!,
+        enableCache: process.env.GHE_ENABLE_CACHE !== 'false',
+        cacheTTL: parseInt(process.env.GHE_CACHE_TTL || '300'),
+      };
+
+      service = new GitHubEnterpriseService(config);
+      console.error("GitHub Enterprise service initialized");
+    }
     return service;
   }
 
@@ -1133,37 +1143,22 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
 
   console.error("github-enterprise tools registered: 22 tools, 5 prompts");
 
+  console.error("GitHub Enterprise tools registered: 22 tools, 5 prompts");
 }
 
-/**
- * Export service class for direct usage
- */
-export { GitHubEnterpriseService } from "./GitHubEnterpriseService.js";
-export type { GitHubEnterpriseConfig } from "./GitHubEnterpriseService.js";
-
-/**
- * Standalone CLI server (when run directly)
- */
 if (import.meta.url === `file://${process.argv[1]}`) {
   const loadEnv = createEnvLoader();
   loadEnv();
-
   const server = createMcpServer({
-    name: "@mcp-consultant-tools/github-enterprise",
+    name: "mcp-github-enterprise",
     version: "1.0.0",
-    capabilities: {
-      tools: {},
-      prompts: {},
-    },
+    capabilities: { tools: {}, prompts: {} }
   });
-
   registerGitHubEnterpriseTools(server);
-
   const transport = new StdioServerTransport();
   server.connect(transport).catch((error: Error) => {
-    console.error("Failed to start @mcp-consultant-tools/github-enterprise MCP server:", error);
+    console.error("Failed to start GitHub Enterprise MCP server:", error);
     process.exit(1);
   });
-
-  console.error("@mcp-consultant-tools/github-enterprise server running on stdio");
+  console.error("GitHub Enterprise MCP server running");
 }

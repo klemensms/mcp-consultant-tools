@@ -1,35 +1,51 @@
 #!/usr/bin/env node
-
-/**
- * @mcp-consultant-tools/log-analytics
- *
- * MCP server for log-analytics integration.
- */
-
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { LogAnalyticsService } from "./LogAnalyticsService.js";
 import type { LogAnalyticsConfig } from "./LogAnalyticsService.js";
 import { z } from 'zod';
-import { createErrorResponse, createSuccessResponse } from '@mcp-consultant-tools/core';
-import { formatTableAsMarkdown, analyzeLogs, analyzeFunctionLogs, analyzeFunctionErrors, analyzeFunctionStats, generateRecommendations } from './utils/loganalytics-formatters.js';
+import { formatTableAsMarkdown, formatTableAsCSV, analyzeLogs, analyzeFunctionLogs, analyzeFunctionErrors, analyzeFunctionStats, generateRecommendations } from './utils/loganalytics-formatters.js';
 
-/**
- * Register log-analytics tools and prompts to an MCP server
- * @param server - The MCP server instance
- * @param loganalyticsService - Optional pre-configured LogAnalyticsService (for testing or custom configs)
- */
 export function registerLogAnalyticsTools(server: any, loganalyticsService?: LogAnalyticsService) {
   let service: LogAnalyticsService | null = loganalyticsService || null;
 
   function getLogAnalyticsService(): LogAnalyticsService {
     if (!service) {
-      // Configuration validation would go here
-      // For now, just initialize from environment
-      service = new LogAnalyticsService(/* config */);
-      console.error("LogAnalyticsService initialized");
-    }
+      const missingConfig: string[] = [];
+      let resources: any[] = [];
 
+      if (process.env.LOGANALYTICS_RESOURCES) {
+        try {
+          resources = JSON.parse(process.env.LOGANALYTICS_RESOURCES);
+        } catch (error) {
+          throw new Error("Failed to parse LOGANALYTICS_RESOURCES JSON");
+        }
+      } else if (process.env.LOGANALYTICS_WORKSPACE_ID) {
+        resources = [{
+          id: 'default',
+          name: 'Default Workspace',
+          workspaceId: process.env.LOGANALYTICS_WORKSPACE_ID,
+          active: true,
+        }];
+      } else {
+        missingConfig.push("LOGANALYTICS_RESOURCES or LOGANALYTICS_WORKSPACE_ID");
+      }
+
+      if (missingConfig.length > 0) {
+        throw new Error(`Missing Log Analytics configuration: ${missingConfig.join(", ")}`);
+      }
+
+      const config: LogAnalyticsConfig = {
+        resources,
+        authMethod: (process.env.LOGANALYTICS_AUTH_METHOD || 'entra-id') as 'entra-id' | 'api-key',
+        tenantId: process.env.LOGANALYTICS_TENANT_ID || process.env.APPINSIGHTS_TENANT_ID || '',
+        clientId: process.env.LOGANALYTICS_CLIENT_ID || process.env.APPINSIGHTS_CLIENT_ID || '',
+        clientSecret: process.env.LOGANALYTICS_CLIENT_SECRET || process.env.APPINSIGHTS_CLIENT_SECRET || '',
+      };
+
+      service = new LogAnalyticsService(config);
+      console.error("Log Analytics service initialized");
+    }
     return service;
   }
 
@@ -414,6 +430,40 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
   );
 
   server.tool(
+    "loganalytics-test-workspace-access",
+    "Test access to a Log Analytics workspace by executing a simple query",
+    {
+      resourceId: z.string().describe("Resource ID"),
+    },
+    async ({ resourceId }) => {
+      try {
+        const service = getLogAnalyticsService();
+        const result = await service.testWorkspaceAccess(resourceId);
+  
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error testing workspace access:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to test workspace access: ${error.message}`,
+            },
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  server.tool(
     "loganalytics-get-recent-events",
     "Get recent events from a specific Log Analytics table",
     {
@@ -667,39 +717,24 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
     }
   );
 
-  console.error("log-analytics tools registered: 9 tools, 4 prompts");
+  console.error("log-analytics tools registered: 10 tools, 4 prompts");
 
+  console.error("Log Analytics tools registered: 10 tools, 4 prompts");
 }
 
-/**
- * Export service class for direct usage
- */
-export { LogAnalyticsService } from "./LogAnalyticsService.js";
-export type { LogAnalyticsConfig } from "./LogAnalyticsService.js";
-
-/**
- * Standalone CLI server (when run directly)
- */
 if (import.meta.url === `file://${process.argv[1]}`) {
   const loadEnv = createEnvLoader();
   loadEnv();
-
   const server = createMcpServer({
-    name: "@mcp-consultant-tools/log-analytics",
+    name: "mcp-log-analytics",
     version: "1.0.0",
-    capabilities: {
-      tools: {},
-      prompts: {},
-    },
+    capabilities: { tools: {}, prompts: {} }
   });
-
   registerLogAnalyticsTools(server);
-
   const transport = new StdioServerTransport();
   server.connect(transport).catch((error: Error) => {
-    console.error("Failed to start @mcp-consultant-tools/log-analytics MCP server:", error);
+    console.error("Failed to start Log Analytics MCP server:", error);
     process.exit(1);
   });
-
-  console.error("@mcp-consultant-tools/log-analytics server running on stdio");
+  console.error("Log Analytics MCP server running");
 }

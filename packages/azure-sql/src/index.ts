@@ -1,35 +1,56 @@
 #!/usr/bin/env node
-
-/**
- * @mcp-consultant-tools/azure-sql
- *
- * MCP server for azure-sql integration.
- */
-
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { AzureSqlService } from "./AzureSqlService.js";
 import type { AzureSqlConfig } from "./AzureSqlService.js";
 import { z } from 'zod';
-import { createErrorResponse, createSuccessResponse } from '@mcp-consultant-tools/core';
-import { formatTableAsMarkdown, formatSqlResultsAsMarkdown, formatDatabaseOverview, formatTableSchemaAsMarkdown } from './utils/sql-formatters.js';
+import { formatSqlResultsAsMarkdown, formatTableList, formatViewList, formatProcedureList, formatTableSchemaAsMarkdown, formatDatabaseOverview } from './utils/sql-formatters.js';
 
-/**
- * Register azure-sql tools and prompts to an MCP server
- * @param server - The MCP server instance
- * @param azuresqlService - Optional pre-configured AzureSqlService (for testing or custom configs)
- */
 export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlService) {
   let service: AzureSqlService | null = azuresqlService || null;
 
   function getAzureSqlService(): AzureSqlService {
     if (!service) {
-      // Configuration validation would go here
-      // For now, just initialize from environment
-      service = new AzureSqlService(/* config */);
-      console.error("AzureSqlService initialized");
-    }
+      const missingConfig: string[] = [];
+      let resources: any[] = [];
 
+      if (process.env.AZURE_SQL_SERVERS) {
+        try {
+          resources = JSON.parse(process.env.AZURE_SQL_SERVERS);
+        } catch (error) {
+          throw new Error("Failed to parse AZURE_SQL_SERVERS JSON");
+        }
+      } else if (process.env.AZURE_SQL_SERVER && process.env.AZURE_SQL_DATABASE) {
+        resources = [{
+          id: 'default',
+          name: 'Default SQL Server',
+          server: process.env.AZURE_SQL_SERVER,
+          port: parseInt(process.env.AZURE_SQL_PORT || "1433"),
+          active: true,
+          databases: [{
+            name: process.env.AZURE_SQL_DATABASE,
+            active: true,
+          }],
+          username: process.env.AZURE_SQL_USERNAME || '',
+          password: process.env.AZURE_SQL_PASSWORD || '',
+        }];
+      } else {
+        missingConfig.push("AZURE_SQL_SERVERS or AZURE_SQL_SERVER/AZURE_SQL_DATABASE");
+      }
+
+      if (missingConfig.length > 0) {
+        throw new Error(`Missing Azure SQL configuration: ${missingConfig.join(", ")}`);
+      }
+
+      const config: AzureSqlConfig = {
+        resources,
+        queryTimeout: parseInt(process.env.AZURE_SQL_QUERY_TIMEOUT || "30000"),
+        maxResultRows: parseInt(process.env.AZURE_SQL_MAX_RESULT_ROWS || "1000"),
+      };
+
+      service = new AzureSqlService(config);
+      console.error("Azure SQL service initialized");
+    }
     return service;
   }
 
@@ -514,37 +535,22 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
 
   console.error("azure-sql tools registered: 11 tools, 3 prompts");
 
+  console.error("Azure SQL tools registered: 11 tools, 3 prompts");
 }
 
-/**
- * Export service class for direct usage
- */
-export { AzureSqlService } from "./AzureSqlService.js";
-export type { AzureSqlConfig } from "./AzureSqlService.js";
-
-/**
- * Standalone CLI server (when run directly)
- */
 if (import.meta.url === `file://${process.argv[1]}`) {
   const loadEnv = createEnvLoader();
   loadEnv();
-
   const server = createMcpServer({
-    name: "@mcp-consultant-tools/azure-sql",
+    name: "mcp-azure-sql",
     version: "1.0.0",
-    capabilities: {
-      tools: {},
-      prompts: {},
-    },
+    capabilities: { tools: {}, prompts: {} }
   });
-
   registerAzureSqlTools(server);
-
   const transport = new StdioServerTransport();
   server.connect(transport).catch((error: Error) => {
-    console.error("Failed to start @mcp-consultant-tools/azure-sql MCP server:", error);
+    console.error("Failed to start Azure SQL MCP server:", error);
     process.exit(1);
   });
-
-  console.error("@mcp-consultant-tools/azure-sql server running on stdio");
+  console.error("Azure SQL MCP server running");
 }
