@@ -751,7 +751,7 @@ await mcpClient.invoke("update-work-item", {
 
 #### create-work-item
 
-Create a new work item.
+Create a new work item with optional parent relationship.
 
 **⚠️ REQUIRES: `AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true`**
 
@@ -759,11 +759,13 @@ Create a new work item.
 - `project` (string, required): Project name
 - `workItemType` (string, required): Type (Bug, Task, User Story, Epic, Feature, etc.)
 - `fields` (object, required): Field values (`System.Title` is required)
+- `parentId` (number, optional): Parent work item ID for creating child items
+- `relations` (array, optional): Array of work item relationships (advanced)
 
 **Returns:**
-- Created work item
+- Created work item with relations
 
-**Example:**
+**Example 1: Basic work item**
 ```javascript
 await mcpClient.invoke("create-work-item", {
   project: "MyProject",
@@ -781,9 +783,59 @@ await mcpClient.invoke("create-work-item", {
 });
 ```
 
+**Example 2: Child work item with parent (recommended)**
+```javascript
+await mcpClient.invoke("create-work-item", {
+  project: "MyProject",
+  workItemType: "Task",
+  parentId: 1133,  // Parent user story ID
+  fields: {
+    "System.Title": "Implement login page fix",
+    "System.Description": "Update routing configuration",
+    "Microsoft.VSTS.Scheduling.RemainingWork": 4
+  }
+});
+```
+
+**Example 3: Work item with multiple relationships (advanced)**
+```javascript
+await mcpClient.invoke("create-work-item", {
+  project: "MyProject",
+  workItemType: "Task",
+  parentId: 1133,  // Parent user story
+  relations: [
+    {
+      rel: "System.LinkTypes.Related",
+      url: "https://dev.azure.com/myorg/MyProject/_apis/wit/workItems/1050"
+    },
+    {
+      rel: "System.LinkTypes.Dependency-Reverse",
+      url: "https://dev.azure.com/myorg/MyProject/_apis/wit/workItems/1045"
+    }
+  ],
+  fields: {
+    "System.Title": "Write integration tests"
+  }
+});
+```
+
+**Common Relation Types:**
+- `System.LinkTypes.Hierarchy-Reverse`: Child → Parent (used by `parentId`)
+- `System.LinkTypes.Hierarchy-Forward`: Parent → Child
+- `System.LinkTypes.Related`: Related work items
+- `System.LinkTypes.Dependency-Forward`: Successor (this blocks the linked item)
+- `System.LinkTypes.Dependency-Reverse`: Predecessor (this is blocked by linked item)
+
+**Benefits of Parent Relationships:**
+- ✅ Single API call (no separate update needed)
+- ✅ Single revision created (cleaner audit history)
+- ✅ Atomic operation (parent set immediately)
+- ✅ Backward compatible (optional parameters)
+
 **Use Cases:**
 - Create bugs from automated testing
-- Generate tasks from templates
+- Generate child tasks under parent user stories
+- Bulk create work items with hierarchy
 - Integrate with external ticketing systems
 
 ---

@@ -786,19 +786,25 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
 
   server.tool(
     "create-work-item",
-    "Create a new work item in Azure DevOps (requires AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true)",
+    "Create a new work item in Azure DevOps with optional parent relationship (requires AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true)",
     {
       project: z.string().describe("The project name"),
       workItemType: z.string().describe("The work item type (e.g., 'Bug', 'Task', 'User Story')"),
       fields: z.record(z.any()).describe("Object with field values (e.g., {\"System.Title\": \"Bug title\", \"System.Description\": \"Details\"})"),
+      parentId: z.number().optional().describe("Optional parent work item ID (for creating child items). Simplified alternative to relations parameter."),
+      relations: z.array(z.object({
+        rel: z.string().describe("Relation type (e.g., 'System.LinkTypes.Hierarchy-Reverse' for parent)"),
+        url: z.string().describe("URL to related work item (e.g., 'https://dev.azure.com/org/project/_apis/wit/workItems/123')"),
+        attributes: z.record(z.any()).optional().describe("Optional relation attributes")
+      })).optional().describe("Optional array of work item relationships. Use parentId for simple parent-child relationships.")
     },
-    async ({ project, workItemType, fields }: any) => {
+    async ({ project, workItemType, fields, parentId, relations }: any) => {
       try {
         const service = getAzureDevOpsService();
-        const result = await service.createWorkItem(project, workItemType, fields);
-  
+        const result = await service.createWorkItem(project, workItemType, fields, parentId, relations);
+
         const resultStr = JSON.stringify(result, null, 2);
-  
+
         return {
           content: [
             {

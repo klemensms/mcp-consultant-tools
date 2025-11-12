@@ -224,419 +224,43 @@ The monorepo uses TypeScript composite builds for incremental compilation:
 
 ### Package Structure Pattern
 
-Each service package follows a consistent structure:
-
-```
-packages/{service}/
-├── src/
-│   ├── index.ts              # Entry point + registerXxxTools()
-│   ├── {Service}Service.ts   # Service implementation
-│   ├── types/                # TypeScript types
-│   └── utils/                # Service-specific utilities
-├── build/                    # Compiled output (gitignored)
-├── package.json              # Package metadata + dependencies
-├── tsconfig.json             # TypeScript configuration
-└── README.md                 # Package documentation
-```
-
-**Example: packages/powerplatform/src/index.ts**
-```typescript
-#!/usr/bin/env node
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
-import { PowerPlatformService } from "./PowerPlatformService.js";
-
-/**
- * Register all PowerPlatform tools with an MCP server
- * @param server - MCP server instance
- * @param service - Optional pre-initialized PowerPlatformService (for testing)
- */
-export function registerPowerPlatformTools(server: any, service?: PowerPlatformService) {
-  // TODO: Register 65 tools + 12 prompts
-  // Tool extraction from main index.ts pending (incremental approach)
-  console.error("PowerPlatform tools registered (tool extraction pending)");
-}
-
-// CLI entry point (standalone execution)
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const loadEnv = createEnvLoader();
-  loadEnv(); // Suppresses dotenv stdout for MCP protocol compliance
-
-  const server = createMcpServer({
-    name: "mcp-powerplatform",
-    version: "1.0.0",
-    capabilities: { tools: {}, prompts: {} }
-  });
-
-  registerPowerPlatformTools(server);
-
-  const transport = new StdioServerTransport();
-  server.connect(transport).catch((error: Error) => {
-    console.error("Failed to start PowerPlatform MCP server:", error);
-    process.exit(1);
-  });
-
-  console.error("PowerPlatform MCP server running");
-}
-```
+Each service package follows a consistent structure with entry point, service implementation, types, and utilities in `packages/{service}/src/`. See individual package README files for details.
 
 ### Dual-Export Pattern
 
 Every service package exports:
-
-1. **`registerXxxTools(server, service?)`** - Function for composable registration
+1. **`registerXxxTools(server, service?)`** - For composable registration
 2. **Standalone CLI** - Direct execution via `npx @mcp-consultant-tools/{service}`
 
-**Usage patterns:**
-
-**Pattern 1: Complete package (meta)**
-```typescript
-import { registerAllTools } from 'mcp-consultant-tools';
-const server = createMcpServer({...});
-registerAllTools(server); // Registers all 172 tools + 47 prompts
-```
-
-**Pattern 2: Individual packages**
-```typescript
-import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';
-import { registerAzureDevOpsTools } from '@mcp-consultant-tools/azure-devops';
-const server = createMcpServer({...});
-registerPowerPlatformTools(server); // 65 tools + 12 prompts
-registerAzureDevOpsTools(server);   // 18 tools + 6 prompts
-```
-
-**Pattern 3: Direct service access**
-```typescript
-import { PowerPlatformService } from '@mcp-consultant-tools/powerplatform';
-const service = new PowerPlatformService({...});
-const entities = await service.getEntityMetadata('account');
-```
+Usage: Import `registerAllTools` from meta-package, or import individual `registerXxxTools` functions from service packages.
 
 ### Core Package (@mcp-consultant-tools/core)
 
-The core package provides shared utilities for all service packages:
+Provides shared utilities: `createMcpServer()`, `createEnvLoader()` (suppresses dotenv stdout for MCP protocol compliance), and `auditLogger` for centralized operation logging. All services must use `createEnvLoader()` to prevent stdout corruption in MCP stdio transport.
 
-**Exports:**
-- `createMcpServer(config)` - Create configured MCP server
-- `createEnvLoader()` - Environment loader with stdout suppression
-- `auditLogger` - Centralized audit logging utility
+### Package Dependencies & Build
 
-**Key implementation: createEnvLoader()**
-```typescript
-export function createEnvLoader() {
-  return () => {
-    // CRITICAL: Suppress stdout during dotenv loading
-    // MCP protocol requires clean JSON-only stdout
-    const originalWrite = process.stdout.write;
-    process.stdout.write = () => true;
+**Publishing order:** core → service packages (including powerplatform base, then powerplatform-customization/data) → meta
 
-    dotenv.config();
-
-    process.stdout.write = originalWrite;
-  };
-}
-```
-
-**Why stdout suppression matters:**
-- MCP uses stdio transport (JSON-RPC over stdin/stdout)
-- dotenv writes "Using .env file" to stdout
-- Any non-JSON stdout corrupts MCP protocol
-- All services must use `createEnvLoader()` for MCP compliance
-
-**Audit logger usage:**
-```typescript
-import { auditLogger } from '@mcp-consultant-tools/core';
-
-auditLogger.log({
-  operation: 'get-entity-metadata',
-  operationType: 'READ',
-  resourceId: 'account',
-  componentType: 'Entity',
-  success: true,
-  parameters: { entityName: 'account' },
-  executionTimeMs: 156
-});
-```
-
-### Package Dependencies
-
-**Dependency order for publishing:**
-```
-1. core (no dependencies)
-2. service packages (depend on core)
-   - application-insights
-   - azure-devops
-   - azure-sql
-   - figma
-   - github-enterprise
-   - log-analytics
-   - powerplatform (read-only)
-   - powerplatform-customization (depends on powerplatform)
-   - powerplatform-data (depends on powerplatform)
-   - service-bus
-   - sharepoint
-3. meta (depends on all services + core)
-```
-
-**Note:** The `powerplatform-customization` and `powerplatform-data` packages depend on the base `powerplatform` package, so they must be published after it.
-
-**Example: packages/powerplatform/package.json**
-```json
-{
-  "name": "@mcp-consultant-tools/powerplatform",
-  "version": "1.0.0",
-  "dependencies": {
-    "@azure/msal-node": "^3.3.0",
-    "@mcp-consultant-tools/core": "^1.0.0",
-    "@modelcontextprotocol/sdk": "^1.0.4",
-    "axios": "^1.8.3",
-    "zod": "^3.24.1"
-  }
-}
-```
-
-**Note:** Each service package includes only the dependencies it needs, not all dependencies from the monolithic v14 package.
-
-### Build Process
-
-**Build all packages:**
-```bash
-npm run build
-# Runs: npm run build --workspaces --if-present
-# Output: packages/*/build/ directories
-```
-
-**Build individual package:**
-```bash
-cd packages/powerplatform
-npm run build
-# Output: packages/powerplatform/build/
-```
-
-**TypeScript build order:**
-- TypeScript automatically follows project references
-- Builds core first, then service packages, then meta
-- Incremental builds only recompile changed packages
-
-**Build output verification:**
-```bash
-# Check all build outputs
-find packages -name 'build' -type d -exec ls -lh {} \;
-
-# Verify TypeScript declarations generated
-find packages -name '*.d.ts' | head -10
-```
+**Build:** `npm run build` builds all packages via workspaces. TypeScript follows project references for incremental builds (core → services → meta).
 
 ### Publishing Workflow
 
-**Publishing to npm (automated):**
-
-```bash
-# 1. Publish core package first
-cd packages/core
-npm version patch
-npm publish --access public
-
-# 2. Publish base PowerPlatform package first (other packages depend on it)
-cd packages/powerplatform
-npm version patch
-npm publish --access public
-
-# 3. Publish service packages (parallel) including PowerPlatform extensions
-for pkg in application-insights azure-devops azure-sql figma github-enterprise log-analytics powerplatform-customization powerplatform-data service-bus sharepoint; do
-  cd packages/$pkg
-  npm version patch
-  npm publish --access public
-done
-
-# 4. Publish meta-package last
-cd packages/meta
-npm version patch
-npm publish --access public
-```
-
-**Version bumping strategy:**
-- Core package: Bump when shared utilities change
-- Service packages: Independent versioning per service
-- Meta-package: Tracks overall release version (v15.0.0, v15.1.0, etc.)
-
-**Publishing script (scripts/publish-all.sh):**
-```bash
-#!/bin/bash
-set -e
-
-# Publish in dependency order
-packages=(
-  "core"
-  "application-insights"
-  "azure-devops"
-  "azure-sql"
-  "figma"
-  "github-enterprise"
-  "log-analytics"
-  "powerplatform"
-  "powerplatform-customization"
-  "powerplatform-data"
-  "service-bus"
-  "sharepoint"
-  "meta"
-)
-
-for pkg in "${packages[@]}"; do
-  echo "Publishing @mcp-consultant-tools/$pkg..."
-  cd packages/$pkg
-  npm publish --access public
-  cd ../..
-done
-
-echo "All packages published successfully!"
-```
+Use `scripts/publish-all.sh` to publish packages in dependency order: core → service packages → meta. Version bumping: core (when utilities change), service packages (independent), meta-package (tracks overall release).
 
 ### Development Workflow
 
-**Initial setup:**
-```bash
-git clone https://github.com/klemensms/mcp-consultant-tools.git
-cd mcp-consultant-tools
-npm install  # Installs all workspace dependencies
-npm run build  # Builds all packages
-```
+**Setup:** `git clone` → `npm install` → `npm run build`
+**Per-service work:** `cd packages/{service}` → `npm run build`
+**Local testing:** `node build/index.js` in package directory
 
-**Working on a single service:**
-```bash
-cd packages/powerplatform
-npm run build  # Build only this package
-npm run clean  # Clean build outputs
-```
+See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for v14→v15 migration details (import path changes, backward compatibility via meta-package).
 
-**Adding a dependency to a service:**
-```bash
-cd packages/powerplatform
-npm install axios  # Adds to powerplatform package only
-cd ../..
-npm install  # Update root lockfile
-```
+### Incremental Tool Extraction
 
-**Testing a service locally:**
-```bash
-cd packages/powerplatform
-npm run build
-node build/index.js  # Run standalone MCP server
-```
+**Status:** 11 packages created, service files moved, tool registrations pending extraction from main index.ts (~8,500 lines, 172 tools + 47 prompts). Phased post-publishing approach:
 
-**Testing complete package locally:**
-```bash
-cd packages/meta
-npm run build
-node build/index.js  # Runs aggregated server
-```
-
-### Migration from v14
-
-**v14 (monolithic):**
-- Single package: `mcp-consultant-tools`
-- 28,755 LOC in single codebase
-- All dependencies bundled
-- Tool registrations in single `src/index.ts`
-
-**v15 (modular):**
-- 11 packages: 1 core + 9 services + 1 meta
-- Code split into packages
-- Dependencies per service
-- Tool registrations in service packages (pending extraction)
-
-**Import path changes:**
-```typescript
-// v14
-import { PowerPlatformService } from 'mcp-consultant-tools';
-
-// v15
-import { PowerPlatformService } from '@mcp-consultant-tools/powerplatform';
-```
-
-**Configuration changes:**
-- None! Environment variables remain identical
-- Tool names remain identical
-- Prompt names remain identical
-- Full backward compatibility via meta-package
-
-See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for complete migration instructions.
-
-### Incremental Tool Extraction Strategy
-
-**Current state (Phase 5 complete):**
-- ✅ All 11 packages created and building
-- ✅ All service files moved to packages
-- ✅ All dependencies resolved
-- ⏳ Tool registrations stubbed (extraction pending)
-
-**Main index.ts analysis:**
-- 11,887 total lines
-- Lines 2524-11012: Tool registrations (~8,500 lines)
-- 172 tools + 47 prompts to extract
-
-**Extraction approach (deferred to post-publishing):**
-
-Instead of extracting all tools before v15 publishing, we use a phased approach:
-
-**Phase 1 (Completed): Infrastructure**
-- Create all 11 packages
-- Move service implementations
-- Set up TypeScript project references
-- Establish build process
-
-**Phase 2 (Current): Documentation & Publishing**
-- Update documentation (README, CLAUDE.md, MIGRATION_GUIDE)
-- Create CI/CD workflows
-- Publish packages to npm with stub implementations
-
-**Phase 3 (Post-publishing): Incremental Tool Extraction**
-- Extract tools one service at a time
-- Verify each service's tools work correctly
-- Publish patch releases for each service
-- Meta-package auto-updates via dependency ranges
-
-**Rationale:**
-- Enables publishing v15 architecture immediately
-- Tools continue working via main index.ts (v14 compatibility)
-- Gradual migration reduces risk
-- Each service can be tested independently
-
-**Example: Extracting PowerPlatform tools**
-```typescript
-// Before (stub in packages/powerplatform/src/index.ts)
-export function registerPowerPlatformTools(server: any) {
-  console.error("PowerPlatform tools registered (tool extraction pending)");
-}
-
-// After (extracted from main index.ts)
-export function registerPowerPlatformTools(server: any, service?: PowerPlatformService) {
-  let ppService: PowerPlatformService | null = service || null;
-
-  function getService(): PowerPlatformService {
-    if (!ppService) {
-      ppService = new PowerPlatformService({...});
-    }
-    return ppService;
-  }
-
-  // Tool: get-entity-metadata
-  server.tool(
-    "get-entity-metadata",
-    "Get comprehensive metadata for a PowerPlatform entity",
-    {
-      entityName: z.string().describe("Entity logical name")
-    },
-    async ({ entityName }: { entityName: string }) => {
-      const service = getService();
-      const metadata = await service.getEntityMetadata(entityName);
-      return { content: [{ type: "text", text: JSON.stringify(metadata, null, 2) }] };
-    }
-  );
-
-  // ... 64 more tools + 12 prompts
-}
-```
+Phased approach: Phase 1 (Infrastructure - complete), Phase 2 (Documentation & Publishing - current), Phase 3 (Tool extraction - post-publishing). Extract tools one service at a time, publish patch releases. Tools continue working via main index.ts during transition.
 
 ## Documentation Structure
 
@@ -920,7 +544,7 @@ The server validates configuration on first use of each service and throws an er
 - `get-work-item-comments`: Get discussion comments
 - `add-work-item-comment`: Add comment (requires write permission)
 - `update-work-item`: Update work item fields (requires write permission)
-- `create-work-item`: Create new work item (requires write permission)
+- `create-work-item`: Create new work item with optional parent relationship (requires write permission)
 - `delete-work-item`: Delete work item (requires delete permission)
 
 *Figma Tools:*
@@ -951,6 +575,61 @@ The server validates configuration on first use of each service and throws an er
 - `wiki-page-content`: Get formatted wiki page with navigation context
 - `work-item-summary`: Comprehensive work item summary with details and comments
 - `work-items-query-report`: Execute WIQL query and get formatted results
+
+### Azure DevOps Work Item Parent Relationships
+
+The `create-work-item` tool supports setting parent-child relationships during work item creation in a single API call, eliminating the need for a separate update operation.
+
+**Parameters:**
+- `parentId` (optional, number): Parent work item ID - simplified approach for creating child items
+- `relations` (optional, array): Advanced array of work item relationships
+
+**Common Relation Types:**
+- `System.LinkTypes.Hierarchy-Reverse`: Child → Parent (most common, used by `parentId`)
+- `System.LinkTypes.Hierarchy-Forward`: Parent → Child
+- `System.LinkTypes.Related`: Related work items
+- `System.LinkTypes.Dependency-Forward`: Successor (this item blocks the linked item)
+- `System.LinkTypes.Dependency-Reverse`: Predecessor (this item is blocked by linked item)
+
+**Example 1: Simple parent relationship (recommended)**
+```json
+{
+  "project": "MyProject",
+  "workItemType": "User Story",
+  "parentId": 1133,
+  "fields": {
+    "System.Title": "Implement GetMember endpoint",
+    "Microsoft.VSTS.Scheduling.StoryPoints": 2
+  }
+}
+```
+
+**Example 2: Multiple relationships (advanced)**
+```json
+{
+  "project": "MyProject",
+  "workItemType": "Task",
+  "relations": [
+    {
+      "rel": "System.LinkTypes.Hierarchy-Reverse",
+      "url": "https://dev.azure.com/org/project/_apis/wit/workItems/1133"
+    },
+    {
+      "rel": "System.LinkTypes.Related",
+      "url": "https://dev.azure.com/org/project/_apis/wit/workItems/1050"
+    }
+  ],
+  "fields": {
+    "System.Title": "Write API documentation"
+  }
+}
+```
+
+**Benefits:**
+- Single API call (vs. create + update)
+- Single revision created (cleaner audit history)
+- Atomic operation (parent set immediately)
+- Backward compatible (optional parameters)
 
 ### Data CRUD Operations
 
@@ -1194,419 +873,37 @@ The PowerPlatform Customization package (`@mcp-consultant-tools/powerplatform-cu
 
 **Core Helper Methods:**
 
-1. **extractAssemblyVersion()** - PE header parsing for .NET assembly version extraction
-   ```typescript
-   async extractAssemblyVersion(assemblyPath: string): Promise<string> {
-     const fs = await import('fs/promises');
-     const normalizedPath = assemblyPath.replace(/\\/g, '/'); // WSL compatibility
-     const buffer = await fs.readFile(normalizedPath);
-
-     // Validate MZ signature (PE file marker at offset 0)
-     if (buffer.length < 2 || buffer[0] !== 0x4D || buffer[1] !== 0x5A) {
-       return "1.0.0.0"; // Fallback for invalid PE files
-     }
-
-     // Read PE header offset from bytes 60-63 (little-endian DWORD)
-     const peHeaderOffset = buffer.readUInt32LE(60);
-
-     // Navigate to Optional Header → Data Directories → Resource Directory
-     // Extract version resource from RT_VERSION structure
-     // Parse VS_VERSIONINFO and VS_FIXEDFILEINFO structures
-     // Return formatted version string (e.g., "1.2.3.4")
-   }
-   ```
-   - Graceful fallback to "1.0.0.0" if PE parsing fails
-   - Handles invalid files, missing version resources, corrupted headers
-
-2. **resolveSdkMessageAndFilter()** - Reusable helper for message/filter ID lookup
-   ```typescript
-   async resolveSdkMessageAndFilter(
-     messageName: string,
-     entityName: string
-   ): Promise<{ messageId: string; filterId: string }> {
-     // Query 1: GET /sdkmessages?$filter=name eq '{messageName}'
-     const messageId = await this.querySdkMessage(messageName);
-
-     // Query 2: GET /sdkmessagefilters?$filter=...
-     //          _sdkmessageid_value eq '{messageId}' and
-     //          primaryobjecttypecode eq '{entityName}'
-     const filterId = await this.querySdkMessageFilter(messageId, entityName);
-
-     return { messageId, filterId };
-   }
-   ```
-   - Avoids code duplication across `registerPluginStep()` and potential future tools
-   - Handles message not found and filter not found errors with clear messages
+1. **extractAssemblyVersion()** - Parses PE header to extract .NET assembly version (fallback: "1.0.0.0")
+2. **resolveSdkMessageAndFilter()** - Queries SDK message and filter IDs for plugin step registration
 
 **Core Service Methods:**
 
-3. **createPluginAssembly()** - Upload DLL with polling for plugin types
-   ```typescript
-   async createPluginAssembly(options: {
-     assemblyPath: string;
-     assemblyName: string;
-     version?: string;
-     culture?: string;
-     publicKeyToken?: string;
-     description?: string;
-     solutionUniqueName?: string;
-   }): Promise<{
-     assemblyId: string;
-     pluginTypes: Array<{ id: string; typename: string; friendlyname: string }>;
-     message: string;
-   }> {
-     // 1. Read and validate DLL
-     const fs = await import('fs/promises');
-     const normalizedPath = options.assemblyPath.replace(/\\/g, '/');
-     const buffer = await fs.readFile(normalizedPath);
-
-     // 2. Validate file size (16MB Dataverse limit)
-     if (buffer.length > 16 * 1024 * 1024) {
-       throw new Error('Assembly exceeds 16MB size limit');
-     }
-
-     // 3. Validate MZ header
-     if (buffer[0] !== 0x4D || buffer[1] !== 0x5A) {
-       throw new Error('Invalid .NET assembly (missing MZ header)');
-     }
-
-     // 4. Extract version if not provided
-     const version = options.version || await this.extractAssemblyVersion(options.assemblyPath);
-
-     // 5. POST to /pluginassemblies
-     const response = await this.makeAuthenticatedRequest({
-       method: 'POST',
-       url: `${this.config.url}/api/data/v9.2/pluginassemblies`,
-       data: {
-         content: buffer.toString('base64'),
-         name: options.assemblyName,
-         version: version,
-         culture: options.culture || 'neutral',
-         publickeytoken: options.publicKeyToken || null,
-         isolationmode: 2, // Sandbox (required for D365)
-         description: options.description || ''
-       }
-     });
-
-     const assemblyId = response.data.pluginassemblyid;
-
-     // 6. Poll for plugin types (15 attempts, 2-second intervals)
-     let pluginTypes = [];
-     for (let attempt = 1; attempt <= 15; attempt++) {
-       await new Promise(resolve => setTimeout(resolve, 2000));
-
-       pluginTypes = await this.queryPluginTypes(assemblyId);
-       if (pluginTypes.length > 0) break;
-
-       if (attempt === 15) {
-         console.error(`Warning: Plugin types not found after ${attempt} attempts (30 seconds)`);
-       }
-     }
-
-     // 7. Add to solution if specified
-     if (options.solutionUniqueName) {
-       await this.addComponentToSolution(
-         options.solutionUniqueName,
-         assemblyId,
-         91 // PluginAssembly component type
-       );
-     }
-
-     return { assemblyId, pluginTypes, message: 'Plugin assembly created successfully' };
-   }
-   ```
-
-4. **updatePluginAssembly()** - Update existing assembly
-   ```typescript
-   async updatePluginAssembly(
-     assemblyId: string,
-     content: string, // base64-encoded DLL
-     version: string,
-     solutionUniqueName?: string
-   ): Promise<void> {
-     // PATCH to /pluginassemblies({id})
-     // Only updates content and version fields
-     // Existing step registrations automatically use new code
-   }
-   ```
-
-5. **registerPluginStep()** - Register step on SDK message
-   ```typescript
-   async registerPluginStep(options: {
-     pluginTypeId: string;
-     messageName: string;
-     entityName: string;
-     stage: number; // 10, 20, or 40
-     mode: number; // 0 or 1
-     rank?: number;
-     filteringAttributes?: string;
-     stepName?: string;
-     description?: string;
-     solutionUniqueName?: string;
-   }): Promise<{ stepId: string }> {
-     // 1. Resolve message and filter IDs
-     const { messageId, filterId } = await this.resolveSdkMessageAndFilter(
-       options.messageName,
-       options.entityName
-     );
-
-     // 2. Generate step name if not provided
-     const stepName = options.stepName ||
-       `${options.messageName} of ${options.entityName}`;
-
-     // 3. POST to /sdkmessageprocessingsteps
-     const response = await this.makeAuthenticatedRequest({
-       method: 'POST',
-       url: `${this.config.url}/api/data/v9.2/sdkmessageprocessingsteps`,
-       data: {
-         name: stepName,
-         'plugintypeid@odata.bind': `/plugintypes(${options.pluginTypeId})`,
-         'sdkmessageid@odata.bind': `/sdkmessages(${messageId})`,
-         'sdkmessagefilterid@odata.bind': `/sdkmessagefilters(${filterId})`,
-         stage: options.stage,
-         mode: options.mode,
-         rank: options.rank || 1,
-         filteringattributes: options.filteringAttributes || '',
-         description: options.description || ''
-       }
-     });
-
-     const stepId = response.data.sdkmessageprocessingstepid;
-
-     // 4. Add to solution if specified
-     if (options.solutionUniqueName) {
-       await this.addComponentToSolution(
-         options.solutionUniqueName,
-         stepId,
-         92 // SDKMessageProcessingStep component type
-       );
-     }
-
-     return { stepId };
-   }
-   ```
-
-6. **registerPluginImage()** - Register pre/post image
-   ```typescript
-   async registerPluginImage(options: {
-     stepId: string;
-     imageName: string;
-     imageType: number; // 0, 1, or 2
-     attributes: string; // comma-separated
-     entityAlias: string;
-     messagePropertyName?: string;
-   }): Promise<{ imageId: string }> {
-     // POST to /sdkmessageprocessingstepimages
-     // Links to step via sdkmessageprocessingstepid@odata.bind
-     // Returns image ID
-   }
-   ```
+3. **createPluginAssembly()** - Uploads DLL (base64), validates (MZ header, 16MB limit), extracts version, POSTs to `/pluginassemblies`, polls for plugin types (15×2s), adds to solution
+4. **updatePluginAssembly()** - PATCHes existing assembly with new DLL content and version (steps auto-update)
+5. **registerPluginStep()** - Resolves message/filter IDs, POSTs to `/sdkmessageprocessingsteps` with stage/mode/rank, adds to solution
+6. **registerPluginImage()** - POSTs to `/sdkmessageprocessingstepimages` with imageType (0=Pre, 1=Post, 2=Both), attributes, entityAlias
 
 ### Tool Implementation Patterns
 
-**File:** `packages/powerplatform-customization/src/index.ts`
-
-**Common Patterns:**
-
-1. **File I/O with Dynamic Imports** - Avoids ESM/CJS compatibility issues
-   ```typescript
-   const fs = await import('fs/promises');
-   const normalizedPath = assemblyPath.replace(/\\/g, '/'); // Windows → WSL
-   const dllBuffer = await fs.readFile(normalizedPath);
-   ```
-
-2. **Base64 Encoding for Binary Transfer**
-   ```typescript
-   const dllBase64 = dllBuffer.toString('base64');
-   ```
-
-3. **MZ Header Validation** - Ensures valid .NET assembly
-   ```typescript
-   if (dllBuffer.length < 2 || dllBuffer[0] !== 0x4D || dllBuffer[1] !== 0x5A) {
-     throw new Error('Invalid .NET assembly: MZ header not found');
-   }
-   ```
-
-4. **Enum Value Mapping** - User-friendly strings to Dataverse integers
-   ```typescript
-   const stageMap: Record<string, number> = {
-     'PreValidation': 10,
-     'PreOperation': 20,
-     'PostOperation': 40
-   };
-   const stageValue = stageMap[stage];
-   ```
-
-5. **Audit Logging** - All write operations logged
-   ```typescript
-   auditLogger.log({
-     operation: 'create-plugin-assembly',
-     operationType: 'WRITE',
-     componentType: 'PluginAssembly',
-     componentName: assemblyName,
-     success: true,
-     parameters: {
-       assemblyPath: assemblyPath.substring(0, 100),
-       version: extractedVersion
-     },
-     executionTimeMs: timer()
-   });
-   ```
+Common patterns: Dynamic fs imports (ESM/CJS compatibility), base64 encoding for binary transfer, MZ header validation, enum mapping (PreValidation=10, PreOperation=20, PostOperation=40), audit logging for all writes.
 
 ### Workflow Examples
 
-**Scenario 1: Initial Plugin Deployment (Orchestration)**
-```typescript
-// Single command deploys entire plugin with multiple steps and images
-await mcpClient.callTool("deploy-plugin-complete", {
-  assemblyPath: "C:/Source/Plugins/bin/Release/ContactPlugin.dll",
-  assemblyName: "Contact Management Plugin",
-  stepConfigurations: [
-    {
-      messageName: "Create",
-      entityName: "contact",
-      stage: "PostOperation",
-      mode: "Asynchronous",
-      rank: 1,
-      images: []
-    },
-    {
-      messageName: "Update",
-      entityName: "contact",
-      stage: "PreOperation",
-      mode: "Synchronous",
-      rank: 1,
-      filteringAttributes: "firstname,lastname,emailaddress1",
-      images: [
-        {
-          imageName: "PreImage",
-          imageType: "PreImage",
-          attributes: "firstname,lastname,emailaddress1",
-          entityAlias: "PreImage"
-        }
-      ]
-    }
-  ],
-  solutionUniqueName: "ContactManagement",
-  publishAfterDeployment: true
-});
-```
-
-**Scenario 2: Bug Fix Deployment (Update Assembly)**
-```typescript
-// Update existing assembly with bug fix
-await mcpClient.callTool("update-plugin-assembly", {
-  assemblyId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  assemblyPath: "C:/Source/Plugins/bin/Release/ContactPlugin.dll",
-  version: "1.0.0.1"
-});
-
-// No need to re-register steps - they automatically use new code
-await mcpClient.callTool("publish-customizations", {});
-```
-
-**Scenario 3: Step-by-Step Registration (Advanced)**
-```typescript
-// 1. Upload assembly
-const assemblyResult = await mcpClient.callTool("create-plugin-assembly", {
-  assemblyPath: "C:/Source/Plugins/bin/Release/ContactPlugin.dll",
-  assemblyName: "Contact Management Plugin",
-  solutionUniqueName: "ContactManagement"
-});
-
-// 2. Register step
-const stepResult = await mcpClient.callTool("register-plugin-step", {
-  pluginTypeId: assemblyResult.pluginTypes[0].id,
-  messageName: "Update",
-  entityName: "contact",
-  stage: "PreOperation",
-  mode: "Synchronous",
-  filteringAttributes: "firstname,lastname,emailaddress1",
-  solutionUniqueName: "ContactManagement"
-});
-
-// 3. Register image
-await mcpClient.callTool("register-plugin-image", {
-  stepId: stepResult.stepId,
-  imageName: "PreImage",
-  imageType: "PreImage",
-  attributes: "firstname,lastname,emailaddress1",
-  entityAlias: "PreImage"
-});
-
-// 4. Publish
-await mcpClient.callTool("publish-customizations", {});
-```
+1. **deploy-plugin-complete** - Single orchestration call with stepConfigurations array (multiple steps + images), publishes automatically
+2. **update-plugin-assembly** - Update DLL + version, steps auto-update, publish required
+3. **Step-by-step** - create-plugin-assembly → register-plugin-step → register-plugin-image → publish-customizations
 
 ### Design Considerations
 
-**Why Windows-Only:**
-- Plugins are .NET Framework 4.6.2 assemblies (Windows-only)
-- Development typically done in Visual Studio on Windows
-- No cross-platform .NET build orchestration (by design - developers use IDE/CLI)
-- MCP tools focus on deployment, not build
-
-**Why Polling for Plugin Types:**
-- Dataverse asynchronously parses uploaded DLLs to discover plugin types
-- Parsing typically takes 2-10 seconds for small assemblies
-- 15 attempts × 2 seconds = 30-second max wait (reasonable timeout)
-- Alternative would be to return immediately and require manual type ID lookup
-
-**Why Base64 Encoding:**
-- Dataverse Web API requires base64-encoded binary content for DLLs
-- Standard approach for binary file transfer over REST APIs
-- Handled automatically by tools - users provide file paths only
-
-**Why Helper Methods:**
-- `extractAssemblyVersion()`: Avoids manual version entry, reduces errors
-- `resolveSdkMessageAndFilter()`: Avoids code duplication, reusable pattern
-
-**Why Orchestration Tool:**
-- 80% of deployments follow the same pattern: upload → register steps → register images → publish
-- Single-tool approach reduces complexity for common case
-- Step-by-step tools still available for advanced scenarios (e.g., updating existing steps)
+Windows-only (.NET Framework 4.6.2), polling for plugin types (15×2s, async parsing), base64 encoding (Dataverse API requirement), helper methods (extractAssemblyVersion, resolveSdkMessageAndFilter), orchestration tool (80% common case).
 
 ### Error Handling
 
-Common errors and solutions:
-
-1. **"Plugin types not found after polling"**
-   - Cause: Dataverse parsing timeout or invalid assembly
-   - Solution: Verify DLL is .NET Framework 4.6.2, implements IPlugin interface, has valid PE header
-
-2. **"Assembly exceeds 16MB limit"**
-   - Cause: Too many embedded dependencies
-   - Solution: Use ILMerge selectively, remove unnecessary dependencies, externalize large resources
-
-3. **"SDK message not found: {MessageName}"**
-   - Cause: Invalid message name or entity doesn't support the message
-   - Solution: Use standard messages (Create, Update, Delete, SetState, etc.), check entity capabilities
-
-4. **"DLL file not found: {Path}"**
-   - Cause: Invalid path or file doesn't exist
-   - Solution: Use absolute paths, verify build output directory, check for typos
-
-5. **"Step registration failed: missing required field"**
-   - Cause: Missing pluginTypeId or invalid stage/mode value
-   - Solution: Ensure assembly upload completed successfully, use valid enum values
+Common errors: Plugin types not found, assembly >16MB (ILMerge selectively), invalid SDK message, DLL path not found, step registration missing required fields.
 
 ### Security Audit
 
-All plugin deployment operations are audited with:
-- Operation type (WRITE)
-- Component type (PluginAssembly, SDKMessageProcessingStep, SDKMessageProcessingStepImage)
-- Component name/ID
-- Assembly path (truncated for privacy)
-- Version number
-- Success/failure status
-- Execution time in milliseconds
-- Timestamps
-
-Audit logs enable:
-- Tracking who deployed what and when
-- Rollback decision support
-- Compliance reporting
-- Security incident investigation
+All operations audited: operation type, component type/name/ID, assembly path (truncated), version, success/failure, execution time. Enables tracking, rollback support, compliance, and security investigation.
 
 ## Workflow & Power Automate Flow Architecture
 
@@ -4412,6 +3709,129 @@ const exceptions = await appInsightsService.getRecentExceptions('prod-api');
 const code = await gheService.searchCode(exceptions[0].type, 'plugin-core');
 // Find source of exception
 ```
+
+## ⚠️ DOCUMENTATION UPDATE CHECKLIST ⚠️
+
+### BEFORE YOU COMPLETE ANY TASK - READ THIS SECTION FIRST
+
+**🚨 THIS IS THE MOST COMMONLY SKIPPED STEP 🚨**
+
+Whenever you make ANY changes to the codebase - whether adding features, fixing bugs, updating integrations, or modifying behavior - you MUST update ALL relevant documentation files. Missing documentation updates is the #1 cause of user confusion and support issues.
+
+### Mandatory Documentation Files to Check
+
+**EVERY change requires checking these 5 files:**
+
+1. **Service Code** - The actual implementation
+   - Files: `src/*Service.ts`, `src/index.ts`, `packages/*/src/`
+   - What: Service methods, tool registrations, types
+
+2. **[.env.example](.env.example)** - Environment variable template
+   - Add new configuration variables
+   - Include security warnings for dangerous operations
+   - Provide example values and descriptions
+   - **Users copy this file - keep it current**
+
+3. **[README.md](README.md)** - Project overview (user's first stop)
+   - Update tool/prompt counts in overview tables
+   - Add new integrations to feature list
+   - Update configuration examples
+   - Add new environment variables to quickstart
+   - **This is what users see on GitHub/npm**
+
+4. **[CLAUDE.md](CLAUDE.md)** - Development guidance (this file)
+   - Add/update architecture sections for new features
+   - Document design patterns and implementation details
+   - Include code examples for complex features
+   - Update tool counts in integration sections
+   - **This is what Claude Code reads for context**
+
+5. **docs/documentation/{integration}.md** - User-facing guides
+   - **⚠️ MOST COMMONLY FORGOTTEN ⚠️**
+   - Update tool/prompt counts in table of contents
+   - Add comprehensive tool documentation with parameters
+   - Include real-world usage examples
+   - Add security warnings and best practices
+   - Update configuration sections
+   - **This is the PRIMARY documentation users read**
+
+### Pre-Completion Verification Checklist
+
+Before marking any task as complete, verify EVERY item:
+
+```
+Documentation Update Checklist:
+□ Service code updated and tested
+□ .env.example updated with new variables
+□ README.md tool counts updated
+□ README.md configuration examples updated
+□ CLAUDE.md architecture section updated
+□ CLAUDE.md tool counts updated
+□ docs/documentation/{integration}.md tool reference updated
+□ docs/documentation/{integration}.md configuration updated
+□ docs/documentation/{integration}.md examples added
+□ All 5 documentation files reviewed (not just 1 or 2)
+```
+
+### Why Documentation Matters
+
+- **Users discover features through docs** - If it's not documented, users won't find it
+- **Documentation = feature completeness** - A feature without docs is incomplete
+- **Prevents support overhead** - Good docs = fewer questions and issues
+- **Enables self-service** - Users can solve problems without asking
+- **Professional appearance** - Complete docs signal quality and care
+
+### Common Mistakes to Avoid
+
+❌ **"I'll document it later"** - You won't. Document NOW.
+❌ **"The code is self-documenting"** - It's not. Users need examples.
+❌ **"I updated README.md, that's enough"** - No. Check all 5 files.
+❌ **"I forgot about docs/documentation/"** - This is the #1 mistake. Don't make it.
+❌ **"The docs are mostly accurate"** - Inaccurate docs are worse than no docs.
+
+### Examples of Complete Documentation Updates
+
+**Example 1: Adding a new tool**
+```
+1. ✅ Add tool implementation to src/index.ts
+2. ✅ Add to .env.example if needs configuration
+3. ✅ Update README.md tool count (e.g., "Azure DevOps (18 tools)" → "Azure DevOps (19 tools)")
+4. ✅ Update CLAUDE.md with tool description and use case
+5. ✅ Add to docs/documentation/azure-devops.md:
+   - Update tool count in header
+   - Add tool to "Available Tools" section with full parameter docs
+   - Add usage example in "Usage Examples" section
+```
+
+**Example 2: Adding a new environment variable**
+```
+1. ✅ Add to service configuration parsing in src/index.ts
+2. ✅ Add to .env.example with description and example value
+3. ✅ Add to README.md configuration section
+4. ✅ Document in CLAUDE.md architecture section
+5. ✅ Add to docs/documentation/{integration}.md:
+   - Configuration section
+   - Setup instructions
+   - Security considerations if applicable
+```
+
+**Example 3: Fixing a bug**
+```
+1. ✅ Fix code in src/*Service.ts
+2. ✅ Check if .env.example needs updates (usually no)
+3. ✅ Update README.md only if behavior changed significantly
+4. ✅ Update CLAUDE.md if architecture/design changed
+5. ✅ Update docs/documentation/{integration}.md:
+   - Fix any incorrect examples
+   - Update troubleshooting section if relevant
+   - Clarify usage if bug revealed confusion
+```
+
+### Enforcement
+
+**Implementation is NOT complete until ALL documentation is updated.** Claude Code will be instructed to reject any task completion that doesn't include documentation updates for ALL applicable files.
+
+---
 
 ## Publishing
 
