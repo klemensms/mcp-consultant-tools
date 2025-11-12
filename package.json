@@ -7,8 +7,9 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
-    "clean": "npm run clean --workspaces --if-present",
+    "build": "tsc --build",
+    "build:workspaces": "npm run build --workspaces --if-present",
+    "clean": "tsc --build --clean && npm run clean --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "publish:dry-run": "npm publish --dry-run --workspaces --access public"
