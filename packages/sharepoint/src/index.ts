@@ -4,7 +4,7 @@ import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { SharePointService } from "./SharePointService.js";
 import type { SharePointConfig } from "./SharePointService.js";
 import { z } from 'zod';
-import { formatSitesAsMarkdown, formatLibrariesAsMarkdown, formatSearchResultsAsMarkdown } from './utils/sharepoint-formatters.js';
+import * as spoFormatters from './utils/sharepoint-formatters.js';
 
 export function registerSharePointTools(server: any, sharepointService?: SharePointService) {
   let service: SharePointService | null = sharepointService || null;
@@ -40,7 +40,8 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       }
 
       const config: SharePointConfig = {
-        resources,
+        sites: resources,
+        authMethod: 'entra-id',
         tenantId: process.env.SHAREPOINT_TENANT_ID!,
         clientId: process.env.SHAREPOINT_CLIENT_ID!,
         clientSecret: process.env.SHAREPOINT_CLIENT_SECRET!,
@@ -50,6 +51,14 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       console.error("SharePoint service initialized");
     }
     return service;
+  }
+
+  // PowerPlatform integration (requires cross-package dependency)
+  function getPowerPlatformService(): any {
+    throw new Error(
+      'PowerPlatform integration not available in standalone SharePoint package. ' +
+      'Use the complete @mcp-consultant-tools package for cross-service validation.'
+    );
   }
 
   // ========================================

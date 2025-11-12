@@ -4,7 +4,7 @@ import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { GitHubEnterpriseService } from "./GitHubEnterpriseService.js";
 import type { GitHubEnterpriseConfig } from "./GitHubEnterpriseService.js";
 import { z } from 'zod';
-import { formatBranchListAsMarkdown, formatCommitHistoryAsMarkdown, formatCodeSearchResultsAsMarkdown } from './utils/ghe-formatters.js';
+import * as gheFormatters from './utils/ghe-formatters.js';
 
 export function registerGitHubEnterpriseTools(server: any, githubenterpriseService?: GitHubEnterpriseService) {
   let service: GitHubEnterpriseService | null = githubenterpriseService || null;
@@ -32,9 +32,16 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
 
       const config: GitHubEnterpriseConfig = {
         repos,
-        token: process.env.GHE_TOKEN!,
+        baseUrl: process.env.GHE_BASE_URL || 'https://github.com',
+        apiVersion: process.env.GHE_API_VERSION || '2022-11-28',
+        authMethod: 'pat',
+        pat: process.env.GHE_TOKEN!,
+        enableWrite: process.env.GHE_ENABLE_WRITE === 'true',
+        enableCreate: process.env.GHE_ENABLE_CREATE === 'true',
         enableCache: process.env.GHE_ENABLE_CACHE !== 'false',
-        cacheTTL: parseInt(process.env.GHE_CACHE_TTL || '300'),
+        cacheTtl: parseInt(process.env.GHE_CACHE_TTL || '300'),
+        maxFileSize: parseInt(process.env.GHE_MAX_FILE_SIZE || '1048576'),
+        maxSearchResults: parseInt(process.env.GHE_MAX_SEARCH_RESULTS || '100'),
       };
 
       service = new GitHubEnterpriseService(config);
@@ -64,7 +71,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
   
       const recentCommits = await service.getCommits(repoId, defaultBranchInfo.branch, undefined, undefined, undefined, undefined, 10);
   
-      const output = formatRepositoryOverviewAsMarkdown(
+      const output = gheFormatters.formatRepositoryOverviewAsMarkdown(
         {
           owner: repo.owner,
           repo: repo.repo,
@@ -103,7 +110,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       const service = getGitHubEnterpriseService();
       const results = await service.searchCode(query, repoId, undefined, extension);
   
-      const output = formatCodeSearchResultsAsMarkdown(results);
+      const output = gheFormatters.formatCodeSearchResultsAsMarkdown(results);
   
       return {
         messages: [
@@ -132,8 +139,8 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       const repo = service.getRepoById(repoId);
   
       const comparison = await service.compareBranches(repoId, base, head);
-      const insights = analyzeBranchComparison(comparison);
-      const checklist = generateDeploymentChecklist(comparison);
+      const insights = gheFormatters.analyzeBranchComparison(comparison);
+      const checklist = gheFormatters.generateDeploymentChecklist(comparison);
   
       let output = `# Branch Comparison: ${base} ← ${head}\n\n`;
       output += `**Repository:** ${repo.owner}/${repo.repo}\n`;
@@ -144,7 +151,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
   
       if (comparison.commits && comparison.commits.length > 0) {
         output += `## Commits to Deploy\n\n`;
-        output += formatCommitHistoryAsMarkdown(comparison.commits) + '\n\n';
+        output += gheFormatters.formatCommitHistoryAsMarkdown(comparison.commits) + '\n\n';
       }
   
       if (comparison.files && comparison.files.length > 0) {
@@ -209,7 +216,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
   
       if (codeResults.total_count > 0) {
         output += `Found **${codeResults.total_count} code matches** across ${codeResults.items.length} files:\n\n`;
-        output += formatCodeSearchResultsAsMarkdown(codeResults) + '\n\n';
+        output += gheFormatters.formatCodeSearchResultsAsMarkdown(codeResults) + '\n\n';
       } else {
         output += `*No code matches found for query: "${searchQuery}"*\n\n`;
       }
@@ -218,7 +225,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
   
       if (commitResults.length > 0) {
         output += `Found **${commitResults.length} commits** referencing "${searchQuery}":\n\n`;
-        output += formatCommitHistoryAsMarkdown(commitResults.slice(0, 10)) + '\n\n';
+        output += gheFormatters.formatCommitHistoryAsMarkdown(commitResults.slice(0, 10)) + '\n\n';
   
         if (commitResults.length > 10) {
           output += `*Showing 10 of ${commitResults.length} commits*\n\n`;
@@ -264,8 +271,8 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
   
       // Get branch comparison
       const comparison = await service.compareBranches(repoId, fromBranch, targetBranch);
-      const insights = analyzeBranchComparison(comparison);
-      const checklist = generateDeploymentChecklist(comparison);
+      const insights = gheFormatters.analyzeBranchComparison(comparison);
+      const checklist = gheFormatters.generateDeploymentChecklist(comparison);
   
       let output = `# Deployment Report: ${targetBranch} → ${fromBranch}\n\n`;
       output += `**Repository:** ${repo.owner}/${repo.repo}\n`;
@@ -347,9 +354,9 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
         const service = getGitHubEnterpriseService();
         const repos = service.getAllRepos();
   
-        const reposWithUrls = repos.map(r => ({
+        const reposWithUrls = repos.map((r: any) => ({
           ...r,
-          url: `${GHE_CONFIG.baseUrl}/${r.owner}/${r.repo}`
+          url: `${service['config'].baseUrl}/${r.owner}/${r.repo}`
         }));
   
         return {
@@ -395,7 +402,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
             type: "text",
             text: `# Branches for Repository: ${repoId}\n\n` +
               `**Total:** ${branches.length} branches\n\n` +
-              formatBranchListAsMarkdown(branches)
+              gheFormatters.formatBranchListAsMarkdown(branches)
           }]
         };
       } catch (error: any) {
@@ -516,7 +523,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
         return {
           content: [{
             type: "text",
-            text: formatCodeSearchResultsAsMarkdown(results)
+            text: gheFormatters.formatCodeSearchResultsAsMarkdown(results)
           }]
         };
       } catch (error: any) {
@@ -554,7 +561,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
             text: `# Directory: ${path || '/'}\n\n` +
               `**Repository:** ${repoId}  \n` +
               `**Branch:** \`${result.branch}\`  \n\n` +
-              formatDirectoryContentsAsMarkdown(result.contents)
+              gheFormatters.formatDirectoryContentsAsMarkdown(result.contents)
           }]
         };
       } catch (error: any) {
@@ -624,7 +631,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
             text: `# Commit History\n\n` +
               `**Repository:** ${repoId}  \n` +
               `**Count:** ${commits.length}\n\n` +
-              formatCommitHistoryAsMarkdown(commits)
+              gheFormatters.formatCommitHistoryAsMarkdown(commits)
           }]
         };
       } catch (error: any) {
@@ -654,7 +661,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
         return {
           content: [{
             type: "text",
-            text: formatCommitDetailsAsMarkdown(commit)
+            text: gheFormatters.formatCommitDetailsAsMarkdown(commit)
           }]
         };
       } catch (error: any) {
@@ -691,7 +698,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
               `**Query:** ${query}  \n` +
               `**Total Results:** ${results.total_count}  \n` +
               `**Showing:** ${results.items.length}\n\n` +
-              formatCommitHistoryAsMarkdown(results.items)
+              gheFormatters.formatCommitHistoryAsMarkdown(results.items)
           }]
         };
       } catch (error: any) {
@@ -753,7 +760,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
         const service = getGitHubEnterpriseService();
         const comparison = await service.compareBranches(repoId, base, head);
   
-        const insights = analyzeBranchComparison(comparison);
+        const insights = gheFormatters.analyzeBranchComparison(comparison);
   
         return {
           content: [{
@@ -763,7 +770,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
               `## Summary\n\n` +
               insights.join('\n') + '\n\n' +
               `## Commits (${comparison.commits.length})\n\n` +
-              formatCommitHistoryAsMarkdown(comparison.commits.slice(0, 10))
+              gheFormatters.formatCommitHistoryAsMarkdown(comparison.commits.slice(0, 10))
           }]
         };
       } catch (error: any) {
@@ -838,7 +845,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
               `**Repository:** ${repoId}  \n` +
               `**State:** ${state || 'open'}  \n` +
               `**Count:** ${prs.length}\n\n` +
-              formatPullRequestsAsMarkdown(prs)
+              gheFormatters.formatPullRequestsAsMarkdown(prs)
           }]
         };
       } catch (error: any) {
@@ -868,7 +875,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
         return {
           content: [{
             type: "text",
-            text: formatPullRequestDetailsAsMarkdown(pr)
+            text: gheFormatters.formatPullRequestDetailsAsMarkdown(pr)
           }]
         };
       } catch (error: any) {
@@ -949,7 +956,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
               `**Repository:** ${repoId}  \n` +
               `**Branch:** \`${result.branch}\`  \n` +
               `**Max Depth:** ${depth || 3}\n\n` +
-              '```\n' + formatFileTreeAsMarkdown(result.tree) + '\n```'
+              '```\n' + gheFormatters.formatFileTreeAsMarkdown(result.tree) + '\n```'
           }]
         };
       } catch (error: any) {
@@ -984,7 +991,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
             text: `# File History: ${path}\n\n` +
               `**Repository:** ${repoId}  \n` +
               `**Commits:** ${commits.length}\n\n` +
-              formatCommitHistoryAsMarkdown(commits)
+              gheFormatters.formatCommitHistoryAsMarkdown(commits)
           }]
         };
       } catch (error: any) {
