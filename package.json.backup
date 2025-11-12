@@ -32,20 +32,6 @@
   "engines": {
     "node": ">=16.0.0"
   },
-  "dependencies": {
-    "@mcp-consultant-tools/core": "workspace:*",
-    "@mcp-consultant-tools/powerplatform": "workspace:*",
-    "@mcp-consultant-tools/azure-devops": "workspace:*",
-    "@mcp-consultant-tools/figma": "workspace:*",
-    "@mcp-consultant-tools/application-insights": "workspace:*",
-    "@mcp-consultant-tools/log-analytics": "workspace:*",
-    "@mcp-consultant-tools/azure-sql": "workspace:*",
-    "@mcp-consultant-tools/service-bus": "workspace:*",
-    "@mcp-consultant-tools/sharepoint": "workspace:*",
-    "@mcp-consultant-tools/github-enterprise": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.0.4",
-    "dotenv": "^16.4.5"
-  },
   "devDependencies": {
     "typescript": "^5.8.2"
   }
