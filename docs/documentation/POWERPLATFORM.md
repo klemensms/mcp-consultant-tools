@@ -258,7 +258,7 @@ Adjust `POWERPLATFORM_URL` based on your region:
   "mcpServers": {
     "powerplatform": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/powerplatform"],
+      "args": ["-y", "--package=@mcp-consultant-tools/powerplatform", "mcp-pp"],
       "env": {
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "12345678-1234-1234-1234-123456789abc",
@@ -278,7 +278,7 @@ Adjust `POWERPLATFORM_URL` based on your region:
   "mcp.servers": {
     "powerplatform": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/powerplatform"],
+      "args": ["-y", "--package=@mcp-consultant-tools/powerplatform", "mcp-pp"],
       "env": {
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "12345678-1234-1234-1234-123456789abc",

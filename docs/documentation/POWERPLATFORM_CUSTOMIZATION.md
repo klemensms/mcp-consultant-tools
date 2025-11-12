@@ -186,7 +186,7 @@ POWERPLATFORM_DEFAULT_SOLUTION=YourSolutionUniqueName
   "mcpServers": {
     "powerplatform-customization": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/powerplatform-customization"],
+      "args": ["-y", "--package=@mcp-consultant-tools/powerplatform-customization", "mcp-pp-custom"],
       "env": {
         "POWERPLATFORM_URL": "https://yourdevenv.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",

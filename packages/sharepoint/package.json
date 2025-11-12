@@ -5,22 +5,52 @@
   "type": "module",
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
-  "bin": { "mcp-sharepoint": "./build/index.js" },
-  "exports": { ".": { "import": "./build/index.js", "types": "./build/index.d.ts" } },
-  "files": ["build", "README.md"],
-  "scripts": { "build": "tsc", "clean": "rm -rf build *.tsbuildinfo", "prepublishOnly": "npm run build" },
-  "keywords": ["mcp", "model-context-protocol", "sharepoint", "office365", "microsoft365", "document-management"],
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build *.tsbuildinfo",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "sharepoint",
+    "office365",
+    "microsoft365",
+    "document-management"
+  ],
   "author": "Michal Sobieraj",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/klemensms/mcp-consultant-tools.git", "directory": "packages/sharepoint" },
-  "engines": { "node": ">=16.0.0" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klemensms/mcp-consultant-tools.git",
+    "directory": "packages/sharepoint"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "dependencies": {
     "@azure/msal-node": "^3.3.0",
-    "@microsoft/microsoft-graph-client": "^3.0.7",
     "@mcp-consultant-tools/core": "^1.0.0",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "axios": "^1.8.3",
     "zod": "^3.24.1"
   },
-  "devDependencies": { "@types/node": "^22.10.5", "typescript": "^5.8.2" }
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.8.2"
+  },
+  "bin": {
+    "mcp-spo": "./build/index.js"
+  }
 }

@@ -1,13 +1,10 @@
 {
   "name": "@mcp-consultant-tools/powerplatform",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP server for Microsoft PowerPlatform/Dataverse - read-only access (production-safe)",
   "type": "module",
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
-  "bin": {
-    "mcp-powerplatform": "./build/index.js"
-  },
   "exports": {
     ".": {
       "import": "./build/index.js",
@@ -51,5 +48,8 @@
   "devDependencies": {
     "@types/node": "^22.10.5",
     "typescript": "^5.8.2"
+  },
+  "bin": {
+    "mcp-pp": "./build/index.js"
   }
 }

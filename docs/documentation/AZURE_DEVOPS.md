@@ -178,7 +178,7 @@ AZUREDEVOPS_ENABLE_WIKI_WRITE=false
   "mcpServers": {
     "azure-devops": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/azure-devops"],
+      "args": ["-y", "--package=@mcp-consultant-tools/azure-devops", "mcp-ado"],
       "env": {
         "AZUREDEVOPS_ORGANIZATION": "mycompany",
         "AZUREDEVOPS_PAT": "your-pat-token-here",
@@ -200,7 +200,7 @@ AZUREDEVOPS_ENABLE_WIKI_WRITE=false
   "mcp.servers": {
     "azure-devops": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/azure-devops"],
+      "args": ["-y", "--package=@mcp-consultant-tools/azure-devops", "mcp-ado"],
       "env": {
         "AZUREDEVOPS_ORGANIZATION": "mycompany",
         "AZUREDEVOPS_PAT": "your-pat-token-here",

@@ -206,7 +206,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "figma": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/figma"],
+      "args": ["-y", "--package=@mcp-consultant-tools/figma", "mcp-figma"],
       "env": {
         "FIGMA_API_KEY": "figd_your_personal_access_token_here",
         "FIGMA_OAUTH_TOKEN": "",
@@ -248,7 +248,7 @@ Edit `.vscode/settings.json`:
   "mcp.servers": {
     "figma": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/figma"],
+      "args": ["-y", "--package=@mcp-consultant-tools/figma", "mcp-figma"],
       "env": {
         "FIGMA_API_KEY": "figd_your_personal_access_token_here",
         "FIGMA_OAUTH_TOKEN": "",

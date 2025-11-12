@@ -385,7 +385,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "application-insights": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/application-insights"],
+      "args": ["-y", "--package=@mcp-consultant-tools/application-insights", "mcp-appins"],
       "env": {
         "APPINSIGHTS_AUTH_METHOD": "entra-id",
         "APPINSIGHTS_TENANT_ID": "your-tenant-id",
@@ -431,7 +431,7 @@ Edit `.vscode/settings.json`:
   "mcp.servers": {
     "application-insights": {
       "command": "npx",
-      "args": ["@mcp-consultant-tools/application-insights"],
+      "args": ["-y", "--package=@mcp-consultant-tools/application-insights", "mcp-appins"],
       "env": {
         "APPINSIGHTS_AUTH_METHOD": "entra-id",
         "APPINSIGHTS_TENANT_ID": "your-tenant-id",

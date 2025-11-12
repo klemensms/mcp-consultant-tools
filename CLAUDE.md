@@ -230,7 +230,32 @@ Each service package follows a consistent structure with entry point, service im
 
 Every service package exports:
 1. **`registerXxxTools(server, service?)`** - For composable registration
-2. **Standalone CLI** - Direct execution via `npx @mcp-consultant-tools/{service}`
+2. **Standalone CLI** - Direct execution via npx with package-specific binary names
+
+**npx Usage:**
+```bash
+# Individual packages require --package flag and binary name
+npx -y --package=@mcp-consultant-tools/powerplatform mcp-pp
+npx -y --package=@mcp-consultant-tools/azure-devops mcp-ado
+npx -y --package=@mcp-consultant-tools/sharepoint mcp-spo
+# ... etc (see README.md for all binary names)
+
+# Meta package (unscoped) works without --package flag
+npx mcp-consultant-tools
+```
+
+**Binary Names:**
+- `mcp-pp` - PowerPlatform (read-only)
+- `mcp-pp-custom` - PowerPlatform Customization
+- `mcp-pp-data` - PowerPlatform Data
+- `mcp-ado` - Azure DevOps
+- `mcp-spo` - SharePoint
+- `mcp-ghe` - GitHub Enterprise
+- `mcp-appins` - Application Insights
+- `mcp-loganalytics` - Log Analytics
+- `mcp-sql` - Azure SQL
+- `mcp-sb` - Service Bus
+- `mcp-figma` - Figma
 
 Usage: Import `registerAllTools` from meta-package, or import individual `registerXxxTools` functions from service packages.
 
