@@ -60,7 +60,7 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
       resourceId: z.string().describe("Resource ID"),
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
     },
-    async ({ resourceId, timespan }) => {
+    async ({ resourceId, timespan }: any) => {
       try {
         const service = getLogAnalyticsService();
         const timespanValue = timespan || 'PT1H';
@@ -70,8 +70,8 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
         const statsResult = await service.getFunctionStats(resourceId, undefined, timespanValue);
   
         // Format results
-        const errorsTable = errorsResult.tables[0] ? formatLATableAsMarkdown(errorsResult.tables[0]) : '*No errors*';
-        const statsTable = statsResult.tables[0] ? formatLATableAsMarkdown(statsResult.tables[0]) : '*No statistics*';
+        const errorsTable = errorsResult.tables[0] ? formatTableAsMarkdown(errorsResult.tables[0]) : '*No errors*';
+        const statsTable = statsResult.tables[0] ? formatTableAsMarkdown(statsResult.tables[0]) : '*No statistics*';
   
         // Analyze
         const errorsAnalysis = analyzeFunctionErrors(errorsResult.tables[0]);
@@ -126,7 +126,7 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
       functionName: z.string().describe("Function name to analyze"),
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
     },
-    async ({ resourceId, functionName, timespan }) => {
+    async ({ resourceId, functionName, timespan }: any) => {
       try {
         const service = getLogAnalyticsService();
         const timespanValue = timespan || 'PT1H';
@@ -138,10 +138,10 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
         const invocationsResult = await service.getFunctionInvocations(resourceId, functionName, timespanValue, 50);
   
         // Format results
-        const logsTable = logsResult.tables[0] ? formatLATableAsMarkdown(logsResult.tables[0]) : '*No logs*';
-        const errorsTable = errorsResult.tables[0] ? formatLATableAsMarkdown(errorsResult.tables[0]) : '*No errors*';
-        const statsTable = statsResult.tables[0] ? formatLATableAsMarkdown(statsResult.tables[0]) : '*No statistics*';
-        const invocationsTable = invocationsResult.tables[0] ? formatLATableAsMarkdown(invocationsResult.tables[0]) : '*No invocations*';
+        const logsTable = logsResult.tables[0] ? formatTableAsMarkdown(logsResult.tables[0]) : '*No logs*';
+        const errorsTable = errorsResult.tables[0] ? formatTableAsMarkdown(errorsResult.tables[0]) : '*No errors*';
+        const statsTable = statsResult.tables[0] ? formatTableAsMarkdown(statsResult.tables[0]) : '*No statistics*';
+        const invocationsTable = invocationsResult.tables[0] ? formatTableAsMarkdown(invocationsResult.tables[0]) : '*No invocations*';
   
         // Analyze
         const logsAnalysis = analyzeFunctionLogs(logsResult.tables[0]);
@@ -201,7 +201,7 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
       functionName: z.string().optional().describe("Function name (optional, analyzes all if not specified)"),
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
     },
-    async ({ resourceId, functionName, timespan }) => {
+    async ({ resourceId, functionName, timespan }: any) => {
       try {
         const service = getLogAnalyticsService();
         const timespanValue = timespan || 'PT1H';
@@ -211,8 +211,8 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
         const invocationsResult = await service.getFunctionInvocations(resourceId, functionName, timespanValue, 100);
   
         // Format results
-        const statsTable = statsResult.tables[0] ? formatLATableAsMarkdown(statsResult.tables[0]) : '*No statistics*';
-        const invocationsTable = invocationsResult.tables[0] ? formatLATableAsMarkdown(invocationsResult.tables[0]) : '*No invocations*';
+        const statsTable = statsResult.tables[0] ? formatTableAsMarkdown(statsResult.tables[0]) : '*No statistics*';
+        const invocationsTable = invocationsResult.tables[0] ? formatTableAsMarkdown(invocationsResult.tables[0]) : '*No invocations*';
   
         // Analyze
         const statsAnalysis = analyzeFunctionStats(statsResult.tables[0]);
@@ -267,7 +267,7 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
       limit: z.string().optional().describe("Maximum number of logs (default: 100)"),
     },
-    async ({ resourceId, tableName, timespan, limit }) => {
+    async ({ resourceId, tableName, timespan, limit }: any) => {
       try {
         const service = getLogAnalyticsService();
         const timespanValue = timespan || 'PT1H';
@@ -277,7 +277,7 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
         const logsResult = await service.getRecentEvents(resourceId, tableName, timespanValue, limitValue);
   
         // Format results
-        const logsTable = logsResult.tables[0] ? formatLATableAsMarkdown(logsResult.tables[0]) : '*No logs*';
+        const logsTable = logsResult.tables[0] ? formatTableAsMarkdown(logsResult.tables[0]) : '*No logs*';
   
         // Analyze
         const analysis = analyzeLogs(logsResult.tables[0], tableName);
@@ -365,7 +365,7 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
     {
       resourceId: z.string().describe("Resource ID (use loganalytics-list-workspaces to find IDs)"),
     },
-    async ({ resourceId }) => {
+    async ({ resourceId }: any) => {
       try {
         const service = getLogAnalyticsService();
         const metadata = await service.getMetadata(resourceId);
@@ -401,7 +401,7 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
       query: z.string().describe("KQL query string"),
       timespan: z.string().optional().describe("Time range (e.g., 'PT1H', 'P1D')"),
     },
-    async ({ resourceId, query, timespan }) => {
+    async ({ resourceId, query, timespan }: any) => {
       try {
         const service = getLogAnalyticsService();
         const result = await service.executeQuery(resourceId, query, timespan);
@@ -435,7 +435,7 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
     {
       resourceId: z.string().describe("Resource ID"),
     },
-    async ({ resourceId }) => {
+    async ({ resourceId }: any) => {
       try {
         const service = getLogAnalyticsService();
         const result = await service.testWorkspaceAccess(resourceId);
@@ -472,7 +472,7 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
       limit: z.number().optional().describe("Maximum number of results (default: 100)"),
     },
-    async ({ resourceId, tableName, timespan, limit }) => {
+    async ({ resourceId, tableName, timespan, limit }: any) => {
       try {
         const service = getLogAnalyticsService();
         const result = await service.getRecentEvents(
@@ -515,7 +515,7 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
       limit: z.number().optional().describe("Maximum number of results (default: 100)"),
     },
-    async ({ resourceId, searchText, tableName, timespan, limit }) => {
+    async ({ resourceId, searchText, tableName, timespan, limit }: any) => {
       try {
         const service = getLogAnalyticsService();
         const result = await service.searchLogs(
@@ -559,7 +559,7 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
       severityLevel: z.number().optional().describe("Minimum severity level (0=Verbose, 1=Info, 2=Warning, 3=Error, 4=Critical)"),
       limit: z.number().optional().describe("Maximum number of results (default: 100)"),
     },
-    async ({ resourceId, functionName, timespan, severityLevel, limit }) => {
+    async ({ resourceId, functionName, timespan, severityLevel, limit }: any) => {
       try {
         const service = getLogAnalyticsService();
         const result = await service.getFunctionLogs(
@@ -602,7 +602,7 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
       limit: z.number().optional().describe("Maximum number of results (default: 100)"),
     },
-    async ({ resourceId, functionName, timespan, limit }) => {
+    async ({ resourceId, functionName, timespan, limit }: any) => {
       try {
         const service = getLogAnalyticsService();
         const result = await service.getFunctionErrors(
@@ -643,7 +643,7 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
       functionName: z.string().optional().describe("Function name (optional, returns stats for all functions if not specified)"),
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
     },
-    async ({ resourceId, functionName, timespan }) => {
+    async ({ resourceId, functionName, timespan }: any) => {
       try {
         const service = getLogAnalyticsService();
         const result = await service.getFunctionStats(
@@ -684,7 +684,7 @@ export function registerLogAnalyticsTools(server: any, loganalyticsService?: Log
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
       limit: z.number().optional().describe("Maximum number of results (default: 100)"),
     },
-    async ({ resourceId, functionName, timespan, limit }) => {
+    async ({ resourceId, functionName, timespan, limit }: any) => {
       try {
         const service = getLogAnalyticsService();
         const result = await service.getFunctionInvocations(

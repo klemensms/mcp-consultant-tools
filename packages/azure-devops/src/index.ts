@@ -64,7 +64,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       project: z.string().optional().describe("Optional project filter"),
       maxResults: z.string().optional().describe("Maximum number of results (default: 25)"),
     },
-    async (args) => {
+    async (args: any) => {
       try {
         const service = getAzureDevOpsService();
         const { searchText, project, maxResults } = args;
@@ -132,7 +132,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       wikiId: z.string().describe("The wiki identifier"),
       pagePath: z.string().describe("The path to the page"),
     },
-    async (args) => {
+    async (args: any) => {
       try {
         const service = getAzureDevOpsService();
         const { project, wikiId, pagePath } = args;
@@ -189,7 +189,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       project: z.string().describe("The project name"),
       workItemId: z.string().describe("The work item ID"),
     },
-    async (args) => {
+    async (args: any) => {
       try {
         const service = getAzureDevOpsService();
         const { project, workItemId } = args;
@@ -279,7 +279,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       wiql: z.string().describe("The WIQL query string"),
       maxResults: z.string().optional().describe("Maximum number of results (default: 200)"),
     },
-    async (args) => {
+    async (args: any) => {
       try {
         const service = getAzureDevOpsService();
         const { project, wiql, maxResults } = args;
@@ -365,7 +365,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
     {
       project: z.string().describe("The project name"),
     },
-    async ({ project }) => {
+    async ({ project }: any) => {
       try {
         const service = getAzureDevOpsService();
         const result = await service.getWikis(project);
@@ -402,7 +402,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       project: z.string().optional().describe("Optional project filter"),
       maxResults: z.number().optional().describe("Maximum number of results (default: 25)"),
     },
-    async ({ searchText, project, maxResults }) => {
+    async ({ searchText, project, maxResults }: any) => {
       try {
         const service = getAzureDevOpsService();
         const result = await service.searchWikiPages(searchText, project, maxResults);
@@ -440,7 +440,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       pagePath: z.string().describe("The path to the page (e.g., '/Setup/Authentication')"),
       includeContent: z.boolean().optional().describe("Include page content (default: true)"),
     },
-    async ({ project, wikiId, pagePath, includeContent }) => {
+    async ({ project, wikiId, pagePath, includeContent }: any) => {
       try {
         const service = getAzureDevOpsService();
         const result = await service.getWikiPage(project, wikiId, pagePath, includeContent ?? true);
@@ -478,7 +478,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       pagePath: z.string().describe("The path for the new page (e.g., '/Setup/NewGuide')"),
       content: z.string().describe("The markdown content for the page"),
     },
-    async ({ project, wikiId, pagePath, content }) => {
+    async ({ project, wikiId, pagePath, content }: any) => {
       try {
         const service = getAzureDevOpsService();
         const result = await service.createWikiPage(project, wikiId, pagePath, content);
@@ -517,7 +517,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       content: z.string().describe("The updated markdown content"),
       version: z.string().optional().describe("The ETag/version for optimistic concurrency"),
     },
-    async ({ project, wikiId, pagePath, content, version }) => {
+    async ({ project, wikiId, pagePath, content, version }: any) => {
       try {
         const service = getAzureDevOpsService();
         const result = await service.updateWikiPage(project, wikiId, pagePath, content, version);
@@ -559,7 +559,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       replace_all: z.boolean().optional().describe("If true, replace all occurrences. If false (default), old_str must be unique in the page."),
       description: z.string().optional().describe("Optional description of the change (for audit logging)")
     },
-    async ({ project, wikiId, pagePath, old_str, new_str, replace_all, description }) => {
+    async ({ project, wikiId, pagePath, old_str, new_str, replace_all, description }: any) => {
       try {
         const service = getAzureDevOpsService();
         const result = await service.strReplaceWikiPage(
@@ -604,7 +604,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       project: z.string().describe("The project name"),
       workItemId: z.number().describe("The work item ID"),
     },
-    async ({ project, workItemId }) => {
+    async ({ project, workItemId }: any) => {
       try {
         const service = getAzureDevOpsService();
         const result = await service.getWorkItem(project, workItemId);
@@ -641,7 +641,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       wiql: z.string().describe("The WIQL query string (e.g., \"SELECT [System.Id], [System.Title] FROM WorkItems WHERE [System.State] = 'Active'\")"),
       maxResults: z.number().optional().describe("Maximum number of results (default: 200)"),
     },
-    async ({ project, wiql, maxResults }) => {
+    async ({ project, wiql, maxResults }: any) => {
       try {
         const service = getAzureDevOpsService();
         const result = await service.queryWorkItems(project, wiql, maxResults);
@@ -677,7 +677,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       project: z.string().describe("The project name"),
       workItemId: z.number().describe("The work item ID"),
     },
-    async ({ project, workItemId }) => {
+    async ({ project, workItemId }: any) => {
       try {
         const service = getAzureDevOpsService();
         const result = await service.getWorkItemComments(project, workItemId);
@@ -714,7 +714,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       workItemId: z.number().describe("The work item ID"),
       commentText: z.string().describe("The comment text (supports markdown)"),
     },
-    async ({ project, workItemId, commentText }) => {
+    async ({ project, workItemId, commentText }: any) => {
       try {
         const service = getAzureDevOpsService();
         const result = await service.addWorkItemComment(project, workItemId, commentText);
@@ -755,7 +755,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
         value: z.any().optional().describe("The value to set (not required for 'remove' operation)")
       })).describe("Array of JSON Patch operations"),
     },
-    async ({ project, workItemId, patchOperations }) => {
+    async ({ project, workItemId, patchOperations }: any) => {
       try {
         const service = getAzureDevOpsService();
         const result = await service.updateWorkItem(project, workItemId, patchOperations);
@@ -792,7 +792,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       workItemType: z.string().describe("The work item type (e.g., 'Bug', 'Task', 'User Story')"),
       fields: z.record(z.any()).describe("Object with field values (e.g., {\"System.Title\": \"Bug title\", \"System.Description\": \"Details\"})"),
     },
-    async ({ project, workItemType, fields }) => {
+    async ({ project, workItemType, fields }: any) => {
       try {
         const service = getAzureDevOpsService();
         const result = await service.createWorkItem(project, workItemType, fields);
@@ -828,7 +828,7 @@ export function registerAzureDevOpsTools(server: any, azuredevopsService?: Azure
       project: z.string().describe("The project name"),
       workItemId: z.number().describe("The work item ID"),
     },
-    async ({ project, workItemId }) => {
+    async ({ project, workItemId }: any) => {
       try {
         const service = getAzureDevOpsService();
         const result = await service.deleteWorkItem(project, workItemId);

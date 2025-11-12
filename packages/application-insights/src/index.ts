@@ -60,7 +60,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
       resourceId: z.string().describe("Resource ID"),
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
     },
-    async ({ resourceId, timespan }) => {
+    async ({ resourceId, timespan }: any) => {
       try {
         const service = getApplicationInsightsService();
         const timespanValue = timespan || 'PT1H';
@@ -132,7 +132,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
       resourceId: z.string().describe("Resource ID"),
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
     },
-    async ({ resourceId, timespan }) => {
+    async ({ resourceId, timespan }: any) => {
       try {
         const service = getApplicationInsightsService();
         const timespanValue = timespan || 'PT1H';
@@ -195,7 +195,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
       resourceId: z.string().describe("Resource ID"),
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
     },
-    async ({ resourceId, timespan }) => {
+    async ({ resourceId, timespan }: any) => {
       try {
         const service = getApplicationInsightsService();
         const timespanValue = timespan || 'PT1H';
@@ -268,7 +268,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
       resourceId: z.string().describe("Resource ID"),
       timespan: z.string().optional().describe("Time range (default: PT24H)"),
     },
-    async ({ resourceId, timespan }) => {
+    async ({ resourceId, timespan }: any) => {
       try {
         const service = getApplicationInsightsService();
         const timespanValue = timespan || 'PT24H';
@@ -324,7 +324,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
       resourceId: z.string().describe("Resource ID"),
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
     },
-    async ({ resourceId, timespan }) => {
+    async ({ resourceId, timespan }: any) => {
       try {
         const service = getApplicationInsightsService();
         const timespanValue = timespan || 'PT1H';
@@ -431,7 +431,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
     {
       resourceId: z.string().describe("Resource ID (use appinsights-list-resources to find IDs)"),
     },
-    async ({ resourceId }) => {
+    async ({ resourceId }: any) => {
       try {
         const service = getApplicationInsightsService();
         const metadata = await service.getMetadata(resourceId);
@@ -467,7 +467,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
       query: z.string().describe("KQL query string"),
       timespan: z.string().optional().describe("Time range (e.g., 'PT1H' for 1 hour, 'P1D' for 1 day, 'PT12H' for 12 hours)"),
     },
-    async ({ resourceId, query, timespan }) => {
+    async ({ resourceId, query, timespan }: any) => {
       try {
         const service = getApplicationInsightsService();
         const result = await service.executeQuery(resourceId, query, timespan);
@@ -503,7 +503,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
       limit: z.number().optional().describe("Maximum number of results (default: 50)"),
     },
-    async ({ resourceId, timespan, limit }) => {
+    async ({ resourceId, timespan, limit }: any) => {
       try {
         const service = getApplicationInsightsService();
         const result = await service.getRecentExceptions(
@@ -544,7 +544,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
       limit: z.number().optional().describe("Maximum number of results (default: 50)"),
     },
-    async ({ resourceId, durationThresholdMs, timespan, limit }) => {
+    async ({ resourceId, durationThresholdMs, timespan, limit }: any) => {
       try {
         const service = getApplicationInsightsService();
         const result = await service.getSlowRequests(
@@ -584,7 +584,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
       resourceId: z.string().describe("Resource ID"),
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
     },
-    async ({ resourceId, timespan }) => {
+    async ({ resourceId, timespan }: any) => {
       try {
         const service = getApplicationInsightsService();
         const result = await service.getOperationPerformance(
@@ -623,7 +623,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
       limit: z.number().optional().describe("Maximum number of results (default: 50)"),
     },
-    async ({ resourceId, timespan, limit }) => {
+    async ({ resourceId, timespan, limit }: any) => {
       try {
         const service = getApplicationInsightsService();
         const result = await service.getFailedDependencies(
@@ -664,7 +664,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
       limit: z.number().optional().describe("Maximum number of results (default: 100)"),
     },
-    async ({ resourceId, severityLevel, timespan, limit }) => {
+    async ({ resourceId, severityLevel, timespan, limit }: any) => {
       try {
         const service = getApplicationInsightsService();
         const result = await service.getTracesBySeverity(
@@ -704,7 +704,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
       resourceId: z.string().describe("Resource ID"),
       timespan: z.string().optional().describe("Time range (default: PT24H)"),
     },
-    async ({ resourceId, timespan }) => {
+    async ({ resourceId, timespan }: any) => {
       try {
         const service = getApplicationInsightsService();
         const result = await service.getAvailabilityResults(
@@ -744,7 +744,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
       timespan: z.string().optional().describe("Time range (default: PT1H)"),
       limit: z.number().optional().describe("Maximum number of results (default: 100)"),
     },
-    async ({ resourceId, eventName, timespan, limit }) => {
+    async ({ resourceId, eventName, timespan, limit }: any) => {
       try {
         const service = getApplicationInsightsService();
         const result = await service.getCustomEvents(

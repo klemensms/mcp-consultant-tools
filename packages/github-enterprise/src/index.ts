@@ -53,7 +53,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
     {
       repoId: z.string().describe("Repository ID from configuration"),
     },
-    async ({ repoId }) => {
+    async ({ repoId }: any) => {
       const service = getGitHubEnterpriseService();
   
       const repo = service.getRepoById(repoId);
@@ -99,7 +99,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       repoId: z.string().optional().describe("Limit to specific repository ID"),
       extension: z.string().optional().describe("Filter by file extension (e.g., 'cs', 'js')"),
     },
-    async ({ query, repoId, extension }) => {
+    async ({ query, repoId, extension }: any) => {
       const service = getGitHubEnterpriseService();
       const results = await service.searchCode(query, repoId, undefined, extension);
   
@@ -127,7 +127,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       base: z.string().describe("Base branch (e.g., 'main')"),
       head: z.string().describe("Head branch to compare (e.g., 'release/9.0')"),
     },
-    async ({ repoId, base, head }) => {
+    async ({ repoId, base, head }: any) => {
       const service = getGitHubEnterpriseService();
       const repo = service.getRepoById(repoId);
   
@@ -191,7 +191,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       searchQuery: z.string().describe("Search query (e.g., plugin name, entity name, or code pattern)"),
       branch: z.string().optional().describe("Branch to search (default: auto-detected)"),
     },
-    async ({ repoId, searchQuery, branch }) => {
+    async ({ repoId, searchQuery, branch }: any) => {
       const service = getGitHubEnterpriseService();
       const repo = service.getRepoById(repoId);
   
@@ -255,7 +255,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       fromBranch: z.string().optional().describe("Source branch (default: main)"),
       toBranch: z.string().optional().describe("Target branch (default: auto-detected)"),
     },
-    async ({ repoId, fromBranch = "main", toBranch }) => {
+    async ({ repoId, fromBranch = "main", toBranch }: any) => {
       const service = getGitHubEnterpriseService();
       const repo = service.getRepoById(repoId);
   
@@ -385,7 +385,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       repoId: z.string().describe("Repository ID from configuration (e.g., 'plugin-core')"),
       protectedOnly: z.boolean().optional().describe("Filter by protection status (true for protected branches only)"),
     },
-    async ({ repoId, protectedOnly }) => {
+    async ({ repoId, protectedOnly }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const branches = await service.listBranches(repoId, protectedOnly);
@@ -417,7 +417,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       repoId: z.string().describe("Repository ID from configuration"),
       userSpecified: z.string().optional().describe("User-specified branch name (overrides auto-detection)"),
     },
-    async ({ repoId, userSpecified }) => {
+    async ({ repoId, userSpecified }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const result = await service.getDefaultBranch(repoId, userSpecified);
@@ -467,7 +467,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       path: z.string().describe("File path (e.g., 'src/Plugins/ContactPlugin.cs')"),
       branch: z.string().optional().describe("Branch name (default: auto-detected)"),
     },
-    async ({ repoId, path, branch }) => {
+    async ({ repoId, path, branch }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const file = await service.getFile(repoId, path, branch);
@@ -508,7 +508,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       path: z.string().optional().describe("Filter by file path pattern"),
       extension: z.string().optional().describe("Filter by file extension (e.g., 'cs', 'js')"),
     },
-    async ({ query, repoId, path, extension }) => {
+    async ({ query, repoId, path, extension }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const results = await service.searchCode(query, repoId, path, extension);
@@ -543,7 +543,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       path: z.string().optional().describe("Directory path (default: root)"),
       branch: z.string().optional().describe("Branch name (default: auto-detected)"),
     },
-    async ({ repoId, path, branch }) => {
+    async ({ repoId, path, branch }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const result = await service.listFiles(repoId, path, branch);
@@ -576,7 +576,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       pattern: z.string().optional().describe("Clear only cache entries matching this pattern (e.g., 'ContactPlugin.cs')"),
       repoId: z.string().optional().describe("Clear cache for specific repository only"),
     },
-    async ({ pattern, repoId }) => {
+    async ({ pattern, repoId }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const cleared = service.clearCache(pattern, repoId);
@@ -613,7 +613,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       path: z.string().optional().describe("Filter by file path"),
       limit: z.number().optional().describe("Max commits (default: 50)"),
     },
-    async ({ repoId, branch, since, until, author, path, limit }) => {
+    async ({ repoId, branch, since, until, author, path, limit }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const commits = await service.getCommits(repoId, branch, since, until, author, path, limit || 50);
@@ -646,7 +646,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       repoId: z.string().describe("Repository ID from configuration"),
       sha: z.string().describe("Commit SHA"),
     },
-    async ({ repoId, sha }) => {
+    async ({ repoId, sha }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const commit = await service.getCommitDetails(repoId, sha);
@@ -679,7 +679,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       since: z.string().optional().describe("ISO 8601 date"),
       until: z.string().optional().describe("ISO 8601 date"),
     },
-    async ({ query, repoId, author, since, until }) => {
+    async ({ query, repoId, author, since, until }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const results = await service.searchCommits(query, repoId, author, since, until);
@@ -714,7 +714,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       sha: z.string().describe("Commit SHA"),
       format: z.enum(['diff', 'patch']).optional().describe("Format: 'diff' or 'patch' (default: 'diff')"),
     },
-    async ({ repoId, sha, format }) => {
+    async ({ repoId, sha, format }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const diff = await service.getCommitDiff(repoId, sha, format || 'diff');
@@ -748,7 +748,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       base: z.string().describe("Base branch name"),
       head: z.string().describe("Head branch name"),
     },
-    async ({ repoId, base, head }) => {
+    async ({ repoId, base, head }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const comparison = await service.compareBranches(repoId, base, head);
@@ -785,7 +785,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       repoId: z.string().describe("Repository ID from configuration"),
       branch: z.string().describe("Branch name"),
     },
-    async ({ repoId, branch }) => {
+    async ({ repoId, branch }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const branchInfo = await service.getBranchDetails(repoId, branch);
@@ -826,7 +826,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       sort: z.enum(['created', 'updated', 'popularity']).optional().describe("Sort order (default: 'created')"),
       limit: z.number().optional().describe("Max results (default: 30)"),
     },
-    async ({ repoId, state, base, head, sort, limit }) => {
+    async ({ repoId, state, base, head, sort, limit }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const prs = await service.listPullRequests(repoId, state || 'open', base, head, sort || 'created', limit || 30);
@@ -860,7 +860,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       repoId: z.string().describe("Repository ID from configuration"),
       prNumber: z.number().describe("Pull request number"),
     },
-    async ({ repoId, prNumber }) => {
+    async ({ repoId, prNumber }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const pr = await service.getPullRequest(repoId, prNumber);
@@ -890,7 +890,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       repoId: z.string().describe("Repository ID from configuration"),
       prNumber: z.number().describe("Pull request number"),
     },
-    async ({ repoId, prNumber }) => {
+    async ({ repoId, prNumber }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const files = await service.getPullRequestFiles(repoId, prNumber);
@@ -937,7 +937,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       branch: z.string().optional().describe("Branch name (default: auto-detected)"),
       depth: z.number().optional().describe("Recursion depth limit (default: 3)"),
     },
-    async ({ repoId, path, branch, depth }) => {
+    async ({ repoId, path, branch, depth }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const result = await service.getDirectoryStructure(repoId, path, branch, depth || 3);
@@ -973,7 +973,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       branch: z.string().optional().describe("Branch name (default: auto-detected)"),
       limit: z.number().optional().describe("Max commits (default: 50)"),
     },
-    async ({ repoId, path, branch, limit }) => {
+    async ({ repoId, path, branch, limit }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const commits = await service.getFileHistory(repoId, path, branch, limit || 50);
@@ -1007,7 +1007,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       branchName: z.string().describe("New branch name"),
       fromBranch: z.string().optional().describe("Source branch (default: auto-detected)"),
     },
-    async ({ repoId, branchName, fromBranch }) => {
+    async ({ repoId, branchName, fromBranch }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const result = await service.createBranch(repoId, branchName, fromBranch);
@@ -1043,7 +1043,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       branch: z.string().describe("Branch name"),
       sha: z.string().describe("Current file SHA (for conflict detection)"),
     },
-    async ({ repoId, path, content, message, branch, sha }) => {
+    async ({ repoId, path, content, message, branch, sha }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const result = await service.updateFile(repoId, path, content, message, branch, sha);
@@ -1080,7 +1080,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       message: z.string().describe("Commit message"),
       branch: z.string().describe("Branch name"),
     },
-    async ({ repoId, path, content, message, branch }) => {
+    async ({ repoId, path, content, message, branch }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const result = await service.createFile(repoId, path, content, message, branch);
@@ -1114,7 +1114,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
       query: z.string().describe("Search query"),
       owner: z.string().optional().describe("Filter by organization/owner"),
     },
-    async ({ query, owner }) => {
+    async ({ query, owner }: any) => {
       try {
         const service = getGitHubEnterpriseService();
         const results = await service.searchRepositories(query, owner);

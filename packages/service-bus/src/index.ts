@@ -4,7 +4,7 @@ import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { ServiceBusService } from "./ServiceBusService.js";
 import type { ServiceBusConfig } from "./ServiceBusService.js";
 import { z } from 'zod';
-import { formatQueueListAsMarkdown, formatMessagesAsMarkdown, analyzeDeadLetterMessages, formatDeadLetterAnalysisAsMarkdown, generateServiceBusTroubleshootingGuide } from './utils/servicebus-formatters.js';
+import { formatQueueListAsMarkdown, formatMessagesAsMarkdown, analyzeDeadLetterMessages, formatDeadLetterAnalysisAsMarkdown, generateServiceBusTroubleshootingGuide, formatNamespaceOverviewAsMarkdown, formatMessageInspectionAsMarkdown, getQueueHealthStatus } from './utils/servicebus-formatters.js';
 
 export function registerServiceBusTools(server: any, servicebusService?: ServiceBusService) {
   let service: ServiceBusService | null = servicebusService || null;
@@ -60,7 +60,7 @@ export function registerServiceBusTools(server: any, servicebusService?: Service
     {
       resourceId: z.string().describe("Service Bus resource ID"),
     },
-    async ({ resourceId }) => {
+    async ({ resourceId }: any) => {
       const service = getServiceBusService();
       const resource = service.getResourceById(resourceId);
   
@@ -98,7 +98,7 @@ export function registerServiceBusTools(server: any, servicebusService?: Service
       resourceId: z.string().describe("Service Bus resource ID"),
       queueName: z.string().describe("Queue name"),
     },
-    async ({ resourceId, queueName }) => {
+    async ({ resourceId, queueName }: any) => {
       const service = getServiceBusService();
       const resource = service.getResourceById(resourceId);
   
@@ -192,7 +192,7 @@ export function registerServiceBusTools(server: any, servicebusService?: Service
       queueName: z.string().describe("Queue name"),
       maxMessages: z.string().optional().describe("Maximum messages to analyze (default: 50)"),
     },
-    async ({ resourceId, queueName, maxMessages }) => {
+    async ({ resourceId, queueName, maxMessages }: any) => {
       const service = getServiceBusService();
       const resource = service.getResourceById(resourceId);
   
@@ -252,7 +252,7 @@ export function registerServiceBusTools(server: any, servicebusService?: Service
       messageId: z.string().optional().describe("Message ID to inspect (if not provided, inspects first message)"),
       isDeadLetter: z.string().optional().describe("Inspect dead letter queue (default: false)"),
     },
-    async ({ resourceId, queueName, messageId, isDeadLetter }) => {
+    async ({ resourceId, queueName, messageId, isDeadLetter }: any) => {
       const service = getServiceBusService();
       const resource = service.getResourceById(resourceId);
   
@@ -290,7 +290,7 @@ export function registerServiceBusTools(server: any, servicebusService?: Service
               role: "user",
               content: {
                 type: "text",
-                text: `# Message Inspection: ${queueName}\n\n**Message not found** with ID: ${messageId}\n\nAvailable message IDs:\n${messages.slice(0, 10).map((m) => `- ${m.messageId}`).join('\n')}`,
+                text: `# Message Inspection: ${queueName}\n\n**Message not found** with ID: ${messageId}\n\nAvailable message IDs:\n${messages.slice(0, 10).map((m: any) => `- ${m.messageId}`).join('\n')}`,
               },
             },
           ],
@@ -352,7 +352,7 @@ export function registerServiceBusTools(server: any, servicebusService?: Service
     {
       resourceId: z.string().describe("Service Bus resource ID (use servicebus-list-namespaces to find IDs)"),
     },
-    async ({ resourceId }) => {
+    async ({ resourceId }: any) => {
       try {
         const service = getServiceBusService();
         const result = await service.testConnection(resourceId);
@@ -382,7 +382,7 @@ export function registerServiceBusTools(server: any, servicebusService?: Service
     {
       resourceId: z.string().describe("Service Bus resource ID"),
     },
-    async ({ resourceId }) => {
+    async ({ resourceId }: any) => {
       try {
         const service = getServiceBusService();
         const queues = await service.listQueues(resourceId);
@@ -415,7 +415,7 @@ export function registerServiceBusTools(server: any, servicebusService?: Service
       maxMessages: z.number().optional().describe("Maximum messages to peek (default: 10, max: 100)"),
       sessionId: z.string().optional().describe("Session ID for session-enabled queues"),
     },
-    async ({ resourceId, queueName, maxMessages, sessionId }) => {
+    async ({ resourceId, queueName, maxMessages, sessionId }: any) => {
       try {
         const service = getServiceBusService();
         const messages = await service.peekMessages(resourceId, queueName, maxMessages || 10, sessionId);
@@ -448,7 +448,7 @@ export function registerServiceBusTools(server: any, servicebusService?: Service
       maxMessages: z.number().optional().describe("Maximum messages to peek (default: 10, max: 100)"),
       sessionId: z.string().optional().describe("Session ID for session-enabled queues"),
     },
-    async ({ resourceId, queueName, maxMessages, sessionId }) => {
+    async ({ resourceId, queueName, maxMessages, sessionId }: any) => {
       try {
         const service = getServiceBusService();
         const messages = await service.peekDeadLetterMessages(resourceId, queueName, maxMessages || 10, sessionId);
@@ -479,7 +479,7 @@ export function registerServiceBusTools(server: any, servicebusService?: Service
       resourceId: z.string().describe("Service Bus resource ID"),
       queueName: z.string().describe("Queue name"),
     },
-    async ({ resourceId, queueName }) => {
+    async ({ resourceId, queueName }: any) => {
       try {
         const service = getServiceBusService();
         const properties = await service.getQueueProperties(resourceId, queueName);
@@ -517,7 +517,7 @@ export function registerServiceBusTools(server: any, servicebusService?: Service
       sessionId: z.string().optional().describe("Session ID for session-enabled queues"),
       maxMessages: z.number().optional().describe("Maximum messages to search (default: 50, max: 500)"),
     },
-    async ({ resourceId, queueName, bodyContains, correlationId, messageId, propertyKey, propertyValue, sessionId, maxMessages }) => {
+    async ({ resourceId, queueName, bodyContains, correlationId, messageId, propertyKey, propertyValue, sessionId, maxMessages }: any) => {
       try {
         const service = getServiceBusService();
         const result = await service.searchMessages(
@@ -552,7 +552,7 @@ export function registerServiceBusTools(server: any, servicebusService?: Service
     {
       resourceId: z.string().describe("Service Bus resource ID"),
     },
-    async ({ resourceId }) => {
+    async ({ resourceId }: any) => {
       try {
         const service = getServiceBusService();
         const properties = await service.getNamespaceProperties(resourceId);

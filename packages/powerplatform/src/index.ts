@@ -83,6 +83,8 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       );
     }
   }
+  // Default solution name (optional)
+  const POWERPLATFORM_DEFAULT_SOLUTION = process.env.POWERPLATFORM_DEFAULT_SOLUTION || "";
 
   // ========================================
   // PROMPTS
@@ -94,7 +96,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       entityName: z.string().describe("The logical name of the entity")
     },
-    async (args) => {
+    async (args: any) => {
       try {
         const service = getPowerPlatformService();
         const entityName = args.entityName;
@@ -169,7 +171,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       entityName: z.string().describe("The logical name of the entity"),
       attributeName: z.string().describe("The logical name of the attribute"),
     },
-    async (args) => {
+    async (args: any) => {
       try {
         const service = getPowerPlatformService();
         const { entityName, attributeName } = args;
@@ -226,7 +228,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       entityName: z.string().describe("The logical name of the entity"),
     },
-    async (args) => {
+    async (args: any) => {
       try {
         const service = getPowerPlatformService();
         const entityName = args.entityName;
@@ -284,7 +286,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       entityName: z.string().describe("The logical name of the entity"),
     },
-    async (args) => {
+    async (args: any) => {
       try {
         const service = getPowerPlatformService();
         const entityName = args.entityName;
@@ -352,7 +354,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       assemblyName: z.string().describe("The name of the plugin assembly"),
     },
-    async (args) => {
+    async (args: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getPluginAssemblyComplete(args.assemblyName, false);
@@ -462,7 +464,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       entityName: z.string().describe("The logical name of the entity"),
       messageFilter: z.string().optional().describe("Optional filter by message name"),
     },
-    async (args) => {
+    async (args: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getEntityPluginPipeline(args.entityName, args.messageFilter, false);
@@ -573,7 +575,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       activeOnly: z.string().optional().describe("Set to 'true' to only include activated flows (default: false)"),
     },
-    async (args) => {
+    async (args: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getFlows(args.activeOnly === 'true', 100);
@@ -656,7 +658,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       activeOnly: z.string().optional().describe("Set to 'true' to only include activated workflows (default: false)"),
     },
-    async (args) => {
+    async (args: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getWorkflows(args.activeOnly === 'true', 100);
@@ -744,7 +746,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       activeOnly: z.string().optional().describe("Set to 'true' to only include activated business rules (default: false)"),
     },
-    async (args) => {
+    async (args: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getBusinessRules(args.activeOnly === 'true', 100);
@@ -830,7 +832,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       appId: z.string().describe("The GUID of the app (appmoduleid)"),
     },
-    async (args) => {
+    async (args: any) => {
       try {
         const service = getPowerPlatformService();
   
@@ -950,7 +952,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       entityName: z.string().describe("The logical name of the entity"),
     },
-    async ({ entityName }) => {
+    async ({ entityName }: any) => {
       try {
         // Get or initialize PowerPlatformService
         const service = getPowerPlatformService();
@@ -987,7 +989,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       entityName: z.string().describe("The logical name of the entity"),
     },
-    async ({ entityName }) => {
+    async ({ entityName }: any) => {
       try {
         // Get or initialize PowerPlatformService
         const service = getPowerPlatformService();
@@ -1025,7 +1027,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       entityName: z.string().describe("The logical name of the entity"),
       attributeName: z.string().describe("The logical name of the attribute")
     },
-    async ({ entityName, attributeName }) => {
+    async ({ entityName, attributeName }: any) => {
       try {
         // Get or initialize PowerPlatformService
         const service = getPowerPlatformService();
@@ -1062,7 +1064,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       entityName: z.string().describe("The logical name of the entity"),
     },
-    async ({ entityName }) => {
+    async ({ entityName }: any) => {
       try {
         // Get or initialize PowerPlatformService
         const service = getPowerPlatformService();
@@ -1099,7 +1101,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       optionSetName: z.string().describe("The name of the global option set"),
     },
-    async ({ optionSetName }) => {
+    async ({ optionSetName }: any) => {
       try {
         // Get or initialize PowerPlatformService
         const service = getPowerPlatformService();
@@ -1137,7 +1139,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       entityNamePlural: z.string().describe("The plural name of the entity (e.g., 'accounts', 'contacts')"),
       recordId: z.string().describe("The GUID of the record"),
     },
-    async ({ entityNamePlural, recordId }) => {
+    async ({ entityNamePlural, recordId }: any) => {
       try {
         // Get or initialize PowerPlatformService
         const service = getPowerPlatformService();
@@ -1176,7 +1178,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       filter: z.string().describe("OData filter expression (e.g., \"name eq 'test'\" or \"createdon gt 2023-01-01\")"),
       maxRecords: z.number().optional().describe("Maximum number of records to retrieve (default: 50)"),
     },
-    async ({ entityNamePlural, filter, maxRecords }) => {
+    async ({ entityNamePlural, filter, maxRecords }: any) => {
       try {
         // Get or initialize PowerPlatformService
         const service = getPowerPlatformService();
@@ -1223,7 +1225,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
           "For option sets, use integer values."
         ),
     },
-    async ({ entityNamePlural, data }) => {
+    async ({ entityNamePlural, data }: any) => {
       try {
         checkCreateEnabled();
         const service = getPowerPlatformService();
@@ -1272,7 +1274,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
           "Use '@odata.bind' syntax for lookups, integer values for option sets."
         ),
     },
-    async ({ entityNamePlural, recordId, data }) => {
+    async ({ entityNamePlural, recordId, data }: any) => {
       try {
         checkUpdateEnabled();
         const service = getPowerPlatformService();
@@ -1318,7 +1320,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
         .optional()
         .describe("Confirmation flag - must be true to proceed with deletion (safety check)"),
     },
-    async ({ entityNamePlural, recordId, confirm }) => {
+    async ({ entityNamePlural, recordId, confirm }: any) => {
       try {
         checkDeleteEnabled();
   
@@ -1373,7 +1375,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       includeManaged: z.boolean().optional().describe("Include managed assemblies (default: false)"),
       maxRecords: z.number().optional().describe("Maximum number of assemblies to return (default: 100)"),
     },
-    async ({ includeManaged, maxRecords }) => {
+    async ({ includeManaged, maxRecords }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getPluginAssemblies(includeManaged || false, maxRecords || 100);
@@ -1409,7 +1411,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       assemblyName: z.string().describe("The name of the plugin assembly"),
       includeDisabled: z.boolean().optional().describe("Include disabled steps (default: false)"),
     },
-    async ({ assemblyName, includeDisabled }) => {
+    async ({ assemblyName, includeDisabled }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getPluginAssemblyComplete(assemblyName, includeDisabled || false);
@@ -1446,7 +1448,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       messageFilter: z.string().optional().describe("Filter by message name (e.g., 'Create', 'Update', 'Delete')"),
       includeDisabled: z.boolean().optional().describe("Include disabled steps (default: false)"),
     },
-    async ({ entityName, messageFilter, includeDisabled }) => {
+    async ({ entityName, messageFilter, includeDisabled }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getEntityPluginPipeline(entityName, messageFilter, includeDisabled || false);
@@ -1487,7 +1489,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       hoursBack: z.number().optional().describe("How many hours back to search (default: 24)"),
       maxRecords: z.number().optional().describe("Maximum number of logs to return (default: 50)"),
     },
-    async ({ entityName, messageName, correlationId, pluginStepId, exceptionOnly, hoursBack, maxRecords }) => {
+    async ({ entityName, messageName, correlationId, pluginStepId, exceptionOnly, hoursBack, maxRecords }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getPluginTraceLogs({
@@ -1531,7 +1533,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       activeOnly: z.boolean().optional().describe("Only return activated flows (default: false)"),
       maxRecords: z.number().optional().describe("Maximum number of flows to return (default: 100)"),
     },
-    async ({ activeOnly, maxRecords }) => {
+    async ({ activeOnly, maxRecords }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getFlows(activeOnly || false, maxRecords || 100);
@@ -1566,7 +1568,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       flowId: z.string().describe("The GUID of the flow (workflowid)"),
     },
-    async ({ flowId }) => {
+    async ({ flowId }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getFlowDefinition(flowId);
@@ -1602,7 +1604,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       flowId: z.string().describe("The GUID of the flow (workflowid)"),
       maxRecords: z.number().optional().describe("Maximum number of runs to return (default: 100)"),
     },
-    async ({ flowId, maxRecords }) => {
+    async ({ flowId, maxRecords }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getFlowRuns(flowId, maxRecords || 100);
@@ -1647,7 +1649,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       activeOnly: z.boolean().optional().describe("Only return activated workflows (default: false)"),
       maxRecords: z.number().optional().describe("Maximum number of workflows to return (default: 100)"),
     },
-    async ({ activeOnly, maxRecords }) => {
+    async ({ activeOnly, maxRecords }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getWorkflows(activeOnly || false, maxRecords || 100);
@@ -1682,7 +1684,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       workflowId: z.string().describe("The GUID of the workflow (workflowid)"),
     },
-    async ({ workflowId }) => {
+    async ({ workflowId }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getWorkflowDefinition(workflowId);
@@ -1718,7 +1720,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       activeOnly: z.boolean().optional().describe("Only return activated business rules (default: false)"),
       maxRecords: z.number().optional().describe("Maximum number of business rules to return (default: 100)"),
     },
-    async ({ activeOnly, maxRecords }) => {
+    async ({ activeOnly, maxRecords }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getBusinessRules(activeOnly || false, maxRecords || 100);
@@ -1753,7 +1755,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       workflowId: z.string().describe("The GUID of the business rule (workflowid)"),
     },
-    async ({ workflowId }) => {
+    async ({ workflowId }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getBusinessRule(workflowId);
@@ -1791,7 +1793,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       includeUnpublished: z.boolean().optional().describe("Include unpublished/draft apps (default: true)"),
       solutionUniqueName: z.string().optional().describe("Filter apps by solution unique name (e.g., 'MCPTestCore')"),
     },
-    async ({ activeOnly, maxRecords, includeUnpublished, solutionUniqueName }) => {
+    async ({ activeOnly, maxRecords, includeUnpublished, solutionUniqueName }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getApps(
@@ -1832,7 +1834,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       appId: z.string().describe("The GUID of the app (appmoduleid)"),
     },
-    async ({ appId }) => {
+    async ({ appId }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getApp(appId);
@@ -1868,7 +1870,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       appId: z.string().describe("The GUID of the app (appmoduleid)"),
     },
-    async ({ appId }) => {
+    async ({ appId }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getAppComponents(appId);
@@ -1904,7 +1906,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       appId: z.string().describe("The GUID of the app (appmoduleid)"),
     },
-    async ({ appId }) => {
+    async ({ appId }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getAppSitemap(appId);
@@ -1941,7 +1943,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       appId: z.string().describe("The GUID of the app (appmoduleid)"),
       entityNames: z.array(z.string()).describe("Array of entity logical names to add (e.g., ['account', 'contact'])"),
     },
-    async ({ appId, entityNames }) => {
+    async ({ appId, entityNames }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.addEntitiesToApp(appId, entityNames);
@@ -1977,7 +1979,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       appId: z.string().describe("The GUID of the app (appmoduleid)"),
     },
-    async ({ appId }) => {
+    async ({ appId }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.validateApp(appId);
@@ -2013,7 +2015,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       appId: z.string().describe("The GUID of the app (appmoduleid)"),
     },
-    async ({ appId }) => {
+    async ({ appId }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.publishApp(appId);
@@ -2060,7 +2062,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       primaryAttributeMaxLength: z.number().optional().describe("Max length for primary attribute (default: 850)"),
       solutionUniqueName: z.string().optional().describe("Solution to add entity to (optional, uses POWERPLATFORM_DEFAULT_SOLUTION if not specified)")
     },
-    async (params) => {
+    async (params: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -2184,7 +2186,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       hasNotes: z.boolean().optional().describe("Enable/disable notes"),
       solutionUniqueName: z.string().optional().describe("Solution context")
     },
-    async (params) => {
+    async (params: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -2235,7 +2237,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       iconFileName: z.string().describe("Fluent UI icon file name (e.g., 'people_community_24_filled.svg'). Browse icons at: https://github.com/microsoft/fluentui-system-icons"),
       solutionUniqueName: z.string().optional().describe("Solution to add the web resource to (optional, uses POWERPLATFORM_DEFAULT_SOLUTION if not specified)")
     },
-    async (params) => {
+    async (params: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -2280,7 +2282,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       metadataId: z.string().describe("The MetadataId of the entity to delete (GUID)")
     },
-    async ({ metadataId }) => {
+    async ({ metadataId }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -2340,7 +2342,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       relationshipSchemaName: z.string().optional().describe("Schema name for the relationship (for Lookup attributes)"),
       solutionUniqueName: z.string().optional().describe("Solution to add attribute to")
     },
-    async (params) => {
+    async (params: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -2557,7 +2559,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
               const optionSetName = params.schemaName;
   
               // Normalize options: support both string[] (auto-numbered) and {value, label}[] formats
-              const normalizedOptions = params.optionSetOptions.map((opt, index) => {
+              const normalizedOptions = params.optionSetOptions.map((opt: any, index: any) => {
                 if (typeof opt === 'string') {
                   // Auto-number from 0
                   return {
@@ -2659,7 +2661,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
               const optionSetName = params.schemaName;
   
               // Normalize options: support both string[] (auto-numbered) and {value, label}[] formats
-              const normalizedOptions = params.optionSetOptions.map((opt, index) => {
+              const normalizedOptions = params.optionSetOptions.map((opt: any, index: any) => {
                 if (typeof opt === 'string') {
                   // Auto-number from 0
                   return {
@@ -2823,7 +2825,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       ),
       solutionUniqueName: z.string().optional().describe("Solution context")
     },
-    async (params) => {
+    async (params: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -2900,7 +2902,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       entityLogicalName: z.string().describe("Entity logical name"),
       attributeMetadataId: z.string().describe("Attribute MetadataId (GUID)")
     },
-    async ({ entityLogicalName, attributeMetadataId }) => {
+    async ({ entityLogicalName, attributeMetadataId }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -2928,7 +2930,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       lookupAttributeDisplayName: z.string().describe("Lookup attribute display name"),
       solutionUniqueName: z.string().optional().describe("Solution to add to")
     },
-    async (params) => {
+    async (params: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -2971,7 +2973,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       intersectEntityName: z.string().describe("Intersect entity name (e.g., 'sic_account_contact')"),
       solutionUniqueName: z.string().optional().describe("Solution to add to")
     },
-    async (params) => {
+    async (params: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3003,7 +3005,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       metadataId: z.string().describe("Relationship MetadataId (GUID)")
     },
-    async ({ metadataId }) => {
+    async ({ metadataId }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3028,7 +3030,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       referencedEntityNavigationPropertyName: z.string().optional().describe("Navigation property name"),
       referencingEntityNavigationPropertyName: z.string().optional().describe("Navigation property name")
     },
-    async (params) => {
+    async (params: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3055,7 +3057,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       metadataId: z.string().describe("Relationship MetadataId (GUID)")
     },
-    async ({ metadataId }) => {
+    async ({ metadataId }: any) => {
       try {
         const service = getPowerPlatformService();
         const relationship = await service.getRelationshipDetails(metadataId);
@@ -3082,7 +3084,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       requiredLevel: z.enum(["None", "Recommended", "ApplicationRequired"]).optional().describe("Required level (default: None)"),
       solutionUniqueName: z.string().optional().describe("Solution to add to")
     },
-    async (params) => {
+    async (params: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3125,7 +3127,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       webResourceId: z.string().describe("Web resource ID (GUID)")
     },
-    async ({ webResourceId }) => {
+    async ({ webResourceId }: any) => {
       try {
         const service = getPowerPlatformService();
         const dependencies = await service.getWebResourceDependencies(webResourceId);
@@ -3165,7 +3167,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       solutionUniqueName: z.string().describe("Solution unique name")
     },
-    async ({ solutionUniqueName }) => {
+    async ({ solutionUniqueName }: any) => {
       try {
         const service = getPowerPlatformService();
         const validation = await service.validateSolutionIntegrity(solutionUniqueName);
@@ -3231,7 +3233,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       description: z.string().optional().describe("New description"),
       solutionUniqueName: z.string().optional().describe("Solution to add to (optional, uses POWERPLATFORM_DEFAULT_SOLUTION if not provided)")
     },
-    async ({ metadataId, displayName, description, solutionUniqueName }) => {
+    async ({ metadataId, displayName, description, solutionUniqueName }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3281,7 +3283,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       label: z.string().describe("The display label for the value"),
       solutionUniqueName: z.string().optional().describe("Solution to add to")
     },
-    async ({ optionSetName, value, label, solutionUniqueName }) => {
+    async ({ optionSetName, value, label, solutionUniqueName }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3319,7 +3321,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       label: z.string().describe("The new display label"),
       solutionUniqueName: z.string().optional().describe("Solution to add to")
     },
-    async ({ optionSetName, value, label, solutionUniqueName }) => {
+    async ({ optionSetName, value, label, solutionUniqueName }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3355,7 +3357,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       optionSetName: z.string().describe("The name of the option set"),
       value: z.number().describe("The numeric value to delete")
     },
-    async ({ optionSetName, value }) => {
+    async ({ optionSetName, value }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3389,7 +3391,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       values: z.array(z.number()).describe("Array of values in the desired order"),
       solutionUniqueName: z.string().optional().describe("Solution to add to")
     },
-    async ({ optionSetName, values, solutionUniqueName }) => {
+    async ({ optionSetName, values, solutionUniqueName }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3427,7 +3429,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       description: z.string().optional().describe("Form description"),
       solutionUniqueName: z.string().optional().describe("Solution to add to")
     },
-    async ({ name, entityLogicalName, formType, formXml, description, solutionUniqueName }) => {
+    async ({ name, entityLogicalName, formType, formXml, description, solutionUniqueName }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3436,7 +3438,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
         const form = {
           name,
           objecttypecode: entityLogicalName,
-          type: typeMap[formType],
+          type: typeMap[formType as keyof typeof typeMap],
           formxml: formXml,
           description: description || ""
         };
@@ -3474,7 +3476,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       description: z.string().optional().describe("New description"),
       solutionUniqueName: z.string().optional().describe("Solution to add to")
     },
-    async ({ formId, name, formXml, description, solutionUniqueName }) => {
+    async ({ formId, name, formXml, description, solutionUniqueName }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3512,7 +3514,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       formId: z.string().describe("Form ID (GUID)")
     },
-    async ({ formId }) => {
+    async ({ formId }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3544,7 +3546,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       formId: z.string().describe("Form ID (GUID)")
     },
-    async ({ formId }) => {
+    async ({ formId }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3576,7 +3578,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       formId: z.string().describe("Form ID (GUID)")
     },
-    async ({ formId }) => {
+    async ({ formId }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3608,7 +3610,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       entityLogicalName: z.string().describe("Entity logical name")
     },
-    async ({ entityLogicalName }) => {
+    async ({ entityLogicalName }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getForms(entityLogicalName);
@@ -3650,7 +3652,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       description: z.string().optional().describe("View description"),
       solutionUniqueName: z.string().optional().describe("Solution to add to")
     },
-    async ({ name, entityLogicalName, fetchXml, layoutXml, queryType, isDefault, description, solutionUniqueName }) => {
+    async ({ name, entityLogicalName, fetchXml, layoutXml, queryType, isDefault, description, solutionUniqueName }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3700,7 +3702,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       description: z.string().optional().describe("New description"),
       solutionUniqueName: z.string().optional().describe("Solution to add to")
     },
-    async ({ viewId, name, fetchXml, layoutXml, isDefault, description, solutionUniqueName }) => {
+    async ({ viewId, name, fetchXml, layoutXml, isDefault, description, solutionUniqueName }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3740,7 +3742,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       viewId: z.string().describe("View ID (GUID)")
     },
-    async ({ viewId }) => {
+    async ({ viewId }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3772,7 +3774,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       entityLogicalName: z.string().describe("Entity logical name")
     },
-    async ({ entityLogicalName }) => {
+    async ({ entityLogicalName }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getViews(entityLogicalName);
@@ -3806,7 +3808,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       viewId: z.string().describe("View ID (GUID)")
     },
-    async ({ viewId }) => {
+    async ({ viewId }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3838,7 +3840,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       viewId: z.string().describe("View ID (GUID)")
     },
-    async ({ viewId }) => {
+    async ({ viewId }: any) => {
       try {
         const service = getPowerPlatformService();
         const view = await service.getViewFetchXml(viewId);
@@ -3872,7 +3874,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       description: z.string().optional().describe("Description"),
       solutionUniqueName: z.string().optional().describe("Solution to add to")
     },
-    async ({ name, displayName, webResourceType, content, description, solutionUniqueName }) => {
+    async ({ name, displayName, webResourceType, content, description, solutionUniqueName }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3918,7 +3920,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       description: z.string().optional().describe("Description"),
       solutionUniqueName: z.string().optional().describe("Solution context")
     },
-    async ({ webResourceId, displayName, content, description, solutionUniqueName }) => {
+    async ({ webResourceId, displayName, content, description, solutionUniqueName }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3956,7 +3958,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       webResourceId: z.string().describe("Web resource ID (GUID)")
     },
-    async ({ webResourceId }) => {
+    async ({ webResourceId }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -3988,7 +3990,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       webResourceId: z.string().describe("Web resource ID (GUID)")
     },
-    async ({ webResourceId }) => {
+    async ({ webResourceId }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getWebResource(webResourceId);
@@ -4021,7 +4023,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       nameFilter: z.string().optional().describe("Name filter (contains)")
     },
-    async ({ nameFilter }) => {
+    async ({ nameFilter }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getWebResources(nameFilter);
@@ -4059,7 +4061,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       customizationOptionValuePrefix: z.number().describe("Option value prefix (e.g., 10000)"),
       description: z.string().optional().describe("Publisher description")
     },
-    async ({ uniqueName, friendlyName, customizationPrefix, customizationOptionValuePrefix, description }) => {
+    async ({ uniqueName, friendlyName, customizationPrefix, customizationOptionValuePrefix, description }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -4138,7 +4140,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       publisherId: z.string().describe("Publisher ID (GUID)"),
       description: z.string().optional().describe("Solution description")
     },
-    async ({ uniqueName, friendlyName, version, publisherId, description }) => {
+    async ({ uniqueName, friendlyName, version, publisherId, description }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -4216,7 +4218,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       addRequiredComponents: z.boolean().optional().describe("Add required components (default: true)"),
       includedComponentSettingsValues: z.string().optional().describe("Component settings values")
     },
-    async ({ solutionUniqueName, componentId, componentType, addRequiredComponents, includedComponentSettingsValues }) => {
+    async ({ solutionUniqueName, componentId, componentType, addRequiredComponents, includedComponentSettingsValues }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -4255,7 +4257,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       componentId: z.string().describe("Component ID (GUID or MetadataId)"),
       componentType: z.number().describe("Component type: 1=Entity, 2=Attribute, 9=OptionSet, 24=Form, 26=SavedQuery, 29=Workflow, 60=SystemForm, 61=WebResource")
     },
-    async ({ solutionUniqueName, componentId, componentType }) => {
+    async ({ solutionUniqueName, componentId, componentType }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -4287,7 +4289,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       solutionName: z.string().describe("Solution unique name"),
       managed: z.boolean().optional().describe("Export as managed solution (default: false)")
     },
-    async ({ solutionName, managed }) => {
+    async ({ solutionName, managed }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -4321,7 +4323,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       publishWorkflows: z.boolean().optional().describe("Publish workflows after import (default: true)"),
       overwriteUnmanagedCustomizations: z.boolean().optional().describe("Overwrite unmanaged customizations (default: false)")
     },
-    async ({ customizationFile, publishWorkflows, overwriteUnmanagedCustomizations }) => {
+    async ({ customizationFile, publishWorkflows, overwriteUnmanagedCustomizations }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -4358,7 +4360,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       entityLogicalName: z.string().describe("Entity logical name to publish")
     },
-    async ({ entityLogicalName }) => {
+    async ({ entityLogicalName }: any) => {
       try {
         checkCustomizationEnabled();
         const service = getPowerPlatformService();
@@ -4391,7 +4393,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       componentId: z.string().describe("Component ID (GUID or MetadataId)"),
       componentType: z.number().describe("Component type: 1=Entity, 2=Attribute, 9=OptionSet, 24=Form, 26=SavedQuery, 29=Workflow, 60=SystemForm, 61=WebResource")
     },
-    async ({ componentId, componentType }) => {
+    async ({ componentId, componentType }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.checkDependencies(componentId, componentType);
@@ -4427,7 +4429,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       entityLogicalName: z.string().describe("Entity logical name")
     },
-    async ({ entityLogicalName }) => {
+    async ({ entityLogicalName }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.checkEntityDependencies(entityLogicalName);
@@ -4463,7 +4465,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
     {
       entityLogicalName: z.string().describe("Entity logical name")
     },
-    async ({ entityLogicalName }) => {
+    async ({ entityLogicalName }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.getEntityCustomizationInfo(entityLogicalName);
@@ -4496,7 +4498,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       schemaName: z.string().describe("Schema name to validate"),
       prefix: z.string().describe("Required customization prefix")
     },
-    async ({ schemaName, prefix }) => {
+    async ({ schemaName, prefix }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = service.validateSchemaName(schemaName, prefix);
@@ -4530,7 +4532,7 @@ export function registerPowerPlatformTools(server: any, powerplatformService?: P
       componentId: z.string().describe("Component ID (GUID or MetadataId)"),
       componentType: z.number().describe("Component type: 1=Entity, 2=Attribute, 9=OptionSet, 24=Form, 26=SavedQuery, 29=Workflow, 60=SystemForm, 61=WebResource")
     },
-    async ({ componentId, componentType }) => {
+    async ({ componentId, componentType }: any) => {
       try {
         const service = getPowerPlatformService();
         const result = await service.checkDeleteEligibility(componentId, componentType);

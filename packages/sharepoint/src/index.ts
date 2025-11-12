@@ -61,7 +61,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
     {
       siteId: z.string().describe("Site ID from configuration"),
     },
-    async ({ siteId }) => {
+    async ({ siteId }: any) => {
       try {
         const service = getSharePointService();
   
@@ -111,7 +111,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       siteId: z.string().describe("Site ID"),
       driveId: z.string().describe("Drive (library) ID"),
     },
-    async ({ siteId, driveId }) => {
+    async ({ siteId, driveId }: any) => {
       try {
         const service = getSharePointService();
   
@@ -162,7 +162,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       driveId: z.string().describe("Drive ID"),
       query: z.string().describe("Search query (filename or keywords)"),
     },
-    async ({ siteId, driveId, query }) => {
+    async ({ siteId, driveId, query }: any) => {
       try {
         const service = getSharePointService();
   
@@ -211,7 +211,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       driveId: z.string().describe("Drive ID"),
       days: z.string().optional().describe("Number of days to look back (default: 7)"),
     },
-    async ({ siteId, driveId, days }) => {
+    async ({ siteId, driveId, days }: any) => {
       try {
         const service = getSharePointService();
   
@@ -259,7 +259,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
     {
       documentLocationId: z.string().describe("Document location ID from PowerPlatform"),
     },
-    async ({ documentLocationId }) => {
+    async ({ documentLocationId }: any) => {
       try {
         const spoService = getSharePointService();
         const ppService = getPowerPlatformService();
@@ -304,7 +304,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       entityName: z.string().optional().describe("Entity logical name (e.g., 'account')"),
       recordId: z.string().optional().describe("Record ID (GUID)"),
     },
-    async ({ entityName, recordId }) => {
+    async ({ entityName, recordId }: any) => {
       try {
         const spoService = getSharePointService();
         const ppService = getPowerPlatformService();
@@ -381,7 +381,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       targetSiteId: z.string().describe("Target site ID"),
       targetPath: z.string().describe("Target folder path"),
     },
-    async ({ sourceSiteId, sourcePath, targetSiteId, targetPath }) => {
+    async ({ sourceSiteId, sourcePath, targetSiteId, targetPath }: any) => {
       try {
         const spoService = getSharePointService();
         const ppService = getPowerPlatformService();
@@ -557,7 +557,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
     {
       errorType: z.string().optional().describe("Type of error (e.g., 'access-denied', 'site-not-found')"),
     },
-    async ({ errorType }) => {
+    async ({ errorType }: any) => {
       const guide = `# SharePoint Integration Troubleshooting Guide
   
   ## Common Error Scenarios
@@ -726,7 +726,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
     {
       entityName: z.string().optional().describe("Entity to check (e.g., 'account')"),
     },
-    async ({ entityName }) => {
+    async ({ entityName }: any) => {
       try {
         const spoService = getSharePointService();
         const ppService = getPowerPlatformService();
@@ -838,7 +838,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
     {
       siteId: z.string().describe("Site ID from configuration (use spo-list-sites to find IDs)"),
     },
-    async ({ siteId }) => {
+    async ({ siteId }: any) => {
       try {
         const service = getSharePointService();
         const siteInfo = await service.getSiteInfo(siteId);
@@ -868,7 +868,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
     {
       siteId: z.string().describe("Site ID from configuration"),
     },
-    async ({ siteId }) => {
+    async ({ siteId }: any) => {
       try {
         const service = getSharePointService();
         const result = await service.testConnection(siteId);
@@ -898,7 +898,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
     {
       siteId: z.string().describe("Site ID from configuration"),
     },
-    async ({ siteId }) => {
+    async ({ siteId }: any) => {
       try {
         const service = getSharePointService();
         const drives = await service.listDrives(siteId);
@@ -929,7 +929,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       siteId: z.string().describe("Site ID from configuration"),
       driveId: z.string().describe("Drive ID (use spo-list-drives to find IDs)"),
     },
-    async ({ siteId, driveId }) => {
+    async ({ siteId, driveId }: any) => {
       try {
         const service = getSharePointService();
         const driveInfo = await service.getDriveInfo(siteId, driveId);
@@ -960,7 +960,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       siteId: z.string().optional().describe("Clear cache for specific site only (optional)"),
       pattern: z.string().optional().describe("Clear only cache entries matching this pattern (optional)"),
     },
-    async ({ siteId, pattern }) => {
+    async ({ siteId, pattern }: any) => {
       try {
         const service = getSharePointService();
         const clearedCount = service.clearCache(pattern, siteId);
@@ -992,7 +992,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       driveId: z.string().describe("Drive ID"),
       folderId: z.string().optional().describe("Folder ID (optional, defaults to root)"),
     },
-    async ({ siteId, driveId, folderId }) => {
+    async ({ siteId, driveId, folderId }: any) => {
       try {
         const service = getSharePointService();
         const items = await service.listItems(siteId, driveId, folderId);
@@ -1024,7 +1024,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       driveId: z.string().describe("Drive ID"),
       itemId: z.string().describe("Item ID"),
     },
-    async ({ siteId, driveId, itemId }) => {
+    async ({ siteId, driveId, itemId }: any) => {
       try {
         const service = getSharePointService();
         const item = await service.getItem(siteId, driveId, itemId);
@@ -1056,7 +1056,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       driveId: z.string().describe("Drive ID"),
       path: z.string().describe("Item path (e.g., '/folder/file.docx' or 'folder/subfolder')"),
     },
-    async ({ siteId, driveId, path }) => {
+    async ({ siteId, driveId, path }: any) => {
       try {
         const service = getSharePointService();
         const item = await service.getItemByPath(siteId, driveId, path);
@@ -1089,7 +1089,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       driveId: z.string().optional().describe("Limit search to specific drive (optional)"),
       limit: z.number().optional().describe("Maximum results (default: 100, max configured in SHAREPOINT_MAX_SEARCH_RESULTS)"),
     },
-    async ({ siteId, query, driveId, limit }) => {
+    async ({ siteId, query, driveId, limit }: any) => {
       try {
         const service = getSharePointService();
         const result = await service.searchItems(siteId, query, driveId, limit);
@@ -1122,7 +1122,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       limit: z.number().optional().describe("Maximum results (default: 20, max: 100)"),
       days: z.number().optional().describe("Days back to search (default: 30)"),
     },
-    async ({ siteId, driveId, limit, days }) => {
+    async ({ siteId, driveId, limit, days }: any) => {
       try {
         const service = getSharePointService();
         const items = await service.getRecentItems(siteId, driveId, limit, days);
@@ -1155,7 +1155,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       folderId: z.string().optional().describe("Root folder ID (optional, defaults to drive root)"),
       depth: z.number().optional().describe("Recursion depth (default: 3, max: 10)"),
     },
-    async ({ siteId, driveId, folderId, depth }) => {
+    async ({ siteId, driveId, folderId, depth }: any) => {
       try {
         const service = getSharePointService();
         const tree = await service.getFolderStructure(siteId, driveId, folderId, depth);
@@ -1186,7 +1186,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       entityName: z.string().optional().describe("Filter by entity logical name (e.g., 'account', 'contact')"),
       recordId: z.string().optional().describe("Filter by specific record ID (GUID)"),
     },
-    async ({ entityName, recordId }) => {
+    async ({ entityName, recordId }: any) => {
       try {
         const spoService = getSharePointService();
         const ppService = getPowerPlatformService();
@@ -1218,7 +1218,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
     {
       documentLocationId: z.string().describe("GUID of the sharepointdocumentlocation record in PowerPlatform"),
     },
-    async ({ documentLocationId }) => {
+    async ({ documentLocationId }: any) => {
       try {
         const spoService = getSharePointService();
         const ppService = getPowerPlatformService();
@@ -1253,7 +1253,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
       targetSiteId: z.string().describe("Target SharePoint site ID"),
       targetPath: z.string().describe("Target folder path (e.g., '/NewLibrary/Archive')"),
     },
-    async ({ sourceSiteId, sourcePath, targetSiteId, targetPath }) => {
+    async ({ sourceSiteId, sourcePath, targetSiteId, targetPath }: any) => {
       try {
         const spoService = getSharePointService();
         const ppService = getPowerPlatformService();
