@@ -84,9 +84,6 @@ try {
 } catch (error) {
   console.error("⚠️  PowerPlatform Data registration skipped:", (error as Error).message);
 }
-} catch (error) {
-  console.error("⚠️  PowerPlatform registration skipped:", (error as Error).message);
-}
 
 try {
   registerAzureDevOpsTools(server);
