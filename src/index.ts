@@ -25,6 +25,8 @@ import { config as dotenvConfig } from "dotenv";
 
 // Import register functions from packages (relative paths during development)
 import { registerPowerPlatformTools } from "@mcp-consultant-tools/powerplatform";
+import { registerPowerplatformCustomizationTools } from "@mcp-consultant-tools/powerplatform-customization";
+import { registerPowerplatformDataTools } from "@mcp-consultant-tools/powerplatform-data";
 import { registerAzureDevOpsTools } from "@mcp-consultant-tools/azure-devops";
 import { registerFigmaTools } from "@mcp-consultant-tools/figma";
 import { registerApplicationInsightsTools } from "@mcp-consultant-tools/application-insights";
@@ -62,7 +64,26 @@ console.error("Registering MCP Consultant Tools...");
 
 try {
   registerPowerPlatformTools(server);
-  console.error("✅ PowerPlatform tools registered");
+  console.error("✅ PowerPlatform tools registered (read-only)");
+} catch (error) {
+  console.error("⚠️  PowerPlatform registration skipped:", (error as Error).message);
+}
+
+// PowerPlatform Customization (optional - schema changes)
+try {
+  registerPowerplatformCustomizationTools(server);
+  console.error("✅ PowerPlatform Customization tools registered");
+} catch (error) {
+  console.error("⚠️  PowerPlatform Customization registration skipped:", (error as Error).message);
+}
+
+// PowerPlatform Data (optional - CRUD operations)
+try {
+  registerPowerplatformDataTools(server);
+  console.error("✅ PowerPlatform Data tools registered");
+} catch (error) {
+  console.error("⚠️  PowerPlatform Data registration skipped:", (error as Error).message);
+}
 } catch (error) {
   console.error("⚠️  PowerPlatform registration skipped:", (error as Error).message);
 }

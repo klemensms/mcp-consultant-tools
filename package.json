@@ -35,6 +35,8 @@
   "dependencies": {
     "@mcp-consultant-tools/core": "workspace:*",
     "@mcp-consultant-tools/powerplatform": "workspace:*",
+    "@mcp-consultant-tools/powerplatform-customization": "workspace:*",
+    "@mcp-consultant-tools/powerplatform-data": "workspace:*",
     "@mcp-consultant-tools/azure-devops": "workspace:*",
     "@mcp-consultant-tools/figma": "workspace:*",
     "@mcp-consultant-tools/application-insights": "workspace:*",

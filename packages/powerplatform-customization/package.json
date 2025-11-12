@@ -1,12 +1,12 @@
 {
-  "name": "@mcp-consultant-tools/powerplatform",
+  "name": "@mcp-consultant-tools/powerplatform-customization",
   "version": "1.0.0",
-  "description": "MCP server for Microsoft PowerPlatform/Dataverse - read-only access (production-safe)",
+  "description": "MCP server for PowerPlatform schema/metadata customizations (dev/config environments)",
   "type": "module",
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
   "bin": {
-    "mcp-powerplatform": "./build/index.js"
+    "mcp-powerplatform-customization": "./build/index.js"
   },
   "exports": {
     ".": {
@@ -29,14 +29,14 @@
     "powerplatform",
     "dynamics",
     "dataverse",
-    "crm"
+    "customization"
   ],
   "author": "Michal Sobieraj",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/klemensms/mcp-consultant-tools.git",
-    "directory": "packages/powerplatform"
+    "directory": "packages/powerplatform-customization"
   },
   "engines": {
     "node": ">=16.0.0"
