@@ -1,13 +1,30 @@
-# Microsoft PowerPlatform / Dynamics 365 Integration
+# Microsoft PowerPlatform / Dynamics 365 Integration (Read-Only)
 
-Complete documentation for the PowerPlatform/Dynamics 365 integration in `mcp-consultant-tools`.
+**📦 Package:** `@mcp-consultant-tools/powerplatform`
+**🔒 Security:** Production-safe (read-only access, no schema modifications, no data writes)
+
+---
+
+## 🚨 IMPORTANT: Package Split Information
+
+As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isolated packages**:
+
+| Package | Purpose | Tools | Prompts | Production-Safe? |
+|---------|---------|-------|---------|------------------|
+| **[@mcp-consultant-tools/powerplatform](POWERPLATFORM.md)** (This Package) | Read-only access | 38 | 10 | ✅ **YES** |
+| **[@mcp-consultant-tools/powerplatform-customization](POWERPLATFORM_CUSTOMIZATION.md)** | Schema changes | 40 | 2 | ⚠️ **NO** - Dev/config only |
+| **[@mcp-consultant-tools/powerplatform-data](POWERPLATFORM_DATA.md)** | Data CRUD | 3 | 0 | ⚠️ **NO** - Operational use |
+
+**This documentation covers the read-only package only.** For customization or data CRUD operations, see the respective package documentation.
+
+---
 
 ## Table of Contents
 
 1. [Overview](#overview)
    - [What is PowerPlatform?](#what-is-powerplatform)
    - [Why Use This Integration?](#why-use-this-integration)
-   - [Key Features](#key-features)
+   - [Key Features (Read-Only)](#key-features-read-only)
    - [Supported Environments](#supported-environments)
 
 2. [Setup](#setup)
@@ -15,39 +32,35 @@ Complete documentation for the PowerPlatform/Dynamics 365 integration in `mcp-co
    - [Azure AD App Registration](#azure-ad-app-registration)
    - [Environment Variables](#environment-variables)
    - [Configuration Example](#configuration-example)
-   - [Enabling Customization](#enabling-customization)
 
-3. [Tools (79 Total)](#tools-79-total)
-   - [Entity Metadata & Data Tools (7)](#entity-metadata--data-tools)
-   - [Data CRUD Operations (3)](#data-crud-operations)
-   - [Plugin Registration & Validation Tools (4)](#plugin-registration--validation-tools)
+3. [Tools (38 Total)](#tools-38-total)
+   - [Entity Metadata Tools (6)](#entity-metadata-tools)
+   - [Plugin Inspection Tools (4)](#plugin-inspection-tools)
    - [Workflow & Power Automate Flow Tools (5)](#workflow--power-automate-flow-tools)
-   - [Entity Customization Tools (4)](#entity-customization-tools)
-   - [Attribute Management Tools (4)](#attribute-management-tools)
-   - [Relationship Management Tools (4)](#relationship-management-tools)
-   - [Global Option Set Tools (5)](#global-option-set-tools)
-   - [Form Management Tools (6)](#form-management-tools)
-   - [View Management Tools (6)](#view-management-tools)
    - [Business Rules Tools (2)](#business-rules-tools)
-   - [Model-Driven App Tools (7)](#model-driven-app-tools)
-   - [Web Resource Tools (6)](#web-resource-tools)
-   - [Solution Management Tools (16)](#solution-management-tools)
+   - [Form Management Tools (Read-Only) (3)](#form-management-tools-read-only)
+   - [View Management Tools (Read-Only) (3)](#view-management-tools-read-only)
+   - [Model-Driven App Tools (Read-Only) (4)](#model-driven-app-tools-read-only)
+   - [Web Resource Tools (Read-Only) (3)](#web-resource-tools-read-only)
+   - [Solution Management Tools (Read-Only) (8)](#solution-management-tools-read-only)
 
-4. [Prompts (9 Total)](#prompts-9-total)
+4. [Prompts (10 Total)](#prompts-10-total)
    - [Entity Prompts (4)](#entity-prompts)
    - [Plugin Prompts (2)](#plugin-prompts)
-   - [Workflow & Flow Prompts (3)](#workflow--flow-prompts)
+   - [Workflow & Flow Prompts (2)](#workflow--flow-prompts)
+   - [Business Rules Prompts (1)](#business-rules-prompts)
+   - [Solution Prompts (1)](#solution-prompts)
 
 5. [Usage Examples](#usage-examples)
    - [Entity Exploration](#entity-exploration)
    - [Plugin Validation](#plugin-validation)
-   - [Entity Customization Workflows](#entity-customization-workflows)
-   - [Model-Driven App Management](#model-driven-app-management)
+   - [Workflow Analysis](#workflow-analysis)
+   - [Cross-Service Correlation](#cross-service-correlation)
 
 6. [Best Practices](#best-practices)
    - [Security](#security)
    - [Performance](#performance)
-   - [Customization Management](#customization-management)
+   - [Production Use](#production-use)
 
 7. [Troubleshooting](#troubleshooting)
    - [Common Errors](#common-errors)
@@ -68,33 +81,45 @@ Microsoft PowerPlatform is a low-code/no-code platform that includes:
 - **Power Pages**: External-facing websites
 - **Dataverse**: Unified data platform (formerly Common Data Service)
 
-This integration provides programmatic access to Dataverse, the data layer underlying PowerPlatform applications.
+This integration provides **read-only programmatic access** to Dataverse, the data layer underlying PowerPlatform applications.
 
 ### Why Use This Integration?
 
-**Primary Use Cases:**
+**Primary Use Cases (Read-Only):**
 1. **Entity Exploration**: Quickly understand entity schemas, relationships, and data without navigating the UI
 2. **Plugin Validation**: Automated validation of plugin deployments with issue detection
 3. **Workflow Analysis**: Inspect Power Automate flows and classic workflows to understand automation logic
-4. **Customization Management**: Programmatically create entities, attributes, forms, views, and solutions
-5. **Development Acceleration**: Create customizations via code instead of manual UI configuration
-6. **Documentation Generation**: Auto-generate entity documentation from metadata
-7. **Quality Assurance**: Validate customizations, check dependencies, detect configuration issues
-8. **Cross-Service Correlation**: Correlate PowerPlatform plugins with source code (GitHub Enterprise), deployment logs (Azure DevOps), and runtime telemetry (Application Insights)
+4. **Documentation Generation**: Auto-generate entity documentation from metadata
+5. **Quality Assurance**: Validate configurations, check dependencies, detect configuration issues
+6. **Cross-Service Correlation**: Correlate PowerPlatform plugins with source code (GitHub Enterprise), deployment logs (Azure DevOps), and runtime telemetry (Application Insights)
+7. **Production Monitoring**: Safe read-only access for troubleshooting and investigation
 
-### Key Features
+### Key Features (Read-Only)
 
-- **Comprehensive Entity Access**: Read metadata, attributes, relationships, records via OData
-- **Plugin Inspection**: View plugin assemblies, steps, images with automatic validation
-- **Workflow & Flow Analysis**: Inspect Power Automate flows and classic workflows
-- **Full Customization API**: Create/update/delete entities, attributes, relationships, forms, views, solutions
-- **Model-Driven App Management**: Configure apps, add entities, validate, publish
-- **Icon Management**: Set entity icons using Microsoft Fluent UI System Icons
-- **Automatic Validation**: Built-in checks for missing filtering attributes, images, dependencies
-- **Formatted Prompts**: Human-readable reports for entities, plugins, flows, workflows
-- **Solution Management**: Export/import solutions, add/remove components, validate integrity
-- **Dual Interface**: Both raw tools (JSON) and formatted prompts (markdown)
-- **Security Controls**: Requires explicit `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` for write operations
+- ✅ **Entity Metadata Access**: Read entity definitions, attributes, relationships, option sets
+- ✅ **Record Querying**: Query records via OData with filters, joins, and pagination
+- ✅ **Plugin Inspection**: View plugin assemblies, steps, images with automatic validation
+- ✅ **Workflow & Flow Analysis**: Inspect Power Automate flows, classic workflows, and run history
+- ✅ **Business Rules Inspection**: View business rules and their configurations
+- ✅ **Form/View Metadata**: Read form and view definitions
+- ✅ **Model-Driven App Inspection**: View app configurations and components
+- ✅ **Web Resource Listing**: List and inspect web resources
+- ✅ **Solution Analysis**: View solution components and dependencies
+- ✅ **Formatted Prompts**: Human-readable reports for entities, plugins, flows, workflows
+- ✅ **Dual Interface**: Both raw tools (JSON) and formatted prompts (markdown)
+- ✅ **Production-Safe**: No write operations, no schema modifications, no data changes
+
+**What This Package Cannot Do:**
+- ❌ Create, update, or delete entities, attributes, or relationships
+- ❌ Create, update, or delete records
+- ❌ Modify forms, views, or business rules
+- ❌ Publish customizations
+- ❌ Import or export solutions
+- ❌ Modify model-driven apps
+
+**For these operations, see:**
+- [PowerPlatform Customization Package](POWERPLATFORM_CUSTOMIZATION.md) - Schema modifications
+- [PowerPlatform Data Package](POWERPLATFORM_DATA.md) - Record CRUD operations
 
 ### Supported Environments
 
@@ -169,60 +194,49 @@ After registration:
    - Search for and select your app registration (by name or client ID)
    - **Business unit**: Select appropriate business unit
    - **Security roles**: Assign required roles
-     - For read-only: **Basic User** or **Read-only** role
-     - For customization: **System Administrator** or **System Customizer**
-     - For specific operations: Create custom security role with required privileges
+     - **Recommended**: **Basic User** or custom **Read-only** role
+     - For plugin trace logs: **System Administrator** (read-only subset)
 6. Click **Create**
 
-**Security Role Requirements:**
+**Security Role Requirements (Read-Only Package):**
 
 | Operation Type | Minimum Required Role | Privileges Needed |
 |----------------|----------------------|-------------------|
 | Read entity metadata | Basic User | Read Entity Metadata |
-| Read records | Basic User | Read on target entities |
-| Query plugin logs | System Administrator | Read Plugin Trace Log |
-| Create entities | System Customizer | Create Entity Metadata |
-| Create attributes | System Customizer | Create Attribute Metadata |
-| Publish customizations | System Customizer | Publish Customizations |
-| Manage solutions | System Customizer | Import/Export Solutions |
-| Full customization | System Administrator | All privileges |
+| Read records (query-records) | Basic User | Read on target entities |
+| Read plugin assemblies/steps | Basic User | Read Plugin Assembly, Plugin Type, SDK Message Processing Step |
+| Query plugin trace logs | System Administrator | Read Plugin Trace Log |
+| Read workflows/flows | Basic User | Read Process (Workflow) |
+| Read business rules | Basic User | Read Business Rules |
+| Read forms/views | Basic User | Read Form, System Form |
+| Read solutions | Basic User | Read Solution |
+
+**Note:** This package requires **read-only access only**. Do not assign System Customizer or System Administrator roles unless plugin trace log access is needed.
 
 ### Environment Variables
 
-Configure the following environment variables:
+Configure the following environment variables for the **read-only package**:
 
 ```bash
-# PowerPlatform Configuration (Required)
+# PowerPlatform Configuration (Required - Read-Only Package)
 POWERPLATFORM_URL=https://yourenvironment.crm.dynamics.com
 POWERPLATFORM_CLIENT_ID=your-azure-app-client-id
 POWERPLATFORM_CLIENT_SECRET=your-azure-app-client-secret
 POWERPLATFORM_TENANT_ID=your-azure-tenant-id
-
-# Customization Control (Optional - defaults to false)
-POWERPLATFORM_ENABLE_CUSTOMIZATION=false
-POWERPLATFORM_DEFAULT_SOLUTION=DefaultSolution
-
-# Data CRUD Operations (Optional - defaults to false)
-# WARNING: These allow AI agents to modify data in your Dataverse environment
-# Only enable in development/sandbox environments
-POWERPLATFORM_ENABLE_CREATE=false
-POWERPLATFORM_ENABLE_UPDATE=false
-POWERPLATFORM_ENABLE_DELETE=false
 ```
 
 **Environment Variable Details:**
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `POWERPLATFORM_URL` | Yes | - | Organization URL (e.g., `https://org.crm.dynamics.com`) |
-| `POWERPLATFORM_CLIENT_ID` | Yes | - | Azure AD app registration client ID (GUID) |
-| `POWERPLATFORM_CLIENT_SECRET` | Yes | - | Azure AD app registration client secret |
-| `POWERPLATFORM_TENANT_ID` | Yes | - | Azure tenant ID (GUID) |
-| `POWERPLATFORM_ENABLE_CUSTOMIZATION` | No | `false` | Enable metadata customization (create entities, forms, etc.) |
-| `POWERPLATFORM_DEFAULT_SOLUTION` | No | - | Default solution for customizations |
-| `POWERPLATFORM_ENABLE_CREATE` | No | `false` | ⚠️ Enable record creation (data modification) |
-| `POWERPLATFORM_ENABLE_UPDATE` | No | `false` | ⚠️ Enable record updates (data modification) |
-| `POWERPLATFORM_ENABLE_DELETE` | No | `false` | ⚠️ Enable record deletion (permanent data loss) |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `POWERPLATFORM_URL` | Yes | Organization URL (e.g., `https://org.crm.dynamics.com`) |
+| `POWERPLATFORM_CLIENT_ID` | Yes | Azure AD app registration client ID (GUID) |
+| `POWERPLATFORM_CLIENT_SECRET` | Yes | Azure AD app registration client secret |
+| `POWERPLATFORM_TENANT_ID` | Yes | Azure tenant ID (GUID) |
+
+**Note:** This read-only package does not require any additional environment flags. For customization or data CRUD operations, see:
+- [PowerPlatform Customization Package](POWERPLATFORM_CUSTOMIZATION.md) - Requires `POWERPLATFORM_ENABLE_CUSTOMIZATION=true`
+- [PowerPlatform Data Package](POWERPLATFORM_DATA.md) - Requires `POWERPLATFORM_ENABLE_CREATE/UPDATE/DELETE=true`
 
 **Regional Endpoints:**
 
