@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/azure-devops",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "MCP server for Azure DevOps integration - wikis, work items, and project management",
   "type": "module",
   "main": "./build/index.js",
@@ -50,6 +50,6 @@
     "typescript": "^5.8.2"
   },
   "bin": {
-    "mcp-ado": "./build/index.js"
+    "mcp-ado": "build/index.js"
   }
 }
