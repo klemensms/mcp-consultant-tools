@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { pathToFileURL } from "node:url";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { ApplicationInsightsService } from "./ApplicationInsightsService.js";
 import type { ApplicationInsightsConfig } from "./ApplicationInsightsService.js";
@@ -782,7 +783,7 @@ export function registerApplicationInsightsTools(server: any, applicationinsight
   console.error("Application Insights tools registered: 10 tools, 5 prompts");
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
   const server = createMcpServer({

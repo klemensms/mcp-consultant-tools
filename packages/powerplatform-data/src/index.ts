@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { pathToFileURL } from 'node:url';
 import { createMcpServer, createEnvLoader } from '@mcp-consultant-tools/core';
 import { PowerPlatformService, PowerPlatformConfig } from './PowerPlatformService.js';
 
@@ -221,7 +222,7 @@ server.tool(
 }
 
 // CLI entry point (standalone execution)
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
 

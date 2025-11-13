@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { pathToFileURL } from "node:url";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { registerPowerPlatformTools } from "@mcp-consultant-tools/powerplatform";
 import { registerPowerplatformCustomizationTools } from "@mcp-consultant-tools/powerplatform-customization";
@@ -65,7 +66,7 @@ export function registerAllTools(server: any) {
 }
 
 // CLI entry point
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
 

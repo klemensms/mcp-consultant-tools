@@ -9,6 +9,7 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { pathToFileURL } from "node:url";
 import { createMcpServer, createEnvLoader, createErrorResponse, createSuccessResponse } from "@mcp-consultant-tools/core";
 import { FigmaService } from "./FigmaService.js";
 import type { FigmaConfig } from "./FigmaService.js";
@@ -96,7 +97,7 @@ export type { FigmaConfig } from "./FigmaService.js";
 /**
  * Standalone CLI server (when run directly)
  */
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { pathToFileURL } from "node:url";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { SharePointService } from "./SharePointService.js";
 import type { SharePointConfig } from "./SharePointService.js";
@@ -1299,7 +1300,7 @@ export function registerSharePointTools(server: any, sharepointService?: SharePo
   console.error("SharePoint tools registered: 15 tools, 10 prompts");
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
   const server = createMcpServer({

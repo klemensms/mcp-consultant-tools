@@ -7,6 +7,7 @@
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { pathToFileURL } from "node:url";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { AzureDevOpsService } from "./AzureDevOpsService.js";
 import type { AzureDevOpsConfig } from "./AzureDevOpsService.js";
@@ -876,7 +877,7 @@ export type { AzureDevOpsConfig } from "./AzureDevOpsService.js";
 /**
  * Standalone CLI server (when run directly)
  */
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
 

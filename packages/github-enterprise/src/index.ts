@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { pathToFileURL } from "node:url";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { GitHubEnterpriseService } from "./GitHubEnterpriseService.js";
 import type { GitHubEnterpriseConfig } from "./GitHubEnterpriseService.js";
@@ -1153,7 +1154,7 @@ export function registerGitHubEnterpriseTools(server: any, githubenterpriseServi
   console.error("GitHub Enterprise tools registered: 22 tools, 5 prompts");
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
   const server = createMcpServer({
