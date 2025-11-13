@@ -92,6 +92,34 @@ npx mcp-consultant-tools@beta
 - You can test via real npx from npm registry
 - Can iterate with multiple beta releases (beta.1, beta.2, etc.)
 
+---
+
+## 🛑 HARD STOP - MANUAL USER TESTING REQUIRED 🛑
+
+**After publishing to beta tag, Claude Code must STOP and handover to the user.**
+
+### What the User Must Do:
+
+1. **Test the beta release manually:**
+   ```bash
+   npx mcp-consultant-tools@beta
+   ```
+
+2. **Verify all functionality:**
+   - All integrations load correctly
+   - Environment variables are read properly
+   - Tools and prompts work as expected
+   - No breaking changes or regressions
+   - Test with real MCP client (Claude Desktop, etc.)
+
+3. **Decision point:**
+   - **If issues found:** Report to Claude Code, proceed to section 4 (Iterating on Beta)
+   - **If validation succeeds:** Confirm to Claude Code, proceed to section 5 (Create Release Notes)
+
+**Why this matters:** Automated testing cannot catch all integration issues, environment-specific bugs, or UX problems. Manual validation by the developer is critical before production release.
+
+---
+
 ### 4. Iterating on Beta
 
 If you find issues, fix them and publish a new beta:
@@ -112,9 +140,49 @@ npm publish --tag beta
 git push && git push --tags
 ```
 
-### 5. Production Release
+### 5. Create Release Notes
 
-When beta is validated, promote to production:
+**Before promoting to production**, create user-facing release notes in `docs/release_notes/vX.Y.Z.md`.
+
+**Format:** TLDR-style, aimed at end users (not developers). Include only:
+- Breaking changes
+- New features
+- Changes to existing features
+
+**Template:**
+```markdown
+# Release vX.Y.Z
+
+Released: YYYY-MM-DD
+
+## Breaking Changes
+
+List any changes that require user action:
+- Example: Environment variable `FOO` renamed to `BAR`
+- Example: Tool `old_tool` removed, use `new_tool` instead
+
+## New Features
+
+List new capabilities:
+- Added SharePoint Online integration (15 tools, 5 prompts)
+- Added support for Azure SQL connection pooling
+- New prompt: `analyze-powerplatform-performance`
+
+## Changes to Existing Features
+
+List modifications to existing functionality:
+- Improved error messages for authentication failures
+- PowerPlatform split into 3 security-isolated packages
+- Service Bus message inspection now shows full body
+```
+
+**Example:** See `docs/release_notes/v16.0.0.md` for reference.
+
+**Keep it concise:** Users want a quick overview, not implementation details or code changes.
+
+### 6. Production Release
+
+When beta is validated and release notes are created, promote to production:
 
 **Option A: Promote existing beta version**
 ```bash
@@ -282,11 +350,13 @@ Before promoting to production, verify:
 - [ ] Local testing with `node build/index.js` passes
 - [ ] Package validation with `npm pack` + `npx ./*.tgz` passes
 - [ ] Beta release published and tested via `npx @scope/package@beta`
-- [ ] All tools and prompts work correctly
+- [ ] **🛑 Manual user testing completed** (all integrations, tools, prompts verified)
+- [ ] All tools and prompts work correctly in real MCP client
 - [ ] Environment variables load correctly
 - [ ] Error handling works as expected
 - [ ] Cross-service integrations work (if applicable)
 - [ ] Documentation updated (README.md, CLAUDE.md, docs/documentation/*.md)
+- [ ] **Release notes created in `docs/release_notes/vX.Y.Z.md`**
 
 ## Quick Reference
 
@@ -321,13 +391,17 @@ npm dist-tag add @mcp-consultant-tools/powerplatform@1.0.4 latest
 1. Never publish directly to `latest` without testing
 2. Use `npm pack` to validate package structure
 3. Use `beta` tag for external testing via npx
-4. Iterate on beta releases until validated
-5. Promote to `latest` only when confident
-6. Keep `main` branch in sync with `latest` tag
+4. **🛑 HARD STOP after beta publishing - manual user testing required**
+5. Create release notes in `docs/release_notes/` before production
+6. Iterate on beta releases until validated
+7. Promote to `latest` only when confident
+8. Keep `main` branch in sync with `latest` tag
 
 This workflow ensures:
 - ✅ Safe testing via real npx
 - ✅ No risk to production users
+- ✅ Manual validation catches integration issues
+- ✅ User-facing release notes document changes
 - ✅ Easy rollback if issues found
 - ✅ Professional release workflow
 - ✅ Matches standard npm best practices

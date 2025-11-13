@@ -519,19 +519,54 @@ npx ./package-name.tgz      # Test exact npm package structure
 npm version prerelease --preid=beta  # 1.0.0 → 1.0.0-beta.1
 npm publish --tag beta               # Doesn't affect 'latest' tag
 git push && git push --tags
-
-# Test beta release
-npx @mcp-consultant-tools/powerplatform@beta mcp-pp
 ```
 
-**4. Iterate on Beta (if issues found)**
+**🛑 HARD STOP - USER TESTING REQUIRED 🛑**
+
+At this point, Claude Code must STOP and handover to the user for manual testing:
+
+1. **User must test the beta release themselves:**
+   ```bash
+   npx mcp-consultant-tools@beta
+   ```
+
+2. **User must verify:**
+   - All integrations load correctly
+   - Environment variables are read properly
+   - Tools and prompts work as expected
+   - No breaking changes or regressions
+
+3. **If issues found:** User will report back and Claude Code can iterate on beta.X releases
+
+4. **If validation succeeds:** User will confirm to proceed with production release
+
+**4. Create Release Notes (Before Production Release)**
+
+Create a TLDR-style release notes file in `docs/release_notes/vX.Y.Z.md` aimed at end users:
+
+```markdown
+# Release vX.Y.Z
+
+## Breaking Changes
+- List any breaking changes that require user action
+
+## New Features
+- List new capabilities and integrations
+
+## Changes to Existing Features
+- List modifications to existing functionality
+```
+
+Keep it concise - users want quick overview, not implementation details.
+
+**5. Iterate on Beta (if issues found)**
 ```bash
 # Fix issues, then:
 npm version prerelease --preid=beta  # beta.1 → beta.2
 npm publish --tag beta
 ```
 
-**5. Production Release (after beta validation)**
+**6. Production Release (after beta validation)**
 ```bash
 # Merge to main first
 git checkout main
@@ -580,9 +615,11 @@ npm view @mcp-consultant-tools/powerplatform
 ### Key Principles
 1. ✅ Always test with `npm pack` before publishing
 2. ✅ Always publish to `beta` tag first for external testing
-3. ✅ Never publish directly to `latest` without beta validation
-4. ✅ Iterate on beta releases until validated
-5. ✅ Use `scripts/publish-all.sh` for coordinated monorepo releases
+3. ✅ **HARD STOP** after beta publishing - user must test manually
+4. ✅ Create release notes in `docs/release_notes/` before production release
+5. ✅ Never publish directly to `latest` without beta validation
+6. ✅ Iterate on beta releases until validated
+7. ✅ Use `scripts/publish-all.sh` for coordinated monorepo releases
 
 **Full details:** See [RELEASE_PROCESS.md](docs/documentation/RELEASE_PROCESS.md) for comprehensive testing strategies, monorepo publishing, and troubleshooting
 
