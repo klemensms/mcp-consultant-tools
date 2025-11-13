@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/powerplatform-data",
-  "version": "1.0.4",
+  "version": "20.0.0-beta.1",
   "description": "MCP server for PowerPlatform data CRUD operations (operational use)",
   "type": "module",
   "main": "./build/index.js",

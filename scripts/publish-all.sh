@@ -3,17 +3,19 @@
 ##############################################################################
 # publish-all.sh - Publish all MCP Consultant Tools packages to npm
 #
-# This script publishes all 11 packages in dependency order:
+# This script publishes all 13 packages in dependency order:
 # 1. core (no dependencies)
 # 2. service packages (depend on core)
-# 3. meta (depends on all services)
+# 3. powerplatform split packages (depend on core + powerplatform)
+# 4. meta (depends on all services)
 #
 # Usage:
-#   ./scripts/publish-all.sh [--dry-run] [--skip-build]
+#   ./scripts/publish-all.sh [--dry-run] [--skip-build] [--tag TAG]
 #
 # Options:
 #   --dry-run     Simulate publishing without actually publishing
 #   --skip-build  Skip the build step (assumes packages are already built)
+#   --tag TAG     Publish with specific npm dist-tag (e.g., beta, rc). Default: latest
 #
 # Prerequisites:
 #   - npm login completed (run 'npm login' first)
@@ -39,9 +41,10 @@ NC='\033[0m' # No Color
 # Parse command line arguments
 DRY_RUN=false
 SKIP_BUILD=false
+TAG="latest"
 
-for arg in "$@"; do
-  case $arg in
+while [[ $# -gt 0 ]]; do
+  case $1 in
     --dry-run)
       DRY_RUN=true
       shift
@@ -50,9 +53,13 @@ for arg in "$@"; do
       SKIP_BUILD=true
       shift
       ;;
+    --tag)
+      TAG="$2"
+      shift 2
+      ;;
     *)
-      echo -e "${RED}Unknown option: $arg${NC}"
-      echo "Usage: $0 [--dry-run] [--skip-build]"
+      echo -e "${RED}Unknown option: $1${NC}"
+      echo "Usage: $0 [--dry-run] [--skip-build] [--tag TAG]"
       exit 1
       ;;
   esac
@@ -68,6 +75,8 @@ PACKAGES=(
   "github-enterprise"
   "log-analytics"
   "powerplatform"
+  "powerplatform-customization"
+  "powerplatform-data"
   "service-bus"
   "sharepoint"
   "meta"
@@ -215,15 +224,15 @@ publish_package() {
   cd "packages/$pkg"
 
   if [ "$DRY_RUN" = true ]; then
-    log_info "[DRY RUN] Would publish: $pkg_name@$version"
-    npm publish --access public --dry-run
+    log_info "[DRY RUN] Would publish: $pkg_name@$version with tag '$TAG'"
+    npm publish --access public --tag "$TAG" --dry-run
   else
-    npm publish --access public
+    npm publish --access public --tag "$TAG"
 
     # Verify publication
     sleep 2  # Give npm registry a moment to update
     if npm view "$pkg_name@$version" version &> /dev/null; then
-      log_success "$pkg_name@$version published successfully"
+      log_success "$pkg_name@$version published successfully with tag '$TAG'"
     else
       log_error "Failed to verify publication of $pkg_name@$version"
       exit 1
@@ -240,7 +249,7 @@ publish_package() {
 main() {
   echo ""
   echo "╔════════════════════════════════════════════════════════════════╗"
-  echo "║     MCP Consultant Tools - Publish All Packages (v15)         ║"
+  echo "║     MCP Consultant Tools - Publish All Packages (v20)         ║"
   echo "╚════════════════════════════════════════════════════════════════╝"
   echo ""
 
@@ -248,11 +257,13 @@ main() {
     log_warning "DRY RUN MODE - No packages will be published"
   fi
 
+  log_info "Using npm dist-tag: $TAG"
+
   check_prerequisites
   build_packages
 
   echo ""
-  log_info "Publishing packages in dependency order..."
+  log_info "Publishing packages in dependency order with tag '$TAG'..."
   echo ""
 
   # Publish packages
@@ -276,7 +287,7 @@ main() {
     log_info "Verify at: https://www.npmjs.com/org/mcp-consultant-tools"
     echo ""
     log_info "Next steps:"
-    echo "  1. Create GitHub release: gh release create v15.0.0"
+    echo "  1. Create GitHub release: gh release create v20.0.0"
     echo "  2. Update CHANGELOG.md"
     echo "  3. Announce the release"
   else
