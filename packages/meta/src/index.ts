@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "url";
+import { realpathSync } from "fs";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { registerPowerPlatformTools } from "@mcp-consultant-tools/powerplatform";
@@ -66,9 +67,9 @@ export function registerAllTools(server: any) {
 }
 
 // CLI entry point - check if this module is being run directly
-// Use pathToFileURL to properly handle file:// URL formatting (file:/// on Unix)
+// Use pathToFileURL with realpathSync to handle symlinks (critical for npx)
 // This ensures the check works with both `node build/index.js` and `npx mcp-consultant-tools`
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
 

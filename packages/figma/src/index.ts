@@ -7,6 +7,8 @@
  * Provides design data extraction and transformation capabilities.
  */
 
+import { pathToFileURL } from "url";
+import { realpathSync } from "fs";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { createMcpServer, createEnvLoader, createErrorResponse, createSuccessResponse } from "@mcp-consultant-tools/core";
@@ -96,7 +98,7 @@ export type { FigmaConfig } from "./FigmaService.js";
 /**
  * Standalone CLI server (when run directly)
  */
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
 

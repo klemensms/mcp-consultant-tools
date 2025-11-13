@@ -6,6 +6,8 @@
  * MCP server for azure-devops integration.
  */
 
+import { pathToFileURL } from "url";
+import { realpathSync } from "fs";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { AzureDevOpsService } from "./AzureDevOpsService.js";
@@ -876,7 +878,7 @@ export type { AzureDevOpsConfig } from "./AzureDevOpsService.js";
 /**
  * Standalone CLI server (when run directly)
  */
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
 
