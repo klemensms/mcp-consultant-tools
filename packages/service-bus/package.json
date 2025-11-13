@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/service-bus",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "MCP server for Azure Service Bus - read-only message inspection and queue monitoring",
   "type": "module",
   "main": "./build/index.js",
@@ -51,6 +51,6 @@
     "typescript": "^5.8.2"
   },
   "bin": {
-    "mcp-sb": "./build/index.js"
+    "mcp-sb": "build/index.js"
   }
 }

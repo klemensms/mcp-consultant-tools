@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/figma",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "MCP server for Figma integration - design data extraction and transformation",
   "type": "module",
   "main": "./build/index.js",
@@ -49,6 +49,6 @@
     "typescript": "^5.8.2"
   },
   "bin": {
-    "mcp-figma": "./build/index.js"
+    "mcp-figma": "build/index.js"
   }
 }

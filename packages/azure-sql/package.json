@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/azure-sql",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "MCP server for Azure SQL Database - read-only queries and schema exploration",
   "type": "module",
   "main": "./build/index.js",
@@ -50,6 +50,6 @@
     "typescript": "^5.8.2"
   },
   "bin": {
-    "mcp-sql": "./build/index.js"
+    "mcp-sql": "build/index.js"
   }
 }

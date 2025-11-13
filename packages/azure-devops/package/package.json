@@ -1,7 +1,7 @@
 {
-  "name": "@mcp-consultant-tools/sharepoint",
-  "version": "1.0.5",
-  "description": "MCP server for SharePoint Online - site management, document libraries, and PowerPlatform validation",
+  "name": "@mcp-consultant-tools/azure-devops",
+  "version": "1.0.1",
+  "description": "MCP server for Azure DevOps integration - wikis, work items, and project management",
   "type": "module",
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
@@ -23,25 +23,24 @@
   "keywords": [
     "mcp",
     "model-context-protocol",
-    "sharepoint",
-    "office365",
-    "microsoft365",
-    "document-management"
+    "azure-devops",
+    "devops",
+    "wikis",
+    "work-items",
+    "azure"
   ],
   "author": "Michal Sobieraj",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/klemensms/mcp-consultant-tools.git",
-    "directory": "packages/sharepoint"
+    "directory": "packages/azure-devops"
   },
   "engines": {
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "@azure/msal-node": "^3.3.0",
     "@mcp-consultant-tools/core": "^1.0.0",
-    "@microsoft/microsoft-graph-client": "^3.0.7",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "axios": "^1.8.3",
     "zod": "^3.24.1"
@@ -51,6 +50,6 @@
     "typescript": "^5.8.2"
   },
   "bin": {
-    "mcp-spo": "build/index.js"
+    "mcp-ado": "./build/index.js"
   }
 }

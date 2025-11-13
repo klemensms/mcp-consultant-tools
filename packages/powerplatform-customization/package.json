@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/powerplatform-customization",
-  "version": "2.0.0",
+  "version": "2.0.5",
   "description": "MCP server for PowerPlatform schema/metadata customizations (dev/config environments)",
   "type": "module",
   "main": "./build/index.js",
@@ -50,6 +50,6 @@
     "typescript": "^5.8.2"
   },
   "bin": {
-    "mcp-pp-custom": "./build/index.js"
+    "mcp-pp-custom": "build/index.js"
   }
 }
