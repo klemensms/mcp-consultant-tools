@@ -229,13 +229,33 @@ publish_package() {
   else
     npm publish --access public --tag "$TAG"
 
-    # Verify publication
-    sleep 2  # Give npm registry a moment to update
-    if npm view "$pkg_name@$version" version &> /dev/null; then
-      log_success "$pkg_name@$version published successfully with tag '$TAG'"
-    else
-      log_error "Failed to verify publication of $pkg_name@$version"
-      exit 1
+    # Verify publication (retry up to 5 times with increasing delay)
+    local retries=5
+    local delay=3
+    local verified=false
+
+    for ((i=1; i<=retries; i++)); do
+      sleep $delay
+      if npm view "$pkg_name@$version" version &> /dev/null; then
+        log_success "$pkg_name@$version published successfully with tag '$TAG'"
+        verified=true
+        break
+      else
+        if [ $i -lt $retries ]; then
+          log_warning "Verification attempt $i/$retries failed, retrying in ${delay}s..."
+          delay=$((delay + 2))
+        fi
+      fi
+    done
+
+    if [ "$verified" = false ]; then
+      log_error "Failed to verify publication of $pkg_name@$version after $retries attempts"
+      log_warning "Package may still be published - check https://www.npmjs.com/package/$pkg_name"
+      read -p "Continue with next package? (Y/n) " -n 1 -r
+      echo
+      if [[ $REPLY =~ ^[Nn]$ ]]; then
+        exit 1
+      fi
     fi
   fi
 
