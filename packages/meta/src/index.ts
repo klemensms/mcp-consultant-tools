@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { pathToFileURL } from "url";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { registerPowerPlatformTools } from "@mcp-consultant-tools/powerplatform";
@@ -64,8 +65,10 @@ export function registerAllTools(server: any) {
   console.error("Total integrations: 11 services | 172 tools | 45 prompts");
 }
 
-// CLI entry point
-if (import.meta.url === `file://${process.argv[1]}`) {
+// CLI entry point - check if this module is being run directly
+// Use pathToFileURL to properly handle file:// URL formatting (file:/// on Unix)
+// This ensures the check works with both `node build/index.js` and `npx mcp-consultant-tools`
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
 
