@@ -19,7 +19,7 @@ import { registerGitHubEnterpriseTools } from "@mcp-consultant-tools/github-ente
  * Register all MCP Consultant Tools
  *
  * This meta-package combines all 11 service packages (13 total with PowerPlatform split):
- * - PowerPlatform (read-only: 38 tools, 10 prompts)
+ * - PowerPlatform (read-only: 39 tools, 11 prompts)
  * - PowerPlatform Customization (schema changes: 40 tools)
  * - PowerPlatform Data (CRUD: 3 tools)
  * - Azure DevOps (wikis, work items)

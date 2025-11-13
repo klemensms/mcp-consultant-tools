@@ -11,7 +11,7 @@ As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isol
 
 | Package | Purpose | Tools | Prompts | Production-Safe? |
 |---------|---------|-------|---------|------------------|
-| **[@mcp-consultant-tools/powerplatform](POWERPLATFORM.md)** (This Package) | Read-only access | 38 | 10 | ✅ **YES** |
+| **[@mcp-consultant-tools/powerplatform](POWERPLATFORM.md)** (This Package) | Read-only access | 39 | 11 | ✅ **YES** |
 | **[@mcp-consultant-tools/powerplatform-customization](POWERPLATFORM_CUSTOMIZATION.md)** | Schema changes | 40 | 2 | ⚠️ **NO** - Dev/config only |
 | **[@mcp-consultant-tools/powerplatform-data](POWERPLATFORM_DATA.md)** | Data CRUD | 3 | 0 | ⚠️ **NO** - Operational use |
 
@@ -33,7 +33,7 @@ As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isol
    - [Environment Variables](#environment-variables)
    - [Configuration Example](#configuration-example)
 
-3. [Tools (38 Total)](#tools-38-total)
+3. [Tools (39 Total)](#tools-39-total)
    - [Entity Metadata Tools (6)](#entity-metadata-tools)
    - [Plugin Inspection Tools (4)](#plugin-inspection-tools)
    - [Workflow & Power Automate Flow Tools (5)](#workflow--power-automate-flow-tools)
@@ -43,13 +43,15 @@ As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isol
    - [Model-Driven App Tools (Read-Only) (4)](#model-driven-app-tools-read-only)
    - [Web Resource Tools (Read-Only) (3)](#web-resource-tools-read-only)
    - [Solution Management Tools (Read-Only) (8)](#solution-management-tools-read-only)
+   - [Best Practice Validation Tools (1)](#best-practice-validation-tools)
 
-4. [Prompts (10 Total)](#prompts-10-total)
+4. [Prompts (11 Total)](#prompts-11-total)
    - [Entity Prompts (4)](#entity-prompts)
    - [Plugin Prompts (2)](#plugin-prompts)
    - [Workflow & Flow Prompts (2)](#workflow--flow-prompts)
    - [Business Rules Prompts (1)](#business-rules-prompts)
    - [Solution Prompts (1)](#solution-prompts)
+   - [Best Practice Validation Prompts (1)](#best-practice-validation-prompts)
 
 5. [Usage Examples](#usage-examples)
    - [Entity Exploration](#entity-exploration)
@@ -2404,7 +2406,151 @@ if (!result.isValid) {
 
 ---
 
-## Prompts (9 Total)
+### Best Practice Validation Tools
+
+#### validate-dataverse-best-practices
+
+Validate Dataverse entities against internal best practices for column naming, prefixes, configuration, and entity icons.
+
+**Purpose:** Automated validation of Dataverse schema against organizational standards to ensure consistency, maintainability, and compliance.
+
+**Parameters:**
+- `solutionUniqueName` (string, optional): Solution unique name to validate all entities in the solution
+- `entityLogicalNames` (string[], optional): Specific entity logical names to validate (alternative to solution)
+- `publisherPrefix` (string, required): Publisher prefix for naming convention checks (e.g., "sic_")
+- `recentDays` (number, optional): Only validate columns created in last N days (default: 30, 0 = all)
+- `includeRefDataTables` (boolean, optional): Include RefData tables in validation (default: true)
+- `rules` (string[], optional): Specific rules to validate (default: all rules)
+  - `"prefix"`: Publisher prefix compliance
+  - `"lowercase"`: Schema name casing (LogicalName must be lowercase)
+  - `"lookup"`: Lookup naming convention (must end with "id")
+  - `"optionset"`: Option set scope (all must be global, not local)
+  - `"required-column"`: Required column existence (e.g., `updatedbyprocess`)
+  - `"entity-icon"`: Entity icon assignment (custom entities should have icons)
+- `maxEntities` (number, optional): Maximum entities to validate (default: 0 = unlimited, use for testing/performance)
+
+**Returns:**
+- Comprehensive JSON object with:
+  - `metadata`: Generation timestamp, solution info, publisher prefix, execution time
+  - `summary`: Total entities/attributes checked, violation counts by severity
+  - `violationsSummary`: **⭐ Complete lists of all affected tables and columns grouped by rule**
+    - `rule`: Rule name (e.g., "Required Column Existence")
+    - `severity`: "MUST" (critical) or "SHOULD" (warning)
+    - `totalCount`: Total violations for this rule
+    - `affectedEntities`: Complete list of entity logical names with entity-level violations
+    - `affectedColumns`: Complete list of "entity.column" pairs with column-level violations
+    - `action`: Recommended action to fix violations
+    - `recommendation`: Explanation of why this is important
+  - `entities`: Per-entity detailed breakdown with individual violations
+  - `statistics`: Excluded system columns, old columns, RefData tables skipped
+
+**Validation Rules:**
+
+| Rule | Severity | Checks | Example Violation |
+|------|----------|--------|-------------------|
+| **Publisher Prefix** | MUST | All custom entities/attributes start with publisher prefix | Column `emailaddress` missing `sic_` prefix |
+| **Schema Name Casing** | MUST | SchemaName uses PascalCase, LogicalName uses lowercase | LogicalName `sic_ContactId` should be `sic_contactid` |
+| **Lookup Naming** | MUST | Lookup columns named `{prefix}_{entityname}id` | Lookup `sic_contact` should be `sic_contactid` |
+| **Option Set Scope** | MUST | ALL option sets are global (not local) | Local option set on `sic_status` should be global |
+| **Required Column** | MUST | `{prefix}updatedbyprocess` column exists on non-RefData tables | Entity `sic_member` missing `sic_updatedbyprocess` |
+| **Entity Icon** | SHOULD | Custom entities have icons assigned | Entity `sic_strikeaction` has no icon |
+
+**Key Feature: Complete Affected Lists**
+
+The `violationsSummary` field provides immediate access to complete lists of all affected entities and columns:
+
+```json
+{
+  "violationsSummary": [
+    {
+      "rule": "Required Column Existence",
+      "severity": "MUST",
+      "totalCount": 41,
+      "affectedEntities": [
+        "sic_strikeaction",
+        "sic_strikeperiod",
+        "sic_member",
+        // ... all 41 entities listed
+      ],
+      "affectedColumns": [],
+      "action": "Create column with Display Name \"Updated by process\"...",
+      "recommendation": "This field is required for audit tracking..."
+    }
+  ]
+}
+```
+
+**Use Cases:**
+- **Pre-Deployment Validation**: Catch naming convention violations before deploying to production
+- **Compliance Auditing**: Ensure all entities follow organizational standards
+- **Quality Gates**: Automated checks in CI/CD pipelines
+- **Technical Debt Identification**: Find entities that need refactoring
+- **Onboarding**: Generate reports showing entities that don't meet standards
+
+**Example 1: Validate entire solution**
+```typescript
+const result = await service.validateBestPractices(
+  "MyCustomSolution",    // Solution unique name
+  undefined,              // All entities in solution
+  "sic_",                 // Publisher prefix
+  30,                     // Columns created in last 30 days
+  true,                   // Include RefData tables
+  ['prefix', 'lowercase', 'lookup', 'optionset', 'required-column', 'entity-icon'],
+  0                       // No entity limit
+);
+
+// Access complete lists
+for (const violation of result.violationsSummary) {
+  console.log(`${violation.rule}: ${violation.totalCount} violations`);
+  console.log(`Affected tables: ${violation.affectedEntities.join(', ')}`);
+  console.log(`Affected columns: ${violation.affectedColumns.join(', ')}`);
+}
+```
+
+**Example 2: Validate specific entities**
+```typescript
+const result = await service.validateBestPractices(
+  undefined,                               // No solution filter
+  ['sic_strikeaction', 'sic_member'],      // Specific entities
+  "sic_",                                  // Publisher prefix
+  0,                                       // All columns (no date filter)
+  true,                                    // Include RefData
+  ['required-column', 'entity-icon'],      // Only check these rules
+  0                                        // No entity limit
+);
+```
+
+**Example 3: Test performance with entity limit**
+```typescript
+const result = await service.validateBestPractices(
+  "LargeSolution",       // Solution with 200+ entities
+  undefined,              // All entities
+  "sic_",
+  30,
+  true,
+  ['prefix'],             // Only check prefix rule (fastest)
+  10                      // Limit to first 10 entities (for testing)
+);
+```
+
+**Performance:**
+- Typical execution: 200-500ms per entity
+- Date filtering significantly improves performance (fewer attributes to check)
+- Rule selection allows targeted validation
+- System columns automatically excluded
+- Option set validation requires additional API calls (slower)
+
+**Output Summary:**
+```
+Validation Complete: 49 entities checked
+Total Violations: 77 (41 critical, 36 warnings)
+Compliant Entities: 2/49
+Execution Time: 11,542ms
+```
+
+---
+
+## Prompts (11 Total)
 
 ### Entity Prompts
 
@@ -2658,6 +2804,147 @@ Comprehensive report of all business rules grouped by state (read-only for troub
   - Note about read-only access
 
 **Note:** Business rules are read-only in this MCP server. Use the PowerPlatform UI to create or modify business rules.
+
+---
+
+### Best Practice Validation Prompts
+
+#### dataverse-best-practices-report
+
+Generate formatted markdown report from Dataverse best practice validation results.
+
+**Purpose:** Transform raw validation JSON into human-readable markdown report with complete affected entity lists, severity-based grouping, and actionable recommendations.
+
+**Parameters:**
+- `validationResult` (string, required): JSON result from `validate-dataverse-best-practices` tool (stringify the JSON object)
+
+**Returns:**
+- Comprehensive markdown report with:
+  - **Header**: Solution name, generation timestamp, publisher prefix, time filter
+  - **Summary Table**: Entities checked, attributes checked, total violations, critical/warnings breakdown, compliant entities
+  - **Overall Status**: ✅ All Compliant or ⚠️ Issues Found
+  - **📋 Violations Summary (Complete Lists)**: **⭐ Most Important Section**
+    - Groups all violations by rule type
+    - Shows **complete list of ALL affected tables** (for entity-level violations like missing `updatedbyprocess`, no icons)
+    - Shows **complete list of ALL affected columns** (for column-level violations like incorrect naming)
+    - Displays severity icons (🔴 for MUST, ⚠️ for SHOULD)
+    - Includes recommended actions and explanations for each rule
+  - **🔴 Critical Violations (MUST Fix)**: Per-entity detailed breakdown with specific fixes
+  - **⚠️ Warnings (SHOULD Fix)**: Per-entity recommendations for improvements
+  - **✅ Compliant Entities**: List of entities with no violations
+  - **Exclusions**: System columns excluded, old columns excluded, RefData tables skipped
+  - **Execution Statistics**: Performance metrics and timing
+
+**Example Output Structure:**
+```markdown
+# Dataverse Best Practice Validation Report
+
+**Solution**: AOPCore (AOPCore)
+**Generated**: 2025-01-13 10:30 AM
+**Publisher Prefix**: sic_
+**Time Filter**: Columns created in last 30 days
+
+## Summary
+| Metric | Count |
+|--------|-------|
+| Entities Checked | 49 |
+| Attributes Checked | 44 |
+| **Total Violations** | **77** |
+| Critical (MUST) | 41 |
+| Warnings (SHOULD) | 36 |
+| Compliant Entities | 2 |
+
+**Overall Status**: ⚠️ Issues Found
+
+---
+
+## 📋 Violations Summary (Complete Lists)
+
+### 🔴 Required Column Existence (MUST)
+**Affected Items**: 41
+
+**Affected Tables**: `sic_strikeaction`, `sic_strikeperiod`, `sic_member`, `sic_organization`, `sic_contact`, `sic_case`, `sic_task`, `sic_activity`, `sic_document`, `sic_note`, `sic_email`, `sic_phone`, `sic_appointment`, `sic_meeting`, `sic_event`, `sic_project`, `sic_milestone`, `sic_deliverable`, `sic_resource`, `sic_allocation`, `sic_budget`, `sic_expense`, `sic_invoice`, `sic_payment`, `sic_contract`, `sic_agreement`, `sic_proposal`, `sic_quote`, `sic_order`, `sic_orderitem`, `sic_product`, `sic_pricelist`, `sic_discount`, `sic_campaign`, `sic_lead`, `sic_opportunity`, `sic_competitor`, `sic_partner`, `sic_vendor`, `sic_supplier`, `sic_manufacturer`
+
+**Recommended Action**: Create column with Display Name "Updated by process", Schema Name "sic_updatedbyprocess", Type: Text (4000 chars), Description: "This field is updated, each time an automated process updates this record."
+
+**Why**: This field is required for audit tracking of automated process updates.
+
+### 🔴 Lookup Naming Convention (MUST)
+**Affected Items**: 2
+
+**Affected Columns**: `sic_examsponsor.sic_exam`, `sic_examsponsor.sic_examsponsor`
+
+**Recommended Action**: Rename column to add "id" suffix
+
+**Why**: Lookup columns must follow {prefix}_{entityname}id naming convention
+
+### ⚠️ Entity Icon (SHOULD)
+**Affected Items**: 36
+
+**Affected Tables**: `sic_strikeaction`, `sic_strikeperiod`, `sic_member`, `sic_organization`, `sic_contact`, `sic_case`, `sic_task`, `sic_activity`, `sic_document`, `sic_note`, `sic_email`, `sic_phone`, `sic_appointment`, `sic_meeting`, `sic_event`, `sic_project`, `sic_milestone`, `sic_deliverable`, `sic_resource`, `sic_allocation`, `sic_budget`, `sic_expense`, `sic_invoice`, `sic_payment`, `sic_contract`, `sic_agreement`, `sic_proposal`, `sic_quote`, `sic_order`, `sic_orderitem`, `sic_product`, `sic_pricelist`, `sic_discount`, `sic_campaign`, `sic_lead`, `sic_opportunity`
+
+**Recommended Action**: Assign a Fluent UI icon using the update-entity-icon tool. Example: update-entity-icon with entityLogicalName="sic_strikeaction" and an appropriate icon file.
+
+**Why**: Custom icons improve entity recognition in Model-Driven Apps and enhance user experience. Use Fluent UI System Icons for consistency with Microsoft design language.
+
+---
+
+## 🔴 Critical Violations (MUST Fix)
+[Per-entity detailed breakdown...]
+
+## ⚠️ Warnings (SHOULD Fix)
+[Per-entity detailed breakdown...]
+
+## ✅ Compliant Entities
+- **Topic Channel RefData** (`sic_ref_TopicChannel`) - 0 columns checked (RefData table)
+- **Event Cancellation Request** (`sic_eventcancellationrequest`) - 3 columns checked
+
+---
+
+## Exclusions
+- System columns excluded: 1,515
+- Columns older than 30 days: 333
+- RefData tables (updatedbyprocess check skipped): 1
+
+**Execution Time**: 11,542ms
+```
+
+**Use Cases:**
+- **Executive Reports**: Share validation results with stakeholders in readable format
+- **Code Reviews**: Include in PR descriptions to show schema compliance
+- **Documentation**: Generate best practices documentation for wikis
+- **CI/CD Output**: Display validation results in build pipelines
+- **Quality Gates**: Human-readable reports for approval workflows
+
+**Example:**
+```typescript
+// Step 1: Run validation
+const validationResult = await service.validateBestPractices(
+  "AOPCore",
+  undefined,
+  "sic_",
+  30,
+  true,
+  ['prefix', 'lowercase', 'lookup', 'optionset', 'required-column', 'entity-icon'],
+  0
+);
+
+// Step 2: Generate markdown report
+const prompt = await getPrompt("dataverse-best-practices-report");
+const report = await prompt.execute({
+  validationResult: JSON.stringify(validationResult)
+});
+
+console.log(report);  // Formatted markdown report
+```
+
+**Key Benefit: Complete Affected Lists**
+
+Unlike per-entity breakdowns, this report shows **ALL affected entities at once** in the Violations Summary section:
+- Easily copy-paste entity names for bulk operations
+- Quick scanning to identify scope of work
+- AI assistants can accurately report: "41 entities are missing `sic_updatedbyprocess`: `sic_strikeaction`, `sic_strikeperiod`, ..."
+- No need to manually aggregate violations across entities
 
 ---
 

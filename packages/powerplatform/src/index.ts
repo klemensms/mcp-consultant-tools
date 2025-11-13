@@ -6,6 +6,7 @@ import { realpathSync } from 'node:fs';
 import { createMcpServer, createEnvLoader } from '@mcp-consultant-tools/core';
 import { PowerPlatformService, PowerPlatformConfig } from './PowerPlatformService.js';
 import { ENTITY_OVERVIEW, ATTRIBUTE_DETAILS, QUERY_TEMPLATE, RELATIONSHIP_MAP } from './utils/prompt-templates.js';
+import { formatBestPracticesReport } from './utils/best-practices-formatters.js';
 
 const POWERPLATFORM_DEFAULT_SOLUTION = process.env.POWERPLATFORM_DEFAULT_SOLUTION || "";
 
@@ -1371,6 +1372,59 @@ server.tool(
   }
 );
 
+server.tool(
+  "validate-dataverse-best-practices",
+  "Validate Dataverse entities against internal best practices for column naming, prefixes, configuration, and entity icons. Checks schema name casing, lookup naming conventions, option set scope (all must be global), required columns, publisher prefix compliance, and entity icon assignment. Supports solution-based validation or explicit entity list with configurable time range filtering.",
+  {
+    solutionUniqueName: z.string().optional().describe("Solution unique name to validate (e.g., 'RTPICore', 'MCPTestCore'). Mutually exclusive with entityLogicalNames."),
+    entityLogicalNames: z.array(z.string()).optional().describe("Explicit list of entity logical names to validate (e.g., ['sic_strikeaction', 'sic_application']). Mutually exclusive with solutionUniqueName."),
+    publisherPrefix: z.string().describe("Publisher prefix to validate against (e.g., 'sic_'). Required."),
+    recentDays: z.number().optional().describe("Only validate columns created in the last N days. Set to 0 to validate all columns regardless of age. Default: 30."),
+    includeRefDataTables: z.boolean().optional().describe("Include RefData tables (schema starts with prefix + 'ref_') in validation. Default: true."),
+    rules: z.array(z.string()).optional().describe("Specific rules to validate: 'prefix', 'lowercase', 'lookup', 'optionset', 'required-column', 'entity-icon'. Default: all rules."),
+    maxEntities: z.number().optional().describe("Maximum number of entities to validate (safety limit). Default: 0 (unlimited).")
+  },
+  async ({ solutionUniqueName, entityLogicalNames, publisherPrefix, recentDays, includeRefDataTables, rules, maxEntities }: any) => {
+    try {
+      // Validate input
+      if (!solutionUniqueName && !entityLogicalNames) {
+        return {
+          content: [{ type: "text", text: "Error: Either solutionUniqueName or entityLogicalNames must be provided" }],
+          isError: true
+        };
+      }
+
+      if (solutionUniqueName && entityLogicalNames) {
+        return {
+          content: [{ type: "text", text: "Error: solutionUniqueName and entityLogicalNames are mutually exclusive" }],
+          isError: true
+        };
+      }
+
+      const service = getPowerPlatformService();
+      const result = await service.validateBestPractices(
+        solutionUniqueName,
+        entityLogicalNames,
+        publisherPrefix,
+        recentDays ?? 30,
+        includeRefDataTables ?? true,
+        rules ?? ['prefix', 'lowercase', 'lookup', 'optionset', 'required-column', 'entity-icon'],
+        maxEntities ?? 0
+      );
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+      };
+    } catch (error: any) {
+      console.error("Error validating best practices:", error);
+      return {
+        content: [{ type: "text", text: `Failed to validate best practices: ${error.message}` }],
+        isError: true
+      };
+    }
+  }
+);
+
   // Prompt registrations (10 prompts)
 server.prompt(
   "entity-overview", 
@@ -2224,7 +2278,49 @@ server.prompt(
   }
 );
 
-  console.error(`✅ PowerPlatform read-only tools registered (${38} tools, ${10} prompts)`);
+server.prompt(
+  "dataverse-best-practices-report",
+  "Generate formatted markdown report from Dataverse best practice validation results. Groups violations by severity, provides actionable recommendations, and highlights compliant entities.",
+  {
+    validationResult: z.string().describe("JSON result from validate-dataverse-best-practices tool")
+  },
+  async (args: any) => {
+    try {
+      // Parse the validation result JSON
+      const result = JSON.parse(args.validationResult);
+
+      // Format as markdown report
+      const report = formatBestPracticesReport(result);
+
+      return {
+        messages: [
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text: report
+            }
+          }
+        ]
+      };
+    } catch (error: any) {
+      console.error("Error generating best practices report:", error);
+      return {
+        messages: [
+          {
+            role: "assistant",
+            content: {
+              type: "text",
+              text: `Error generating report: ${error.message}\n\nPlease ensure the validationResult is valid JSON from the validate-dataverse-best-practices tool.`
+            }
+          }
+        ]
+      };
+    }
+  }
+);
+
+  console.error(`✅ PowerPlatform read-only tools registered (${39} tools, ${11} prompts)`);
 }
 
 // CLI entry point (standalone execution)
