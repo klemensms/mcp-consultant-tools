@@ -406,7 +406,7 @@ The validation service implements 6 configurable rules:
 2. **Schema Name Lowercase** (MUST) - Schema names (LogicalName) must be all lowercase
 3. **Lookup Naming Convention** (MUST) - Lookup columns must end with "id" (e.g., `sic_contactid`)
 4. **Option Set Scope** (MUST) - All option sets (picklists) MUST be global, not local - validates that every option set uses global option sets for reusability and maintainability
-5. **Required Column Existence** (MUST) - Non-RefData tables must have required columns (e.g., `sic_updatedbyprocess`)
+5. **Required Column Existence** (MUST) - Non-RefData tables must have required columns. **⭐ NEW v20.1**: Customizable via `requiredColumns` parameter (default: `["{prefix}updatedbyprocess"]`). Use case: enforce SQL timestamp columns for bi-directional sync: `["{prefix}sqlcreatedon", "{prefix}sqlmodifiedon"]`
 6. **Entity Icon** (SHOULD) - Custom entities should have icons assigned (improves UX in Model-Driven Apps)
 
 ### Service Implementation
@@ -422,7 +422,8 @@ async validateBestPractices(
   recentDays: number = 30,
   includeRefDataTables: boolean = true,
   rules: string[] = ['prefix', 'lowercase', 'lookup', 'optionset', 'required-column', 'entity-icon'],
-  maxEntities: number = 0
+  maxEntities: number = 0,
+  requiredColumns: string[] = ['{prefix}updatedbyprocess']  // ⭐ NEW v20.1
 ): Promise<BestPracticesValidationResult>
 ```
 
@@ -451,14 +452,37 @@ async validateBestPractices(
    );
    ```
 
+3. **Custom Required Columns** - Validate SQL timestamp columns (NEW v20.1):
+   ```typescript
+   const result = await service.validateBestPractices(
+     'RTPICore',                              // solutionUniqueName
+     undefined,                               // entityLogicalNames
+     'sic_',                                  // publisherPrefix
+     0,                                       // recentDays (all columns)
+     true,                                    // includeRefDataTables
+     ['required-column'],                     // rules (only check required columns)
+     0,                                       // maxEntities (unlimited)
+     ['{prefix}sqlcreatedon', '{prefix}sqlmodifiedon', '{prefix}updatedbyprocess']  // requiredColumns
+   );
+
+   // Report which entities are missing SQL timestamp columns
+   for (const entity of result.entities) {
+     const missingColumns = entity.violations.filter(v => v.rule === 'Required Column Existence');
+     if (missingColumns.length > 0) {
+       console.log(`${entity.logicalName}: Missing ${missingColumns.length} required columns`);
+     }
+   }
+   ```
+
 **Key Features:**
 
 - **Date Filtering**: Only validate columns created in last N days (configurable, 0 = all)
 - **System Column Exclusion**: Automatically excludes system columns (createdon, modifiedon, etc.)
-- **RefData Handling**: Skips `updatedbyprocess` check for RefData tables (schema starts with `sic_ref_`)
+- **RefData Handling**: Skips required column checks for RefData tables (schema starts with `{prefix}ref_`)
 - **Rule Selection**: Choose which rules to validate (performance optimization)
 - **Safety Limits**: `maxEntities` parameter prevents timeout on large solutions
 - **Audit Logging**: All operations logged with execution time and violation count
+- **⭐ NEW v20.1 - Customizable Required Columns**: Specify which columns must exist on all non-RefData tables via `requiredColumns` parameter. Use `{prefix}` placeholder which gets replaced with `publisherPrefix` at runtime. Default: `["{prefix}updatedbyprocess"]`. Common use case: enforce SQL timestamp columns for bi-directional sync: `["{prefix}sqlcreatedon", "{prefix}sqlmodifiedon"]`
 
 ### JSON Response Structure
 

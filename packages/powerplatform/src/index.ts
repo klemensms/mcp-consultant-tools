@@ -1382,9 +1382,10 @@ server.tool(
     recentDays: z.number().optional().describe("Only validate columns created in the last N days. Set to 0 to validate all columns regardless of age. Default: 30."),
     includeRefDataTables: z.boolean().optional().describe("Include RefData tables (schema starts with prefix + 'ref_') in validation. Default: true."),
     rules: z.array(z.string()).optional().describe("Specific rules to validate: 'prefix', 'lowercase', 'lookup', 'optionset', 'required-column', 'entity-icon'. Default: all rules."),
-    maxEntities: z.number().optional().describe("Maximum number of entities to validate (safety limit). Default: 0 (unlimited).")
+    maxEntities: z.number().optional().describe("Maximum number of entities to validate (safety limit). Default: 0 (unlimited)."),
+    requiredColumns: z.array(z.string()).optional().describe("List of required column schema names to check for (without prefix). Use '{prefix}' placeholder which will be replaced with publisherPrefix at runtime. Default: ['{prefix}updatedbyprocess']. Example: ['{prefix}sqlcreatedon', '{prefix}sqlmodifiedon'] for SQL timestamp columns.")
   },
-  async ({ solutionUniqueName, entityLogicalNames, publisherPrefix, recentDays, includeRefDataTables, rules, maxEntities }: any) => {
+  async ({ solutionUniqueName, entityLogicalNames, publisherPrefix, recentDays, includeRefDataTables, rules, maxEntities, requiredColumns }: any) => {
     try {
       // Validate input
       if (!solutionUniqueName && !entityLogicalNames) {
@@ -1409,7 +1410,8 @@ server.tool(
         recentDays ?? 30,
         includeRefDataTables ?? true,
         rules ?? ['prefix', 'lowercase', 'lookup', 'optionset', 'required-column', 'entity-icon'],
-        maxEntities ?? 0
+        maxEntities ?? 0,
+        requiredColumns ?? ['{prefix}updatedbyprocess']
       );
 
       return {

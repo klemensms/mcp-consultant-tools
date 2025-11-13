@@ -3089,7 +3089,8 @@ export class PowerPlatformService {
     recentDays: number = 30,
     includeRefDataTables: boolean = true,
     rules: string[] = ['prefix', 'lowercase', 'lookup', 'optionset', 'required-column', 'entity-icon'],
-    maxEntities: number = 0
+    maxEntities: number = 0,
+    requiredColumns: string[] = ['{prefix}updatedbyprocess']
   ): Promise<BestPracticesValidationResult> {
     const timer = auditLogger.startTimer();
     const statisticsCounters = {
@@ -3208,7 +3209,8 @@ export class PowerPlatformService {
             filteredAttributes,
             attributes, // Pass all attributes for required column check
             publisherPrefix,
-            rules
+            rules,
+            requiredColumns
           );
 
           const displayName = entityMetadata.DisplayName?.UserLocalizedLabel?.Label || entityMetadata.LogicalName;
@@ -3306,7 +3308,8 @@ export class PowerPlatformService {
     filteredAttributes: any[],
     allAttributes: any[],
     publisherPrefix: string,
-    rules: string[]
+    rules: string[],
+    requiredColumns: string[]
   ): Promise<Violation[]> {
     const violations: Violation[] = [];
 
@@ -3430,24 +3433,37 @@ export class PowerPlatformService {
       }
     }
 
-    // RULE 5: Required Column Existence (sic_updatedbyprocess)
+    // RULE 5: Required Column Existence
     if (rules.includes('required-column')) {
       // Skip for RefData tables
       if (!entityMetadata.LogicalName.startsWith(`${publisherPrefix}ref_`)) {
-        const hasUpdatedByProcess = allAttributes.some(
-          (attr: any) => attr.LogicalName === `${publisherPrefix}updatedbyprocess`
-        );
+        // Replace {prefix} placeholder in each required column name
+        const resolvedColumns = requiredColumns.map(col => col.replace('{prefix}', publisherPrefix));
 
-        if (!hasUpdatedByProcess) {
-          violations.push({
-            attributeLogicalName: undefined, // Entity-level violation
-            rule: 'Required Column Existence',
-            severity: 'MUST',
-            message: `Entity "${entityMetadata.LogicalName}" is missing required column "${publisherPrefix}updatedbyprocess"`,
-            currentValue: 'Missing',
-            expectedValue: `Column "${publisherPrefix}updatedbyprocess" of type Text (4000 chars)`,
-            action: `Create column with Display Name "Updated by process", Schema Name "${publisherPrefix}updatedbyprocess", Type: Text (4000 chars), Description: "This field is updated, each time an automated process updates this record."`
-          });
+        // Check each required column
+        for (const requiredColumn of resolvedColumns) {
+          const hasColumn = allAttributes.some(
+            (attr: any) => attr.LogicalName === requiredColumn
+          );
+
+          if (!hasColumn) {
+            // Extract display name from schema name (remove prefix, capitalize words)
+            const displayName = requiredColumn
+              .replace(publisherPrefix, '')
+              .split('_')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+
+            violations.push({
+              attributeLogicalName: undefined, // Entity-level violation
+              rule: 'Required Column Existence',
+              severity: 'MUST',
+              message: `Entity "${entityMetadata.LogicalName}" is missing required column "${requiredColumn}"`,
+              currentValue: 'Missing',
+              expectedValue: `Column "${requiredColumn}" must exist`,
+              action: `Create column with Display Name "${displayName}", Schema Name "${requiredColumn}", Type: Text (4000 chars), Description: "This field tracks ${displayName.toLowerCase()} information."`
+            });
+          }
         }
       }
     }

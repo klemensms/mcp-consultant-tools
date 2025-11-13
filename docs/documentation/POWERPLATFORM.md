@@ -2428,6 +2428,7 @@ Validate Dataverse entities against internal best practices for column naming, p
   - `"required-column"`: Required column existence (e.g., `updatedbyprocess`)
   - `"entity-icon"`: Entity icon assignment (custom entities should have icons)
 - `maxEntities` (number, optional): Maximum entities to validate (default: 0 = unlimited, use for testing/performance)
+- `requiredColumns` (string[], optional): **NEW v20.1** List of required column schema names to check for. Use `{prefix}` placeholder which will be replaced with `publisherPrefix` at runtime. Default: `["{prefix}updatedbyprocess"]`. **Use Case:** Enforce SQL timestamp columns for bi-directional sync: `["{prefix}sqlcreatedon", "{prefix}sqlmodifiedon"]` or any other custom required columns. Skips RefData tables.
 
 **Returns:**
 - Comprehensive JSON object with:
@@ -2452,7 +2453,7 @@ Validate Dataverse entities against internal best practices for column naming, p
 | **Schema Name Casing** | MUST | SchemaName uses PascalCase, LogicalName uses lowercase | LogicalName `sic_ContactId` should be `sic_contactid` |
 | **Lookup Naming** | MUST | Lookup columns named `{prefix}_{entityname}id` | Lookup `sic_contact` should be `sic_contactid` |
 | **Option Set Scope** | MUST | ALL option sets are global (not local) | Local option set on `sic_status` should be global |
-| **Required Column** | MUST | `{prefix}updatedbyprocess` column exists on non-RefData tables | Entity `sic_member` missing `sic_updatedbyprocess` |
+| **Required Column** | MUST | Specified columns exist on non-RefData tables (default: `{prefix}updatedbyprocess`, customizable via `requiredColumns` parameter) | Entity `sic_member` missing `sic_sqlcreatedon` |
 | **Entity Icon** | SHOULD | Custom entities have icons assigned | Entity `sic_strikeaction` has no icon |
 
 **Key Feature: Complete Affected Lists**
@@ -2530,6 +2531,46 @@ const result = await service.validateBestPractices(
   true,
   ['prefix'],             // Only check prefix rule (fastest)
   10                      // Limit to first 10 entities (for testing)
+);
+```
+
+**Example 4: Validate custom required columns (SQL timestamps)**
+```typescript
+const result = await service.validateBestPractices(
+  "MyCustomSolution",
+  undefined,
+  "sic_",
+  0,                      // All columns
+  true,
+  ['required-column'],    // Only check required columns
+  0,                      // No entity limit
+  ['{prefix}sqlcreatedon', '{prefix}sqlmodifiedon', '{prefix}updatedbyprocess']  // Custom required columns
+);
+
+// Check which entities are missing SQL timestamp columns
+for (const violation of result.violationsSummary) {
+  if (violation.rule === 'Required Column Existence') {
+    console.log(`Missing columns: ${violation.affectedEntities.length} entities`);
+    console.log(`Tables: ${violation.affectedEntities.join(', ')}`);
+  }
+}
+```
+
+**Use Case: Bi-Directional Sync with SQL Database**
+
+When syncing Dataverse with SQL databases, you need `sqlcreatedon` and `sqlmodifiedon` columns to track when records were created/modified in SQL. Use the `requiredColumns` parameter to validate all tables have these columns:
+
+```typescript
+// Validate all entities have SQL timestamp columns for bi-directional sync
+const result = await service.validateBestPractices(
+  undefined,                                                    // All entities
+  ['sic_member', 'sic_strikeaction', 'sic_application'],       // Specific entities
+  "sic_",
+  0,
+  false,                                                        // Skip RefData tables
+  ['required-column'],
+  0,
+  ['{prefix}sqlcreatedon', '{prefix}sqlmodifiedon']            // SQL timestamp columns
 );
 ```
 
