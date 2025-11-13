@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/sharepoint",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "MCP server for SharePoint Online - site management, document libraries, and PowerPlatform validation",
   "type": "module",
   "main": "./build/index.js",

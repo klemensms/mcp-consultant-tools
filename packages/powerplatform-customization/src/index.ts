@@ -2,6 +2,7 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { pathToFileURL } from 'node:url';
+import { realpathSync } from 'node:fs';
 import { createMcpServer, createEnvLoader } from '@mcp-consultant-tools/core';
 import { PowerPlatformService, PowerPlatformConfig } from './PowerPlatformService.js';
 
@@ -2593,7 +2594,8 @@ server.tool(
 }
 
 // CLI entry point (standalone execution)
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+// Uses realpathSync to resolve symlinks created by npx
+if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
 

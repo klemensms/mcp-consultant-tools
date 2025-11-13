@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { pathToFileURL } from "node:url";
+import { realpathSync } from "node:fs";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { AzureSqlService } from "./AzureSqlService.js";
 import type { AzureSqlConfig } from "./AzureSqlService.js";
@@ -539,7 +540,9 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
   console.error("Azure SQL tools registered: 11 tools, 3 prompts");
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+// CLI entry point (standalone execution)
+// Uses realpathSync to resolve symlinks created by npx
+if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
   const server = createMcpServer({

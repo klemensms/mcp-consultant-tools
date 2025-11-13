@@ -10,6 +10,7 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { pathToFileURL } from "node:url";
+import { realpathSync } from "node:fs";
 import { createMcpServer, createEnvLoader, createErrorResponse, createSuccessResponse } from "@mcp-consultant-tools/core";
 import { FigmaService } from "./FigmaService.js";
 import type { FigmaConfig } from "./FigmaService.js";
@@ -96,8 +97,11 @@ export type { FigmaConfig } from "./FigmaService.js";
 
 /**
  * Standalone CLI server (when run directly)
+ *
+ * Uses realpathSync to resolve symlinks created by npx, ensuring import.meta.url
+ * matches the resolved path in process.argv[1]
  */
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
 

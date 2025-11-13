@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { pathToFileURL } from "node:url";
+import { realpathSync } from "node:fs";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { registerPowerPlatformTools } from "@mcp-consultant-tools/powerplatform";
 import { registerPowerplatformCustomizationTools } from "@mcp-consultant-tools/powerplatform-customization";
@@ -65,8 +66,9 @@ export function registerAllTools(server: any) {
   console.error("Total integrations: 11 services | 172 tools | 45 prompts");
 }
 
-// CLI entry point
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+// CLI entry point (standalone execution)
+// Uses realpathSync to resolve symlinks created by npx
+if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
 
