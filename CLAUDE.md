@@ -521,31 +521,12 @@ npm publish --tag beta               # Doesn't affect 'latest' tag
 git push && git push --tags
 ```
 
-**🛑 HARD STOP - USER TESTING REQUIRED 🛑**
+**4. Create Release Notes (Test Checklist)**
 
-At this point, Claude Code must STOP and handover to the user for manual testing:
-
-1. **User must test the beta release themselves:**
-   ```bash
-   npx mcp-consultant-tools@beta
-   ```
-
-2. **User must verify:**
-   - All integrations load correctly
-   - Environment variables are read properly
-   - Tools and prompts work as expected
-   - No breaking changes or regressions
-
-3. **If issues found:** User will report back and Claude Code can iterate on beta.X releases
-
-4. **If validation succeeds:** User will confirm to proceed with production release
-
-**4. Create Release Notes (Before Production Release)**
-
-Create a TLDR-style release notes file in `docs/release_notes/vX.Y.Z.md` aimed at end users:
+Immediately after beta publishing, create release notes in `docs/release_notes/vX.Y.Z-beta.md`:
 
 ```markdown
-# Release vX.Y.Z
+# Release vX.Y.Z-beta.1
 
 ## Breaking Changes
 - List any breaking changes that require user action
@@ -553,20 +534,65 @@ Create a TLDR-style release notes file in `docs/release_notes/vX.Y.Z.md` aimed a
 ## New Features
 - List new capabilities and integrations
 
+**Beta Testing Configuration:**
+```json
+{
+  "mcpServers": {
+    "mcp-consultant-tools": {
+      "command": "npx",
+      "args": ["mcp-consultant-tools@beta"],
+      "env": {
+        "INTEGRATION_VAR": "your-value"
+      }
+    }
+  }
+}
+```
+
 ## Changes to Existing Features
 - List modifications to existing functionality
 ```
 
-Keep it concise - users want quick overview, not implementation details.
+**Purpose:** Release notes serve as a test checklist. Include beta config for updated integrations.
+
+**🛑 HARD STOP - USER TESTING REQUIRED 🛑**
+
+At this point, Claude Code must STOP and handover to the user for manual testing:
+
+1. **User must review release notes:** `docs/release_notes/vX.Y.Z-beta.md`
+
+2. **User must test the beta release using provided config:**
+   ```bash
+   npx mcp-consultant-tools@beta
+   ```
+
+3. **User must verify all features from release notes:**
+   - All integrations load correctly
+   - Environment variables are read properly
+   - Tools and prompts work as expected
+   - No breaking changes or regressions
+   - Test each feature listed in release notes
+
+4. **If issues found:** User will report back → iterate on beta.X releases (update release notes)
+
+5. **If validation succeeds:** User confirms → finalize release notes → proceed to production
 
 **5. Iterate on Beta (if issues found)**
 ```bash
 # Fix issues, then:
 npm version prerelease --preid=beta  # beta.1 → beta.2
 npm publish --tag beta
+# Update release notes: add fixes, update version in filename
 ```
 
-**6. Production Release (after beta validation)**
+**6. Finalize Release Notes (after validation)**
+```bash
+# Rename: vX.Y.Z-beta.md → vX.Y.Z.md
+# Remove beta references and beta config section
+# Add release date
+```
+
+**7. Production Release (after beta validation)**
 ```bash
 # Merge to main first
 git checkout main
@@ -615,11 +641,12 @@ npm view @mcp-consultant-tools/powerplatform
 ### Key Principles
 1. ✅ Always test with `npm pack` before publishing
 2. ✅ Always publish to `beta` tag first for external testing
-3. ✅ **HARD STOP** after beta publishing - user must test manually
-4. ✅ Create release notes in `docs/release_notes/` before production release
-5. ✅ Never publish directly to `latest` without beta validation
-6. ✅ Iterate on beta releases until validated
-7. ✅ Use `scripts/publish-all.sh` for coordinated monorepo releases
+3. ✅ Create release notes with beta config immediately after beta publishing
+4. ✅ **HARD STOP** - user must test manually using release notes as checklist
+5. ✅ Iterate on beta releases until validated (update release notes each time)
+6. ✅ Finalize release notes (remove beta references) before production
+7. ✅ Never publish directly to `latest` without beta validation
+8. ✅ Use `scripts/publish-all.sh` for coordinated monorepo releases
 
 **Full details:** See [RELEASE_PROCESS.md](docs/documentation/RELEASE_PROCESS.md) for comprehensive testing strategies, monorepo publishing, and troubleshooting
 

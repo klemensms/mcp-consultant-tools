@@ -92,35 +92,96 @@ npx mcp-consultant-tools@beta
 - You can test via real npx from npm registry
 - Can iterate with multiple beta releases (beta.1, beta.2, etc.)
 
+### 4. Create Release Notes (Test Checklist)
+
+**Immediately after publishing to beta**, create user-facing release notes in `docs/release_notes/vX.Y.Z-beta.md`.
+
+**Purpose:** Release notes serve as a structured test checklist for beta validation.
+
+**Format:** TLDR-style, aimed at end users (not developers). Include:
+- Breaking changes
+- New features
+- Changes to existing features
+- **Beta testing configuration** (for updated integrations)
+
+**Template:**
+```markdown
+# Release vX.Y.Z-beta.1
+
+## Breaking Changes
+
+List any changes that require user action:
+- Environment variable `FOO` renamed to `BAR`
+- Tool `old_tool` removed, use `new_tool` instead
+
+## New Features
+
+List new capabilities:
+- Added SharePoint Online integration (15 tools, 5 prompts)
+- New prompt: `analyze-powerplatform-performance`
+
+**Beta Testing Configuration:**
+```json
+{
+  "mcpServers": {
+    "mcp-consultant-tools": {
+      "command": "npx",
+      "args": ["mcp-consultant-tools@beta"],
+      "env": {
+        "SHAREPOINT_TENANT_ID": "your-tenant-id",
+        "SHAREPOINT_CLIENT_ID": "your-client-id",
+        "SHAREPOINT_CLIENT_SECRET": "your-secret"
+      }
+    }
+  }
+}
+```
+
+## Changes to Existing Features
+
+- Improved error messages for authentication failures
+- Service Bus message inspection now shows full body
+```
+
+**Key points:**
+- Include `@beta` tag in config examples
+- List all updated integrations with their config
+- Users will use this as a test checklist
+
 ---
 
 ## 🛑 HARD STOP - MANUAL USER TESTING REQUIRED 🛑
 
-**After publishing to beta tag, Claude Code must STOP and handover to the user.**
+**After creating release notes, Claude Code must STOP and handover to the user.**
 
 ### What the User Must Do:
 
-1. **Test the beta release manually:**
+1. **Use release notes as test checklist:**
+   - Review `docs/release_notes/vX.Y.Z-beta.md`
+   - Configure beta testing using the provided config
+
+2. **Test the beta release manually:**
    ```bash
    npx mcp-consultant-tools@beta
    ```
 
-2. **Verify all functionality:**
+3. **Verify all functionality from release notes:**
    - All integrations load correctly
    - Environment variables are read properly
    - Tools and prompts work as expected
    - No breaking changes or regressions
    - Test with real MCP client (Claude Desktop, etc.)
+   - Check each feature listed in release notes
 
-3. **Decision point:**
-   - **If issues found:** Report to Claude Code, proceed to section 4 (Iterating on Beta)
-   - **If validation succeeds:** Confirm to Claude Code, proceed to section 5 (Create Release Notes)
+4. **Decision point:**
+   - **If issues found:** Report to Claude Code, proceed to section 5 (Iterating on Beta)
+   - **If validation succeeds:** Proceed to section 6 (Finalize Release Notes), then section 7 (Production Release)
 
 **Why this matters:** Automated testing cannot catch all integration issues, environment-specific bugs, or UX problems. Manual validation by the developer is critical before production release.
 
 ---
 
-### 4. Iterating on Beta
+### 5. Iterating on Beta
 
 If you find issues, fix them and publish a new beta:
 
@@ -140,47 +201,59 @@ npm publish --tag beta
 git push && git push --tags
 ```
 
-### 5. Create Release Notes
+**Important:** After each beta iteration, update the release notes:
+- Add any new fixes to "Changes to Existing Features"
+- Update the version number in the filename (e.g., v20.0.0-beta.2)
+- Keep beta config examples updated
 
-**Before promoting to production**, create user-facing release notes in `docs/release_notes/vX.Y.Z.md`.
+### 6. Finalize Release Notes
 
-**Format:** TLDR-style, aimed at end users (not developers). Include only:
-- Breaking changes
-- New features
-- Changes to existing features
+**After beta testing is complete and validated**, finalize the release notes:
 
-**Template:**
+1. **Rename file:** `vX.Y.Z-beta.md` → `vX.Y.Z.md`
+
+2. **Remove beta references:**
+   - Remove `-beta.1` from title
+   - Remove "Beta Testing Configuration" section
+   - Update config examples to use `@latest` (or no tag)
+
+3. **Add release date:**
+   ```markdown
+   # Release vX.Y.Z
+
+   Released: 2025-11-13
+   ```
+
+4. **Review and polish:**
+   - Ensure all sections are complete
+   - Verify accuracy of feature descriptions
+   - Remove any internal notes or TODOs
+
+**Example transformation:**
+
+**Before (beta):**
 ```markdown
-# Release vX.Y.Z
+# Release v20.0.0-beta.1
 
-Released: YYYY-MM-DD
-
-## Breaking Changes
-
-List any changes that require user action:
-- Example: Environment variable `FOO` renamed to `BAR`
-- Example: Tool `old_tool` removed, use `new_tool` instead
-
-## New Features
-
-List new capabilities:
-- Added SharePoint Online integration (15 tools, 5 prompts)
-- Added support for Azure SQL connection pooling
-- New prompt: `analyze-powerplatform-performance`
-
-## Changes to Existing Features
-
-List modifications to existing functionality:
-- Improved error messages for authentication failures
-- PowerPlatform split into 3 security-isolated packages
-- Service Bus message inspection now shows full body
+**Beta Testing Configuration:**
+```json
+{
+  "command": "npx",
+  "args": ["mcp-consultant-tools@beta"]
+}
+```
 ```
 
-**Example:** See `docs/release_notes/v16.0.0.md` for reference.
+**After (production):**
+```markdown
+# Release v20.0.0
+
+Released: 2025-11-13
+```
 
 **Keep it concise:** Users want a quick overview, not implementation details or code changes.
 
-### 6. Production Release
+### 7. Production Release
 
 When beta is validated and release notes are created, promote to production:
 
@@ -350,13 +423,15 @@ Before promoting to production, verify:
 - [ ] Local testing with `node build/index.js` passes
 - [ ] Package validation with `npm pack` + `npx ./*.tgz` passes
 - [ ] Beta release published and tested via `npx @scope/package@beta`
+- [ ] **Release notes created in `docs/release_notes/vX.Y.Z-beta.md`** (with beta config)
 - [ ] **🛑 Manual user testing completed** (all integrations, tools, prompts verified)
 - [ ] All tools and prompts work correctly in real MCP client
 - [ ] Environment variables load correctly
 - [ ] Error handling works as expected
 - [ ] Cross-service integrations work (if applicable)
+- [ ] All features from release notes tested and verified
+- [ ] **Release notes finalized** (beta references removed, file renamed to `vX.Y.Z.md`)
 - [ ] Documentation updated (README.md, CLAUDE.md, docs/documentation/*.md)
-- [ ] **Release notes created in `docs/release_notes/vX.Y.Z.md`**
 
 ## Quick Reference
 
@@ -391,15 +466,18 @@ npm dist-tag add @mcp-consultant-tools/powerplatform@1.0.4 latest
 1. Never publish directly to `latest` without testing
 2. Use `npm pack` to validate package structure
 3. Use `beta` tag for external testing via npx
-4. **🛑 HARD STOP after beta publishing - manual user testing required**
-5. Create release notes in `docs/release_notes/` before production
-6. Iterate on beta releases until validated
-7. Promote to `latest` only when confident
-8. Keep `main` branch in sync with `latest` tag
+4. **Create release notes immediately after beta publishing** (with beta config)
+5. **🛑 HARD STOP - Use release notes as test checklist**
+6. Iterate on beta releases until validated (update release notes each iteration)
+7. **Finalize release notes** (remove beta references) before production
+8. Promote to `latest` only when confident
+9. Keep `main` branch in sync with `latest` tag
 
 This workflow ensures:
 - ✅ Safe testing via real npx
 - ✅ No risk to production users
+- ✅ Release notes serve as structured test checklist
+- ✅ Beta config examples help users test correctly
 - ✅ Manual validation catches integration issues
 - ✅ User-facing release notes document changes
 - ✅ Easy rollback if issues found
