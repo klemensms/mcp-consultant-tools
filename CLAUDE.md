@@ -250,6 +250,80 @@ Before considering implementation complete, verify that ALL documentation files 
 - [ ] CLAUDE.md updated (brief overview only)
 - [ ] docs/technical/{INTEGRATION}_TECHNICAL.md updated (detailed implementation)
 - [ ] **docs/documentation/{integration}.md updated** ← Check this twice!
+- [ ] **Release notes updated (if in beta or approaching release)** ← Keep current!
+
+### ⚠️ CRITICAL: Keep Release Notes Current During Development ⚠️
+
+**Problem:** Features get added during development but aren't documented in release notes until release time, causing important changes to be forgotten or poorly described.
+
+**Solution:** Treat release notes as a living document throughout the development cycle.
+
+**When to Update Release Notes:**
+
+1. **Starting a new release cycle** (e.g., v20.0):
+   - Create `docs/release_notes/vX.Y.Z-beta.1.md` immediately
+   - Initialize with template structure (Breaking Changes, New Features, Changes)
+   - Commit to the release branch
+
+2. **Adding a new feature:**
+   - **IMMEDIATELY** add it to the release notes under "New Features"
+   - Include: what it does, key parameters, why it's useful
+   - Include beta testing configuration if it's a new integration
+   - Commit release notes WITH the feature code
+
+3. **Making breaking changes:**
+   - **IMMEDIATELY** add to "Breaking Changes" section
+   - Document what broke, how to migrate, example of new approach
+   - Include OLD vs NEW comparison
+
+4. **Improving existing features:**
+   - **IMMEDIATELY** add to "Changes to Existing Features"
+   - Describe what improved and user-visible impact
+
+**Example Workflow:**
+
+```bash
+# Day 1: Start release/20.0 branch
+git checkout -b release/20.0
+# Create release notes
+cat > docs/release_notes/v20.0.0-beta.1.md << EOF
+# Release v20.0.0-beta.1
+## Breaking Changes
+None
+## New Features
+TBD
+## Changes to Existing Features
+TBD
+EOF
+git add docs/release_notes/v20.0.0-beta.1.md
+git commit -m "docs: initialize v20.0.0-beta.1 release notes"
+
+# Day 3: Add best practices validation tool
+# 1. Write the code
+# 2. IMMEDIATELY update release notes
+cat >> docs/release_notes/v20.0.0-beta.1.md << EOF
+### PowerPlatform: Dataverse Best Practices Validation
+Added validate-dataverse-best-practices tool...
+EOF
+git add packages/powerplatform/src/* docs/release_notes/v20.0.0-beta.1.md
+git commit -m "feat: add dataverse best practices validation tool"
+
+# Day 5: Improve error messages
+cat >> docs/release_notes/v20.0.0-beta.1.md << EOF
+- Improved error messages for authentication failures
+EOF
+git commit -am "fix: improve auth error messages"
+```
+
+**Why This Matters:**
+- **No forgotten features**: Everything gets documented as it's built
+- **Better descriptions**: Context is fresh, details are accurate
+- **Faster releases**: Release notes are ready when beta publishes
+- **Test checklist ready**: Testers know what to test from day 1
+- **Historical record**: Git history shows feature + documentation together
+
+**Enforcement:**
+Release notes must be current before publishing beta. If release notes say "TBD" or are obviously incomplete, **DO NOT** proceed with beta publishing until they're updated.
 
 ## Architecture
 
