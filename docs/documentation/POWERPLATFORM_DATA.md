@@ -3,6 +3,8 @@
 **📦 Package:** `@mcp-consultant-tools/powerplatform-data`
 **⚠️ Security:** NOT production-safe (data modifications, record creation/updates/deletions)
 
+Complete guide to using the PowerPlatform Data CRUD integration with MCP Consultant Tools.
+
 ---
 
 ## 🚨 IMPORTANT: Security Warning
@@ -36,6 +38,124 @@ As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isol
 
 ---
 
+## ⚡ Quick Start
+
+### MCP Client Configuration
+
+Get started quickly with this minimal configuration. Just replace the placeholder values with your actual credentials:
+
+#### For VS Code
+
+Add this to your VS Code `settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "powerplatform-data": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/powerplatform-data", "mcp-pp-data"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id",
+        "POWERPLATFORM_ENABLE_CREATE": "true",
+        "POWERPLATFORM_ENABLE_UPDATE": "true",
+        "POWERPLATFORM_ENABLE_DELETE": "true"
+      }
+    }
+  }
+}
+```
+
+#### For Claude Desktop
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "powerplatform-data": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/powerplatform-data", "mcp-pp-data"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id",
+        "POWERPLATFORM_ENABLE_CREATE": "true",
+        "POWERPLATFORM_ENABLE_UPDATE": "true",
+        "POWERPLATFORM_ENABLE_DELETE": "true"
+      }
+    }
+  }
+}
+```
+
+#### Test Your Setup
+
+After configuring, test the connection by creating a test record in a development environment:
+
+```javascript
+// Ask Claude: "Create a test account record with name 'Test Company'"
+// Or use the create-record tool directly:
+await mcpClient.invoke("create-record", {
+  entityNamePlural: "accounts",
+  data: {
+    name: "Test Company"
+  }
+});
+```
+
+**⚠️ Production Warning:** For production environments, **disable all flags** (`POWERPLATFORM_ENABLE_CREATE=false`, etc.) and implement approval workflows. See [Security Model](#security-model) for recommendations.
+
+**Need credentials?** See the [Detailed Setup](#detailed-setup) section below for Azure AD service principal creation instructions.
+
+---
+
+## 🎯 Key Features for Consultants
+
+### Data CRUD Operations (Tools)
+
+This package provides **3 specialized tools** for data modification operations. Unlike the read-only package, this package has **0 prompts** to emphasize that all operations are explicit and require intentional tool invocations.
+
+#### Production Data Tools
+
+**⚠️ WARNING: These tools modify production data. Use with extreme caution.**
+
+1. **`create-record`** - Create new records in Dataverse entities
+   - Example: `"Create a new account for Acme Corporation with phone 555-1234"`
+   - Requires: `POWERPLATFORM_ENABLE_CREATE=true`
+   - Audit logged: ✅ All operations logged with user context
+
+2. **`update-record`** - Update existing records (partial or full updates)
+   - Example: `"Update account record to change the phone number to 555-5678"`
+   - Requires: `POWERPLATFORM_ENABLE_UPDATE=true`
+   - Audit logged: ✅ All operations logged with field changes
+
+3. **`delete-record`** - Permanently delete records (CANNOT BE UNDONE)
+   - Example: `"Delete the test account record"`
+   - Requires: `POWERPLATFORM_ENABLE_DELETE=true` AND `confirm: true` parameter
+   - Audit logged: ✅ All deletions logged with confirmation
+   - Safety: Requires explicit confirmation parameter
+
+### Security Features
+
+**Granular Operation Control:**
+- Each operation (create/update/delete) requires separate environment flag
+- Delete operations require explicit `confirm: true` parameter
+- All operations logged for audit compliance
+- Field-level validation before API calls
+- GUID validation for record IDs
+
+**Safety Mechanisms:**
+- ❗ No bulk delete tool (must iterate with individual confirmations)
+- ❗ Validation before API calls (field types, required fields, GUIDs)
+- ❗ Error handling with clear messages
+- ❗ Confirmation requirements for destructive operations
+
+---
+
 ## Table of Contents
 
 1. [Overview](#overview)
@@ -44,7 +164,7 @@ As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isol
    - [Key Features](#key-features)
    - [Security Model](#security-model)
 
-2. [Setup](#setup)
+2. [Detailed Setup](#detailed-setup)
    - [Prerequisites](#prerequisites)
    - [Installation](#installation)
    - [Environment Variables](#environment-variables)
@@ -160,7 +280,7 @@ POWERPLATFORM_ENABLE_DELETE=true   # Enables delete-record tool
 
 ---
 
-## Setup
+## Detailed Setup
 
 ### Prerequisites
 

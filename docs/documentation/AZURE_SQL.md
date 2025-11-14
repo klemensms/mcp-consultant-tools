@@ -1,13 +1,122 @@
 # Azure SQL Database Integration Documentation
 
+**📦 Package:** `@mcp-consultant-tools/azure-sql`
+**🔒 Security:** Production-safe (read-only access to databases)
+
 Complete guide to using the Azure SQL Database integration with MCP Consultant Tools.
+
+---
+
+## ⚡ Quick Start
+
+### MCP Client Configuration
+
+Get started quickly with this minimal configuration. Just replace the placeholder values with your actual credentials:
+
+#### For VS Code
+
+Add this to your VS Code `settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "azure-sql": {
+      "command": "npx",
+      "args": ["-y", "@mcp-consultant-tools/azure-sql"],
+      "env": {
+        "AZURESQL_CONNECTION_STRING": "Server=your-server.database.windows.net;Database=your-db;User Id=your-user;Password=your-password;Encrypt=true;"
+      }
+    }
+  }
+}
+```
+
+#### For Claude Desktop
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "azure-sql": {
+      "command": "npx",
+      "args": ["-y", "@mcp-consultant-tools/azure-sql"],
+      "env": {
+        "AZURESQL_CONNECTION_STRING": "Server=your-server.database.windows.net;Database=your-db;User Id=your-user;Password=your-password;Encrypt=true;"
+      }
+    }
+  }
+}
+```
+
+#### Test Your Setup
+
+After configuring, test the connection by listing servers:
+
+```javascript
+// Ask Claude: "What SQL servers are configured?"
+// Or test connection:
+await mcpClient.invoke("sql-test-connection", {
+  serverId: "prod-sql",
+  database: "AppDB"
+});
+```
+
+**Need credentials?** See the [Detailed Setup](#detailed-setup) section below for database user creation and multi-server configuration instructions.
+
+---
+
+## 🎯 Key Features for Consultants
+
+### Automated Workflows (Prompts)
+
+This package includes **3 pre-built prompts** that generate formatted, human-readable reports from Azure SQL databases. These prompts are designed for consultants who need quick insights without writing SQL queries.
+
+#### Database Analysis Prompts
+
+1. 🔥 **`azuresql-schema-analysis`** - **MOST VALUABLE** - Analyzes database schema, tables, indexes, and relationships with recommendations
+   - Example: `"Analyze the database schema for AppDB on prod-sql"`
+   - Includes: Table inventory, relationship mapping, index analysis, optimization recommendations
+   - **Use Case:** Database health checks, performance optimization, schema documentation
+
+2. **`azuresql-database-overview`** - Comprehensive database overview with statistics and top largest tables
+   - Example: `"Generate overview report for ProductionDB"`
+   - Includes: Database statistics, top 5 largest tables, total size, recommendations
+
+3. **`azuresql-table-details`** - Detailed table structure report with columns, indexes, and foreign keys
+   - Example: `"Show me details about the Users table"`
+   - Includes: Table statistics, column definitions, indexes, relationships, recommendations
+
+**Why schema-analysis is most valuable:**
+- Provides complete database health assessment
+- Identifies missing indexes and performance bottlenecks
+- Maps all table relationships for understanding data flow
+- Detects schema design issues (no primary key, excessive columns)
+- Generates actionable optimization recommendations
+- Perfect for database audits and capacity planning
+
+### Database Query Tools
+
+Beyond prompts, this package provides **11 specialized tools** for database exploration:
+
+- **`sql-list-servers`** - List all configured SQL servers (multi-server support)
+- **`sql-list-databases`** - List databases on a server (discovery mode available)
+- **`sql-test-connection`** - Test connectivity to a database
+- **`sql-list-tables`** - List all tables with row counts and sizes
+- **`sql-list-views`** - List all views with definitions
+- **`sql-list-stored-procedures`** - List all stored procedures
+- **`sql-list-triggers`** - List all triggers with event types
+- **`sql-list-functions`** - List all user-defined functions
+- **`sql-get-table-schema`** - Get comprehensive table schema (columns, indexes, foreign keys)
+- **`sql-get-object-definition`** - Get SQL definition for views, procedures, functions, triggers
+- **`sql-execute-query`** - Execute read-only SELECT queries safely
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Setup](#setup)
+2. [Detailed Setup](#detailed-setup)
 3. [Tools](#tools) - 11 tools (9 schema + 2 discovery)
 4. [Prompts](#prompts) - 3 prompts
 5. [Usage Examples](#usage-examples)
@@ -68,7 +177,7 @@ Azure SQL Database is a fully managed relational database service offering:
 
 ---
 
-## Setup
+## Detailed Setup
 
 ### Prerequisites
 
@@ -788,7 +897,41 @@ await mcpClient.invoke("sql-execute-query", {
 
 Total: **3 prompts** (all updated with multi-server parameters)
 
-### sql-database-overview
+### azuresql-schema-analysis
+
+🔥 **MOST VALUABLE** - Comprehensive database schema analysis with tables, indexes, relationships, and optimization recommendations.
+
+**Parameters:**
+- `serverId` (required): Server ID from `sql-list-servers`
+- `database` (required): Database name from `sql-list-databases`
+
+**Returns:** Markdown report with:
+- Complete table inventory with sizes
+- Index analysis (clustered, non-clustered, missing indexes)
+- Foreign key relationship mapping
+- Schema design issues
+- Performance optimization recommendations
+- Capacity planning insights
+
+**Example:**
+```javascript
+await mcpClient.callPrompt("azuresql-schema-analysis", {
+  serverId: "prod-sql",
+  database: "AppDB"
+});
+```
+
+**Use Cases:**
+- Database health assessment
+- Performance optimization planning
+- Schema documentation generation
+- Database audits
+- Capacity planning
+- Migration planning
+
+---
+
+### azuresql-database-overview
 
 Generate comprehensive database overview report.
 
@@ -804,7 +947,7 @@ Generate comprehensive database overview report.
 
 **Example:**
 ```javascript
-await mcpClient.callPrompt("sql-database-overview", {
+await mcpClient.callPrompt("azuresql-database-overview", {
   serverId: "prod-sql",
   database: "AppDB"
 });
@@ -812,7 +955,7 @@ await mcpClient.callPrompt("sql-database-overview", {
 
 ---
 
-### sql-table-details
+### azuresql-table-details
 
 Generate detailed table structure report.
 
@@ -831,33 +974,11 @@ Generate detailed table structure report.
 
 **Example:**
 ```javascript
-await mcpClient.callPrompt("sql-table-details", {
+await mcpClient.callPrompt("azuresql-table-details", {
   serverId: "prod-sql",
   database: "AppDB",
   schemaName: "dbo",
   tableName: "Users"
-});
-```
-
----
-
-### sql-query-results
-
-Format query results as markdown table.
-
-**Parameters:**
-- `serverId` (required): Server ID from `sql-list-servers`
-- `database` (required): Database name from `sql-list-databases`
-- `query` (required): SQL SELECT query
-
-**Returns:** Markdown-formatted table with query results
-
-**Example:**
-```javascript
-await mcpClient.callPrompt("sql-query-results", {
-  serverId: "prod-sql",
-  database: "AppDB",
-  query: "SELECT TOP 10 * FROM dbo.Users ORDER BY CreateDate DESC"
 });
 ```
 
@@ -917,7 +1038,7 @@ await mcpClient.invoke("sql-list-databases", {
 
 ```javascript
 // Get comprehensive database overview
-await mcpClient.callPrompt("sql-database-overview", {
+await mcpClient.callPrompt("azuresql-database-overview", {
   serverId: "prod-sql",
   database: "AppDB"
 });
@@ -934,7 +1055,7 @@ await mcpClient.callPrompt("sql-database-overview", {
 
 ```javascript
 // Get detailed table structure
-await mcpClient.callPrompt("sql-table-details", {
+await mcpClient.callPrompt("azuresql-table-details", {
   serverId: "prod-sql",
   database: "AppDB",
   schemaName: "dbo",
@@ -1047,6 +1168,23 @@ const devTables = await mcpClient.invoke("sql-list-tables", {
 
 **AI Analysis:**
 "Production has 45 tables (1.2 GB total). Development has 42 tables (85 MB total). Missing in dev: OrderHistory, AuditLog, PaymentTransactions. Schema drift detected - dev environment needs synchronization."
+
+---
+
+### Example 10: Comprehensive Schema Analysis
+
+**Scenario:** Perform database health check and optimization analysis.
+
+```javascript
+// Get comprehensive schema analysis
+await mcpClient.callPrompt("azuresql-schema-analysis", {
+  serverId: "prod-sql",
+  database: "AppDB"
+});
+```
+
+**AI Analysis:**
+"Database contains 45 tables with 2.5M total rows. Identified 3 tables without primary keys (AuditLog, TempData, ImportQueue). Found 12 missing indexes on frequently queried columns. Foreign key relationships mapped: 28 relationships across 15 tables. Recommendations: Add primary keys to audit tables, implement suggested indexes for 40% query performance improvement, archive historical data older than 2 years."
 
 ---
 

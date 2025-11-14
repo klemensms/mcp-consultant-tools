@@ -5,6 +5,132 @@
 
 ---
 
+## ⚡ Quick Start
+
+### MCP Client Configuration
+
+Get started quickly with this minimal configuration. Just replace the placeholder values with your actual credentials:
+
+#### For VS Code
+
+Add this to your VS Code `settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "powerplatform-customization": {
+      "command": "npx",
+      "args": ["-y", "@mcp-consultant-tools/powerplatform-customization"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id",
+        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "true"
+      }
+    }
+  }
+}
+```
+
+#### For Claude Desktop
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "powerplatform-customization": {
+      "command": "npx",
+      "args": ["-y", "@mcp-consultant-tools/powerplatform-customization"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id",
+        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "true"
+      }
+    }
+  }
+}
+```
+
+#### Test Your Setup
+
+After configuring, test the connection by creating a simple entity:
+
+```javascript
+// Ask Claude: "List all custom entities in my PowerPlatform environment"
+// Or test customization capabilities:
+await mcpClient.invoke("customization-deployment-report", {
+  solutionUniqueName: "YourSolution"
+});
+```
+
+**Need credentials?** See the [Detailed Setup](#detailed-setup) section below for Azure AD app registration and permission configuration instructions.
+
+---
+
+## 🎯 Key Features for Consultants
+
+### Automated Workflows (Prompts)
+
+This package includes **2 pre-built prompts** that generate formatted, human-readable reports for customization validation and deployment. These prompts are designed for consultants managing PowerPlatform development lifecycles.
+
+#### 🔥 Schema Change & Deployment Workflows - MOST VALUABLE
+
+1. **`customization-deployment-report`** - **MOST VALUABLE** - Generates comprehensive deployment validation report with dependency analysis
+   - **Example:** `"Generate a deployment report for the 'ClientCore' solution"`
+   - **Use case:** Pre-deployment validation, dependency checking, missing component detection
+   - **Why it's valuable:**
+     - Validates all solution components before deployment
+     - Identifies missing dependencies that would cause deployment failures
+     - Generates deployment checklist for release management
+     - Detects circular dependencies and configuration issues
+     - Perfect for CI/CD pipeline validation gates
+
+2. **`entity-customization-report`** - Complete entity customization summary for documentation
+   - **Example:** `"Generate customization report for the 'account' entity"`
+   - **Use case:** Documentation generation, entity auditing, change tracking
+   - **Includes:** Entity properties, all attributes with types, relationships, forms, views, solution membership
+
+### Advanced Schema Modification Tools
+
+Beyond prompts, this package provides **45 specialized tools** for schema modifications:
+
+#### Entity & Attribute Management
+- **`create-entity`** - Create new custom entities with full configuration
+- **`create-attribute`** - Add fields with all data types (String, Memo, Integer, Decimal, Money, DateTime, Boolean, Picklist, Lookup)
+- **`update-entity-icon`** - Set entity icons using Microsoft Fluent UI System Icons
+- **`delete-entity`** - Remove custom entities (development environments only)
+
+#### Relationship Configuration
+- **`create-one-to-many-relationship`** - Create parent-child relationships
+- **`create-many-to-many-relationship`** - Create associative relationships
+- **`update-one-to-many-relationship`** - Modify cascade behavior (delete, merge, reparent, share, unshare)
+
+#### Form & View Customization
+- **`create-form`** - Create custom forms (Main, QuickCreate, QuickView, Card)
+- **`add-field-to-form`** - Programmatically add fields to forms
+- **`create-view`** - Create custom views with FetchXML and layout
+- **`add-column-to-view`** - Add columns to views programmatically
+
+#### Solution & Deployment Management
+- **`add-to-solution`** - Package components for deployment
+- **`export-solution`** - Export solutions as managed/unmanaged zip
+- **`import-solution`** - Deploy solutions to target environments
+- **`publish-all-customizations`** - Publish all pending changes
+
+#### Plugin Deployment (Windows-only)
+- **`deploy-plugin-complete`** - 🔥 **End-to-end plugin deployment** - Single command to upload DLL, register steps/images, and publish
+- **`create-plugin-assembly`** - Upload and register compiled plugin DLLs
+- **`register-plugin-step`** - Configure plugin execution (message, entity, stage, mode)
+- **`register-plugin-image`** - Capture pre/post entity images for plugin logic
+
+**Full tool list:** See [Tools (45 Total)](#tools-45-total) section below
+
+---
+
 ## 🚨 IMPORTANT: Security Warning
 
 This package enables **schema modification operations** that can permanently change your Dataverse environment structure. It should **ONLY** be used in:

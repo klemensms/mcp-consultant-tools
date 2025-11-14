@@ -1,13 +1,131 @@
 # Azure Service Bus Integration Documentation
 
+**📦 Package:** `@mcp-consultant-tools/service-bus`
+**🔒 Security:** Production-safe (read-only access, no message deletion or modification)
+
 Complete guide to using the Azure Service Bus integration with MCP Consultant Tools.
+
+---
+
+## ⚡ Quick Start
+
+### MCP Client Configuration
+
+Get started quickly with this minimal configuration. Just replace the placeholder values with your actual credentials:
+
+#### For VS Code
+
+Add this to your VS Code `settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "service-bus": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/service-bus", "mcp-sb"],
+      "env": {
+        "SERVICEBUS_NAMESPACE": "your-namespace.servicebus.windows.net",
+        "SERVICEBUS_CLIENT_ID": "your-client-id",
+        "SERVICEBUS_CLIENT_SECRET": "your-client-secret",
+        "SERVICEBUS_TENANT_ID": "your-tenant-id"
+      }
+    }
+  }
+}
+```
+
+#### For Claude Desktop
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "service-bus": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/service-bus", "mcp-sb"],
+      "env": {
+        "SERVICEBUS_NAMESPACE": "your-namespace.servicebus.windows.net",
+        "SERVICEBUS_CLIENT_ID": "your-client-id",
+        "SERVICEBUS_CLIENT_SECRET": "your-client-secret",
+        "SERVICEBUS_TENANT_ID": "your-tenant-id"
+      }
+    }
+  }
+}
+```
+
+#### Test Your Setup
+
+After configuring, test the connection by listing queues:
+
+```javascript
+// Ask Claude: "List all queues in my Service Bus namespace"
+// Or use the namespace overview prompt:
+await mcpClient.invoke("servicebus-namespace-overview", {
+  resourceId: "prod"
+});
+```
+
+**Need credentials?** See the [Detailed Setup](#detailed-setup) section below for Azure AD service principal creation and permissions.
+
+---
+
+## 🎯 Key Features for Consultants
+
+### Automated Workflows (Prompts)
+
+This package includes **5 pre-built prompts** that generate formatted, human-readable reports from Service Bus data. These prompts are designed for consultants and first responders who need quick insights for troubleshooting and monitoring.
+
+#### Service Bus Analysis Prompts
+
+1. **`servicebus-namespace-overview`** - Comprehensive overview of namespace with all queues and health metrics
+   - Example: `"Show me an overview of the production Service Bus namespace"`
+   - Includes: Queue summary table, health indicators, message counts, DLQ status
+
+2. **`servicebus-queue-health`** - Detailed health report for a specific queue with recommendations
+   - Example: `"Check the health of the orders-queue"`
+   - Includes: Health status, metrics, configuration settings, recommendations
+
+3. 🔥 **`servicebus-dlq-analysis`** - **MOST VALUABLE** - Analyzes dead-letter queue messages to identify patterns and root causes
+   - Example: `"Analyze dead-letter messages in the orders-queue"`
+   - Includes: Failure reason summary, top error patterns, message timeline, actionable recommendations
+   - **Use Case:** First-responder guide for troubleshooting message processing failures
+
+4. **`servicebus-message-inspection`** - Inspect a single message in detail with cross-service troubleshooting recommendations
+   - Example: `"Inspect the first message in the orders-queue"`
+   - Includes: Message metadata, body (formatted), properties, correlation suggestions
+
+5. **`servicebus-cross-service-troubleshooting`** - Generate comprehensive troubleshooting report correlating Service Bus with Application Insights and Log Analytics
+   - Example: `"Troubleshoot messages with correlation ID order-12345"`
+   - Includes: Queue health, recent messages, DLQ patterns, correlated telemetry, root cause suggestions
+
+### Telemetry Query Tools
+
+Beyond prompts, this package provides **8 specialized tools** for Service Bus operations:
+
+- **`servicebus-list-namespaces`** - List all configured Service Bus namespaces
+- **`servicebus-test-connection`** - Test connectivity to a namespace
+- **`servicebus-list-queues`** - List all queues with metadata and health status
+- **`servicebus-peek-messages`** - Peek messages without removing them (read-only)
+- **`servicebus-peek-deadletter`** - Peek dead-letter queue messages
+- **`servicebus-get-queue-properties`** - Get detailed queue properties and configuration
+- **`servicebus-search-messages`** - Search messages by correlation ID, message ID, or body content
+- **`servicebus-get-namespace-properties`** - Get namespace-level properties
+
+**Why the DLQ analysis is most valuable:**
+- Identifies patterns in message failures automatically
+- Groups failures by reason (MaxDeliveryCountExceeded, MessageLockLostException, etc.)
+- Provides actionable recommendations for fixing issues
+- Correlates with Application Insights for root cause analysis
+- Perfect for incident response and troubleshooting
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Setup](#setup)
+2. [Detailed Setup](#detailed-setup)
 3. [Tools](#tools)
 4. [Prompts](#prompts)
 5. [Usage Examples](#usage-examples)
@@ -63,7 +181,7 @@ Azure Service Bus is a fully managed enterprise message broker with message queu
 
 ---
 
-## Setup
+## Detailed Setup
 
 ### Prerequisites
 
@@ -1363,5 +1481,5 @@ A: Yes! Use the `servicebus-cross-service-troubleshooting` prompt with a `correl
 
 ---
 
-**Last Updated**: 2025-11-09
-**Version**: 10.0.0
+**Last Updated**: 2025-01-15
+**Version**: 1.0.0

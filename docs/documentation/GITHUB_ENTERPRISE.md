@@ -1,11 +1,154 @@
 # GitHub Enterprise Integration
 
+**📦 Package:** `@mcp-consultant-tools/github-enterprise`
+**🔒 Security:** Production-safe (read-only by default, write operations opt-in)
+
 Complete guide for the GitHub Enterprise Cloud integration in MCP Consultant Tools.
+
+---
+
+## ⚡ Quick Start
+
+### MCP Client Configuration
+
+Get started quickly with this minimal configuration. Just replace the placeholder values with your actual credentials:
+
+#### For VS Code
+
+Add this to your VS Code `settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "github-enterprise": {
+      "command": "npx",
+      "args": ["-y", "mcp-consultant-tools@latest"],
+      "env": {
+        "GITHUB_TOKEN": "your-personal-access-token",
+        "GITHUB_ENTERPRISE_URL": "https://github.yourcompany.com"
+      }
+    }
+  }
+}
+```
+
+#### For Claude Desktop
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "github-enterprise": {
+      "command": "npx",
+      "args": ["-y", "mcp-consultant-tools@latest"],
+      "env": {
+        "GITHUB_TOKEN": "your-personal-access-token",
+        "GITHUB_ENTERPRISE_URL": "https://github.yourcompany.com"
+      }
+    }
+  }
+}
+```
+
+#### Test Your Setup
+
+After configuring, test the connection by listing configured repositories:
+
+```javascript
+// Ask Claude: "List all configured GitHub repositories"
+// Or use the repo-overview prompt:
+await mcpClient.callPrompt("ghe-repo-overview", {
+  repoId: "plugin-core"
+});
+```
+
+**Need credentials?** See the [Detailed Setup](#setup) section below for personal access token (PAT) and GitHub App setup instructions.
+
+---
+
+## 🎯 Key Features for Consultants
+
+### Automated Workflows (Prompts)
+
+This package includes **5 pre-built prompts** that generate formatted, human-readable reports from GitHub repositories. These prompts are designed for consultants who need quick insights without navigating the GitHub web interface.
+
+#### Repository Analysis Prompts
+
+1. **`ghe-repo-overview`** - Comprehensive repository overview with branch analysis and recent commits
+   - Example: `"Give me an overview of the plugin-core repository"`
+   - Includes: Repository metadata, branch list, recent commits, file structure
+
+2. **`ghe-code-search-report`** - Format code search results with relevance scoring
+   - Example: `"Find all usages of ContactPlugin class"`
+   - Includes: Search results grouped by repository, code snippets with highlighting
+
+3. **`ghe-branch-comparison-report`** - Compare two branches with deployment checklist
+   - Example: `"Compare main and release/9.0 branches"`
+   - Includes: Commits ahead/behind, changed files, deployment checklist
+
+4. **`ghe-deployment-report`** - Deployment-ready report with rollback plan
+   - Example: `"Generate deployment report for release/9.0"`
+   - Includes: Deployment summary, commits, risk assessment, rollback plan
+
+5. 🔥 **`github-cross-service-correlation`** - **MOST VALUABLE** - Correlates GitHub commits with Azure DevOps work items and Application Insights deployments
+   - Example: `"Troubleshoot work item #1234 across all services"`
+   - Includes: Work item details, related commits, code changes, deployment status, runtime errors
+   - **Use Case:** End-to-end bug troubleshooting from work item → code → deployment → runtime
+
+**Why the cross-service-correlation prompt is most valuable:**
+- Traces bugs from Azure DevOps work items through GitHub commits to deployment and runtime
+- Correlates "AB#1234" commit references with work item details
+- Verifies deployed code matches repository code
+- Identifies runtime errors in Application Insights related to code changes
+- Generates comprehensive troubleshooting reports impossible with individual tools
+- Perfect for production incident investigation and root cause analysis
+
+### Repository Query Tools
+
+Beyond prompts, this package provides **22 specialized tools** for repository access:
+
+**Repository & Branch Management (6 tools)**
+- `ghe-list-repos` - List all configured repositories
+- `ghe-list-branches` - List all branches for a repository
+- `ghe-get-default-branch` - Auto-detect default branch with typo handling
+- `ghe-get-branch-details` - Get detailed branch information
+- `ghe-compare-branches` - Compare two branches with file changes
+- `ghe-search-repos` - Search repositories by name or description
+
+**File Operations (5 tools)**
+- `ghe-get-file` - Get file content from repository
+- `ghe-search-code` - Search code across repositories
+- `ghe-list-files` - List files in a directory
+- `ghe-get-directory-structure` - Get recursive directory tree
+- `ghe-get-file-history` - Get commit history for specific file
+
+**Commit & History (5 tools)**
+- `ghe-get-commits` - Get commit history for a branch
+- `ghe-get-commit-details` - Get detailed commit information
+- `ghe-search-commits` - Search commits by message or hash (supports AB#1234)
+- `ghe-get-commit-diff` - Get detailed diff for a commit
+- `ghe-compare-branches` - Compare branches and show changes
+
+**Pull Requests (3 tools)**
+- `ghe-list-pull-requests` - List pull requests for repository
+- `ghe-get-pull-request` - Get detailed PR information
+- `ghe-get-pr-files` - Get files changed in a PR
+
+**Write Operations (3 tools)** - ⚠️ Disabled by default
+- `ghe-create-branch` - Create a new branch
+- `ghe-update-file` - Update file content
+- `ghe-create-file` - Create a new file
+
+**Cache Management (1 tool)**
+- `ghe-clear-cache` - Clear cached GitHub API responses
+
+---
 
 ## Table of Contents
 
 - [Overview](#overview)
-- [Setup](#setup)
+- [Detailed Setup](#setup)
   - [Prerequisites](#prerequisites)
   - [Authentication Methods](#authentication-methods)
   - [Repository Configuration](#repository-configuration)
@@ -1169,59 +1312,6 @@ await mcpClient.callPrompt("ghe-branch-comparison-report", {
 
 ---
 
-### ghe-troubleshooting-guide
-
-**⭐ KILLER FEATURE:** Bug troubleshooting with cross-service correlation.
-
-**Parameters:**
-- `workItemId` (number, required): Azure DevOps work item ID
-- `project` (string, required): ADO project name
-- `repoId` (string, optional): GitHub repository to search
-
-**Returns:**
-Markdown report with:
-1. **Work Item Details** (from Azure DevOps)
-   - Title, description, state, assigned to
-2. **Related Commits** (from GitHub)
-   - All commits mentioning "AB#1234"
-   - Code changes in each commit
-3. **Deployed Code Status** (from PowerPlatform)
-   - Plugin assembly version
-   - Deployment timestamp
-4. **Runtime Errors** (from Application Insights)
-   - Recent exceptions matching error patterns
-5. **Troubleshooting Steps** (AI-generated)
-6. **Root Cause Analysis** (AI-inferred)
-7. **Recommended Fixes**
-
-**Example:**
-```javascript
-await mcpClient.callPrompt("ghe-troubleshooting-guide", {
-  workItemId: 1234,
-  project: "MyProject",
-  repoId: "plugin-core"
-});
-```
-
-**Full Workflow:**
-1. User reports bug → ADO work item #1234 created
-2. AI uses `ghe-troubleshooting-guide` prompt
-3. Service calls:
-   - `get-work-item` (ADO) → Get bug description
-   - `ghe-search-commits` → Find commits with "AB#1234"
-   - `ghe-get-commit-details` → Analyze code changes
-   - `ghe-get-file` → Verify current code
-   - `get-plugin-assembly-complete` (PowerPlatform) → Check deployment
-   - `appinsights-get-exceptions` → Find runtime errors
-4. AI correlates all data and generates comprehensive report
-
-**Use Cases:**
-- Investigate production bugs
-- Trace bug from report → code → deployment → runtime
-- Generate incident reports
-
----
-
 ### ghe-deployment-report
 
 Deployment-ready report with rollback plan.
@@ -1252,6 +1342,59 @@ await mcpClient.callPrompt("ghe-deployment-report", {
 - Generate deployment runbook
 - Create change request documentation
 - Plan rollback strategy
+
+---
+
+### github-cross-service-correlation
+
+**⭐ KILLER FEATURE:** Bug troubleshooting with cross-service correlation.
+
+**Parameters:**
+- `workItemId` (number, required): Azure DevOps work item ID
+- `project` (string, required): ADO project name
+- `repoId` (string, optional): GitHub repository to search
+
+**Returns:**
+Markdown report with:
+1. **Work Item Details** (from Azure DevOps)
+   - Title, description, state, assigned to
+2. **Related Commits** (from GitHub)
+   - All commits mentioning "AB#1234"
+   - Code changes in each commit
+3. **Deployed Code Status** (from PowerPlatform)
+   - Plugin assembly version
+   - Deployment timestamp
+4. **Runtime Errors** (from Application Insights)
+   - Recent exceptions matching error patterns
+5. **Troubleshooting Steps** (AI-generated)
+6. **Root Cause Analysis** (AI-inferred)
+7. **Recommended Fixes**
+
+**Example:**
+```javascript
+await mcpClient.callPrompt("github-cross-service-correlation", {
+  workItemId: 1234,
+  project: "MyProject",
+  repoId: "plugin-core"
+});
+```
+
+**Full Workflow:**
+1. User reports bug → ADO work item #1234 created
+2. AI uses `github-cross-service-correlation` prompt
+3. Service calls:
+   - `get-work-item` (ADO) → Get bug description
+   - `ghe-search-commits` → Find commits with "AB#1234"
+   - `ghe-get-commit-details` → Analyze code changes
+   - `ghe-get-file` → Verify current code
+   - `get-plugin-assembly-complete` (PowerPlatform) → Check deployment
+   - `appinsights-get-exceptions` → Find runtime errors
+4. AI correlates all data and generates comprehensive report
+
+**Use Cases:**
+- Investigate production bugs
+- Trace bug from report → code → deployment → runtime
+- Generate incident reports
 
 ---
 
@@ -1291,7 +1434,7 @@ await mcpClient.callPrompt("ghe-deployment-report", {
    → NullReferenceException still occurring after deployment
 
 7. Generate comprehensive report
-   Prompt: ghe-troubleshooting-guide
+   Prompt: github-cross-service-correlation
    → AI correlates all findings and provides recommendations
 ```
 

@@ -19,6 +19,126 @@ As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isol
 
 ---
 
+## ⚡ Quick Start
+
+### MCP Client Configuration
+
+Get started quickly with this minimal configuration. Just replace the placeholder values with your actual credentials:
+
+#### For VS Code
+
+Add this to your VS Code `settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "powerplatform": {
+      "command": "npx",
+      "args": ["-y", "@mcp-consultant-tools/powerplatform"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
+      }
+    }
+  }
+}
+```
+
+#### For Claude Desktop
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "powerplatform": {
+      "command": "npx",
+      "args": ["-y", "@mcp-consultant-tools/powerplatform"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
+      }
+    }
+  }
+}
+```
+
+#### Test Your Setup
+
+After configuring, test the connection by querying entity metadata:
+
+```javascript
+// Ask Claude: "List all entities in my PowerPlatform environment"
+// Or use the entity-overview prompt:
+await mcpClient.invoke("entity-overview", {
+  entityName: "account"
+});
+```
+
+**Need credentials?** See the [Detailed Setup](#detailed-setup) section below for Azure AD app registration instructions.
+
+---
+
+## 🎯 Key Features for Consultants
+
+### Automated Workflows (Prompts)
+
+This package includes **11 pre-built prompts** that generate formatted, human-readable reports from PowerPlatform metadata. These prompts are designed for consultants who need quick insights without writing code.
+
+#### Entity Analysis Prompts
+
+1. **`entity-overview`** - Comprehensive overview of an entity with key fields, relationships, and usage patterns
+   - Example: `"Give me an overview of the account entity"`
+
+2. **`attribute-details`** - Detailed attribute information with data types, constraints, and best practices
+   - Example: `"Show me details about the revenue attribute on account"`
+
+3. **`query-template`** - OData query templates with filter examples and optimization tips
+   - Example: `"Generate a query template for the contact entity"`
+
+4. **`relationship-map`** - Visual relationship map showing parent/child and N:N relationships
+   - Example: `"Show me all relationships for the opportunity entity"`
+
+#### Plugin & Automation Prompts
+
+5. **`plugin-deployment-report`** - Plugin deployment validation with automatic issue detection
+   - Example: `"Generate a deployment report for MyCompany.Plugins"`
+
+6. **`entity-plugin-pipeline-report`** - Plugin execution pipeline showing order and configuration
+   - Example: `"Show me the plugin pipeline for account updates"`
+
+7. **`flows-report`** - Power Automate flows inventory grouped by state
+   - Example: `"List all active flows in the environment"`
+
+8. **`workflows-report`** - Classic workflows inventory with trigger configuration
+   - Example: `"Show me all real-time workflows"`
+
+9. **`business-rules-report`** - Business rules inventory by entity and state
+   - Example: `"List all business rules for the account entity"`
+
+#### Best Practice Validation Prompts
+
+10. **`dataverse-best-practices-report`** 🔥 **MOST VALUABLE** - Validates naming conventions, required columns, global option sets, entity icons, and more
+    - Automatically detects violations of organizational standards
+    - Provides complete lists of all affected entities and columns
+    - Generates actionable recommendations for fixing issues
+    - Example: `"Validate best practices for the AOPCore solution with prefix sic_"`
+    - **Use Case:** Pre-deployment validation, compliance auditing, quality gates in CI/CD
+
+**Why the best-practices-report is most valuable:**
+- Catches naming convention violations before production deployment
+- Enforces organizational standards (e.g., all entities must have `updatedbyprocess` column)
+- Validates global option set usage (no local option sets allowed)
+- Ensures custom entities have icons for better UX
+- Generates complete affected entity lists for bulk remediation
+- Perfect for code reviews and compliance audits
+
+---
+
 ## Table of Contents
 
 1. [Overview](#overview)
@@ -27,7 +147,7 @@ As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isol
    - [Key Features (Read-Only)](#key-features-read-only)
    - [Supported Environments](#supported-environments)
 
-2. [Setup](#setup)
+2. [Detailed Setup](#detailed-setup)
    - [Prerequisites](#prerequisites)
    - [Azure AD App Registration](#azure-ad-app-registration)
    - [Environment Variables](#environment-variables)
@@ -134,7 +254,7 @@ This integration provides **read-only programmatic access** to Dataverse, the da
 
 ---
 
-## Setup
+## Detailed Setup
 
 ### Prerequisites
 
@@ -3666,5 +3786,3 @@ Error: Only organization users with the System Administrator or System Customize
 - File issues at: https://github.com/anthropics/mcp-consultant-tools/issues
 
 ---
-
-**Last Updated:** 2025-01-09

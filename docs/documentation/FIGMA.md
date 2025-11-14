@@ -1,6 +1,98 @@
 # Figma Integration Documentation
 
+**📦 Package:** `@mcp-consultant-tools/figma`
+**🎨 Design Tool:** Design-to-code workflow integration
+
 Complete guide to using the Figma integration with MCP Consultant Tools.
+
+---
+
+## ⚡ Quick Start
+
+### MCP Client Configuration
+
+Get started quickly with this minimal configuration. Just replace the placeholder values with your actual credentials:
+
+#### For VS Code
+
+Add this to your VS Code `settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "figma": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/figma", "mcp-figma"],
+      "env": {
+        "FIGMA_API_KEY": "your-personal-access-token"
+      }
+    }
+  }
+}
+```
+
+#### For Claude Desktop
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "figma": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/figma", "mcp-figma"],
+      "env": {
+        "FIGMA_API_KEY": "your-personal-access-token"
+      }
+    }
+  }
+}
+```
+
+#### Test Your Setup
+
+After configuring, test the connection by extracting design data:
+
+```javascript
+// Ask Claude: "Get design specifications from the Figma file ABC123xyz"
+// Or extract specific components:
+await mcpClient.invoke("get-figma-data", {
+  fileKey: "ABC123xyz",
+  depth: 3
+});
+```
+
+**Need credentials?** See the [Detailed Setup](#detailed-setup) section below for Personal Access Token generation instructions.
+
+---
+
+## 🎯 Key Features for Consultants
+
+### Design Extraction Capabilities
+
+This package provides **2 specialized tools** for extracting design specifications from Figma files in AI-friendly format. These tools are designed for design-to-code workflows, design system documentation, and design QA.
+
+#### Design Data Extraction Tools
+
+1. **`get-figma-data`** 🔥 **CORE FEATURE** - Extract comprehensive design specifications with 0 prompts (direct tool access)
+   - **Comprehensive Data Extraction**: Layout properties, text/typography, visual styles (fills, strokes, effects), component instances, component definitions
+   - **AI-Friendly Output**: Simplified JSON format (not raw Figma API), automatic style deduplication, tree traversal with depth limiting
+   - **Flexible Access**: Entire files or specific nodes, depth limiting for large files, PAT and OAuth support
+   - **Design System Support**: Component metadata, property definitions, typography scales, color palettes, design tokens
+   - Example: `"Extract all button components from the design system file"`
+   - Example: `"Get layout and style information for node 1:10"`
+   - **Use Cases**: Design-to-code workflows, design system documentation, component library extraction, design QA
+
+2. **`download-figma-images`** - Download and process images from Figma (🚧 Coming in v2)
+   - **Status**: Placeholder for future functionality
+   - **Planned Features**: PNG/SVG downloads, batch processing, image optimization, local storage, base64 encoding
+
+**Why design extraction is valuable for consultants:**
+- **Zero prompts needed** - Direct tool access for maximum flexibility
+- **Design-to-Code workflows** - Extract exact specifications for code generation (React, CSS, design tokens)
+- **Design system documentation** - Auto-generate component library docs from Figma files
+- **Design QA** - Verify consistency, identify design drift, validate against standards
+- **Cross-team collaboration** - Bridge design and development with structured data
 
 ---
 
@@ -10,7 +102,7 @@ Complete guide to using the Figma integration with MCP Consultant Tools.
    - [What is Figma?](#what-is-figma)
    - [Why Use This Integration?](#why-use-this-integration)
    - [Key Features](#key-features)
-2. [Setup](#setup)
+2. [Detailed Setup](#detailed-setup)
    - [Prerequisites](#prerequisites)
    - [Authentication Methods](#authentication-methods)
    - [Personal Access Token (PAT)](#personal-access-token-pat)
@@ -88,7 +180,7 @@ The Figma integration enables AI assistants to:
 
 ---
 
-## Setup
+## Detailed Setup
 
 ### Prerequisites
 

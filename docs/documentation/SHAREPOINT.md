@@ -1,14 +1,184 @@
 # SharePoint Online Integration Documentation
 
+**📦 Package:** `@mcp-consultant-tools/sharepoint`
+**🔒 Security:** Production-safe (read-only access to SharePoint sites and documents)
+
 Complete guide to using the SharePoint Online integration with MCP Consultant Tools.
+
+---
+
+## ⚡ Quick Start
+
+### MCP Client Configuration
+
+Get started quickly with this minimal configuration. Just replace the placeholder values with your actual credentials:
+
+#### For VS Code
+
+Add this to your VS Code `settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "sharepoint": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/sharepoint", "mcp-spo"],
+      "env": {
+        "SHAREPOINT_CLIENT_ID": "your-client-id",
+        "SHAREPOINT_CLIENT_SECRET": "your-client-secret",
+        "SHAREPOINT_TENANT_ID": "your-tenant-id",
+        "SHAREPOINT_SITE_URL": "https://yourtenant.sharepoint.com/sites/yoursite"
+      }
+    }
+  }
+}
+```
+
+#### For Claude Desktop
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "sharepoint": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/sharepoint", "mcp-spo"],
+      "env": {
+        "SHAREPOINT_CLIENT_ID": "your-client-id",
+        "SHAREPOINT_CLIENT_SECRET": "your-client-secret",
+        "SHAREPOINT_TENANT_ID": "your-tenant-id",
+        "SHAREPOINT_SITE_URL": "https://yourtenant.sharepoint.com/sites/yoursite"
+      }
+    }
+  }
+}
+```
+
+#### Test Your Setup
+
+After configuring, test the connection by listing available sites:
+
+```javascript
+// Ask Claude: "List all SharePoint sites"
+// Or use the site-structure prompt:
+await mcpClient.invoke("sharepoint-site-structure", {
+  siteId: "main-site"
+});
+```
+
+**Need credentials?** See the [Detailed Setup](#detailed-setup) section below for Azure AD app registration and SharePoint permissions instructions.
+
+---
+
+## 🎯 Key Features for Consultants
+
+### Automated Workflows (Prompts)
+
+This package includes **10 pre-built prompts** that generate formatted, human-readable reports from SharePoint sites and documents. These prompts are designed for consultants who need quick insights without writing code.
+
+#### Site & Document Analysis Prompts
+
+1. 🔥 **`sharepoint-site-structure`** - **MOST VALUABLE** - Shows complete site structure with libraries, lists, and permissions. Essential for site validation and migration planning.
+   - Example: `"Show me the structure of the main SharePoint site"`
+   - Includes: Site metadata, all document libraries with quotas, folder structure, permissions overview
+   - **Use Case:** Site auditing, migration validation, document location verification
+
+2. **`spo-site-overview`** - Comprehensive site overview with drives, recent activity, and statistics
+   - Example: `"Give me an overview of the main site"`
+   - Includes: Site information, document libraries, recent file activity, storage statistics
+
+3. **`spo-library-details`** - Detailed library report with quota, permissions, and recent items
+   - Example: `"Show me details about the Documents library"`
+   - Includes: Library metadata, quota usage with warnings, recent documents, folder structure
+
+4. **`spo-document-search`** - Formatted search results with relevance and filtering
+   - Example: `"Search for project proposal documents"`
+   - Includes: Search results, file metadata, relevance scores, quick access links
+
+5. **`spo-recent-activity`** - Recent document activity report with user attribution
+   - Example: `"What files were modified in the last 7 days?"`
+   - Includes: Timeline of modifications, user activity summary, file type breakdown
+
+#### PowerPlatform Integration Prompts
+
+6. **`spo-validate-crm-integration`** - PowerPlatform document location validation report
+   - Example: `"Validate the document location configuration for this account"`
+   - Includes: CRM configuration, SharePoint validation, issues found, remediation steps
+
+7. **`spo-document-location-audit`** - Comprehensive audit of all document locations for an entity/record
+   - Example: `"Audit all document locations for the account entity"`
+   - Includes: Location list, validation status, health summary, recommendations
+
+8. **`spo-migration-verification-report`** - Detailed migration verification with file-by-file comparison
+   - Example: `"Verify the migration from old location to new location"`
+   - Includes: Migration summary, missing files, size mismatches, recommendations
+
+#### Troubleshooting Prompts
+
+9. **`spo-setup-validation-guide`** - Interactive setup validation checklist and troubleshooting
+   - Example: `"Validate my SharePoint setup"`
+   - Includes: Configuration checklist, permission verification, connectivity tests
+
+10. **`spo-troubleshooting-guide`** - Common SharePoint integration issues and solutions
+    - Example: `"Help me troubleshoot SharePoint connection issues"`
+    - Includes: Common errors, root cause analysis, step-by-step solutions
+
+11. **`spo-powerplatform-integration-health`** - Overall health check for PowerPlatform-SharePoint integration
+    - Example: `"Check the health of PowerPlatform SharePoint integration"`
+    - Includes: Document locations health, misconfiguration detection, recommendations
+
+**Why site-structure is most valuable:**
+- Shows complete site topology in one view (libraries, folders, permissions)
+- Essential for validating PowerPlatform document location configurations
+- Critical for migration planning and verification
+- Reveals empty folders and misconfigured paths
+- Provides quota usage and capacity planning insights
+
+### Document & Library Tools
+
+Beyond prompts, this package provides **15 specialized tools** for accessing SharePoint data:
+
+**Site Management:**
+- **`spo-list-sites`** - List all configured SharePoint sites
+- **`spo-test-connection`** - Test connectivity and return site information
+
+**Document Libraries (Drives):**
+- **`spo-list-drives`** - List all document libraries in a site
+- **`spo-get-drive-info`** - Get detailed library information with quota
+
+**Files & Folders:**
+- **`spo-list-items`** - List files and folders in a library or folder
+- **`spo-get-item`** - Get detailed file or folder information
+- **`spo-get-item-by-path`** - Get item by path instead of ID
+- **`spo-get-folder-tree`** - Get recursive folder structure (tree view)
+- **`spo-search-items`** - Search for files and folders
+- **`spo-get-recent-items`** - Get recently modified files
+
+**PowerPlatform Validation:**
+- **`spo-get-crm-document-locations`** - Get SharePoint document locations from Dataverse
+- **`spo-validate-document-location`** - Validate PowerPlatform document location configuration
+- **`spo-verify-document-migration`** - Verify document migration between locations
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Setup](#setup)
+   - [What is SharePoint Online?](#what-is-sharepoint-online)
+   - [Key Features](#key-features)
+2. [Detailed Setup](#detailed-setup)
+   - [Prerequisites](#prerequisites)
+   - [Authentication: Entra ID via Microsoft Graph API](#authentication-entra-id-via-microsoft-graph-api)
+   - [Environment Configuration](#environment-configuration)
+   - [Claude Desktop Configuration](#claude-desktop-configuration)
+   - [Local Development/Testing Configuration](#local-developmenttesting-configuration)
+   - [VS Code (Claude Code) Configuration](#vs-code-claude-code-configuration)
 3. [Tools](#tools)
+   - [Site Management Tools](#site-management-tools)
+   - [Drive (Document Library) Tools](#drive-document-library-tools)
+   - [File and Folder Tools](#file-and-folder-tools)
+   - [PowerPlatform Validation Tools](#powerplatform-validation-tools)
 4. [Prompts](#prompts)
 5. [Usage Examples](#usage-examples)
 6. [Best Practices](#best-practices)
@@ -55,7 +225,7 @@ SharePoint Online is Microsoft's cloud-based collaboration and document manageme
 
 ---
 
-## Setup
+## Detailed Setup
 
 ### Prerequisites
 

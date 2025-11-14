@@ -1,18 +1,162 @@
 # Azure Log Analytics Workspace Integration Documentation
 
+**📦 Package:** `@mcp-consultant-tools/log-analytics`
+**🔒 Security:** Production-safe (read-only access to log data)
+
 Complete guide to using the Azure Log Analytics Workspace integration with MCP Consultant Tools.
+
+---
+
+## ⚡ Quick Start
+
+### MCP Client Configuration
+
+Get started quickly with this minimal configuration. Just replace the placeholder values with your actual credentials:
+
+#### For VS Code
+
+Add this to your VS Code `settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "log-analytics": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/log-analytics", "mcp-loganalytics"],
+      "env": {
+        "LOGANALYTICS_WORKSPACE_ID": "your-workspace-id",
+        "LOGANALYTICS_CLIENT_ID": "your-client-id",
+        "LOGANALYTICS_CLIENT_SECRET": "your-client-secret",
+        "LOGANALYTICS_TENANT_ID": "your-tenant-id"
+      }
+    }
+  }
+}
+```
+
+#### For Claude Desktop
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "log-analytics": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/log-analytics", "mcp-loganalytics"],
+      "env": {
+        "LOGANALYTICS_WORKSPACE_ID": "your-workspace-id",
+        "LOGANALYTICS_CLIENT_ID": "your-client-id",
+        "LOGANALYTICS_CLIENT_SECRET": "your-client-secret",
+        "LOGANALYTICS_TENANT_ID": "your-tenant-id"
+      }
+    }
+  }
+}
+```
+
+#### Test Your Setup
+
+After configuring, test the connection by listing available workspaces:
+
+```javascript
+// Ask Claude: "What Log Analytics workspaces are available?"
+// Or use the workspace summary prompt:
+await mcpClient.invoke("loganalytics-workspace-summary", {
+  workspaceId: "your-workspace-id",
+  timespan: "PT1H"
+});
+```
+
+**Need credentials?** See the [Detailed Setup](#detailed-setup) section below for Azure AD service principal creation and role assignment instructions.
+
+---
+
+## 🎯 Key Features for Consultants
+
+### Automated Workflows (Prompts)
+
+This package includes **5 pre-built prompts** that generate formatted, human-readable reports from Log Analytics data. These prompts are designed for consultants and first responders who need quick insights without writing KQL queries.
+
+#### Azure Functions & App Services Analysis Prompts
+
+1. 🔥 **`loganalytics-function-troubleshooting`** - **MOST VALUABLE** - Analyzes Azure Function executions, failures, and performance with comprehensive error analysis and recommendations
+   - Example: `"Troubleshoot the ProcessOrders function"`
+   - Includes: Execution summary, error patterns, failure analysis, performance metrics, actionable recommendations
+
+2. **`loganalytics-workspace-summary`** - Comprehensive workspace health summary with function statistics and top errors
+   - Example: `"Generate a health summary for the production workspace"`
+   - Includes: Workspace overview, function execution stats, error frequency analysis
+
+3. **`loganalytics-function-performance-report`** - Performance analysis with execution duration trends and optimization recommendations
+   - Example: `"Analyze performance of all functions in the last 6 hours"`
+   - Includes: Execution statistics, duration analysis, success rates, optimization tips
+
+4. **`loganalytics-security-analysis`** - Security analysis report with authentication events and suspicious activity detection
+   - Example: `"Check for security issues in the last 24 hours"`
+   - Includes: Authentication failures, suspicious patterns, security recommendations
+
+5. **`loganalytics-logs-report`** - Formatted logs report for any table with insights and patterns
+   - Example: `"Show me recent events from FunctionAppLogs"`
+   - Includes: Log entries, pattern analysis, severity distribution
+
+### Log Query Tools
+
+Beyond prompts, this package provides **9 specialized tools** for querying log data:
+
+- **`loganalytics-list-workspaces`** - List all configured Log Analytics workspaces
+- **`loganalytics-get-metadata`** - Get schema metadata (tables and columns)
+- **`loganalytics-execute-query`** - Execute custom KQL queries
+- **`loganalytics-get-function-logs`** - Get logs for specific Azure Functions with severity filtering
+- **`loganalytics-get-function-errors`** - Get error logs with exception details
+- **`loganalytics-get-function-stats`** - Get execution statistics with success/failure rates
+- **`loganalytics-get-function-invocations`** - Get function invocation history
+- **`loganalytics-get-recent-events`** - Get recent events from any table
+- **`loganalytics-search-logs`** - Search logs across tables or within specific tables
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Setup](#setup)
+   - [What is Azure Log Analytics?](#what-is-azure-log-analytics)
+   - [Why Use This Integration?](#why-use-this-integration)
+   - [Key Features](#key-features)
+2. [Detailed Setup](#detailed-setup)
+   - [Prerequisites](#prerequisites)
+   - [Authentication Methods](#authentication-methods)
+   - [Entra ID (OAuth 2.0) Setup](#entra-id-oauth-20-setup)
+   - [Environment Variables](#environment-variables)
 3. [Tools](#tools)
+   - [loganalytics-list-workspaces](#loganalytics-list-workspaces)
+   - [loganalytics-get-metadata](#loganalytics-get-metadata)
+   - [loganalytics-execute-query](#loganalytics-execute-query)
+   - [loganalytics-get-function-logs](#loganalytics-get-function-logs)
+   - [loganalytics-get-function-errors](#loganalytics-get-function-errors)
+   - [loganalytics-get-function-stats](#loganalytics-get-function-stats)
+   - [loganalytics-get-function-invocations](#loganalytics-get-function-invocations)
+   - [loganalytics-get-recent-events](#loganalytics-get-recent-events)
+   - [loganalytics-search-logs](#loganalytics-search-logs)
 4. [Prompts](#prompts)
+   - [loganalytics-workspace-summary](#loganalytics-workspace-summary)
+   - [loganalytics-function-troubleshooting](#loganalytics-function-troubleshooting)
+   - [loganalytics-function-performance-report](#loganalytics-function-performance-report)
+   - [loganalytics-security-analysis](#loganalytics-security-analysis)
+   - [loganalytics-logs-report](#loganalytics-logs-report)
 5. [Usage Examples](#usage-examples)
+   - [Example 1: Investigating Azure Function Failures](#example-1-investigating-azure-function-failures)
+   - [Example 2: Performance Analysis](#example-2-performance-analysis)
+   - [Example 3: Security Audit](#example-3-security-audit)
+   - [Example 4: Cross-Table Log Correlation](#example-4-cross-table-log-correlation)
+   - [Example 5: Custom KQL Queries](#example-5-custom-kql-queries)
 6. [Best Practices](#best-practices)
+   - [Security](#security)
+   - [Performance](#performance)
+   - [Multi-Workspace Management](#multi-workspace-management)
 7. [Troubleshooting](#troubleshooting)
+   - [Common Errors](#common-errors)
+   - [Query Errors](#query-errors)
+   - [Rate Limiting](#rate-limiting)
 
 ---
 
@@ -29,6 +173,18 @@ Azure Log Analytics is a log aggregation and analysis service that provides:
 - **Security monitoring** and compliance auditing
 
 **Primary Use Case**: Troubleshoot Azure Functions and App Services using powerful KQL queries against centralized logs.
+
+### Why Use This Integration?
+
+The Log Analytics integration enables AI assistants to:
+1. **Troubleshoot Azure Functions**: Query function logs, errors, and execution statistics
+2. **Analyze Performance**: Identify slow functions and execution patterns
+3. **Monitor Security**: Track authentication failures and suspicious activity
+4. **Generate Incident Reports**: Auto-generate comprehensive troubleshooting guides
+5. **Cross-Service Correlation**: Correlate logs across multiple tables and resources
+6. **Custom Analysis**: Execute KQL queries for advanced investigations
+
+**Primary Use Case**: Rapid troubleshooting of Azure Function failures and performance issues by analyzing execution logs and error patterns.
 
 ### Key Features
 
@@ -63,7 +219,7 @@ Azure Log Analytics is a log aggregation and analysis service that provides:
 
 ---
 
-## Setup
+## Detailed Setup
 
 ### Prerequisites
 

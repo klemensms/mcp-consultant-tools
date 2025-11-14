@@ -1,6 +1,119 @@
 # Azure Application Insights Integration Documentation
 
+**📦 Package:** `@mcp-consultant-tools/application-insights`
+**🔒 Security:** Production-safe (read-only access to telemetry data)
+
 Complete guide to using the Azure Application Insights integration with MCP Consultant Tools.
+
+---
+
+## ⚡ Quick Start
+
+### MCP Client Configuration
+
+Get started quickly with this minimal configuration. Just replace the placeholder values with your actual credentials:
+
+#### For VS Code
+
+Add this to your VS Code `settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "application-insights": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/application-insights", "mcp-appins"],
+      "env": {
+        "APPLICATIONINSIGHTS_APP_ID": "your-app-id",
+        "APPLICATIONINSIGHTS_CLIENT_ID": "your-client-id",
+        "APPLICATIONINSIGHTS_CLIENT_SECRET": "your-client-secret",
+        "APPLICATIONINSIGHTS_TENANT_ID": "your-tenant-id"
+      }
+    }
+  }
+}
+```
+
+#### For Claude Desktop
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "application-insights": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/application-insights", "mcp-appins"],
+      "env": {
+        "APPLICATIONINSIGHTS_APP_ID": "your-app-id",
+        "APPLICATIONINSIGHTS_CLIENT_ID": "your-client-id",
+        "APPLICATIONINSIGHTS_CLIENT_SECRET": "your-client-secret",
+        "APPLICATIONINSIGHTS_TENANT_ID": "your-tenant-id"
+      }
+    }
+  }
+}
+```
+
+#### Test Your Setup
+
+After configuring, test the connection by listing available resources:
+
+```javascript
+// Ask Claude: "What Application Insights resources are available?"
+// Or use the troubleshooting-guide prompt:
+await mcpClient.invoke("appinsights-troubleshooting-guide", {
+  resourceId: "your-resource-id",
+  timespan: "PT1H"
+});
+```
+
+**Need credentials?** See the [Detailed Setup](#detailed-setup) section below for Azure AD service principal creation and API key setup instructions.
+
+---
+
+## 🎯 Key Features for Consultants
+
+### Automated Workflows (Prompts)
+
+This package includes **5 pre-built prompts** that generate formatted, human-readable reports from Application Insights telemetry. These prompts are designed for consultants and first responders who need quick insights without writing KQL queries.
+
+#### Production Incident Response Prompts
+
+1. 🔥 **`appinsights-troubleshooting-guide`** - **MOST VALUABLE** - Generates comprehensive incident report with exceptions, slow requests, and dependency failures. First-responder guide for production incidents.
+   - Example: `"Generate a complete troubleshooting guide for the production API"`
+   - Includes: Health status overview, top exceptions, slowest requests, failed dependencies, KQL queries, mitigation steps
+
+2. **`appinsights-exception-summary`** - Comprehensive exception summary report with insights and recommendations
+   - Example: `"Check for exceptions in the production API in the last hour"`
+   - Includes: Exception frequency analysis, affected operations, recommendations
+
+3. **`appinsights-performance-report`** - Performance analysis with bottleneck identification and optimization recommendations
+   - Example: `"What are the slowest API endpoints in the last 6 hours?"`
+   - Includes: Operation performance summary, slowest requests, P95/P99 percentiles
+
+4. **`appinsights-dependency-health`** - External service health monitoring with success rates
+   - Example: `"Are there any issues with our payment gateway integration?"`
+   - Includes: Failed dependencies, success rates by target, reliability tracking
+
+5. **`appinsights-availability-report`** - Uptime and SLA compliance monitoring
+   - Example: `"What's our uptime in the last 24 hours?"`
+   - Includes: Availability test results, success rates, geographic analysis
+
+### Telemetry Query Tools
+
+Beyond prompts, this package provides **10 specialized tools** for querying telemetry data:
+
+- **`appinsights-list-resources`** - List all configured Application Insights resources
+- **`appinsights-get-metadata`** - Get schema metadata (tables and columns)
+- **`appinsights-execute-query`** - Execute custom KQL queries
+- **`appinsights-get-exceptions`** - Get recent exceptions with timestamps and messages
+- **`appinsights-get-slow-requests`** - Get slow HTTP requests (above duration threshold)
+- **`appinsights-get-operation-performance`** - Get performance summary by operation
+- **`appinsights-get-failed-dependencies`** - Get failed dependency calls
+- **`appinsights-get-traces`** - Get diagnostic traces/logs by severity level
+- **`appinsights-get-availability`** - Get availability test results and uptime statistics
+- **`appinsights-get-custom-events`** - Get custom application events
 
 ---
 
@@ -10,7 +123,7 @@ Complete guide to using the Azure Application Insights integration with MCP Cons
    - [What is Azure Application Insights?](#what-is-azure-application-insights)
    - [Why Use This Integration?](#why-use-this-integration)
    - [Key Features](#key-features)
-2. [Setup](#setup)
+2. [Detailed Setup](#detailed-setup)
    - [Prerequisites](#prerequisites)
    - [Authentication Methods](#authentication-methods)
    - [Entra ID (OAuth 2.0) Authentication](#entra-id-oauth-20-authentication)
@@ -129,7 +242,7 @@ The Application Insights integration enables AI assistants to:
 
 ---
 
-## Setup
+## Detailed Setup
 
 ### Prerequisites
 

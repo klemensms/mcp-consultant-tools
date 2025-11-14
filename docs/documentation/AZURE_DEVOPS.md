@@ -1,6 +1,120 @@
 # Azure DevOps Integration
 
+**📦 Package:** `@mcp-consultant-tools/azure-devops`
+**🔒 Security:** Production-safe (read-only by default, write operations require explicit enablement)
+
 Complete documentation for the Azure DevOps integration in `mcp-consultant-tools`.
+
+---
+
+## ⚡ Quick Start
+
+### MCP Client Configuration
+
+Get started quickly with this minimal configuration. Just replace the placeholder values with your actual credentials:
+
+#### For VS Code
+
+Add this to your VS Code `settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "azure-devops": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/azure-devops", "mcp-ado"],
+      "env": {
+        "AZUREDEVOPS_ORGANIZATION": "your-org",
+        "AZUREDEVOPS_PAT": "your-personal-access-token",
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2"
+      }
+    }
+  }
+}
+```
+
+#### For Claude Desktop
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "azure-devops": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/azure-devops", "mcp-ado"],
+      "env": {
+        "AZUREDEVOPS_ORGANIZATION": "your-org",
+        "AZUREDEVOPS_PAT": "your-personal-access-token",
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2"
+      }
+    }
+  }
+}
+```
+
+#### Test Your Setup
+
+After configuring, test the connection by searching wiki pages:
+
+```javascript
+// Ask Claude: "Search for authentication in the MyProject wiki"
+// Or use the wiki search prompt:
+await mcpClient.invoke("azuredevops-wiki-search-summary", {
+  searchText: "authentication",
+  project: "MyProject"
+});
+```
+
+**Need credentials?** See the [Creating a Personal Access Token (PAT)](#creating-a-personal-access-token-pat) section below for step-by-step instructions.
+
+---
+
+## 🎯 Key Features for Consultants
+
+### Automated Workflows (Prompts)
+
+This package includes **6 pre-built prompts** that generate formatted, human-readable reports from Azure DevOps wikis and work items. These prompts are designed for consultants who need quick insights without navigating the web UI.
+
+#### Wiki Documentation Prompts
+
+1. 🔥 **`azuredevops-wiki-search-summary`** - **MOST VALUABLE** - Full-text search across wiki pages with content highlights and navigation links
+   - Example: `"Search for authentication in the MyProject wiki"`
+   - Includes: Search summary, results with paths, content highlights, direct links
+   - **Use Case:** Fastest way to find documentation without opening Azure DevOps
+
+2. 🔥 **`azuredevops-wiki-page-content`** - **MOST VALUABLE** - Get formatted wiki page with navigation context and sub-pages
+   - Example: `"Show me the Architecture/API Design page"`
+   - Includes: Page metadata, sub-pages list, full content, navigation context
+   - **Use Case:** Read documentation with context about page location and children
+
+3. **`azuredevops-wiki-bulk-update-summary`** - Bulk update multiple wiki pages with search/replace
+   - Example: `"Update 'Last Verified' date across all DEV/UAT/PROD pages"`
+   - Includes: Update preview, affected pages, changes summary
+   - **Use Case:** Maintain consistency across environment-specific documentation
+
+**Why wiki search prompts are most valuable:**
+- Find documentation 10x faster than web UI navigation
+- Search across all projects and wikis simultaneously
+- Content highlights show exact matches in context
+- Direct links to pages in Azure DevOps
+- Perfect for knowledge discovery and documentation research
+
+#### Work Item Analysis Prompts
+
+4. **`azuredevops-work-item-summary`** - Comprehensive summary of a work item with details and comments
+   - Example: `"Show me details for work item #12345"`
+   - Includes: Work item header, field details, description, comments thread, related items
+
+5. **`azuredevops-work-items-query-report`** - Execute WIQL query and get results grouped by state/type
+   - Example: `"Show me all active bugs assigned to me"`
+   - Includes: Query summary, results grouped by state, work item details, counts
+
+6. **`azuredevops-wiql-query-builder`** - Interactive WIQL query builder with examples
+   - Example: `"Help me build a query for high priority tasks in current iteration"`
+   - Includes: Query templates, filter examples, common patterns
+
+---
 
 ## Table of Contents
 
@@ -9,7 +123,7 @@ Complete documentation for the Azure DevOps integration in `mcp-consultant-tools
    - [Why Use This Integration?](#why-use-this-integration)
    - [Key Features](#key-features)
 
-2. [Setup](#setup)
+2. [Detailed Setup](#detailed-setup)
    - [Prerequisites](#prerequisites)
    - [Creating a Personal Access Token (PAT)](#creating-a-personal-access-token-pat)
    - [Environment Variables](#environment-variables)
@@ -19,9 +133,9 @@ Complete documentation for the Azure DevOps integration in `mcp-consultant-tools
    - [Wiki Tools (6)](#wiki-tools)
    - [Work Item Tools (7)](#work-item-tools)
 
-4. [Prompts (4 Total)](#prompts-4-total)
-   - [Wiki Prompts (2)](#wiki-prompts)
-   - [Work Item Prompts (2)](#work-item-prompts)
+4. [Prompts (6 Total)](#prompts-6-total)
+   - [Wiki Prompts (3)](#wiki-prompts)
+   - [Work Item Prompts (3)](#work-item-prompts)
 
 5. [Usage Examples](#usage-examples)
    - [Wiki Documentation Search](#wiki-documentation-search)
@@ -77,7 +191,7 @@ This integration provides programmatic access to Azure DevOps Wikis and Work Ite
 
 ---
 
-## Setup
+## Detailed Setup
 
 ### Prerequisites
 
@@ -870,11 +984,11 @@ await mcpClient.invoke("delete-work-item", {
 
 ---
 
-## Prompts (4 Total)
+## Prompts (6 Total)
 
 ### Wiki Prompts
 
-#### wiki-search-results
+#### azuredevops-wiki-search-summary
 
 Search Azure DevOps wiki pages with formatted results and content snippets.
 
@@ -897,7 +1011,7 @@ Search Azure DevOps wiki pages with formatted results and content snippets.
 
 ---
 
-#### wiki-page-content
+#### azuredevops-wiki-page-content
 
 Get a formatted wiki page with navigation context and sub-pages.
 
@@ -920,9 +1034,34 @@ Get a formatted wiki page with navigation context and sub-pages.
 
 ---
 
+#### azuredevops-wiki-bulk-update-summary
+
+Bulk update multiple wiki pages with search/replace operations.
+
+**Parameters:**
+- `project` (string, required): Project name
+- `wikiId` (string, required): Wiki identifier
+- `pages` (array, required): Array of page paths to update
+- `old_str` (string, required): String to replace
+- `new_str` (string, required): Replacement string
+
+**Returns:**
+- Formatted markdown with:
+  - Update summary
+  - List of affected pages
+  - Changes preview
+  - Success/failure status
+
+**Use Cases:**
+- Update dates across multiple documentation pages
+- Maintain consistency in environment-specific docs
+- Bulk version updates
+
+---
+
 ### Work Item Prompts
 
-#### work-item-summary
+#### azuredevops-work-item-summary
 
 Comprehensive summary of a work item with details and comments.
 
@@ -945,7 +1084,7 @@ Comprehensive summary of a work item with details and comments.
 
 ---
 
-#### work-items-query-report
+#### azuredevops-work-items-query-report
 
 Execute a WIQL query and get results grouped by state/type.
 
@@ -964,6 +1103,28 @@ Execute a WIQL query and get results grouped by state/type.
 - Sprint planning reports
 - Bug triage summaries
 - Team workload overview
+
+---
+
+#### azuredevops-wiql-query-builder
+
+Interactive WIQL query builder with examples and templates.
+
+**Parameters:**
+- `queryType` (string, required): Type of query (e.g., "my-active-items", "bugs-by-severity", "custom")
+- `filters` (object, optional): Additional filters (state, type, assigned to, etc.)
+
+**Returns:**
+- Formatted markdown with:
+  - Generated WIQL query
+  - Query explanation
+  - Common filter examples
+  - Query templates for various scenarios
+
+**Use Cases:**
+- Learn WIQL syntax
+- Build complex queries interactively
+- Query template generation
 
 ---
 
@@ -999,7 +1160,7 @@ console.log(`\n## ${page.path}\n`);
 console.log(page.content);
 
 // 3. Or use formatted prompt for better readability
-const formattedPage = await mcpClient.invoke("wiki-page-content", {
+const formattedPage = await mcpClient.invoke("azuredevops-wiki-page-content", {
   project: "MyProject",
   wikiId: searchResults.results[0].wiki.id,
   pagePath: searchResults.results[0].path
@@ -1029,7 +1190,7 @@ console.log(`Found ${bugs.workItems.length} bugs`);
 const bugId = bugs.workItems[0].id;
 
 // 2. Get bug details with comments
-const bugSummary = await mcpClient.invoke("work-item-summary", {
+const bugSummary = await mcpClient.invoke("azuredevops-work-item-summary", {
   project: "MyProject",
   workItemId: bugId
 });
