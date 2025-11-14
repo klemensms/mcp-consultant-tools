@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/powerplatform-customization",
-  "version": "20.0.0-beta.3",
+  "version": "20.0.0",
   "description": "MCP server for PowerPlatform schema/metadata customizations (dev/config environments)",
   "type": "module",
   "main": "./build/index.js",
