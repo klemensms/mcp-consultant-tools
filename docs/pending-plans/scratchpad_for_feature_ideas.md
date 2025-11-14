@@ -1,3 +1,12 @@
+review all previous release branches to make sure there are no secrets in there anywhere
+
+
+---
+
+lets review the documente dpublishingporecess-  hwo we iterate over the betas and then how we publish once done.
+
+
+---
 
 
 help me change the sound for when claude stops vs when it uses a tool
