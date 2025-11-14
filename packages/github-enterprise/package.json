@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/github-enterprise",
-  "version": "20.0.0-beta.2",
+  "version": "20.0.0-beta.3",
   "description": "MCP server for GitHub Enterprise - repositories, commits, pull requests, and code search",
   "type": "module",
   "main": "./build/index.js",
