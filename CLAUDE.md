@@ -652,12 +652,45 @@ At this point, Claude Code must STOP and handover to the user for manual testing
 5. **If validation succeeds:** User confirms → finalize release notes → proceed to production
 
 **5. Iterate on Beta (if issues found)**
+
+**Default Approach: Selective Package Publishing (Faster)**
+
+When iterating on beta releases, publish ONLY the affected packages to speed up the feedback loop:
+
 ```bash
-# Fix issues, then:
-npm version prerelease --preid=beta  # beta.1 → beta.2
+# Option A: Publish only affected package (RECOMMENDED for beta iterations)
+# Example: Fix found in powerplatform package only
+cd packages/powerplatform
+# Edit package.json manually: version "20.0.0-beta.2" → "20.0.0-beta.3"
+npm run build
 npm publish --tag beta
+
+# Or from workspace root:
+npm publish --tag beta --workspace @mcp-consultant-tools/powerplatform
+
 # Update release notes: add fixes, update version in filename
 ```
+
+**Why selective publishing during beta:**
+- ✅ **Much faster** (1 package vs 13 packages = 30 seconds vs 5 minutes)
+- ✅ **Rapid iteration** for quick bug fixes
+- ✅ **Users can test immediately** with `@mcp-consultant-tools/package@beta`
+- ⚠️ **Trade-off:** Version misalignment (some packages at beta.2, others at beta.3)
+- ✅ **Fixed before production:** All versions aligned when promoting to `latest`
+
+**Alternative: Publish all packages (use for major changes)**
+
+```bash
+# Option B: Publish all packages (slower, maintains version alignment)
+npm version prerelease --preid=beta --workspaces --no-git-tag-version  # beta.1 → beta.2
+git add packages/*/package.json
+git commit -m "chore: bump version to X.Y.Z-beta.2"
+./scripts/publish-all.sh --skip-build --tag beta
+```
+
+**When to use each approach:**
+- **Selective (Option A):** Small fixes, single package changes, rapid iteration (DEFAULT for beta)
+- **All packages (Option B):** Major changes, breaking changes, final beta before production
 
 **6. Finalize Release Notes (after validation)**
 ```bash
