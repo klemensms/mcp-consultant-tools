@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/log-analytics",
-  "version": "20.0.0-beta.1",
+  "version": "20.0.0-beta.2",
   "description": "MCP server for Azure Log Analytics - workspace queries and Azure Functions monitoring",
   "type": "module",
   "main": "./build/index.js",
