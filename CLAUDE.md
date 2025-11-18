@@ -65,24 +65,24 @@ mcp-consultant-tools/
 
 **NEW in v16.0.0:** The PowerPlatform integration is split into **3 security-isolated packages** following the principle of least privilege:
 
-| Package | Purpose | Tools | Prompts | Environment Flags | Production-Safe? |
-|---------|---------|-------|---------|-------------------|------------------|
-| **powerplatform** | Read-only access | 38 | 10 | None required | ✅ **YES** - Safe for production |
-| **powerplatform-customization** | Schema changes | 40 | 2 | `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` | ⚠️ **NO** - Dev/config only |
-| **powerplatform-data** | Data CRUD operations | 3 | 0 | `POWERPLATFORM_ENABLE_CREATE/UPDATE/DELETE=true` | ⚠️ **NO** - Operational use |
+| Package | Purpose | Tools | Prompts | Production-Safe? |
+|---------|---------|-------|---------|------------------|
+| **powerplatform** | Read-only access | 38 | 10 | ✅ **YES** - Install in production |
+| **powerplatform-customization** | Schema changes | 40 | 2 | ⚠️ **NO** - Dev/config only |
+| **powerplatform-data** | Data CRUD operations | 3 | 0 | ⚠️ **NO** - Operational use |
 
 **Rationale:**
 
 The split isolates dangerous operations into separate packages, allowing users to:
 1. **Production environments**: Install only `powerplatform` (read-only) for zero risk
 2. **Development environments**: Add `powerplatform-customization` for schema changes
-3. **Operational environments**: Add `powerplatform-data` for data management with explicit flags
+3. **Operational environments**: Add `powerplatform-data` for data management
 
 **Key Benefits:**
 - **Security**: Read-only package cannot modify system or data
 - **Compliance**: Clear separation enables audit trails per capability
 - **Flexibility**: Install only what you need
-- **Safety**: Environment flags prevent accidental operations
+- **Safety**: Package selection prevents accidental operations
 
 **Usage Patterns:**
 
@@ -95,13 +95,13 @@ registerPowerPlatformTools(server); // 38 read-only tools
 import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';
 import { registerPowerplatformCustomizationTools } from '@mcp-consultant-tools/powerplatform-customization';
 registerPowerPlatformTools(server);
-registerPowerplatformCustomizationTools(server); // Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true
+registerPowerplatformCustomizationTools(server); // No flags needed - package installation = explicit intent
 
 // Pattern 3: Operational (read + data CRUD)
 import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';
 import { registerPowerplatformDataTools } from '@mcp-consultant-tools/powerplatform-data';
 registerPowerPlatformTools(server);
-registerPowerplatformDataTools(server); // Requires POWERPLATFORM_ENABLE_CREATE/UPDATE/DELETE=true
+registerPowerplatformDataTools(server); // No flags needed - package installation = explicit intent
 
 // Pattern 4: Complete access (all 3 packages)
 import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';
@@ -111,6 +111,15 @@ registerPowerPlatformTools(server);
 registerPowerplatformCustomizationTools(server);
 registerPowerplatformDataTools(server);
 ```
+
+**Security Model (v21+):**
+
+Starting in v21.0.0, security is enforced solely through package selection:
+1. **Production environments**: Install only `powerplatform` (read-only) for zero risk
+2. **Development environments**: Add `powerplatform-customization` for schema changes
+3. **Operational environments**: Add `powerplatform-data` for data CRUD
+
+**No environment flags required.** Installing a package grants immediate access to its operations.
 
 ### Core Package (@mcp-consultant-tools/core)
 

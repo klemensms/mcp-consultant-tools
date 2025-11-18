@@ -39,14 +39,14 @@ export function registerAllTools(server: any) {
   // Register all service tools
   registerPowerPlatformTools(server);
 
-  // PowerPlatform Customization (optional - requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true)
+  // PowerPlatform Customization (optional - install @mcp-consultant-tools/powerplatform-customization separately if needed)
   try {
     registerPowerplatformCustomizationTools(server);
   } catch (error) {
     console.error("⚠️  PowerPlatform Customization skipped:", (error as Error).message);
   }
 
-  // PowerPlatform Data (optional - requires POWERPLATFORM_ENABLE_CREATE/UPDATE/DELETE=true)
+  // PowerPlatform Data (optional - install @mcp-consultant-tools/powerplatform-data separately if needed)
   try {
     registerPowerplatformDataTools(server);
   } catch (error) {

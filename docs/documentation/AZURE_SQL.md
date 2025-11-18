@@ -24,7 +24,10 @@ Add this to your VS Code `settings.json`:
       "command": "npx",
       "args": ["-y", "@mcp-consultant-tools/azure-sql"],
       "env": {
-        "AZURESQL_CONNECTION_STRING": "Server=your-server.database.windows.net;Database=your-db;User Id=your-user;Password=your-password;Encrypt=true;"
+        "AZURE_SQL_SERVER": "your-server.database.windows.net",
+        "AZURE_SQL_DATABASE": "your-database-name",
+        "AZURE_SQL_USERNAME": "your-username",
+        "AZURE_SQL_PASSWORD": "your-password"
       }
     }
   }
@@ -42,7 +45,10 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "@mcp-consultant-tools/azure-sql"],
       "env": {
-        "AZURESQL_CONNECTION_STRING": "Server=your-server.database.windows.net;Database=your-db;User Id=your-user;Password=your-password;Encrypt=true;"
+        "AZURE_SQL_SERVER": "your-server.database.windows.net",
+        "AZURE_SQL_DATABASE": "your-database-name",
+        "AZURE_SQL_USERNAME": "your-username",
+        "AZURE_SQL_PASSWORD": "your-password"
       }
     }
   }

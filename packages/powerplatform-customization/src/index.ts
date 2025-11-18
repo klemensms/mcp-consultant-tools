@@ -15,23 +15,7 @@ const POWERPLATFORM_DEFAULT_SOLUTION = process.env.POWERPLATFORM_DEFAULT_SOLUTIO
  */
 export function registerPowerplatformCustomizationTools(server: any, service?: PowerPlatformService) {
 
-  // Check if customization is enabled
-  const customizationEnabled = process.env.POWERPLATFORM_ENABLE_CUSTOMIZATION === 'true';
-  if (!customizationEnabled) {
-    throw new Error(
-      'powerplatform-customization tools are disabled. Set POWERPLATFORM_ENABLE_CUSTOMIZATION=true to enable.'
-    );
-  }
-
   let ppService: PowerPlatformService | null = service || null;
-
-
-  // Check if customization is enabled
-  function checkCustomizationEnabled() {
-    if (process.env.POWERPLATFORM_ENABLE_CUSTOMIZATION !== 'true') {
-      throw new Error('Customization operations are disabled. Set POWERPLATFORM_ENABLE_CUSTOMIZATION=true to enable.');
-    }
-  }
 
   function getPowerPlatformService(): PowerPlatformService {
     if (!ppService) {
@@ -171,7 +155,7 @@ server.tool(
 
 server.tool(
   "create-entity",
-  "Create a new custom entity (table) in Dynamics 365 / PowerPlatform. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Create a new custom entity (table) in Dynamics 365 / PowerPlatform.",
   {
     schemaName: z.string().describe("The schema name of the entity (e.g., 'sic_application')"),
     displayName: z.string().describe("The display name of the entity (e.g., 'Application')"),
@@ -188,7 +172,6 @@ server.tool(
   },
   async (params: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       // Construct entity definition
@@ -300,7 +283,7 @@ server.tool(
 
 server.tool(
   "update-entity",
-  "Update an existing custom entity. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Update an existing custom entity.",
   {
     metadataId: z.string().describe("The MetadataId of the entity (GUID)"),
     displayName: z.string().optional().describe("New display name"),
@@ -312,7 +295,6 @@ server.tool(
   },
   async (params: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const updates: any = {};
@@ -355,7 +337,7 @@ server.tool(
 
 server.tool(
   "update-entity-icon",
-  "Update entity icon using Fluent UI System Icons from Microsoft's official icon library. Creates a web resource and sets it as the entity icon. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Update entity icon using Fluent UI System Icons from Microsoft's official icon library. Creates a web resource and sets it as the entity icon.",
   {
     entityLogicalName: z.string().describe("The logical name of the entity (e.g., 'sic_strikeaction')"),
     iconFileName: z.string().describe("Fluent UI icon file name (e.g., 'people_community_24_filled.svg'). Browse icons at: https://github.com/microsoft/fluentui-system-icons"),
@@ -363,7 +345,6 @@ server.tool(
   },
   async (params: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const result = await service.updateEntityIcon(
@@ -402,13 +383,12 @@ server.tool(
 
 server.tool(
   "delete-entity",
-  "Delete a custom entity. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Delete a custom entity.",
   {
     metadataId: z.string().describe("The MetadataId of the entity to delete (GUID)")
   },
   async ({ metadataId }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       await service.deleteEntity(metadataId);
@@ -425,7 +405,7 @@ server.tool(
 
 server.tool(
   "create-attribute",
-  "Create a new attribute (column) on a Dynamics 365 entity. Supports most attribute types. CRITICAL LIMITATIONS: (1) Local option sets are NOT SUPPORTED - all Picklist/MultiSelectPicklist attributes MUST use global option sets. Provide 'optionSetOptions' to auto-create a new global option set, or 'globalOptionSetName' to reference existing. (2) Customer-type attributes (polymorphic lookups) CANNOT be created via SDK - use a standard Lookup to Account or Contact instead, or create manually via Power Apps maker portal. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Create a new attribute (column) on a Dynamics 365 entity. Supports most attribute types. CRITICAL LIMITATIONS: (1) Local option sets are NOT SUPPORTED - all Picklist/MultiSelectPicklist attributes MUST use global option sets. Provide 'optionSetOptions' to auto-create a new global option set, or 'globalOptionSetName' to reference existing. (2) Customer-type attributes (polymorphic lookups) CANNOT be created via SDK - use a standard Lookup to Account or Contact instead, or create manually via Power Apps maker portal.",
   {
     entityLogicalName: z.string().describe("The logical name of the entity"),
     attributeType: z.enum([
@@ -468,7 +448,6 @@ server.tool(
   },
   async (params: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       // Validate Customer attribute type early with helpful error
@@ -933,7 +912,7 @@ server.tool(
 
 server.tool(
   "update-attribute",
-  "Update an existing attribute on an entity. Supports converting String attributes to AutoNumber by setting autoNumberFormat. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Update an existing attribute on an entity. Supports converting String attributes to AutoNumber by setting autoNumberFormat.",
   {
     entityLogicalName: z.string().describe("Entity logical name"),
     attributeLogicalName: z.string().describe("Attribute logical name"),
@@ -951,7 +930,6 @@ server.tool(
   },
   async (params: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const updates: any = {};
@@ -1021,14 +999,13 @@ server.tool(
 
 server.tool(
   "delete-attribute",
-  "Delete an attribute from an entity. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Delete an attribute from an entity.",
   {
     entityLogicalName: z.string().describe("Entity logical name"),
     attributeMetadataId: z.string().describe("Attribute MetadataId (GUID)")
   },
   async ({ entityLogicalName, attributeMetadataId }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       await service.deleteAttribute(entityLogicalName, attributeMetadataId);
@@ -1045,7 +1022,7 @@ server.tool(
 
 server.tool(
   "create-one-to-many-relationship",
-  "Create a one-to-many relationship between two entities. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Create a one-to-many relationship between two entities.",
   {
     referencedEntity: z.string().describe("The 'one' side entity (parent)"),
     referencingEntity: z.string().describe("The 'many' side entity (child)"),
@@ -1056,7 +1033,6 @@ server.tool(
   },
   async (params: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const relationshipDefinition = {
@@ -1089,7 +1065,7 @@ server.tool(
 
 server.tool(
   "create-many-to-many-relationship",
-  "Create a many-to-many relationship between two entities. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Create a many-to-many relationship between two entities.",
   {
     entity1: z.string().describe("First entity logical name"),
     entity2: z.string().describe("Second entity logical name"),
@@ -1099,7 +1075,6 @@ server.tool(
   },
   async (params: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const relationshipDefinition = {
@@ -1125,13 +1100,12 @@ server.tool(
 
 server.tool(
   "delete-relationship",
-  "Delete a relationship. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Delete a relationship.",
   {
     metadataId: z.string().describe("Relationship MetadataId (GUID)")
   },
   async ({ metadataId }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       await service.deleteRelationship(metadataId);
@@ -1148,7 +1122,7 @@ server.tool(
 
 server.tool(
   "update-relationship",
-  "Update relationship labels. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Update relationship labels.",
   {
     metadataId: z.string().describe("Relationship MetadataId (GUID)"),
     referencedEntityNavigationPropertyName: z.string().optional().describe("Navigation property name"),
@@ -1156,7 +1130,6 @@ server.tool(
   },
   async (params: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const updates: any = {};
@@ -1177,7 +1150,7 @@ server.tool(
 
 server.tool(
   "create-global-optionset-attribute",
-  "Create a picklist attribute using an existing global option set. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Create a picklist attribute using an existing global option set.",
   {
     entityLogicalName: z.string().describe("Entity logical name"),
     schemaName: z.string().describe("Attribute schema name"),
@@ -1189,7 +1162,6 @@ server.tool(
   },
   async (params: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       // Look up the global option set to get its MetadataId
@@ -1226,11 +1198,10 @@ server.tool(
 
 server.tool(
   "publish-customizations",
-  "Publish all pending customizations in Dynamics 365. This makes all unpublished changes active. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Publish all pending customizations in Dynamics 365. This makes all unpublished changes active.",
   {},
   async () => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       await service.publishAllCustomizations();
@@ -1260,7 +1231,7 @@ server.tool(
 
 server.tool(
   "update-global-optionset",
-  "Update a global option set in Dynamics 365. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Update a global option set in Dynamics 365.",
   {
     metadataId: z.string().describe("The MetadataId of the option set"),
     displayName: z.string().optional().describe("New display name"),
@@ -1269,7 +1240,6 @@ server.tool(
   },
   async ({ metadataId, displayName, description, solutionUniqueName }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const updates: any = { '@odata.type': 'Microsoft.Dynamics.CRM.OptionSetMetadata' };
@@ -1310,7 +1280,7 @@ server.tool(
 
 server.tool(
   "add-optionset-value",
-  "Add a new value to a global option set in Dynamics 365. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Add a new value to a global option set in Dynamics 365.",
   {
     optionSetName: z.string().describe("The name of the option set"),
     value: z.number().describe("The numeric value (should start with publisher prefix, e.g., 15743xxxx)"),
@@ -1319,7 +1289,6 @@ server.tool(
   },
   async ({ optionSetName, value, label, solutionUniqueName }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const solution = solutionUniqueName || POWERPLATFORM_DEFAULT_SOLUTION;
@@ -1348,7 +1317,7 @@ server.tool(
 
 server.tool(
   "update-optionset-value",
-  "Update an existing value in a global option set. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Update an existing value in a global option set.",
   {
     optionSetName: z.string().describe("The name of the option set"),
     value: z.number().describe("The numeric value to update"),
@@ -1357,7 +1326,6 @@ server.tool(
   },
   async ({ optionSetName, value, label, solutionUniqueName }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const solution = solutionUniqueName || POWERPLATFORM_DEFAULT_SOLUTION;
@@ -1386,14 +1354,13 @@ server.tool(
 
 server.tool(
   "delete-optionset-value",
-  "Delete a value from a global option set. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Delete a value from a global option set.",
   {
     optionSetName: z.string().describe("The name of the option set"),
     value: z.number().describe("The numeric value to delete")
   },
   async ({ optionSetName, value }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       await service.deleteOptionSetValue(optionSetName, value);
@@ -1419,7 +1386,7 @@ server.tool(
 
 server.tool(
   "reorder-optionset-values",
-  "Reorder the values in a global option set. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Reorder the values in a global option set.",
   {
     optionSetName: z.string().describe("The name of the option set"),
     values: z.array(z.number()).describe("Array of values in the desired order"),
@@ -1427,7 +1394,6 @@ server.tool(
   },
   async ({ optionSetName, values, solutionUniqueName }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const solution = solutionUniqueName || POWERPLATFORM_DEFAULT_SOLUTION;
@@ -1454,7 +1420,7 @@ server.tool(
 
 server.tool(
   "create-form",
-  "Create a new form (Main, QuickCreate, QuickView, Card) for an entity. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Create a new form (Main, QuickCreate, QuickView, Card) for an entity.",
   {
     name: z.string().describe("Form name"),
     entityLogicalName: z.string().describe("Entity logical name"),
@@ -1465,7 +1431,6 @@ server.tool(
   },
   async ({ name, entityLogicalName, formType, formXml, description, solutionUniqueName }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const typeMap = { Main: 2, QuickCreate: 7, QuickView: 8, Card: 10 };
@@ -1502,7 +1467,7 @@ server.tool(
 
 server.tool(
   "update-form",
-  "Update an existing form. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Update an existing form.",
   {
     formId: z.string().describe("Form ID (GUID)"),
     name: z.string().optional().describe("New form name"),
@@ -1512,7 +1477,6 @@ server.tool(
   },
   async ({ formId, name, formXml, description, solutionUniqueName }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const updates: any = {};
@@ -1544,13 +1508,12 @@ server.tool(
 
 server.tool(
   "delete-form",
-  "Delete a form. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Delete a form.",
   {
     formId: z.string().describe("Form ID (GUID)")
   },
   async ({ formId }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       await service.deleteForm(formId);
@@ -1576,13 +1539,12 @@ server.tool(
 
 server.tool(
   "activate-form",
-  "Activate a form. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Activate a form.",
   {
     formId: z.string().describe("Form ID (GUID)")
   },
   async ({ formId }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       await service.activateForm(formId);
@@ -1608,13 +1570,12 @@ server.tool(
 
 server.tool(
   "deactivate-form",
-  "Deactivate a form. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Deactivate a form.",
   {
     formId: z.string().describe("Form ID (GUID)")
   },
   async ({ formId }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       await service.deactivateForm(formId);
@@ -1640,7 +1601,7 @@ server.tool(
 
 server.tool(
   "create-view",
-  "Create a new view for an entity using FetchXML. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Create a new view for an entity using FetchXML.",
   {
     name: z.string().describe("View name"),
     entityLogicalName: z.string().describe("Entity logical name"),
@@ -1653,7 +1614,6 @@ server.tool(
   },
   async ({ name, entityLogicalName, fetchXml, layoutXml, queryType, isDefault, description, solutionUniqueName }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const view = {
@@ -1691,7 +1651,7 @@ server.tool(
 
 server.tool(
   "update-view",
-  "Update an existing view. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Update an existing view.",
   {
     viewId: z.string().describe("View ID (GUID)"),
     name: z.string().optional().describe("New view name"),
@@ -1703,7 +1663,6 @@ server.tool(
   },
   async ({ viewId, name, fetchXml, layoutXml, isDefault, description, solutionUniqueName }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const updates: any = {};
@@ -1737,13 +1696,12 @@ server.tool(
 
 server.tool(
   "delete-view",
-  "Delete a view. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Delete a view.",
   {
     viewId: z.string().describe("View ID (GUID)")
   },
   async ({ viewId }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       await service.deleteView(viewId);
@@ -1769,13 +1727,12 @@ server.tool(
 
 server.tool(
   "set-default-view",
-  "Set a view as the default view for its entity. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Set a view as the default view for its entity.",
   {
     viewId: z.string().describe("View ID (GUID)")
   },
   async ({ viewId }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       await service.setDefaultView(viewId);
@@ -1801,7 +1758,7 @@ server.tool(
 
 server.tool(
   "create-web-resource",
-  "Create a new web resource (JavaScript, CSS, HTML, Image, etc.). Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Create a new web resource (JavaScript, CSS, HTML, Image, etc.).",
   {
     name: z.string().describe("Web resource name (must include prefix, e.g., 'prefix_/scripts/file.js')"),
     displayName: z.string().describe("Display name"),
@@ -1812,7 +1769,6 @@ server.tool(
   },
   async ({ name, displayName, webResourceType, content, description, solutionUniqueName }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const webResource = {
@@ -1848,7 +1804,7 @@ server.tool(
 
 server.tool(
   "update-web-resource",
-  "Update an existing web resource. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Update an existing web resource.",
   {
     webResourceId: z.string().describe("Web resource ID (GUID)"),
     displayName: z.string().optional().describe("Display name"),
@@ -1858,7 +1814,6 @@ server.tool(
   },
   async ({ webResourceId, displayName, content, description, solutionUniqueName }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const updates: any = {};
@@ -1890,13 +1845,12 @@ server.tool(
 
 server.tool(
   "delete-web-resource",
-  "Delete a web resource. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Delete a web resource.",
   {
     webResourceId: z.string().describe("Web resource ID (GUID)")
   },
   async ({ webResourceId }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       await service.deleteWebResource(webResourceId);
@@ -1922,7 +1876,7 @@ server.tool(
 
 server.tool(
   "create-publisher",
-  "Create a new solution publisher. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Create a new solution publisher.",
   {
     uniqueName: z.string().describe("Publisher unique name"),
     friendlyName: z.string().describe("Publisher display name"),
@@ -1932,7 +1886,6 @@ server.tool(
   },
   async ({ uniqueName, friendlyName, customizationPrefix, customizationOptionValuePrefix, description }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const publisher = {
@@ -1969,7 +1922,7 @@ server.tool(
 
 server.tool(
   "create-solution",
-  "Create a new solution. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Create a new solution.",
   {
     uniqueName: z.string().describe("Solution unique name"),
     friendlyName: z.string().describe("Solution display name"),
@@ -1979,7 +1932,6 @@ server.tool(
   },
   async ({ uniqueName, friendlyName, version, publisherId, description }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const solution = {
@@ -2015,7 +1967,7 @@ server.tool(
 
 server.tool(
   "add-solution-component",
-  "Add a component to a solution. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Add a component to a solution.",
   {
     solutionUniqueName: z.string().describe("Solution unique name"),
     componentId: z.string().describe("Component ID (GUID or MetadataId)"),
@@ -2025,7 +1977,6 @@ server.tool(
   },
   async ({ solutionUniqueName, componentId, componentType, addRequiredComponents, includedComponentSettingsValues }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       await service.addComponentToSolution(
@@ -2056,7 +2007,7 @@ server.tool(
 
 server.tool(
   "remove-solution-component",
-  "Remove a component from a solution. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Remove a component from a solution.",
   {
     solutionUniqueName: z.string().describe("Solution unique name"),
     componentId: z.string().describe("Component ID (GUID or MetadataId)"),
@@ -2064,7 +2015,6 @@ server.tool(
   },
   async ({ solutionUniqueName, componentId, componentType }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       await service.removeComponentFromSolution(solutionUniqueName, componentId, componentType);
@@ -2089,14 +2039,13 @@ server.tool(
 
 server.tool(
   "export-solution",
-  "Export a solution as a zip file. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Export a solution as a zip file.",
   {
     solutionName: z.string().describe("Solution unique name"),
     managed: z.boolean().optional().describe("Export as managed solution (default: false)")
   },
   async ({ solutionName, managed }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const result = await service.exportSolution(solutionName, managed ?? false);
@@ -2122,7 +2071,7 @@ server.tool(
 
 server.tool(
   "import-solution",
-  "Import a solution from a base64-encoded zip file. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Import a solution from a base64-encoded zip file.",
   {
     customizationFile: z.string().describe("Base64-encoded solution zip file"),
     publishWorkflows: z.boolean().optional().describe("Publish workflows after import (default: true)"),
@@ -2130,7 +2079,6 @@ server.tool(
   },
   async ({ customizationFile, publishWorkflows, overwriteUnmanagedCustomizations }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const result = await service.importSolution(
@@ -2161,13 +2109,12 @@ server.tool(
 
 server.tool(
   "publish-entity",
-  "Publish all customizations for a specific entity. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Publish all customizations for a specific entity.",
   {
     entityLogicalName: z.string().describe("Entity logical name to publish")
   },
   async ({ entityLogicalName }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       await service.publishEntity(entityLogicalName);
@@ -2197,7 +2144,7 @@ server.tool(
 
 server.tool(
   "create-plugin-assembly",
-  "Upload a compiled plugin DLL to Dynamics 365 from local file system. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Upload a compiled plugin DLL to Dynamics 365 from local file system.",
   {
     assemblyPath: z.string().describe(
       "Local file path to compiled DLL (e.g., C:\\Dev\\MyPlugin\\bin\\Release\\net462\\MyPlugin.dll)"
@@ -2210,7 +2157,6 @@ server.tool(
   },
   async ({ assemblyPath, assemblyName, version, isolationMode, description, solutionUniqueName }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       // Read DLL file from file system (Windows or WSL compatible)
@@ -2261,7 +2207,7 @@ server.tool(
 
 server.tool(
   "update-plugin-assembly",
-  "Update an existing plugin assembly with new compiled DLL. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Update an existing plugin assembly with new compiled DLL.",
   {
     assemblyId: z.string().describe("Assembly ID (GUID)"),
     assemblyPath: z.string().describe("Local file path to new compiled DLL"),
@@ -2270,7 +2216,6 @@ server.tool(
   },
   async ({ assemblyId, assemblyPath, version, solutionUniqueName }: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       // Read new DLL
@@ -2312,7 +2257,7 @@ server.tool(
 
 server.tool(
   "register-plugin-step",
-  "Register a plugin step on an SDK message. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Register a plugin step on an SDK message.",
   {
     assemblyName: z.string().describe("Assembly name (e.g., MyPlugin)"),
     pluginTypeName: z.string().describe("Full type name (e.g., MyOrg.Plugins.ContactPlugin)"),
@@ -2328,7 +2273,6 @@ server.tool(
   },
   async (params: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       // Resolve plugin type ID by typename
@@ -2381,7 +2325,7 @@ server.tool(
 
 server.tool(
   "register-plugin-image",
-  "Add a pre/post image to a plugin step for accessing entity data. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "Add a pre/post image to a plugin step for accessing entity data.",
   {
     stepId: z.string().describe("Plugin step ID (from register-plugin-step)"),
     imageName: z.string().describe("Image name (e.g., 'PreImage', 'PostImage')"),
@@ -2392,7 +2336,6 @@ server.tool(
   },
   async (params: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const imageTypeMap: Record<string, number> = { PreImage: 0, PostImage: 1, Both: 2 };
@@ -2428,7 +2371,7 @@ server.tool(
 
 server.tool(
   "deploy-plugin-complete",
-  "End-to-end plugin deployment: upload DLL, register steps, configure images, and publish. Requires POWERPLATFORM_ENABLE_CUSTOMIZATION=true.",
+  "End-to-end plugin deployment: upload DLL, register steps, configure images, and publish.",
   {
     assemblyPath: z.string().describe("Local DLL file path"),
     assemblyName: z.string().describe("Assembly name"),
@@ -2457,7 +2400,6 @@ server.tool(
   },
   async (params: any) => {
     try {
-      checkCustomizationEnabled();
       const service = getPowerPlatformService();
 
       const summary: any = {

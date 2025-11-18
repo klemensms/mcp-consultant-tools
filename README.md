@@ -38,11 +38,16 @@ MCP Consultant Tools v15 is a **modular monorepo** with **13 independently publi
 
 The PowerPlatform integration is split into **3 security-isolated packages** following the principle of least privilege:
 
-| Package | Use Case | Tools | Environment Flags | Production-Safe? |
-|---------|----------|-------|-------------------|------------------|
-| **powerplatform** | Read-only access | 38 | None required | ✅ **YES** - Safe for production |
-| **powerplatform-customization** | Schema changes (entities, attributes, forms, solutions) | 45 | `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` | ⚠️ **NO** - Dev/config environments only |
-| **powerplatform-data** | Data CRUD operations | 3 | `POWERPLATFORM_ENABLE_CREATE/UPDATE/DELETE=true` | ⚠️ **NO** - Operational use with explicit permissions |
+| Package | Use Case | Tools | Production-Safe? |
+|---------|----------|-------|------------------|
+| **powerplatform** | Read-only access | 38 | ✅ **YES** - Install in production |
+| **powerplatform-customization** | Schema changes (entities, attributes, forms, solutions) | 45 | ⚠️ **NO** - Dev/config environments only |
+| **powerplatform-data** | Data CRUD operations | 3 | ⚠️ **NO** - Operational environments only |
+
+**Security Model (v21+):** Security is enforced through package selection. Install only the packages you need per environment:
+- **Production:** `@mcp-consultant-tools/powerplatform` only (read-only, zero risk)
+- **Development:** Add `powerplatform-customization` for schema work
+- **Operational:** Add `powerplatform-data` for data management
 
 **Why split?**
 - **Security**: Install only the capabilities you need

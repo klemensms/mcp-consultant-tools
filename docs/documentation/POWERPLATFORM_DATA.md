@@ -107,7 +107,7 @@ await mcpClient.invoke("create-record", {
 });
 ```
 
-**⚠️ Production Warning:** For production environments, **disable all flags** (`POWERPLATFORM_ENABLE_CREATE=false`, etc.) and implement approval workflows. See [Security Model](#security-model) for recommendations.
+**⚠️ Production Warning:** For production environments, **do NOT install this package**. Use the base read-only package (`@mcp-consultant-tools/powerplatform`) instead. If data operations are required in production, implement proper approval workflows and access controls. See [Security Model](#security-model) for recommendations.
 
 **Need credentials?** See the [Detailed Setup](#detailed-setup) section below for Azure AD service principal creation instructions.
 
@@ -137,7 +137,7 @@ This package provides **3 specialized tools** for data modification operations. 
    - Example: `"Delete the test account record"`
    - Requires: `POWERPLATFORM_ENABLE_DELETE=true` AND `confirm: true` parameter
    - Audit logged: ✅ All deletions logged with confirmation
-   - Safety: Requires explicit confirmation parameter
+   - Safety: Two-layer protection (flag + confirmation)
 
 ### Security Features
 
@@ -254,7 +254,9 @@ User: Reviews created record, confirms correctness
 
 ### Security Model
 
-**Granular Operation Flags:**
+⚠️ **This package enables data modification and should be used with extreme caution.**
+
+**Granular Operation Flags (v21+):**
 
 Each data operation requires its own environment flag:
 
@@ -346,8 +348,8 @@ POWERPLATFORM_ENABLE_DELETE=true   # Enable record deletion
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-secret",
         "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
-        "POWERPLATFORM_ENABLE_CREATE": "true",
-        "POWERPLATFORM_ENABLE_UPDATE": "true",
+        "POWERPLATFORM_ENABLE_CREATE": "false",
+        "POWERPLATFORM_ENABLE_UPDATE": "false",
         "POWERPLATFORM_ENABLE_DELETE": "false"
       }
     }
@@ -418,7 +420,8 @@ await invoke("create-record", {
 ```
 
 **Validation:**
-- Checks if `POWERPLATFORM_ENABLE_CREATE=true`
+- Permission check: Requires `POWERPLATFORM_ENABLE_CREATE=true` environment flag
+- Package check: Requires `@mcp-consultant-tools/powerplatform-data` installed
 - Validates `data` is not empty
 - Validates required fields are present (checked by Dataverse API)
 - Validates field types match entity schema
@@ -464,7 +467,8 @@ await invoke("update-record", {
 ```
 
 **Validation:**
-- Checks if `POWERPLATFORM_ENABLE_UPDATE=true`
+- Permission check: Requires `POWERPLATFORM_ENABLE_UPDATE=true` environment flag
+- Package check: Requires `@mcp-consultant-tools/powerplatform-data` installed
 - Validates `recordId` is valid GUID format
 - Validates `data` is not empty
 - Validates record exists (checked by Dataverse API)
@@ -508,7 +512,9 @@ await invoke("delete-record", {
 ```
 
 **Validation:**
-- Checks if `POWERPLATFORM_ENABLE_DELETE=true`
+- Permission check: Requires `POWERPLATFORM_ENABLE_DELETE=true` environment flag
+- Package check: Requires `@mcp-consultant-tools/powerplatform-data` installed
+- Tool-level safety: Requires explicit `confirm: true` parameter
 - Validates `recordId` is valid GUID format
 - Validates `confirm === true` (throws error if false or omitted)
 - Validates record exists (checked by Dataverse API)
@@ -813,6 +819,14 @@ for (const update of updates) {
 **Error:** `Create operations are disabled`
 - **Cause**: `POWERPLATFORM_ENABLE_CREATE` not set to `true`
 - **Fix**: Add `POWERPLATFORM_ENABLE_CREATE=true` to environment variables
+
+**Error:** `Update operations are disabled`
+- **Cause**: `POWERPLATFORM_ENABLE_UPDATE` not set to `true`
+- **Fix**: Add `POWERPLATFORM_ENABLE_UPDATE=true` to environment variables
+
+**Error:** `Delete operations are disabled`
+- **Cause**: `POWERPLATFORM_ENABLE_DELETE` not set to `true`
+- **Fix**: Add `POWERPLATFORM_ENABLE_DELETE=true` to environment variables
 
 **Error:** `Invalid GUID format for recordId`
 - **Cause**: Provided record ID is not a valid GUID

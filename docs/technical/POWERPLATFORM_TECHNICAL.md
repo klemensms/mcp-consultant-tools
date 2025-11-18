@@ -12,7 +12,7 @@ This document contains detailed technical implementation information for the Pow
 
 ## Data CRUD Operations
 
-**IMPORTANT:** Data modification operations are disabled by default and must be explicitly enabled via environment variables.
+**IMPORTANT:** Data modification operations require installing the `@mcp-consultant-tools/powerplatform-data` package (v21+).
 
 **Service Methods** ([src/PowerPlatformService.ts](src/PowerPlatformService.ts)):
 - `createRecord(entityNamePlural, data)` - Create new record
@@ -21,19 +21,19 @@ This document contains detailed technical implementation information for the Pow
 
 **Tools:**
 1. **create-record** - Create new Dataverse records
-   - Requires `POWERPLATFORM_ENABLE_CREATE=true`
+   - Package Required: `@mcp-consultant-tools/powerplatform-data`
    - Parameters: entityNamePlural, data (JSON object)
    - Returns: Created record with ID
 
 2. **update-record** - Update existing Dataverse records
-   - Requires `POWERPLATFORM_ENABLE_UPDATE=true`
+   - Package Required: `@mcp-consultant-tools/powerplatform-data`
    - Parameters: entityNamePlural, recordId, data (partial JSON)
    - Returns: Updated record
 
 3. **delete-record** - Delete Dataverse records (permanent)
-   - Requires `POWERPLATFORM_ENABLE_DELETE=true`
+   - Package Required: `@mcp-consultant-tools/powerplatform-data`
+   - Tool-Level Safety: Requires explicit `confirm: true` parameter
    - Parameters: entityNamePlural, recordId, confirm (boolean)
-   - Requires explicit `confirm: true` for safety
    - Returns: Success confirmation
 
 **Data Format:**
@@ -43,13 +43,14 @@ This document contains detailed technical implementation information for the Pow
 - **Money:** Use decimal values: `{"revenue": 1000000.00}`
 - **Dates:** Use ISO 8601 format: `{"birthdate": "1990-01-15"}`
 
-**Security Considerations:**
-- All operations are audited via audit-logger
-- GUID validation for record IDs
-- Empty data validation
-- Delete operations require explicit confirmation
-- Follow principle of least privilege - only enable needed operations
-- Use separate Azure AD apps with limited permissions for production
+**Security Considerations (v21+):**
+- **Package isolation:** Install `powerplatform-data` only in environments where CRUD is required
+- **Tool-level safety:** Delete operations require explicit `confirm: true` parameter
+- **Audit logging:** All CRUD operations automatically tracked via audit-logger
+- **Validation:** GUID validation for record IDs, empty data validation
+- **Principle of least privilege:** Don't install the package unless data operations are needed
+- **Access control:** Use Azure AD service principal permissions to restrict capabilities
+- **Environment segregation:** Never install data package in read-only production environments
 
 **Error Handling:**
 - Clear error messages for missing permissions

@@ -25,8 +25,7 @@ Add this to your VS Code `settings.json`:
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
-        "POWERPLATFORM_TENANT_ID": "your-tenant-id",
-        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "true"
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
       }
     }
   }
@@ -47,8 +46,7 @@ Add this to your `claude_desktop_config.json`:
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
-        "POWERPLATFORM_TENANT_ID": "your-tenant-id",
-        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "true"
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
       }
     }
   }
@@ -216,7 +214,7 @@ The `powerplatform-customization` package provides programmatic access to **Data
 - Web resource management
 - Solution packaging and deployment
 
-This package **requires explicit enablement** via the `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` environment variable to prevent accidental schema modifications.
+**Security Model (v21+):** Installing this package grants immediate access to all customization operations. No environment flags required. Use package-based isolation by only installing this package in development/configuration environments, not production.
 
 ### Use Cases
 
@@ -250,27 +248,30 @@ Result: Fully functional entity in Dataverse, ready for use
 - ✅ **Icon Management**: Set entity icons using Microsoft Fluent UI System Icons
 
 **Safety Features:**
-- ❗ **Requires explicit flag**: `POWERPLATFORM_ENABLE_CUSTOMIZATION=true`
+- ❗ **Package-based security**: Install only in dev/config environments
 - ❗ **Audit logging**: All operations logged for compliance
 - ❗ **Error validation**: Pre-checks before destructive operations
 - ❗ **Solution-aware**: Encourages solution-based customizations
 
-### Security Requirements
+### Security Model
 
-**Environment Flag (Required):**
-```bash
-POWERPLATFORM_ENABLE_CUSTOMIZATION=true
-```
+⚠️ **This package enables schema modifications and should NOT be installed in production environments.**
 
-**Without this flag**, all customization tools will throw an error:
-```
-Error: Customization operations are disabled. Set POWERPLATFORM_ENABLE_CUSTOMIZATION=true to enable.
-```
+**Package-Based Security (v21+):**
+- Security is enforced through package selection
+- Installing this package grants immediate access to all customization operations
+- No environment flags required
 
-**Recommended Security Model:**
-1. **Development**: Set `POWERPLATFORM_ENABLE_CUSTOMIZATION=true`
-2. **QA/UAT**: Set `POWERPLATFORM_ENABLE_CUSTOMIZATION=false` (use base package only)
-3. **Production**: Set `POWERPLATFORM_ENABLE_CUSTOMIZATION=false` (use base package only)
+**Recommended Environments:**
+- ✅ **Development:** Install for schema development and testing
+- ✅ **Configuration:** Install for managed solution deployments
+- ⚠️ **Staging:** Only if schema changes needed
+- ❌ **Production:** Do NOT install - use read-only package instead
+
+**Migration from v20:**
+- Environment flag `POWERPLATFORM_ENABLE_CUSTOMIZATION` no longer checked (can be removed)
+- Review package installations across all environments
+- Uninstall from production if present
 
 ---
 
@@ -299,12 +300,11 @@ POWERPLATFORM_CLIENT_ID=your-azure-app-client-id
 POWERPLATFORM_CLIENT_SECRET=your-azure-app-client-secret
 POWERPLATFORM_TENANT_ID=your-azure-tenant-id
 
-# Customization Control (Required - MUST be explicitly set to true)
-POWERPLATFORM_ENABLE_CUSTOMIZATION=true
-
 # Default Solution (Optional - recommended for organized customizations)
 POWERPLATFORM_DEFAULT_SOLUTION=YourSolutionUniqueName
 ```
+
+**Security Model (v21+):** No feature flags required. Installing this package grants access to customization operations.
 
 **Claude Desktop Config:**
 ```json
@@ -318,7 +318,6 @@ POWERPLATFORM_DEFAULT_SOLUTION=YourSolutionUniqueName
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-secret",
         "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
-        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "true",
         "POWERPLATFORM_DEFAULT_SOLUTION": "MySolution"
       }
     }
@@ -925,10 +924,6 @@ const solutionZip = await invoke("export-solution", {
 ## Troubleshooting
 
 ### Common Errors
-
-**Error:** `Customization operations are disabled`
-- **Cause**: `POWERPLATFORM_ENABLE_CUSTOMIZATION` not set to `true`
-- **Fix**: Add `POWERPLATFORM_ENABLE_CUSTOMIZATION=true` to environment variables
 
 **Error:** `The user does not have create privilege for entity systemform`
 - **Cause**: Application user lacks System Customizer role
