@@ -55,13 +55,17 @@ Add this to your VS Code `settings.json`:
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/powerplatform-data", "mcp-pp-data"],
       "env": {
+        // Required - PowerPlatform Authentication
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
         "POWERPLATFORM_TENANT_ID": "your-tenant-id",
-        "POWERPLATFORM_ENABLE_CREATE": "true",
-        "POWERPLATFORM_ENABLE_UPDATE": "true",
-        "POWERPLATFORM_ENABLE_DELETE": "true"
+
+        // Optional - Data CRUD Operations (all default to "false")
+        // ⚠️ WARNING: These enable data modifications - use with caution
+        "POWERPLATFORM_ENABLE_CREATE": "true",  // Optional - enables create-record tool
+        "POWERPLATFORM_ENABLE_UPDATE": "true",  // Optional - enables update-record tool
+        "POWERPLATFORM_ENABLE_DELETE": "true"   // Optional - enables delete-record tool
       }
     }
   }
@@ -79,13 +83,17 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/powerplatform-data", "mcp-pp-data"],
       "env": {
+        // Required - PowerPlatform Authentication
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
         "POWERPLATFORM_TENANT_ID": "your-tenant-id",
-        "POWERPLATFORM_ENABLE_CREATE": "true",
-        "POWERPLATFORM_ENABLE_UPDATE": "true",
-        "POWERPLATFORM_ENABLE_DELETE": "true"
+
+        // Optional - Data CRUD Operations (all default to "false")
+        // ⚠️ WARNING: These enable data modifications - use with caution
+        "POWERPLATFORM_ENABLE_CREATE": "true",  // Optional - enables create-record tool
+        "POWERPLATFORM_ENABLE_UPDATE": "true",  // Optional - enables update-record tool
+        "POWERPLATFORM_ENABLE_DELETE": "true"   // Optional - enables delete-record tool
       }
     }
   }
@@ -301,21 +309,31 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform @mcp-
 
 ### Environment Variables
 
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `POWERPLATFORM_URL` | ✅ Yes | - | PowerPlatform environment URL (e.g., `https://yourenvironment.crm.dynamics.com`) |
+| `POWERPLATFORM_CLIENT_ID` | ✅ Yes | - | Azure AD app registration client ID |
+| `POWERPLATFORM_CLIENT_SECRET` | ✅ Yes | - | Azure AD app registration client secret |
+| `POWERPLATFORM_TENANT_ID` | ✅ Yes | - | Azure tenant ID |
+| `POWERPLATFORM_ENABLE_CREATE` | ❌ No | `"false"` | ⚠️ Enable record creation (create-record tool) |
+| `POWERPLATFORM_ENABLE_UPDATE` | ❌ No | `"false"` | ⚠️ Enable record updates (update-record tool) |
+| `POWERPLATFORM_ENABLE_DELETE` | ❌ No | `"false"` | ⚠️ Enable record deletion (delete-record tool) |
+
 ```bash
-# PowerPlatform Configuration (Required)
+# Required - PowerPlatform Authentication
 POWERPLATFORM_URL=https://yourenvironment.crm.dynamics.com
 POWERPLATFORM_CLIENT_ID=your-azure-app-client-id
 POWERPLATFORM_CLIENT_SECRET=your-azure-app-client-secret
 POWERPLATFORM_TENANT_ID=your-azure-tenant-id
 
-# Data CRUD Operations (Optional - each defaults to false)
+# Optional - Data CRUD Operations (all default to "false")
 # ⚠️ WARNING: These allow data modifications - use with caution
-POWERPLATFORM_ENABLE_CREATE=true   # Enable record creation
-POWERPLATFORM_ENABLE_UPDATE=true   # Enable record updates
-POWERPLATFORM_ENABLE_DELETE=true   # Enable record deletion
+POWERPLATFORM_ENABLE_CREATE=true   # Optional - enables create-record tool
+POWERPLATFORM_ENABLE_UPDATE=true   # Optional - enables update-record tool
+POWERPLATFORM_ENABLE_DELETE=true   # Optional - enables delete-record tool
 ```
 
-**Claude Desktop Config (Development):**
+**Claude Desktop Config (Development - Full CRUD):**
 ```json
 {
   "mcpServers": {
@@ -323,20 +341,23 @@ POWERPLATFORM_ENABLE_DELETE=true   # Enable record deletion
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/powerplatform-data", "mcp-pp-data"],
       "env": {
+        // Required - PowerPlatform Authentication
         "POWERPLATFORM_URL": "https://yourdevenv.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-secret",
         "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
-        "POWERPLATFORM_ENABLE_CREATE": "true",
-        "POWERPLATFORM_ENABLE_UPDATE": "true",
-        "POWERPLATFORM_ENABLE_DELETE": "true"
+
+        // Optional - Data CRUD Operations (defaults to "false")
+        "POWERPLATFORM_ENABLE_CREATE": "true",  // Optional - enables create-record
+        "POWERPLATFORM_ENABLE_UPDATE": "true",  // Optional - enables update-record
+        "POWERPLATFORM_ENABLE_DELETE": "true"   // Optional - enables delete-record
       }
     }
   }
 }
 ```
 
-**Claude Desktop Config (Production - Restricted):**
+**Claude Desktop Config (Production - Restricted, No Delete):**
 ```json
 {
   "mcpServers": {
@@ -344,13 +365,16 @@ POWERPLATFORM_ENABLE_DELETE=true   # Enable record deletion
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/powerplatform-data", "mcp-pp-data"],
       "env": {
+        // Required - PowerPlatform Authentication
         "POWERPLATFORM_URL": "https://yourprodenv.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-azure-app-secret",
         "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id",
-        "POWERPLATFORM_ENABLE_CREATE": "false",
-        "POWERPLATFORM_ENABLE_UPDATE": "false",
-        "POWERPLATFORM_ENABLE_DELETE": "false"
+
+        // Optional - Data CRUD Operations (restrict in production)
+        "POWERPLATFORM_ENABLE_CREATE": "true",  // Optional - allow creates with oversight
+        "POWERPLATFORM_ENABLE_UPDATE": "true",  // Optional - allow updates with oversight
+        "POWERPLATFORM_ENABLE_DELETE": "false"  // Optional - DISABLE deletes in production
       }
     }
   }

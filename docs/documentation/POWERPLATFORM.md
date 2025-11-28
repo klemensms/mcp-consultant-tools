@@ -11,7 +11,7 @@ As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isol
 
 | Package | Purpose | Tools | Prompts | Production-Safe? |
 |---------|---------|-------|---------|------------------|
-| **[@mcp-consultant-tools/powerplatform](POWERPLATFORM.md)** (This Package) | Read-only access | 39 | 11 | ✅ **YES** |
+| **[@mcp-consultant-tools/powerplatform](POWERPLATFORM.md)** (This Package) | Read-only access | 40 | 11 | ✅ **YES** |
 | **[@mcp-consultant-tools/powerplatform-customization](POWERPLATFORM_CUSTOMIZATION.md)** | Schema changes | 40 | 2 | ⚠️ **NO** - Dev/config only |
 | **[@mcp-consultant-tools/powerplatform-data](POWERPLATFORM_DATA.md)** | Data CRUD | 3 | 0 | ⚠️ **NO** - Operational use |
 
@@ -36,10 +36,14 @@ Add this to your VS Code `settings.json`:
       "command": "npx",
       "args": ["-y", "@mcp-consultant-tools/powerplatform"],
       "env": {
+        // Required
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
-        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id",
+
+        // Optional (for solution-scoped queries)
+        "POWERPLATFORM_DEFAULT_SOLUTION": ""
       }
     }
   }
@@ -57,10 +61,14 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "@mcp-consultant-tools/powerplatform"],
       "env": {
+        // Required
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
-        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id",
+
+        // Optional (for solution-scoped queries)
+        "POWERPLATFORM_DEFAULT_SOLUTION": ""
       }
     }
   }
@@ -356,9 +364,11 @@ POWERPLATFORM_TENANT_ID=your-azure-tenant-id
 | `POWERPLATFORM_CLIENT_SECRET` | Yes | Azure AD app registration client secret |
 | `POWERPLATFORM_TENANT_ID` | Yes | Azure tenant ID (GUID) |
 
-**Note:** This read-only package does not require any additional environment flags. For customization or data CRUD operations, see:
-- [PowerPlatform Customization Package](POWERPLATFORM_CUSTOMIZATION.md) - Requires `POWERPLATFORM_ENABLE_CUSTOMIZATION=true`
-- [PowerPlatform Data Package](POWERPLATFORM_DATA.md) - Requires `POWERPLATFORM_ENABLE_CREATE/UPDATE/DELETE=true`
+**Note:** This read-only package provides 38 tools for querying metadata, records, plugins, and workflows. For additional capabilities, install separate packages:
+- [PowerPlatform Customization Package](POWERPLATFORM_CUSTOMIZATION.md) - Schema modifications (entities, attributes, relationships)
+- [PowerPlatform Data Package](POWERPLATFORM_DATA.md) - Data CRUD operations (create, update, delete records)
+
+**v21+ Security Model:** Install only the packages you need. No configuration flags required - package installation grants immediate access to operations.
 
 **Regional Endpoints:**
 
@@ -385,8 +395,7 @@ Adjust `POWERPLATFORM_URL` based on your region:
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "12345678-1234-1234-1234-123456789abc",
         "POWERPLATFORM_CLIENT_SECRET": "your-secret-value",
-        "POWERPLATFORM_TENANT_ID": "87654321-4321-4321-4321-cba987654321",
-        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "true"
+        "POWERPLATFORM_TENANT_ID": "87654321-4321-4321-4321-cba987654321"
       }
     }
   }
@@ -405,8 +414,7 @@ Adjust `POWERPLATFORM_URL` based on your region:
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "12345678-1234-1234-1234-123456789abc",
         "POWERPLATFORM_CLIENT_SECRET": "your-secret-value",
-        "POWERPLATFORM_TENANT_ID": "87654321-4321-4321-4321-cba987654321",
-        "POWERPLATFORM_ENABLE_CUSTOMIZATION": "false"
+        "POWERPLATFORM_TENANT_ID": "87654321-4321-4321-4321-cba987654321"
       }
     }
   }
@@ -416,59 +424,37 @@ Adjust `POWERPLATFORM_URL` based on your region:
 **Local Development (`.env` file):**
 
 ```bash
-# PowerPlatform
+# PowerPlatform Read-Only Package
 POWERPLATFORM_URL=https://yourenvironment.crm.dynamics.com
 POWERPLATFORM_CLIENT_ID=12345678-1234-1234-1234-123456789abc
 POWERPLATFORM_CLIENT_SECRET=your-secret-value
 POWERPLATFORM_TENANT_ID=87654321-4321-4321-4321-cba987654321
-POWERPLATFORM_ENABLE_CUSTOMIZATION=true
-POWERPLATFORM_DEFAULT_SOLUTION=MCPTestCore
 ```
-
-### Enabling Customization
-
-**⚠️ IMPORTANT: Write Operations Require Explicit Enablement**
-
-All write operations (create, update, delete) require setting:
-
-```bash
-POWERPLATFORM_ENABLE_CUSTOMIZATION=true
-```
-
-**Why is this required?**
-- Prevents accidental modifications to production environments
-- Follows principle of least privilege
-- Makes intent explicit in configuration
-
-**What operations require this flag?**
-- `create-entity`, `update-entity`, `delete-entity`
-- `create-attribute`, `update-attribute`, `delete-attribute`
-- `create-one-to-many-relationship`, `create-many-to-many-relationship`, `delete-relationship`
-- `update-global-optionset`, `add-optionset-value`, `delete-optionset-value`
-- `create-form`, `update-form`, `delete-form`
-- `create-view`, `update-view`, `delete-view`
-- `create-web-resource`, `update-web-resource`, `delete-web-resource`
-- `create-solution`, `import-solution`, `export-solution`
-- `publish-customizations`, `publish-entity`
-- `add-entities-to-app`, `publish-app`
-- All other create/update/delete operations
-
-**What operations work without this flag?**
-- All read operations (`get-*`, `query-*`)
-- All prompts
-- Metadata queries
-- Record queries
-- Plugin inspection
-
-**Best Practice:**
-- **Development**: Enable customization
-- **Testing**: Enable customization
-- **Production Read-Only**: Disable customization
-- **Production Deployments**: Enable temporarily, then disable
 
 ---
 
-## Tools (79 Total)
+## Tools (40 Total - Read-Only)
+
+**⚠️ IMPORTANT: READ-ONLY PACKAGE DOCUMENTATION**
+
+This package (`@mcp-consultant-tools/powerplatform`) provides **40 read-only tools** for querying and validating PowerPlatform environments. All tools are production-safe and perform **zero modifications**.
+
+**Tools included in THIS package (read-only operations only):**
+- ✅ All `get-*` tools (metadata, records, plugins, workflows, forms, views, etc.)
+- ✅ All `query-*` tools (data queries)
+- ✅ All `validate-*` tools (best practices, schema names, solution integrity)
+- ✅ All `check-*` tools (dependencies, delete eligibility)
+- ✅ `preview-unpublished-changes` (inspection only)
+
+**Tools NOT in this package - Install separately:**
+- ❌ **Data CRUD** (`create-record`, `update-record`, `delete-record`) → Install **[@mcp-consultant-tools/powerplatform-data](POWERPLATFORM_DATA.md)**
+- ❌ **Schema Changes** (`create-entity`, `create-attribute`, `create-relationship`, etc.) → Install **[@mcp-consultant-tools/powerplatform-customization](POWERPLATFORM_CUSTOMIZATION.md)**
+
+**Configuration: No flags required for read-only package**
+- ✅ Only 4 environment variables needed: `POWERPLATFORM_URL`, `POWERPLATFORM_CLIENT_ID`, `POWERPLATFORM_CLIENT_SECRET`, `POWERPLATFORM_TENANT_ID`
+- ❌ Ignore references to `POWERPLATFORM_ENABLE_CUSTOMIZATION`, `POWERPLATFORM_DEFAULT_SOLUTION`, or enable flags (not applicable to read-only package)
+
+---
 
 ### Entity Metadata & Data Tools
 
@@ -685,151 +671,7 @@ await mcpClient.invoke("query-records", {
 
 ---
 
-### Data CRUD Operations
-
-**⚠️ SECURITY WARNING**: These tools modify production data and are disabled by default. Only enable in development/sandbox environments with proper safeguards.
-
-#### create-record
-
-Create a new record in Dataverse.
-
-**Security:** Requires `POWERPLATFORM_ENABLE_CREATE=true`
-
-**Parameters:**
-- `entityNamePlural` (string, required): Plural name of the entity (e.g., "accounts", "contacts", "sic_applications")
-- `data` (object, required): Record data as JSON object with field names matching logical names
-
-**Data Format:**
-- **Simple fields**: `{"name": "Acme Corp", "telephone1": "555-1234"}`
-- **Lookups**: Use `@odata.bind` syntax: `{"parentaccountid@odata.bind": "/accounts(guid)"}`
-- **Option sets**: Use integer values: `{"statecode": 0, "statuscode": 1}`
-- **Money**: Use decimal values: `{"revenue": 1000000.00}`
-- **Dates**: Use ISO 8601 format: `{"birthdate": "1990-01-15"}`
-
-**Returns:**
-- Created record with ID and all fields
-
-**Example:**
-```javascript
-await mcpClient.invoke("create-record", {
-  entityNamePlural: "accounts",
-  data: {
-    name: "Contoso Corporation",
-    telephone1: "425-555-0100",
-    websiteurl: "https://contoso.com",
-    address1_city: "Redmond",
-    address1_stateorprovince: "WA"
-  }
-});
-```
-
-**Use Cases:**
-- Bulk data import from external systems
-- Test data generation for development
-- Automated record creation workflows
-- Integration scenarios
-
-**Security Considerations:**
-- Operation is audited via audit logger
-- Empty data validation prevents incomplete records
-- User must have Create privilege on target entity
-- Follow principle of least privilege
-
----
-
-#### update-record
-
-Update an existing record in Dataverse.
-
-**Security:** Requires `POWERPLATFORM_ENABLE_UPDATE=true`
-
-**Parameters:**
-- `entityNamePlural` (string, required): Plural name of the entity
-- `recordId` (string, required): GUID of the record to update
-- `data` (object, required): Partial record data (only fields being changed)
-
-**Validation:**
-- Record ID must be a valid GUID format
-- Data cannot be empty
-- Uses PATCH method (not PUT) for partial updates
-
-**Returns:**
-- Updated record with all current field values
-
-**Example:**
-```javascript
-await mcpClient.invoke("update-record", {
-  entityNamePlural: "accounts",
-  recordId: "12345678-1234-1234-1234-123456789012",
-  data: {
-    telephone1: "425-555-0101",
-    websiteurl: "https://contoso.com"
-  }
-});
-```
-
-**Use Cases:**
-- Bulk data updates
-- Status transitions
-- Field corrections
-- Data synchronization
-
-**Security Considerations:**
-- GUID validation before API call
-- Operation is audited with record ID
-- User must have Write privilege on target entity
-- Updates are partial (only specified fields changed)
-
----
-
-#### delete-record
-
-Delete a record from Dataverse permanently.
-
-**Security:** Requires `POWERPLATFORM_ENABLE_DELETE=true` + explicit confirmation
-
-**Parameters:**
-- `entityNamePlural` (string, required): Plural name of the entity
-- `recordId` (string, required): GUID of the record to delete
-- `confirm` (boolean, optional): Must be `true` to proceed (safety check)
-
-**Safety Features:**
-- Two-step confirmation required
-- First call without `confirm: true` shows warning
-- Second call with `confirm: true` executes deletion
-- GUID validation before operation
-
-**Returns:**
-- Success confirmation message
-
-**Example:**
-```javascript
-// Step 1: Shows confirmation warning
-await mcpClient.invoke("delete-record", {
-  entityNamePlural: "accounts",
-  recordId: "12345678-1234-1234-1234-123456789012"
-});
-
-// Step 2: Actually deletes the record
-await mcpClient.invoke("delete-record", {
-  entityNamePlural: "accounts",
-  recordId: "12345678-1234-1234-1234-123456789012",
-  confirm: true
-});
-```
-
-**Use Cases:**
-- Test data cleanup
-- Bulk deletion workflows
-- Data archiving (after backup)
-- Removing duplicate records
-
-**Security Considerations:**
-- ⚠️ **PERMANENT OPERATION** - Cannot be undone
-- Requires explicit confirmation flag
-- Operation is audited with record ID
-- User must have Delete privilege on target entity
-- Consider soft deletes (status updates) instead
+**Note:** For data CRUD operations (`create-record`, `update-record`, `delete-record`), see the separate **[@mcp-consultant-tools/powerplatform-data](POWERPLATFORM_DATA.md)** package.
 
 ---
 
@@ -1080,6 +922,66 @@ await mcpClient.invoke("get-flow-runs", {
 - Troubleshoot flow failures
 - Analyze flow performance
 - Track flow run patterns over time
+
+---
+
+#### get-flow-run-details
+
+**NEW** - Get detailed action-level execution information for a specific flow run to verify which business logic steps were actually executed.
+
+**Parameters:**
+- `flowId` (string, required): The GUID of the flow (workflowid)
+- `runId` (string, required): The GUID of the flow run (flowrunid) - obtain from `get-flow-runs`
+
+**Returns:**
+- Flow run metadata:
+  - Flow ID, run ID, run name
+  - Overall status (Succeeded/Failed/Running/etc.)
+  - Start time, end time
+- Trigger information:
+  - Trigger name and status
+  - Trigger execution timing
+  - Links to inputs/outputs
+- Detailed action execution:
+  - **Each action's status** (Succeeded/Failed/Skipped)
+  - Action start time, end time, duration
+  - Action-level error information
+  - Links to inputs/outputs for each action
+- Action summary statistics:
+  - Total actions
+  - Succeeded count
+  - Failed count
+  - Skipped count (conditions evaluated false)
+
+**Example:**
+```javascript
+// Step 1: Get recent runs
+const runs = await mcpClient.invoke("get-flow-runs", {
+  flowName: "Lead Notification Flow",
+  maxRecords: 5
+});
+
+// Step 2: Get detailed execution for specific run
+await mcpClient.invoke("get-flow-run-details", {
+  flowId: "12345678-1234-1234-1234-123456789012",
+  runId: runs.runs[0].flowrunid  // Use flowrunid from get-flow-runs
+});
+```
+
+**Use Cases:**
+- **Verify specific business logic execution** - "Did the Send Email action actually run?"
+- **Debug conditional flows** - See which branch was taken, which actions were skipped
+- **Analyze branching behavior** - Understand why certain actions didn't execute
+- **Investigate action-level failures** - Get detailed error messages per action
+- **Validate flow logic in production** - Confirm expected actions executed in the correct order
+- **Troubleshoot complex flows** - See the exact execution path through conditions and switches
+
+**Authentication Note:**
+This tool uses the Power Automate Management API (not Dataverse). Your Azure AD app registration must have permissions to `https://management.azure.com` (Azure Service Management API). No additional environment variables required.
+
+**Comparison with get-flow-runs:**
+- **get-flow-runs**: High-level overview of multiple runs (statistics, monitoring)
+- **get-flow-run-details**: Deep dive into single run (debugging, verification)
 
 ---
 

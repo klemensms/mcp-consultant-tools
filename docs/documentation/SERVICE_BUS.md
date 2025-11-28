@@ -24,10 +24,23 @@ Add this to your VS Code `settings.json`:
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/service-bus", "mcp-sb"],
       "env": {
+        // Required (choose ONE option)
+        // Option 1: Single namespace with Entra ID
         "SERVICEBUS_NAMESPACE": "your-namespace.servicebus.windows.net",
+        // Option 2: Multiple namespaces (JSON array)
+        // "SERVICEBUS_RESOURCES": "[{\"id\":\"prod\",\"namespace\":\"prod.servicebus.windows.net\"}]",
+
+        // Required for Entra ID auth (default)
+        "SERVICEBUS_TENANT_ID": "your-tenant-id",
         "SERVICEBUS_CLIENT_ID": "your-client-id",
         "SERVICEBUS_CLIENT_SECRET": "your-client-secret",
-        "SERVICEBUS_TENANT_ID": "your-tenant-id"
+
+        // Alternative: Connection string auth (instead of Entra ID)
+        // "SERVICEBUS_CONNECTION_STRING": "Endpoint=sb://...",
+        // "SERVICEBUS_AUTH_METHOD": "connection-string",
+
+        // Optional (defaults shown)
+        "SERVICEBUS_AUTH_METHOD": "entra-id"
       }
     }
   }
@@ -45,10 +58,23 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/service-bus", "mcp-sb"],
       "env": {
+        // Required (choose ONE option)
+        // Option 1: Single namespace with Entra ID
         "SERVICEBUS_NAMESPACE": "your-namespace.servicebus.windows.net",
+        // Option 2: Multiple namespaces (JSON array)
+        // "SERVICEBUS_RESOURCES": "[{\"id\":\"prod\",\"namespace\":\"prod.servicebus.windows.net\"}]",
+
+        // Required for Entra ID auth (default)
+        "SERVICEBUS_TENANT_ID": "your-tenant-id",
         "SERVICEBUS_CLIENT_ID": "your-client-id",
         "SERVICEBUS_CLIENT_SECRET": "your-client-secret",
-        "SERVICEBUS_TENANT_ID": "your-tenant-id"
+
+        // Alternative: Connection string auth (instead of Entra ID)
+        // "SERVICEBUS_CONNECTION_STRING": "Endpoint=sb://...",
+        // "SERVICEBUS_AUTH_METHOD": "connection-string",
+
+        // Optional (defaults shown)
+        "SERVICEBUS_AUTH_METHOD": "entra-id"
       }
     }
   }

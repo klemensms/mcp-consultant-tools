@@ -22,10 +22,21 @@ Add this to your VS Code `settings.json`:
   "mcp.servers": {
     "github-enterprise": {
       "command": "npx",
-      "args": ["-y", "mcp-consultant-tools@latest"],
+      "args": ["-y", "@mcp-consultant-tools/github-enterprise"],
       "env": {
-        "GITHUB_TOKEN": "your-personal-access-token",
-        "GITHUB_ENTERPRISE_URL": "https://github.yourcompany.com"
+        // Required
+        "GHE_TOKEN": "your-personal-access-token",
+        "GHE_REPOS": "[{\"owner\":\"your-org\",\"repo\":\"repo-name\"}]",
+
+        // Optional (defaults shown)
+        "GHE_BASE_URL": "https://github.com",
+        "GHE_API_VERSION": "2022-11-28",
+        "GHE_ENABLE_WRITE": "false",
+        "GHE_ENABLE_CREATE": "false",
+        "GHE_ENABLE_CACHE": "true",
+        "GHE_CACHE_TTL": "300",
+        "GHE_MAX_FILE_SIZE": "1048576",
+        "GHE_MAX_SEARCH_RESULTS": "100"
       }
     }
   }
@@ -41,10 +52,21 @@ Add this to your `claude_desktop_config.json`:
   "mcpServers": {
     "github-enterprise": {
       "command": "npx",
-      "args": ["-y", "mcp-consultant-tools@latest"],
+      "args": ["-y", "@mcp-consultant-tools/github-enterprise"],
       "env": {
-        "GITHUB_TOKEN": "your-personal-access-token",
-        "GITHUB_ENTERPRISE_URL": "https://github.yourcompany.com"
+        // Required
+        "GHE_TOKEN": "your-personal-access-token",
+        "GHE_REPOS": "[{\"owner\":\"your-org\",\"repo\":\"repo-name\"}]",
+
+        // Optional (defaults shown)
+        "GHE_BASE_URL": "https://github.com",
+        "GHE_API_VERSION": "2022-11-28",
+        "GHE_ENABLE_WRITE": "false",
+        "GHE_ENABLE_CREATE": "false",
+        "GHE_ENABLE_CACHE": "true",
+        "GHE_CACHE_TTL": "300",
+        "GHE_MAX_FILE_SIZE": "1048576",
+        "GHE_MAX_SEARCH_RESULTS": "100"
       }
     }
   }

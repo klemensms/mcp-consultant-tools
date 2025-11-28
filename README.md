@@ -19,7 +19,7 @@ MCP Consultant Tools v15 is a **modular monorepo** with **13 independently publi
 ### Service Packages (Standalone)
 | Package | Integration | Tools | Prompts | Size | Security |
 |---------|-------------|-------|---------|------|----------|
-| **[@mcp-consultant-tools/powerplatform](packages/powerplatform)** | PowerPlatform/Dataverse (Read-Only) | 39 | 11 | 280KB | ✅ Production-Safe |
+| **[@mcp-consultant-tools/powerplatform](packages/powerplatform)** | PowerPlatform/Dataverse (Read-Only) | 40 | 11 | 280KB | ✅ Production-Safe |
 | **[@mcp-consultant-tools/powerplatform-customization](packages/powerplatform-customization)** | PowerPlatform Schema Changes | 45 | 0 | 295KB | ⚠️ Dev/Config Only |
 | **[@mcp-consultant-tools/powerplatform-data](packages/powerplatform-data)** | PowerPlatform Data CRUD | 3 | 0 | 185KB | ⚠️ Requires Explicit Permissions |
 | **[@mcp-consultant-tools/sharepoint](packages/sharepoint)** | SharePoint Online | 15 | 5 | 188KB | ✅ Read-Only |

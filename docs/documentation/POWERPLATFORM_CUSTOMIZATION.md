@@ -22,10 +22,14 @@ Add this to your VS Code `settings.json`:
       "command": "npx",
       "args": ["-y", "@mcp-consultant-tools/powerplatform-customization"],
       "env": {
+        // Required
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
-        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id",
+
+        // Optional (for solution-scoped operations)
+        "POWERPLATFORM_DEFAULT_SOLUTION": ""
       }
     }
   }
@@ -43,10 +47,14 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "@mcp-consultant-tools/powerplatform-customization"],
       "env": {
+        // Required
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
-        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id",
+
+        // Optional (for solution-scoped operations)
+        "POWERPLATFORM_DEFAULT_SOLUTION": ""
       }
     }
   }

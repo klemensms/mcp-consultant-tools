@@ -311,7 +311,7 @@ Flow execution history is stored in the `flowruns` entity in Dataverse. Each rec
 
 ### Workflow & Flow Tools
 
-The server includes 5 specialized tools for workflow and flow inspection:
+The server includes 6 specialized tools for workflow and flow inspection:
 
 1. **get-flows** ([src/PowerPlatformService.ts](src/PowerPlatformService.ts:590))
    - Lists all Power Automate cloud flows (category = 5)
@@ -330,13 +330,25 @@ The server includes 5 specialized tools for workflow and flow inspection:
    - Parses JSON error messages automatically
    - Includes trigger type information
    - Supports filtering by max records (default: 100)
+   - **Use Case**: High-level monitoring of success/failure rates and performance metrics
 
-4. **get-workflows** ([src/PowerPlatformService.ts](src/PowerPlatformService.ts:733))
+4. **get-flow-run-details** ([src/PowerPlatformService.ts](src/PowerPlatformService.ts:1022)) **NEW**
+   - **API**: Uses Power Automate Management API (not Dataverse)
+   - Retrieves detailed action-level execution information for a specific flow run
+   - Shows which specific business logic steps (actions) were executed
+   - Returns action status (Succeeded/Failed/Skipped), execution order, timing, errors
+   - Includes trigger details with inputs/outputs links
+   - Provides action-level error information for debugging
+   - **Authentication**: Requires separate token for `https://management.azure.com` scope
+   - **Environment ID**: Automatically extracted from Dataverse organization table
+   - **Use Case**: Verifying specific business logic execution, debugging conditional flows, analyzing branching behavior
+
+5. **get-workflows** ([src/PowerPlatformService.ts](src/PowerPlatformService.ts:733))
    - Lists all classic Dynamics workflows (category = 0)
    - Shows mode (background/real-time), triggers (create/delete/update)
    - Returns formatted workflow information
 
-5. **get-workflow-definition** ([src/PowerPlatformService.ts](src/PowerPlatformService.ts:776))
+6. **get-workflow-definition** ([src/PowerPlatformService.ts](src/PowerPlatformService.ts:776))
    - Retrieves complete workflow definition including XAML
    - Shows trigger configuration and filtering attributes
    - Returns structured workflow information with execution mode
@@ -362,10 +374,15 @@ Two prompts generate formatted markdown reports from workflow/flow data:
 - Inspect flow definitions to understand automation logic
 - Audit flow ownership and modification history
 - Review flow triggers and associated entities
-- **Monitor flow execution history and success rates**
-- **Troubleshoot flow failures with detailed error messages**
-- **Analyze flow performance with duration metrics**
-- **Track flow run patterns over time**
+- **Monitor flow execution history and success rates** (use `get-flow-runs`)
+- **Troubleshoot flow failures with detailed error messages** (use `get-flow-runs`)
+- **Analyze flow performance with duration metrics** (use `get-flow-runs`)
+- **Track flow run patterns over time** (use `get-flow-runs`)
+- **Verify specific business logic execution** (use `get-flow-run-details`) - e.g., "Did the Send Email action actually run?"
+- **Debug conditional flows** (use `get-flow-run-details`) - see which branch was taken, which actions were skipped
+- **Analyze branching behavior** (use `get-flow-run-details`) - understand why certain actions didn't execute
+- **Investigate action-level failures** (use `get-flow-run-details`) - get detailed error messages per action
+- **Validate flow logic in production** (use `get-flow-run-details`) - confirm expected actions executed
 
 **Workflow Analysis:**
 - List all classic workflows (background and real-time)
@@ -384,6 +401,123 @@ The service formats workflow/flow responses to include human-readable values:
 - Flow run status is already human-readable (string): "Succeeded", "Failed", "Faulted", "TimedOut", etc.
 - Parses JSON-encoded error messages from `errormessage` field automatically
 - Duration is provided directly by the `flowruns` entity in seconds
+
+### Power Automate Management API Integration
+
+**Overview:**
+
+The `get-flow-run-details` tool uses the **Power Automate Management API** instead of the Dataverse Web API to retrieve action-level execution details. This requires additional authentication and environment configuration.
+
+**Architecture:**
+
+```
+PowerPlatformService
+├── Dataverse Web API (existing)
+│   ├── Token: {organizationUrl}/.default
+│   ├── Tools: get-flows, get-flow-definition, get-flow-runs
+│   └── Data Source: workflow, flowruns entities
+│
+└── Power Automate Management API (NEW)
+    ├── Token: https://management.azure.com/.default
+    ├── Tool: get-flow-run-details
+    ├── Environment ID: Auto-extracted from Dataverse organizations table
+    └── API Endpoint: https://management.azure.com/providers/Microsoft.ProcessSimple/...
+```
+
+**Implementation Details:**
+
+**Service Methods ([src/PowerPlatformService.ts](src/PowerPlatformService.ts:953-1112)):**
+
+1. **`getEnvironmentId()`** (private, line 957)
+   - Queries Dataverse `organizations` table for `organizationid`
+   - Caches result in `this.environmentId`
+   - One-time lookup per service instance
+   - Returns: Environment GUID used in Management API URLs
+
+2. **`getFlowManagementToken()`** (private, line 984)
+   - Acquires separate access token for `https://management.azure.com/.default` scope
+   - Uses same MSAL client (client ID, secret, tenant)
+   - Caches token with 5-minute early expiration refresh
+   - Returns: Bearer token for Management API
+
+3. **`getFlowRunDetails(flowId, runId)`** (public, line 1022)
+   - Constructs Management API URL: `/providers/Microsoft.ProcessSimple/environments/{envId}/flows/{flowId}/runs/{runId}`
+   - API Version: `2016-11-01`
+   - Parses response to extract:
+     - Trigger information (name, status, timing)
+     - All actions with status, timing, error details
+     - Action-level inputs/outputs links (URI references)
+   - Builds `actionsSummary` with counts by status
+   - Returns structured JSON with action execution details
+
+**Response Structure:**
+
+```typescript
+{
+  flowId: string;
+  runId: string;
+  name: string;
+  status: string;  // Overall run status
+  startTime: string;
+  endTime: string;
+  trigger: {
+    name: string;
+    status: string;
+    startTime: string;
+    endTime: string;
+    inputsLink: string;   // URI to fetch trigger inputs
+    outputsLink: string;  // URI to fetch trigger outputs
+  };
+  actions: {
+    [actionName: string]: {
+      status: string;      // Succeeded/Failed/Skipped
+      startTime: string;
+      endTime: string;
+      duration: string;
+      inputsLink: string;  // URI to fetch action inputs
+      outputsLink: string; // URI to fetch action outputs
+      error: object | null;  // Error details if failed
+      code: string | null;   // Error code if failed
+    }
+  };
+  actionsSummary: {
+    total: number;
+    succeeded: number;
+    failed: number;
+    skipped: number;
+    other: number;
+  }
+}
+```
+
+**Authentication Requirements:**
+
+The same Azure AD app registration used for Dataverse access must have:
+1. **API Permission**: Azure Service Management > `user_impersonation` (delegated) OR
+2. **Role Assignment**: Service principal must have appropriate role on the environment
+
+**No additional environment variables required** - uses existing `POWERPLATFORM_CLIENT_ID`, `POWERPLATFORM_CLIENT_SECRET`, `POWERPLATFORM_TENANT_ID`.
+
+**Error Handling:**
+
+Common errors:
+- **403 Forbidden**: Service principal lacks permissions on environment
+- **404 Not Found**: Invalid flow ID or run ID
+- **Environment ID lookup failure**: Organization table query failed
+
+**Comparison: Dataverse vs Management API**
+
+| Feature | Dataverse (`get-flow-runs`) | Management API (`get-flow-run-details`) |
+|---------|----------------------------|----------------------------------------|
+| Data Source | `flowruns` entity | Management API |
+| Authentication | Dataverse token | Management token |
+| Run status | ✅ Yes | ✅ Yes |
+| Error messages | ✅ High-level | ✅ Action-level |
+| Duration | ✅ Total run time | ✅ Per-action timing |
+| Action details | ❌ No | ✅ Yes (status, errors) |
+| Condition evaluation | ❌ No | ✅ Yes (skipped actions) |
+| Action inputs/outputs | ❌ No | ✅ Yes (links) |
+| Use case | Statistics, monitoring | Debugging, verification |
 
 ## Best Practices Validation
 

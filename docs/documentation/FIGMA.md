@@ -24,7 +24,14 @@ Add this to your VS Code `settings.json`:
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/figma", "mcp-figma"],
       "env": {
-        "FIGMA_API_KEY": "your-personal-access-token"
+        // Required (choose ONE option)
+        // Option 1: Personal Access Token (recommended)
+        "FIGMA_API_KEY": "your-personal-access-token",
+        // Option 2: OAuth token
+        // "FIGMA_OAUTH_TOKEN": "your-oauth-token",
+
+        // Optional (defaults shown)
+        "FIGMA_USE_OAUTH": "false"
       }
     }
   }
@@ -42,7 +49,14 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/figma", "mcp-figma"],
       "env": {
-        "FIGMA_API_KEY": "your-personal-access-token"
+        // Required (choose ONE option)
+        // Option 1: Personal Access Token (recommended)
+        "FIGMA_API_KEY": "your-personal-access-token",
+        // Option 2: OAuth token
+        // "FIGMA_OAUTH_TOKEN": "your-oauth-token",
+
+        // Optional (defaults shown)
+        "FIGMA_USE_OAUTH": "false"
       }
     }
   }

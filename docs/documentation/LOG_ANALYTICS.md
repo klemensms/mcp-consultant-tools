@@ -24,15 +24,26 @@ Add this to your VS Code `settings.json`:
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/log-analytics", "mcp-loganalytics"],
       "env": {
+        // Required (choose ONE option)
+        // Option 1: Single workspace
         "LOGANALYTICS_WORKSPACE_ID": "your-workspace-id",
+        // Option 2: Multiple workspaces (JSON array)
+        // "LOGANALYTICS_RESOURCES": "[{\"id\":\"prod\",\"workspaceId\":\"xxx\",\"name\":\"Production\"}]",
+
+        // Required for Entra ID auth (can reuse App Insights credentials)
+        "LOGANALYTICS_TENANT_ID": "your-tenant-id",
         "LOGANALYTICS_CLIENT_ID": "your-client-id",
         "LOGANALYTICS_CLIENT_SECRET": "your-client-secret",
-        "LOGANALYTICS_TENANT_ID": "your-tenant-id"
+
+        // Optional (defaults shown)
+        "LOGANALYTICS_AUTH_METHOD": "entra-id"
       }
     }
   }
 }
 ```
+
+**Note:** If you already have Application Insights configured, Log Analytics can automatically reuse those credentials (`APPINSIGHTS_TENANT_ID`, `APPINSIGHTS_CLIENT_ID`, `APPINSIGHTS_CLIENT_SECRET`).
 
 #### For Claude Desktop
 
@@ -45,10 +56,19 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/log-analytics", "mcp-loganalytics"],
       "env": {
+        // Required (choose ONE option)
+        // Option 1: Single workspace
         "LOGANALYTICS_WORKSPACE_ID": "your-workspace-id",
+        // Option 2: Multiple workspaces (JSON array)
+        // "LOGANALYTICS_RESOURCES": "[{\"id\":\"prod\",\"workspaceId\":\"xxx\",\"name\":\"Production\"}]",
+
+        // Required for Entra ID auth (can reuse App Insights credentials)
+        "LOGANALYTICS_TENANT_ID": "your-tenant-id",
         "LOGANALYTICS_CLIENT_ID": "your-client-id",
         "LOGANALYTICS_CLIENT_SECRET": "your-client-secret",
-        "LOGANALYTICS_TENANT_ID": "your-tenant-id"
+
+        // Optional (defaults shown)
+        "LOGANALYTICS_AUTH_METHOD": "entra-id"
       }
     }
   }

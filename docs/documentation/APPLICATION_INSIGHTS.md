@@ -24,10 +24,19 @@ Add this to your VS Code `settings.json`:
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/application-insights", "mcp-appins"],
       "env": {
-        "APPLICATIONINSIGHTS_APP_ID": "your-app-id",
-        "APPLICATIONINSIGHTS_CLIENT_ID": "your-client-id",
-        "APPLICATIONINSIGHTS_CLIENT_SECRET": "your-client-secret",
-        "APPLICATIONINSIGHTS_TENANT_ID": "your-tenant-id"
+        // Required (choose ONE option)
+        // Option 1: Single resource
+        "APPINSIGHTS_APP_ID": "your-app-id",
+        // Option 2: Multiple resources (JSON array)
+        // "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod\",\"appId\":\"xxx\",\"name\":\"Production\"}]",
+
+        // Required for Entra ID auth
+        "APPINSIGHTS_TENANT_ID": "your-tenant-id",
+        "APPINSIGHTS_CLIENT_ID": "your-client-id",
+        "APPINSIGHTS_CLIENT_SECRET": "your-client-secret",
+
+        // Optional (defaults shown)
+        "APPINSIGHTS_AUTH_METHOD": "entra-id"
       }
     }
   }
@@ -45,10 +54,19 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/application-insights", "mcp-appins"],
       "env": {
-        "APPLICATIONINSIGHTS_APP_ID": "your-app-id",
-        "APPLICATIONINSIGHTS_CLIENT_ID": "your-client-id",
-        "APPLICATIONINSIGHTS_CLIENT_SECRET": "your-client-secret",
-        "APPLICATIONINSIGHTS_TENANT_ID": "your-tenant-id"
+        // Required (choose ONE option)
+        // Option 1: Single resource
+        "APPINSIGHTS_APP_ID": "your-app-id",
+        // Option 2: Multiple resources (JSON array)
+        // "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod\",\"appId\":\"xxx\",\"name\":\"Production\"}]",
+
+        // Required for Entra ID auth
+        "APPINSIGHTS_TENANT_ID": "your-tenant-id",
+        "APPINSIGHTS_CLIENT_ID": "your-client-id",
+        "APPINSIGHTS_CLIENT_SECRET": "your-client-secret",
+
+        // Optional (defaults shown)
+        "APPINSIGHTS_AUTH_METHOD": "entra-id"
       }
     }
   }

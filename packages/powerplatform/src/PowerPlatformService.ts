@@ -83,6 +83,9 @@ export class PowerPlatformService {
   private msalClient: ConfidentialClientApplication;
   private accessToken: string | null = null;
   private tokenExpirationTime: number = 0;
+  private flowManagementToken: string | null = null;
+  private flowManagementTokenExpirationTime: number = 0;
+  private environmentId: string | null = null;
 
   constructor(config: PowerPlatformConfig) {
     this.config = config;
@@ -945,6 +948,172 @@ export class PowerPlatformService {
       totalCount: formattedRuns.length,
       runs: formattedRuns
     };
+  }
+
+  /**
+   * Extract environment ID from organization URL
+   * @returns Environment ID (GUID)
+   */
+  private async getEnvironmentId(): Promise<string> {
+    if (this.environmentId) {
+      return this.environmentId;
+    }
+
+    try {
+      // Query the organization table to get the environment ID
+      const orgResponse = await this.makeRequest<ApiCollectionResponse<any>>(
+        'api/data/v9.2/organizations?$select=organizationid'
+      );
+
+      if (!orgResponse.value || orgResponse.value.length === 0) {
+        throw new Error('Could not retrieve organization ID');
+      }
+
+      const orgId = orgResponse.value[0].organizationid;
+      if (!orgId) {
+        throw new Error('Organization ID is null or undefined');
+      }
+
+      this.environmentId = orgId;
+      return orgId;
+    } catch (error) {
+      console.error('Error getting environment ID:', error);
+      throw new Error('Failed to get environment ID');
+    }
+  }
+
+  /**
+   * Get an access token for the Power Automate Management API
+   * @returns Access token for management.azure.com
+   */
+  private async getFlowManagementToken(): Promise<string> {
+    const currentTime = Date.now();
+
+    // If we have a token that isn't expired, return it
+    if (this.flowManagementToken && this.flowManagementTokenExpirationTime > currentTime) {
+      return this.flowManagementToken;
+    }
+
+    try {
+      // Get a new token for the Flow Management API
+      const result = await this.msalClient.acquireTokenByClientCredential({
+        scopes: ['https://management.azure.com/.default'],
+      });
+
+      if (!result || !result.accessToken) {
+        throw new Error('Failed to acquire Flow Management API access token');
+      }
+
+      this.flowManagementToken = result.accessToken;
+
+      // Set expiration time (subtract 5 minutes to refresh early)
+      if (result.expiresOn) {
+        this.flowManagementTokenExpirationTime = result.expiresOn.getTime() - (5 * 60 * 1000);
+      }
+
+      return this.flowManagementToken;
+    } catch (error) {
+      console.error('Error acquiring Flow Management API access token:', error);
+      throw new Error('Flow Management API authentication failed');
+    }
+  }
+
+  /**
+   * Get detailed flow run information including action-level execution details
+   * @param flowId The GUID of the flow (workflowid)
+   * @param runId The GUID of the flow run (flowrunid)
+   * @returns Detailed flow run information with action-level execution data
+   */
+  async getFlowRunDetails(flowId: string, runId: string): Promise<any> {
+    try {
+      const environmentId = await this.getEnvironmentId();
+      const token = await this.getFlowManagementToken();
+
+      // Call the Power Automate Management API
+      const url = `https://management.azure.com/providers/Microsoft.ProcessSimple/environments/${environmentId}/flows/${flowId}/runs/${runId}?api-version=2016-11-01`;
+
+      const response = await axios({
+        method: 'GET',
+        url,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      const runData = response.data;
+
+      // Extract key information
+      const result = {
+        flowId,
+        runId,
+        name: runData.name,
+        status: runData.properties?.status,
+        startTime: runData.properties?.startTime,
+        endTime: runData.properties?.endTime,
+        trigger: {
+          name: runData.properties?.trigger?.name,
+          status: runData.properties?.trigger?.status,
+          startTime: runData.properties?.trigger?.startTime,
+          endTime: runData.properties?.trigger?.endTime,
+          inputsLink: runData.properties?.trigger?.inputsLink?.uri,
+          outputsLink: runData.properties?.trigger?.outputsLink?.uri
+        },
+        actions: {} as Record<string, any>,
+        actionsSummary: {
+          total: 0,
+          succeeded: 0,
+          failed: 0,
+          skipped: 0,
+          other: 0
+        }
+      };
+
+      // Process all actions
+      if (runData.properties?.outputs?.body) {
+        const actions = runData.properties.outputs.body;
+
+        for (const [actionName, actionData] of Object.entries(actions)) {
+          const action = actionData as any;
+
+          result.actions[actionName] = {
+            status: action.status,
+            startTime: action.startTime,
+            endTime: action.endTime,
+            duration: action.duration,
+            inputsLink: action.inputsLink?.uri,
+            outputsLink: action.outputsLink?.uri,
+            error: action.error || null,
+            code: action.code || null
+          };
+
+          // Update summary counts
+          result.actionsSummary.total++;
+          const status = (action.status || '').toLowerCase();
+          if (status === 'succeeded') {
+            result.actionsSummary.succeeded++;
+          } else if (status === 'failed') {
+            result.actionsSummary.failed++;
+          } else if (status === 'skipped') {
+            result.actionsSummary.skipped++;
+          } else {
+            result.actionsSummary.other++;
+          }
+        }
+      }
+
+      return result;
+    } catch (error: any) {
+      const errorDetails = error.response?.data?.error || error.response?.data || error.message;
+      console.error('Power Automate Management API request failed:', {
+        flowId,
+        runId,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        error: errorDetails
+      });
+      throw new Error(`Failed to get flow run details: ${error.message} - ${JSON.stringify(errorDetails)}`);
+    }
   }
 
   /**

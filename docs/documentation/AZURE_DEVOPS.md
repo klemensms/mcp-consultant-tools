@@ -24,9 +24,16 @@ Add this to your VS Code `settings.json`:
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/azure-devops", "mcp-ado"],
       "env": {
+        // Required
         "AZUREDEVOPS_ORGANIZATION": "your-org",
         "AZUREDEVOPS_PAT": "your-personal-access-token",
-        "AZUREDEVOPS_PROJECTS": "Project1,Project2"
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+
+        // Optional (defaults shown)
+        "AZUREDEVOPS_API_VERSION": "7.1",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "false",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false"
       }
     }
   }
@@ -44,9 +51,16 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/azure-devops", "mcp-ado"],
       "env": {
+        // Required
         "AZUREDEVOPS_ORGANIZATION": "your-org",
         "AZUREDEVOPS_PAT": "your-personal-access-token",
-        "AZUREDEVOPS_PROJECTS": "Project1,Project2"
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2",
+
+        // Optional (defaults shown)
+        "AZUREDEVOPS_API_VERSION": "7.1",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "false",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false"
       }
     }
   }
@@ -129,9 +143,10 @@ This package includes **6 pre-built prompts** that generate formatted, human-rea
    - [Environment Variables](#environment-variables)
    - [Configuration Example](#configuration-example)
 
-3. [Tools (13 Total)](#tools-13-total)
+3. [Tools (15 Total)](#tools-15-total)
    - [Wiki Tools (6)](#wiki-tools)
    - [Work Item Tools (7)](#work-item-tools)
+   - [Variable Group Tools (2)](#variable-group-tools)
 
 4. [Prompts (6 Total)](#prompts-6-total)
    - [Wiki Prompts (3)](#wiki-prompts)
@@ -294,9 +309,12 @@ AZUREDEVOPS_ENABLE_WIKI_WRITE=false
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/azure-devops", "mcp-ado"],
       "env": {
+        // Required
         "AZUREDEVOPS_ORGANIZATION": "mycompany",
         "AZUREDEVOPS_PAT": "your-pat-token-here",
         "AZUREDEVOPS_PROJECTS": "ProjectA,ProjectB",
+
+        // Optional (defaults shown)
         "AZUREDEVOPS_API_VERSION": "7.1",
         "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "false",
         "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
@@ -316,10 +334,16 @@ AZUREDEVOPS_ENABLE_WIKI_WRITE=false
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/azure-devops", "mcp-ado"],
       "env": {
+        // Required
         "AZUREDEVOPS_ORGANIZATION": "mycompany",
         "AZUREDEVOPS_PAT": "your-pat-token-here",
         "AZUREDEVOPS_PROJECTS": "ProjectA,ProjectB",
-        "AZUREDEVOPS_API_VERSION": "7.1"
+
+        // Optional (defaults shown)
+        "AZUREDEVOPS_API_VERSION": "7.1",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "false",
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false"
       }
     }
   }
@@ -329,19 +353,21 @@ AZUREDEVOPS_ENABLE_WIKI_WRITE=false
 **Local Development (`.env` file):**
 
 ```bash
-# Azure DevOps
+# ===== REQUIRED =====
 AZUREDEVOPS_ORGANIZATION=mycompany
 AZUREDEVOPS_PAT=your-pat-token-here
 AZUREDEVOPS_PROJECTS=ProjectA,ProjectB,ProjectC
+
+# ===== OPTIONAL (defaults shown) =====
 AZUREDEVOPS_API_VERSION=7.1
-AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true
+AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=false
 AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE=false
-AZUREDEVOPS_ENABLE_WIKI_WRITE=true
+AZUREDEVOPS_ENABLE_WIKI_WRITE=false
 ```
 
 ---
 
-## Tools (13 Total)
+## Tools (15 Total)
 
 ### Wiki Tools
 
@@ -984,6 +1010,92 @@ await mcpClient.invoke("delete-work-item", {
 
 ---
 
+### Variable Group Tools
+
+#### list-variable-groups
+
+List all variable groups in an Azure DevOps project. Variable groups store values and secrets used in pipelines.
+
+**Parameters:**
+- `project` (string, required): Project name
+
+**Returns:**
+- Total count
+- Array of variable groups with:
+  - Group ID, name, description
+  - Type (Vsts/AzureKeyVault)
+  - Created/modified by and dates
+  - Sharing information
+  - Variables (secrets masked as `***SECRET***`)
+
+**Example:**
+```javascript
+await mcpClient.invoke("list-variable-groups", {
+  project: "MyProject"
+});
+```
+
+**Use Cases:**
+- Discover pipeline variable groups in a project
+- Audit variable configurations
+- Compare variable groups across environments
+
+---
+
+#### get-variable-group
+
+Get a specific variable group by ID with all variables.
+
+**Parameters:**
+- `project` (string, required): Project name
+- `groupId` (number, required): Variable group ID
+
+**Returns:**
+- Variable group metadata:
+  - Group ID, name, description
+  - Type (Vsts/AzureKeyVault)
+  - Created/modified by and dates
+  - Project references (if shared)
+- Variables object with:
+  - Variable names and values
+  - Secret flag (`isSecret`)
+  - Read-only flag (`isReadOnly`)
+  - **Note:** Secret values are masked as `***SECRET***`
+
+**Example:**
+```javascript
+await mcpClient.invoke("get-variable-group", {
+  project: "RTPI",
+  groupId: 825
+});
+
+// Returns:
+// {
+//   id: 825,
+//   name: "rtpi-smartconnectorcloud-dev",
+//   description: "Development environment variables",
+//   type: "Vsts",
+//   variables: {
+//     "ApiUrl": { value: "https://dev.api.example.com", isSecret: false },
+//     "ApiKey": { value: "***SECRET***", isSecret: true },
+//     "Environment": { value: "Development", isSecret: false }
+//   }
+// }
+```
+
+**Use Cases:**
+- View pipeline configuration variables
+- Debug pipeline failures by checking variable values
+- Verify secret variables exist (without exposing values)
+- Cross-reference variable values with other environments
+
+**Security Notes:**
+- Secret values are never exposed (always `***SECRET***`)
+- Read-only access (no modification operations)
+- Respects `AZUREDEVOPS_PROJECTS` allowlist
+
+---
+
 ## Prompts (6 Total)
 
 ### Wiki Prompts
@@ -1525,4 +1637,4 @@ Error: VS403403: The current user does not have permission to perform this actio
 
 ---
 
-**Last Updated:** 2025-01-09
+**Last Updated:** 2025-11-28

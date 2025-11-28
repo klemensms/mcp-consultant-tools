@@ -45,7 +45,7 @@ npx mcp-consultant-tools
 mcp-consultant-tools/
 ├── packages/
 │   ├── core/                           # Shared utilities, MCP helpers, audit logging
-│   ├── powerplatform/                  # PowerPlatform read-only (39 tools, 11 prompts) ✅ PRODUCTION-SAFE
+│   ├── powerplatform/                  # PowerPlatform read-only (40 tools, 11 prompts) ✅ PRODUCTION-SAFE
 │   ├── powerplatform-customization/    # PowerPlatform schema changes (40 tools, 2 prompts) ⚠️ DEV/CONFIG ONLY
 │   ├── powerplatform-data/             # PowerPlatform data CRUD (3 tools, 0 prompts) ⚠️ OPERATIONAL USE
 │   ├── azure-devops/                   # Azure DevOps (18 tools, 6 prompts)

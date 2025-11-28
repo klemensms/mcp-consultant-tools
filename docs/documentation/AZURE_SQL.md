@@ -24,10 +24,21 @@ Add this to your VS Code `settings.json`:
       "command": "npx",
       "args": ["-y", "@mcp-consultant-tools/azure-sql"],
       "env": {
+        // Required (choose ONE option)
+        // Option 1: Single server configuration
         "AZURE_SQL_SERVER": "your-server.database.windows.net",
         "AZURE_SQL_DATABASE": "your-database-name",
+        // Option 2: Multi-server configuration (JSON array)
+        // "AZURE_SQL_SERVERS": "[{\"id\":\"prod\",\"server\":\"prod.database.windows.net\",\"database\":\"AppDB\"}]",
+
+        // Required for SQL auth
         "AZURE_SQL_USERNAME": "your-username",
-        "AZURE_SQL_PASSWORD": "your-password"
+        "AZURE_SQL_PASSWORD": "your-password",
+
+        // Optional (defaults shown)
+        "AZURE_SQL_PORT": "1433",
+        "AZURE_SQL_QUERY_TIMEOUT": "30000",
+        "AZURE_SQL_MAX_RESULT_ROWS": "1000"
       }
     }
   }
@@ -45,10 +56,21 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "@mcp-consultant-tools/azure-sql"],
       "env": {
+        // Required (choose ONE option)
+        // Option 1: Single server configuration
         "AZURE_SQL_SERVER": "your-server.database.windows.net",
         "AZURE_SQL_DATABASE": "your-database-name",
+        // Option 2: Multi-server configuration (JSON array)
+        // "AZURE_SQL_SERVERS": "[{\"id\":\"prod\",\"server\":\"prod.database.windows.net\",\"database\":\"AppDB\"}]",
+
+        // Required for SQL auth
         "AZURE_SQL_USERNAME": "your-username",
-        "AZURE_SQL_PASSWORD": "your-password"
+        "AZURE_SQL_PASSWORD": "your-password",
+
+        // Optional (defaults shown)
+        "AZURE_SQL_PORT": "1433",
+        "AZURE_SQL_QUERY_TIMEOUT": "30000",
+        "AZURE_SQL_MAX_RESULT_ROWS": "1000"
       }
     }
   }

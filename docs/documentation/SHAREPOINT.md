@@ -24,10 +24,16 @@ Add this to your VS Code `settings.json`:
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/sharepoint", "mcp-spo"],
       "env": {
+        // Required - Authentication (all required)
+        "SHAREPOINT_TENANT_ID": "your-tenant-id",
         "SHAREPOINT_CLIENT_ID": "your-client-id",
         "SHAREPOINT_CLIENT_SECRET": "your-client-secret",
-        "SHAREPOINT_TENANT_ID": "your-tenant-id",
+
+        // Required - Site configuration (choose ONE option)
+        // Option 1: Single site
         "SHAREPOINT_SITE_URL": "https://yourtenant.sharepoint.com/sites/yoursite"
+        // Option 2: Multiple sites (JSON array)
+        // "SHAREPOINT_SITES": "[{\"id\":\"main\",\"siteUrl\":\"https://tenant.sharepoint.com/sites/main\",\"name\":\"Main Site\"}]"
       }
     }
   }
@@ -45,10 +51,16 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/sharepoint", "mcp-spo"],
       "env": {
+        // Required - Authentication (all required)
+        "SHAREPOINT_TENANT_ID": "your-tenant-id",
         "SHAREPOINT_CLIENT_ID": "your-client-id",
         "SHAREPOINT_CLIENT_SECRET": "your-client-secret",
-        "SHAREPOINT_TENANT_ID": "your-tenant-id",
+
+        // Required - Site configuration (choose ONE option)
+        // Option 1: Single site
         "SHAREPOINT_SITE_URL": "https://yourtenant.sharepoint.com/sites/yoursite"
+        // Option 2: Multiple sites (JSON array)
+        // "SHAREPOINT_SITES": "[{\"id\":\"main\",\"siteUrl\":\"https://tenant.sharepoint.com/sites/main\",\"name\":\"Main Site\"}]"
       }
     }
   }

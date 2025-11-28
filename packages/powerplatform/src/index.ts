@@ -584,6 +584,50 @@ server.tool(
 );
 
 server.tool(
+  "get-flow-run-details",
+  "Get detailed action-level execution information for a specific Power Automate flow run to verify which business logic steps were executed",
+  {
+    flowId: z.string().describe("The GUID of the flow (workflowid)"),
+    runId: z.string().describe("The GUID of the flow run (flowrunid) - get this from get-flow-runs tool"),
+  },
+  async ({ flowId, runId }: any) => {
+    try {
+      const service = getPowerPlatformService();
+      const result = await service.getFlowRunDetails(flowId, runId);
+
+      const resultStr = JSON.stringify(result, null, 2);
+
+      // Build a summary of action execution
+      const actionsList = Object.entries(result.actions)
+        .map(([name, action]: [string, any]) => {
+          const statusIcon = action.status === 'Succeeded' ? '✓' : action.status === 'Failed' ? '✗' : action.status === 'Skipped' ? '⊘' : '?';
+          return `  ${statusIcon} ${name}: ${action.status}${action.error ? ' - ' + JSON.stringify(action.error) : ''}`;
+        })
+        .join('\n');
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Flow Run Details for ${flowId}/${runId}:\n\nOverall Status: ${result.status}\nStart Time: ${result.startTime}\nEnd Time: ${result.endTime}\n\nTrigger:\n  Name: ${result.trigger.name}\n  Status: ${result.trigger.status}\n\nActions Summary:\n- Total: ${result.actionsSummary.total}\n- Succeeded: ${result.actionsSummary.succeeded}\n- Failed: ${result.actionsSummary.failed}\n- Skipped: ${result.actionsSummary.skipped}\n- Other: ${result.actionsSummary.other}\n\nAction Execution Details:\n${actionsList}\n\nFull JSON Response:\n${resultStr}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error getting flow run details:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to get flow run details: ${error.message}`,
+          },
+        ],
+      };
+    }
+  }
+);
+
+server.tool(
   "get-workflows",
   "Get a list of all classic Dynamics workflows in the environment",
   {

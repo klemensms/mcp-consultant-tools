@@ -821,4 +821,84 @@ export class AzureDevOpsService {
       deleted: true
     };
   }
+
+  // ==================== VARIABLE GROUP OPERATIONS ====================
+
+  /**
+   * Get all variable groups in a project
+   * @param project The project name
+   * @returns List of variable groups with their variables
+   */
+  async getVariableGroups(project: string): Promise<any> {
+    this.validateProject(project);
+
+    const response = await this.makeRequest<AdoApiCollectionResponse<any>>(
+      `${project}/_apis/distributedtask/variablegroups?api-version=${this.apiVersion}`
+    );
+
+    return {
+      project,
+      totalCount: response.value.length,
+      variableGroups: response.value.map((group: any) => ({
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        type: group.type,
+        createdBy: group.createdBy?.displayName,
+        createdOn: group.createdOn,
+        modifiedBy: group.modifiedBy?.displayName,
+        modifiedOn: group.modifiedOn,
+        isShared: group.isShared,
+        variableGroupProjectReferences: group.variableGroupProjectReferences,
+        // Include variable names but mask secret values
+        variables: Object.keys(group.variables || {}).reduce((acc: any, key: string) => {
+          const variable = group.variables[key];
+          acc[key] = {
+            value: variable.isSecret ? '***SECRET***' : variable.value,
+            isSecret: variable.isSecret || false,
+            isReadOnly: variable.isReadOnly || false
+          };
+          return acc;
+        }, {})
+      }))
+    };
+  }
+
+  /**
+   * Get a specific variable group by ID
+   * @param project The project name
+   * @param groupId The variable group ID
+   * @returns Variable group details with variables
+   */
+  async getVariableGroup(project: string, groupId: number): Promise<any> {
+    this.validateProject(project);
+
+    const response = await this.makeRequest<any>(
+      `${project}/_apis/distributedtask/variablegroups/${groupId}?api-version=${this.apiVersion}`
+    );
+
+    return {
+      id: response.id,
+      name: response.name,
+      description: response.description,
+      type: response.type,
+      createdBy: response.createdBy?.displayName,
+      createdOn: response.createdOn,
+      modifiedBy: response.modifiedBy?.displayName,
+      modifiedOn: response.modifiedOn,
+      isShared: response.isShared,
+      variableGroupProjectReferences: response.variableGroupProjectReferences,
+      project,
+      // Include variable names but mask secret values
+      variables: Object.keys(response.variables || {}).reduce((acc: any, key: string) => {
+        const variable = response.variables[key];
+        acc[key] = {
+          value: variable.isSecret ? '***SECRET***' : variable.value,
+          isSecret: variable.isSecret || false,
+          isReadOnly: variable.isReadOnly || false
+        };
+        return acc;
+      }, {})
+    };
+  }
 }
