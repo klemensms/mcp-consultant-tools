@@ -22,7 +22,9 @@
     "azure",
     "devops",
     "figma",
-    "microsoft"
+    "microsoft",
+    "rest-api",
+    "oauth2"
   ],
   "author": "Michal Sobieraj",
   "license": "MIT",
@@ -46,6 +48,7 @@
     "@mcp-consultant-tools/service-bus": "workspace:*",
     "@mcp-consultant-tools/sharepoint": "workspace:*",
     "@mcp-consultant-tools/github-enterprise": "workspace:*",
+    "@mcp-consultant-tools/rest-api": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "dotenv": "^16.4.5"
   },

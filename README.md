@@ -7,9 +7,9 @@
 
 ## 🎯 Overview
 
-MCP Consultant Tools v15 is a **modular monorepo** with **13 independently published npm packages** under the `@mcp-consultant-tools` organization. Use individual packages for specific integrations or install the complete meta-package for everything.
+MCP Consultant Tools v15 is a **modular monorepo** with **14 independently published npm packages** under the `@mcp-consultant-tools` organization. Use individual packages for specific integrations or install the complete meta-package for everything.
 
-**Total Capabilities:** 173 tools + 48 prompts across 10 service integrations
+**Total Capabilities:** 177 tools + 50 prompts across 11 service integrations
 
 ## 📦 Package Architecture
 
@@ -30,6 +30,7 @@ MCP Consultant Tools v15 is a **modular monorepo** with **13 independently publi
 | **[@mcp-consultant-tools/log-analytics](packages/log-analytics)** | Log Analytics | 10 | 5 | 92KB | ✅ Read-Only |
 | **[@mcp-consultant-tools/azure-devops](packages/azure-devops)** | Azure DevOps | 18 | 6 | 76KB | ✅ Read-Only (default) |
 | **[@mcp-consultant-tools/application-insights](packages/application-insights)** | Application Insights | 10 | 5 | 76KB | ✅ Read-Only |
+| **[@mcp-consultant-tools/rest-api](packages/rest-api)** | REST API (OAuth2) | 4 | 2 | 45KB | ✅ Read-Only |
 
 ### Meta-Package (All Services)
 - **[mcp-consultant-tools](packages/meta)** - Complete package with all integrations
