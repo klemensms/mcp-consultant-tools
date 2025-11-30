@@ -215,10 +215,13 @@ export class AzureSqlService {
   private getServerById(serverId: string): AzureSqlServerResource {
     const server = this.config.resources.find(r => r.id === serverId);
     if (!server) {
-      const available = this.config.resources.map(r => `${r.id} (${r.name})`).join(', ');
+      const available = this.config.resources.map(r => r.id).join(', ');
+      const defaultServer = this.config.resources.find(r => r.active)?.id;
       throw new Error(
-        `Server '${serverId}' not found. Available servers: ${available || 'none configured'}. ` +
-        `Use sql-list-servers to see all configured servers.`
+        `Server '${serverId}' not found. Available: [${available || 'none'}]. ` +
+        (defaultServer
+          ? `💡 TIP: OMIT the serverId parameter entirely to use the default server '${defaultServer}'. DO NOT GUESS server IDs.`
+          : `Use sql-list-servers to see configured servers.`)
       );
     }
     if (!server.active) {
@@ -242,10 +245,12 @@ export class AzureSqlService {
     const dbConfig = server.databases.find(db => db.name === database);
     if (!dbConfig) {
       const available = server.databases.map(db => db.name).join(', ');
+      const defaultDb = server.databases.find(db => db.active)?.name;
       throw new Error(
-        `Database '${database}' not configured on server '${server.id}'. ` +
-        `Available databases: ${available || 'none configured'}. ` +
-        `Use sql-list-databases to see all databases on this server.`
+        `Database '${database}' not found on server '${server.id}'. Available: [${available || 'none'}]. ` +
+        (defaultDb
+          ? `💡 TIP: OMIT the database parameter entirely to use the default database '${defaultDb}'. DO NOT GUESS database names.`
+          : `Use sql-list-databases to see available databases.`)
       );
     }
     if (!dbConfig.active) {

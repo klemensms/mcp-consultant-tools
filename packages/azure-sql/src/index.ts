@@ -64,8 +64,8 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-database-overview",
     "Get a comprehensive overview of the Azure SQL Database schema",
     {
-      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
-      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
+      serverId: z.string().optional().describe("⚠️ OMIT to use default server. DO NOT GUESS."),
+      database: z.string().optional().describe("⚠️ OMIT to use default database. DO NOT GUESS."),
     },
     async ({ serverId, database }: { serverId?: string; database?: string }) => {
       const sqlService = getAzureSqlService();
@@ -100,8 +100,8 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-table-details",
     "Get detailed report for a specific table with columns, indexes, and relationships",
     {
-      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
-      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
+      serverId: z.string().optional().describe("⚠️ OMIT to use default server. DO NOT GUESS."),
+      database: z.string().optional().describe("⚠️ OMIT to use default database. DO NOT GUESS."),
       schemaName: z.string().describe("Schema name (e.g., 'dbo')"),
       tableName: z.string().describe("Table name"),
     },
@@ -132,8 +132,8 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-query-results",
     "Execute a query and return formatted results with column headers",
     {
-      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
-      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
+      serverId: z.string().optional().describe("⚠️ OMIT to use default server. DO NOT GUESS."),
+      database: z.string().optional().describe("⚠️ OMIT to use default database. DO NOT GUESS."),
       query: z.string().describe("SELECT query to execute"),
     },
     async ({ serverId, database, query }: { serverId?: string; database?: string; query: string }) => {
@@ -171,7 +171,9 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
 
   server.tool(
     "sql-list-servers",
-    "List all configured SQL servers. SKIP THIS for most queries - a default server is pre-configured. Only use if you need to switch to a different server or see all available servers.",
+    `List all configured SQL servers.
+⚠️ SKIP THIS for most queries. You DO NOT need to call this before querying - defaults are automatic.
+Only use this tool if: (1) you got an explicit error about server not found, OR (2) user specifically asks about available servers.`,
     {},
     async () => {
       try {
@@ -201,9 +203,11 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
 
   server.tool(
     "sql-list-databases",
-    "List databases on a SQL server. SKIP THIS for most queries - a default database is pre-configured. Only use if you need to switch to a different database or see all available databases.",
+    `List databases on a SQL server.
+⚠️ SKIP THIS for most queries. You DO NOT need to call this before querying - defaults are automatic.
+Only use this tool if: (1) you got an explicit error about database not found, OR (2) user specifically asks about available databases.`,
     {
-      serverId: z.string().optional().describe("Server ID. Optional - uses default server if omitted."),
+      serverId: z.string().optional().describe("⚠️ OMIT to use default server. DO NOT GUESS."),
     },
     async ({ serverId }: { serverId?: string }) => {
       try {
@@ -234,7 +238,9 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
 
   server.tool(
     "sql-get-defaults",
-    "Get the default server and database configuration. OPTIONAL - you can skip this entirely and just call sql-execute-query with only a query parameter. Defaults are automatically applied.",
+    `Get the default server and database configuration.
+⚠️ SKIP THIS - you do NOT need to call this before querying. Just call sql-execute-query with only the query parameter.
+Only use this if: user specifically asks what server/database is configured, or you need to confirm defaults after an error.`,
     {},
     async () => {
       try {
@@ -266,8 +272,8 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-test-connection",
     "Test SQL Server connectivity and return connection information",
     {
-      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
-      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
+      serverId: z.string().optional().describe("⚠️ OMIT to use default server. DO NOT GUESS."),
+      database: z.string().optional().describe("⚠️ OMIT to use default database. DO NOT GUESS."),
     },
     async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
@@ -301,8 +307,8 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-list-tables",
     "List all user tables in the database with row counts and sizes",
     {
-      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
-      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
+      serverId: z.string().optional().describe("⚠️ OMIT to use default server. DO NOT GUESS."),
+      database: z.string().optional().describe("⚠️ OMIT to use default database. DO NOT GUESS."),
     },
     async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
@@ -336,8 +342,8 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-list-views",
     "List all views in the database",
     {
-      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
-      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
+      serverId: z.string().optional().describe("⚠️ OMIT to use default server. DO NOT GUESS."),
+      database: z.string().optional().describe("⚠️ OMIT to use default database. DO NOT GUESS."),
     },
     async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
@@ -371,8 +377,8 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-list-stored-procedures",
     "List all stored procedures in the Azure SQL Database",
     {
-      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
-      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
+      serverId: z.string().optional().describe("⚠️ OMIT to use default server. DO NOT GUESS."),
+      database: z.string().optional().describe("⚠️ OMIT to use default database. DO NOT GUESS."),
     },
     async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
@@ -406,8 +412,8 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-list-triggers",
     "List all database triggers in the Azure SQL Database",
     {
-      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
-      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
+      serverId: z.string().optional().describe("⚠️ OMIT to use default server. DO NOT GUESS."),
+      database: z.string().optional().describe("⚠️ OMIT to use default database. DO NOT GUESS."),
     },
     async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
@@ -441,8 +447,8 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-list-functions",
     "List all user-defined functions in the Azure SQL Database",
     {
-      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
-      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
+      serverId: z.string().optional().describe("⚠️ OMIT to use default server. DO NOT GUESS."),
+      database: z.string().optional().describe("⚠️ OMIT to use default database. DO NOT GUESS."),
     },
     async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
@@ -476,8 +482,8 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-get-table-schema",
     "Get detailed schema information for a table including columns, indexes, and foreign keys",
     {
-      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
-      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
+      serverId: z.string().optional().describe("⚠️ OMIT to use default server. DO NOT GUESS."),
+      database: z.string().optional().describe("⚠️ OMIT to use default database. DO NOT GUESS."),
       schemaName: z.string().describe("Schema name (e.g., 'dbo')"),
       tableName: z.string().describe("Table name (e.g., 'Users')"),
     },
@@ -513,8 +519,8 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-get-object-definition",
     "Get the SQL definition for a view, stored procedure, function, or trigger",
     {
-      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
-      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
+      serverId: z.string().optional().describe("⚠️ OMIT to use default server. DO NOT GUESS."),
+      database: z.string().optional().describe("⚠️ OMIT to use default database. DO NOT GUESS."),
       schemaName: z.string().describe("Schema name (e.g., 'dbo')"),
       objectName: z.string().describe("Object name"),
       objectType: z.enum(['VIEW', 'PROCEDURE', 'FUNCTION', 'TRIGGER']).describe("Object type"),
@@ -549,10 +555,13 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
 
   server.tool(
     "sql-execute-query",
-    "Execute a SELECT query against the Azure SQL Database. RECOMMENDED: Just provide the query parameter - serverId and database have pre-configured defaults and can be omitted. No discovery calls needed.",
+    `Execute a SELECT query against Azure SQL Database.
+⚠️ IMPORTANT: DO NOT GUESS serverId or database values. If you don't know them, OMIT THEM ENTIRELY.
+The server has pre-configured defaults - just provide the query parameter and defaults will be applied automatically.
+Example: sql-execute-query(query: "SELECT * FROM dbo.Users") - serverId and database omitted, defaults used.`,
     {
-      serverId: z.string().optional().describe("Server ID. OPTIONAL - omit to use pre-configured default."),
-      database: z.string().optional().describe("Database name. OPTIONAL - omit to use pre-configured default."),
+      serverId: z.string().optional().describe("⚠️ OMIT unless switching servers. DO NOT GUESS - omitting uses the pre-configured default server."),
+      database: z.string().optional().describe("⚠️ OMIT unless switching databases. DO NOT GUESS - omitting uses the pre-configured default database."),
       query: z.string().describe("SELECT query to execute (e.g., 'SELECT TOP 10 * FROM dbo.Users WHERE IsActive = 1')"),
     },
     async ({ serverId, database, query }: { serverId?: string; database?: string; query: string }) => {
