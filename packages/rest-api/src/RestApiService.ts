@@ -67,18 +67,6 @@ export interface EntitySchema {
   example?: Record<string, any>;
 }
 
-/**
- * Endpoints configuration (can be loaded from JSON)
- */
-export interface EndpointsConfig {
-  /** List of endpoint definitions */
-  endpoints: EndpointDefinition[];
-  /** Entity schemas (keyed by entity name) */
-  schemas?: Record<string, EntitySchema>;
-  /** Last update timestamp */
-  lastUpdated?: string;
-}
-
 export interface RestApiConfig {
   /** Base URL for all requests (e.g., "https://api.example.com/v1") */
   baseUrl: string;
@@ -126,9 +114,6 @@ export interface RestApiConfig {
   /** Request timeout in milliseconds (default: 30000) */
   timeout?: number;
 
-  /** Endpoint discovery configuration */
-  endpoints?: EndpointsConfig;
-
   /** URL to fetch OpenAPI/Swagger spec for dynamic discovery */
   openApiUrl?: string;
 }
@@ -174,10 +159,25 @@ export interface RequestResult {
   };
 }
 
+/**
+ * Cached OpenAPI spec with parsed endpoints and schemas
+ */
+interface CachedOpenApiSpec {
+  endpoints: EndpointDefinition[];
+  schemas: Record<string, EntitySchema>;
+  fetchedAt: number;
+  source: string;
+}
+
 export class RestApiService {
   private config: RestApiConfig;
   private cachedToken: CachedToken | null = null;
   private httpsAgent: https.Agent | undefined;
+  private cachedOpenApi: CachedOpenApiSpec | null = null;
+  private openApiFetchPromise: Promise<CachedOpenApiSpec> | null = null;
+
+  /** OpenAPI cache TTL in milliseconds (default: 5 minutes) */
+  private static readonly OPENAPI_CACHE_TTL = 5 * 60 * 1000;
 
   constructor(config: RestApiConfig) {
     this.config = {
@@ -523,7 +523,6 @@ export class RestApiService {
     responseSizeLimit: number;
     customHeaderCount: number;
     oauth2TokenUrl?: string;
-    hasEndpointConfig: boolean;
     openApiUrl?: string;
   } {
     return {
@@ -533,65 +532,335 @@ export class RestApiService {
       responseSizeLimit: this.config.responseSizeLimit || 10000,
       customHeaderCount: Object.keys(this.config.customHeaders || {}).length,
       ...(this.config.oauth2 && { oauth2TokenUrl: this.config.oauth2.tokenUrl }),
-      hasEndpointConfig: !!this.config.endpoints,
       ...(this.config.openApiUrl && { openApiUrl: this.config.openApiUrl }),
     };
   }
 
   /**
-   * List all available API endpoints
+   * Check if OpenAPI URL is configured
+   */
+  hasOpenApiConfig(): boolean {
+    return !!this.config.openApiUrl;
+  }
+
+  /**
+   * Fetch and parse OpenAPI spec from configured URL
+   * Results are cached for OPENAPI_CACHE_TTL
+   */
+  private async fetchOpenApiSpec(): Promise<CachedOpenApiSpec> {
+    if (!this.config.openApiUrl) {
+      throw new Error("OpenAPI URL not configured");
+    }
+
+    // Check cache validity
+    const now = Date.now();
+    if (
+      this.cachedOpenApi &&
+      now - this.cachedOpenApi.fetchedAt < RestApiService.OPENAPI_CACHE_TTL
+    ) {
+      return this.cachedOpenApi;
+    }
+
+    // Avoid concurrent fetches - reuse in-flight promise
+    if (this.openApiFetchPromise) {
+      return this.openApiFetchPromise;
+    }
+
+    this.openApiFetchPromise = this.doFetchOpenApiSpec();
+
+    try {
+      const result = await this.openApiFetchPromise;
+      return result;
+    } finally {
+      this.openApiFetchPromise = null;
+    }
+  }
+
+  /**
+   * Actually fetch and parse the OpenAPI spec
+   */
+  private async doFetchOpenApiSpec(): Promise<CachedOpenApiSpec> {
+    const url = this.config.openApiUrl!;
+    console.error(`Fetching OpenAPI spec from ${url}...`);
+
+    const fetchOptions: RequestInit = {};
+
+    // Add timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    fetchOptions.signal = controller.signal;
+
+    try {
+      const response = await fetch(url, fetchOptions);
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch OpenAPI spec: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const spec = (await response.json()) as OpenApiSpec;
+      const parsed = this.parseOpenApiSpec(spec);
+
+      this.cachedOpenApi = {
+        ...parsed,
+        fetchedAt: Date.now(),
+        source: `OpenAPI spec from ${url}`,
+      };
+
+      console.error(
+        `OpenAPI spec loaded: ${parsed.endpoints.length} endpoints, ${Object.keys(parsed.schemas).length} schemas`
+      );
+
+      return this.cachedOpenApi;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error("OpenAPI fetch timeout after 30 seconds");
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Parse OpenAPI 3.x spec into our internal format
+   */
+  private parseOpenApiSpec(spec: OpenApiSpec): {
+    endpoints: EndpointDefinition[];
+    schemas: Record<string, EntitySchema>;
+  } {
+    const endpoints: EndpointDefinition[] = [];
+    const schemas: Record<string, EntitySchema> = {};
+
+    // Parse paths into endpoints
+    if (spec.paths) {
+      // Group methods by path
+      const pathMethods: Record<string, ("GET" | "POST" | "PUT" | "DELETE" | "PATCH")[]> = {};
+
+      for (const [path, pathItem] of Object.entries(spec.paths)) {
+        if (!pathItem) continue;
+
+        const methods: ("GET" | "POST" | "PUT" | "DELETE" | "PATCH")[] = [];
+
+        if (pathItem.get) methods.push("GET");
+        if (pathItem.post) methods.push("POST");
+        if (pathItem.put) methods.push("PUT");
+        if (pathItem.delete) methods.push("DELETE");
+        if (pathItem.patch) methods.push("PATCH");
+
+        if (methods.length > 0) {
+          // For DAB-style paths, group /entity and /entity/{id} together
+          const basePath = path.replace(/\/\{[^}]+\}$/, "");
+
+          if (!pathMethods[basePath]) {
+            pathMethods[basePath] = [];
+          }
+
+          for (const method of methods) {
+            if (!pathMethods[basePath].includes(method)) {
+              pathMethods[basePath].push(method);
+            }
+          }
+        }
+      }
+
+      // Convert grouped paths to endpoints
+      for (const [path, methods] of Object.entries(pathMethods)) {
+        // Extract entity name from path (e.g., "/contacts" -> "contact")
+        const pathSegments = path.split("/").filter(Boolean);
+        const lastSegment = pathSegments[pathSegments.length - 1] || "";
+        const entityName = lastSegment.endsWith("s")
+          ? lastSegment.slice(0, -1)
+          : lastSegment;
+
+        // Get description from one of the operations
+        let description: string | undefined;
+        const fullPath = spec.paths[path];
+        if (fullPath) {
+          description =
+            fullPath.get?.summary ||
+            fullPath.post?.summary ||
+            fullPath.get?.description ||
+            fullPath.post?.description;
+        }
+
+        endpoints.push({
+          path,
+          methods: methods.sort(),
+          entityName: entityName || undefined,
+          description,
+        });
+      }
+    }
+
+    // Parse schemas
+    if (spec.components?.schemas) {
+      for (const [schemaName, schemaObj] of Object.entries(spec.components.schemas)) {
+        if (!schemaObj || typeof schemaObj !== "object") continue;
+
+        // Skip input/output wrapper schemas (DAB pattern)
+        if (schemaName.endsWith("_input") || schemaName.endsWith("_output")) {
+          continue;
+        }
+
+        const fields: FieldDefinition[] = [];
+        let primaryKey = "id";
+
+        if (schemaObj.properties) {
+          const required = new Set(schemaObj.required || []);
+
+          for (const [propName, propObj] of Object.entries(schemaObj.properties)) {
+            if (!propObj || typeof propObj !== "object") continue;
+
+            // Detect primary key (common patterns)
+            if (
+              propName === "id" ||
+              propName.endsWith("id") ||
+              propName.endsWith("Id")
+            ) {
+              primaryKey = propName;
+            }
+
+            const field: FieldDefinition = {
+              name: propName,
+              type: this.mapOpenApiType(propObj),
+              required: required.has(propName),
+              nullable: propObj.nullable === true,
+            };
+
+            if (propObj.maxLength) {
+              field.maxLength = propObj.maxLength;
+            }
+
+            if (propObj.description) {
+              field.description = propObj.description;
+            }
+
+            if (propObj.enum) {
+              field.enumValues = propObj.enum;
+            }
+
+            fields.push(field);
+          }
+        }
+
+        // Derive plural name and endpoint from schema name
+        const pluralName = schemaName.endsWith("s") ? schemaName : `${schemaName}s`;
+        const endpoint = `/${pluralName.toLowerCase()}`;
+
+        schemas[schemaName.toLowerCase()] = {
+          entityName: schemaName,
+          pluralName,
+          endpoint,
+          primaryKey,
+          fields,
+        };
+      }
+    }
+
+    return { endpoints, schemas };
+  }
+
+  /**
+   * Map OpenAPI type to simplified type string
+   */
+  private mapOpenApiType(propObj: OpenApiProperty): string {
+    if (propObj.$ref) {
+      // Extract type name from $ref (e.g., "#/components/schemas/User" -> "User")
+      const refParts = propObj.$ref.split("/");
+      return refParts[refParts.length - 1];
+    }
+
+    const type = propObj.type || "any";
+    const format = propObj.format;
+
+    if (type === "string") {
+      if (format === "uuid") return "Guid";
+      if (format === "date-time") return "datetime";
+      if (format === "date") return "date";
+      return "string";
+    }
+
+    if (type === "integer") {
+      if (format === "int64") return "long";
+      return "int";
+    }
+
+    if (type === "number") {
+      if (format === "decimal") return "decimal";
+      if (format === "double") return "double";
+      if (format === "float") return "float";
+      return "number";
+    }
+
+    if (type === "boolean") return "boolean";
+    if (type === "array") return "array";
+    if (type === "object") return "object";
+
+    return type;
+  }
+
+  /**
+   * Clear OpenAPI cache (forces re-fetch on next call)
+   */
+  clearOpenApiCache(): void {
+    this.cachedOpenApi = null;
+    console.error("OpenAPI cache cleared");
+  }
+
+  /**
+   * List all available API endpoints from OpenAPI spec
    * @param filter Optional filter to match endpoint paths (case-insensitive contains match)
    */
-  listEndpoints(filter?: string): {
+  async listEndpointsAsync(filter?: string): Promise<{
     baseUrl: string;
     endpointCount: number;
     endpoints: EndpointDefinition[];
     source: string;
-  } {
-    const endpoints = this.config.endpoints?.endpoints || [];
-
-    if (endpoints.length === 0) {
+  }> {
+    if (!this.config.openApiUrl) {
       return {
         baseUrl: this.config.baseUrl,
         endpointCount: 0,
         endpoints: [],
-        source: "No endpoints configured. Set REST_ENDPOINTS_JSON environment variable with endpoint definitions.",
+        source: "No OpenAPI URL configured. Set REST_OPENAPI_URL environment variable.",
       };
     }
 
-    // Apply filter if provided
-    const filteredEndpoints = filter
-      ? endpoints.filter(
+    const openApiData = await this.fetchOpenApiSpec();
+
+    const endpoints = filter
+      ? openApiData.endpoints.filter(
           (ep) =>
             ep.path.toLowerCase().includes(filter.toLowerCase()) ||
             ep.entityName?.toLowerCase().includes(filter.toLowerCase()) ||
             ep.description?.toLowerCase().includes(filter.toLowerCase())
         )
-      : endpoints;
+      : openApiData.endpoints;
 
     return {
       baseUrl: this.config.baseUrl,
-      endpointCount: filteredEndpoints.length,
-      endpoints: filteredEndpoints,
-      source: this.config.endpoints?.lastUpdated
-        ? `Configured endpoints (last updated: ${this.config.endpoints.lastUpdated})`
-        : "Configured endpoints",
+      endpointCount: endpoints.length,
+      endpoints,
+      source: openApiData.source,
     };
   }
 
   /**
-   * Get schema for a specific entity
+   * Get schema for a specific entity from OpenAPI spec
    * @param entity Entity name (singular or plural)
    */
-  getSchema(entity: string): EntitySchema | null {
-    if (!this.config.endpoints?.schemas) {
+  async getSchemaAsync(entity: string): Promise<EntitySchema | null> {
+    if (!this.config.openApiUrl) {
       return null;
     }
 
+    const openApiData = await this.fetchOpenApiSpec();
     const normalizedEntity = entity.toLowerCase();
 
     // Try direct match
-    for (const [key, schema] of Object.entries(this.config.endpoints.schemas)) {
+    for (const [key, schema] of Object.entries(openApiData.schemas)) {
       if (
         key.toLowerCase() === normalizedEntity ||
         schema.entityName.toLowerCase() === normalizedEntity ||
@@ -603,18 +872,53 @@ export class RestApiService {
 
     return null;
   }
+}
 
-  /**
-   * Check if endpoint configuration is available
-   */
-  hasEndpointConfig(): boolean {
-    return !!(this.config.endpoints && this.config.endpoints.endpoints.length > 0);
-  }
+/**
+ * OpenAPI 3.x types (simplified for our needs)
+ */
+interface OpenApiSpec {
+  openapi?: string;
+  info?: {
+    title?: string;
+    version?: string;
+  };
+  paths?: Record<string, OpenApiPathItem | undefined>;
+  components?: {
+    schemas?: Record<string, OpenApiSchema | undefined>;
+  };
+}
 
-  /**
-   * Check if schema configuration is available
-   */
-  hasSchemaConfig(): boolean {
-    return !!(this.config.endpoints?.schemas && Object.keys(this.config.endpoints.schemas).length > 0);
-  }
+interface OpenApiPathItem {
+  get?: OpenApiOperation;
+  post?: OpenApiOperation;
+  put?: OpenApiOperation;
+  delete?: OpenApiOperation;
+  patch?: OpenApiOperation;
+}
+
+interface OpenApiOperation {
+  summary?: string;
+  description?: string;
+  operationId?: string;
+  tags?: string[];
+  requestBody?: any;
+  responses?: any;
+}
+
+interface OpenApiSchema {
+  type?: string;
+  properties?: Record<string, OpenApiProperty>;
+  required?: string[];
+  description?: string;
+}
+
+interface OpenApiProperty {
+  type?: string;
+  format?: string;
+  description?: string;
+  nullable?: boolean;
+  maxLength?: number;
+  enum?: string[];
+  $ref?: string;
 }

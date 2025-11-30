@@ -25,7 +25,7 @@ import {
   createSuccessResponse,
 } from "@mcp-consultant-tools/core";
 import { RestApiService } from "./RestApiService.js";
-import type { RestApiConfig, RequestOptions, EndpointsConfig, EndpointDefinition, EntitySchema, FieldDefinition } from "./RestApiService.js";
+import type { RestApiConfig, RequestOptions, EndpointDefinition, EntitySchema, FieldDefinition } from "./RestApiService.js";
 
 // Tool count for documentation
 const TOOL_COUNT = 6;
@@ -117,19 +117,10 @@ function buildConfigFromEnv(): RestApiConfig {
     };
   }
 
-  // Parse endpoint configuration for API discovery
-  if (process.env.REST_ENDPOINTS_JSON) {
-    try {
-      config.endpoints = JSON.parse(process.env.REST_ENDPOINTS_JSON);
-      console.error(`Loaded ${config.endpoints?.endpoints?.length || 0} endpoint definitions`);
-    } catch (e) {
-      console.error("Warning: REST_ENDPOINTS_JSON is not valid JSON");
-    }
-  }
-
-  // OpenAPI URL for dynamic discovery (future enhancement)
+  // OpenAPI URL for dynamic discovery (recommended for DAB)
   if (process.env.REST_OPENAPI_URL) {
     config.openApiUrl = process.env.REST_OPENAPI_URL;
+    console.error(`OpenAPI URL configured: ${config.openApiUrl}`);
   }
 
   return config;
@@ -364,7 +355,7 @@ export function registerRestApiTools(
   // Tool: rest-list-endpoints
   server.tool(
     "rest-list-endpoints",
-    "List all available REST API endpoints with their supported HTTP methods. Use this to discover what entities/resources are available in the API. Requires REST_ENDPOINTS_JSON configuration.",
+    "List all available REST API endpoints with their supported HTTP methods. Use this to discover what entities/resources are available in the API. Requires REST_OPENAPI_URL configuration pointing to your API's OpenAPI/Swagger spec.",
     {
       filter: z
         .string()
@@ -376,7 +367,7 @@ export function registerRestApiTools(
     async ({ filter }: { filter?: string }) => {
       try {
         const restService = getRestApiService();
-        const result = restService.listEndpoints(filter);
+        const result = await restService.listEndpointsAsync(filter);
         return createSuccessResponse(result);
       } catch (error) {
         return createErrorResponse(error, "rest-list-endpoints");
@@ -387,7 +378,7 @@ export function registerRestApiTools(
   // Tool: rest-get-schema
   server.tool(
     "rest-get-schema",
-    "Get the schema/field definitions for a specific entity. Returns field names, types, whether they're required, and any validation rules. Use this before creating or updating records to understand the data structure. Requires REST_ENDPOINTS_JSON configuration with schemas.",
+    "Get the schema/field definitions for a specific entity. Returns field names, types, whether they're required, and any validation rules. Use this before creating or updating records to understand the data structure. Requires REST_OPENAPI_URL configuration pointing to your API's OpenAPI/Swagger spec.",
     {
       entity: z
         .string()
@@ -399,21 +390,21 @@ export function registerRestApiTools(
       try {
         const restService = getRestApiService();
 
-        if (!restService.hasSchemaConfig()) {
+        if (!restService.hasOpenApiConfig()) {
           return createErrorResponse(
             new Error(
-              "No schema configuration available. Configure REST_ENDPOINTS_JSON with a 'schemas' section to use this tool."
+              "No schema configuration available. Configure REST_OPENAPI_URL pointing to your API's OpenAPI/Swagger spec."
             ),
             "rest-get-schema"
           );
         }
 
-        const schema = restService.getSchema(entity);
+        const schema = await restService.getSchemaAsync(entity);
 
         if (!schema) {
           return createErrorResponse(
             new Error(
-              `Entity '${entity}' not found in schema configuration. Use rest-list-endpoints to see available entities.`
+              `Entity '${entity}' not found. Use rest-list-endpoints to see available entities.`
             ),
             "rest-get-schema"
           );
@@ -638,7 +629,6 @@ export type {
   RestApiConfig,
   RequestOptions,
   RequestResult,
-  EndpointsConfig,
   EndpointDefinition,
   EntitySchema,
   FieldDefinition,
