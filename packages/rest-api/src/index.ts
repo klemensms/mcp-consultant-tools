@@ -25,10 +25,10 @@ import {
   createSuccessResponse,
 } from "@mcp-consultant-tools/core";
 import { RestApiService } from "./RestApiService.js";
-import type { RestApiConfig, RequestOptions } from "./RestApiService.js";
+import type { RestApiConfig, RequestOptions, EndpointsConfig, EndpointDefinition, EntitySchema, FieldDefinition } from "./RestApiService.js";
 
 // Tool count for documentation
-const TOOL_COUNT = 4;
+const TOOL_COUNT = 6;
 const PROMPT_COUNT = 2;
 
 /**
@@ -115,6 +115,21 @@ function buildConfigFromEnv(): RestApiConfig {
       headerName: process.env.AUTH_APIKEY_HEADER_NAME,
       value: process.env.AUTH_APIKEY_VALUE,
     };
+  }
+
+  // Parse endpoint configuration for API discovery
+  if (process.env.REST_ENDPOINTS_JSON) {
+    try {
+      config.endpoints = JSON.parse(process.env.REST_ENDPOINTS_JSON);
+      console.error(`Loaded ${config.endpoints?.endpoints?.length || 0} endpoint definitions`);
+    } catch (e) {
+      console.error("Warning: REST_ENDPOINTS_JSON is not valid JSON");
+    }
+  }
+
+  // OpenAPI URL for dynamic discovery (future enhancement)
+  if (process.env.REST_OPENAPI_URL) {
+    config.openApiUrl = process.env.REST_OPENAPI_URL;
   }
 
   return config;
@@ -346,6 +361,71 @@ export function registerRestApiTools(
     }
   );
 
+  // Tool: rest-list-endpoints
+  server.tool(
+    "rest-list-endpoints",
+    "List all available REST API endpoints with their supported HTTP methods. Use this to discover what entities/resources are available in the API. Requires REST_ENDPOINTS_JSON configuration.",
+    {
+      filter: z
+        .string()
+        .optional()
+        .describe(
+          "Optional filter to match endpoint paths (case-insensitive contains match). Example: 'exam' returns all exam-related endpoints."
+        ),
+    },
+    async ({ filter }: { filter?: string }) => {
+      try {
+        const restService = getRestApiService();
+        const result = restService.listEndpoints(filter);
+        return createSuccessResponse(result);
+      } catch (error) {
+        return createErrorResponse(error, "rest-list-endpoints");
+      }
+    }
+  );
+
+  // Tool: rest-get-schema
+  server.tool(
+    "rest-get-schema",
+    "Get the schema/field definitions for a specific entity. Returns field names, types, whether they're required, and any validation rules. Use this before creating or updating records to understand the data structure. Requires REST_ENDPOINTS_JSON configuration with schemas.",
+    {
+      entity: z
+        .string()
+        .describe(
+          "Entity name (singular or plural). Examples: 'sic_exam', 'sic_exams', 'contact', 'contacts'"
+        ),
+    },
+    async ({ entity }: { entity: string }) => {
+      try {
+        const restService = getRestApiService();
+
+        if (!restService.hasSchemaConfig()) {
+          return createErrorResponse(
+            new Error(
+              "No schema configuration available. Configure REST_ENDPOINTS_JSON with a 'schemas' section to use this tool."
+            ),
+            "rest-get-schema"
+          );
+        }
+
+        const schema = restService.getSchema(entity);
+
+        if (!schema) {
+          return createErrorResponse(
+            new Error(
+              `Entity '${entity}' not found in schema configuration. Use rest-list-endpoints to see available entities.`
+            ),
+            "rest-get-schema"
+          );
+        }
+
+        return createSuccessResponse(schema);
+      } catch (error) {
+        return createErrorResponse(error, "rest-get-schema");
+      }
+    }
+  );
+
   // ============================================================
   // PROMPTS
   // ============================================================
@@ -554,7 +634,15 @@ HEADER_X-Custom=value
  * Export service class for direct usage
  */
 export { RestApiService } from "./RestApiService.js";
-export type { RestApiConfig, RequestOptions, RequestResult } from "./RestApiService.js";
+export type {
+  RestApiConfig,
+  RequestOptions,
+  RequestResult,
+  EndpointsConfig,
+  EndpointDefinition,
+  EntitySchema,
+  FieldDefinition,
+} from "./RestApiService.js";
 
 /**
  * Standalone CLI server (when run directly)

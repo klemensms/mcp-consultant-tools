@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/rest-api",
-  "version": "22.0.0-beta.1",
+  "version": "22.0.0-beta.2",
   "description": "MCP server for REST API testing with OAuth2 client credentials support - test HTTP endpoints with automatic JWT token generation",
   "type": "module",
   "main": "./build/index.js",

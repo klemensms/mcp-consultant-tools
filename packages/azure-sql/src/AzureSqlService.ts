@@ -170,6 +170,18 @@ export interface DatabaseInfo {
 }
 
 /**
+ * Default configuration response for zero-discovery workflows
+ */
+export interface DefaultConfiguration {
+  defaultServerId: string | null;
+  defaultServerName: string | null;
+  defaultDatabase: string | null;
+  serverCount: number;
+  databaseCount: number;
+  hint: string;
+}
+
+/**
  * Azure SQL Database Service
  *
  * Provides read-only access to Azure SQL Database for investigation and analysis.
@@ -445,6 +457,140 @@ export class AzureSqlService {
       description: resource.description,
       authMethod: resource.useAzureAd ? 'Azure AD' : 'SQL',
     }));
+  }
+
+  /**
+   * Get default server and database configuration for zero-discovery workflows
+   * Returns the default/active server and database, enabling agents to skip discovery calls
+   */
+  getDefaultConfiguration(): DefaultConfiguration {
+    const activeServers = this.config.resources.filter(r => r.active);
+    const serverCount = this.config.resources.length;
+
+    // No servers configured
+    if (serverCount === 0) {
+      return {
+        defaultServerId: null,
+        defaultServerName: null,
+        defaultDatabase: null,
+        serverCount: 0,
+        databaseCount: 0,
+        hint: 'No SQL servers configured. Add AZURE_SQL_SERVERS or AZURE_SQL_SERVER/AZURE_SQL_DATABASE environment variables.',
+      };
+    }
+
+    // No active servers
+    if (activeServers.length === 0) {
+      return {
+        defaultServerId: null,
+        defaultServerName: null,
+        defaultDatabase: null,
+        serverCount,
+        databaseCount: 0,
+        hint: `${serverCount} server(s) configured but none are active. Set active=true on a server to enable it.`,
+      };
+    }
+
+    // Get the default server (first active, or only server)
+    const defaultServer = activeServers[0];
+    const activeDatabases = defaultServer.databases.filter(db => db.active);
+    const databaseCount = defaultServer.databases.length;
+
+    // No databases configured (discovery mode) or no active databases
+    if (databaseCount === 0) {
+      // Discovery mode - no specific database configured
+      return {
+        defaultServerId: defaultServer.id,
+        defaultServerName: defaultServer.name,
+        defaultDatabase: null,
+        serverCount,
+        databaseCount: 0,
+        hint: serverCount === 1
+          ? `Single server configured (${defaultServer.id}). Databases are in discovery mode - you must specify the database parameter.`
+          : `${serverCount} server(s) configured. Default: ${defaultServer.id}. Databases are in discovery mode - you must specify the database parameter.`,
+      };
+    }
+
+    if (activeDatabases.length === 0) {
+      return {
+        defaultServerId: defaultServer.id,
+        defaultServerName: defaultServer.name,
+        defaultDatabase: null,
+        serverCount,
+        databaseCount,
+        hint: `${databaseCount} database(s) configured on server '${defaultServer.id}' but none are active. Set active=true on a database to enable it.`,
+      };
+    }
+
+    // Get the default database (first active)
+    const defaultDatabase = activeDatabases[0];
+
+    // Build appropriate hint based on configuration complexity
+    let hint: string;
+    if (serverCount === 1 && databaseCount === 1) {
+      hint = `Single server and database configured. You can omit serverId and database parameters in queries - they will default to '${defaultServer.id}' and '${defaultDatabase.name}'.`;
+    } else if (serverCount === 1 && activeDatabases.length === 1) {
+      hint = `Single server with one active database. You can omit serverId and database parameters - defaults: server='${defaultServer.id}', database='${defaultDatabase.name}'.`;
+    } else {
+      hint = `${serverCount} server(s), ${databaseCount} database(s) on default server. Defaults: server='${defaultServer.id}', database='${defaultDatabase.name}'. Use sql-list-servers and sql-list-databases for full list.`;
+    }
+
+    return {
+      defaultServerId: defaultServer.id,
+      defaultServerName: defaultServer.name,
+      defaultDatabase: defaultDatabase.name,
+      serverCount,
+      databaseCount,
+      hint,
+    };
+  }
+
+  /**
+   * Resolve server ID - returns the provided ID or resolves the default
+   * @throws Error if no default can be resolved
+   */
+  resolveServerId(serverId?: string): string {
+    if (serverId) {
+      return serverId;
+    }
+
+    const defaults = this.getDefaultConfiguration();
+    if (!defaults.defaultServerId) {
+      throw new Error(defaults.hint);
+    }
+    return defaults.defaultServerId;
+  }
+
+  /**
+   * Resolve database name - returns the provided name or resolves the default for the given server
+   * @throws Error if no default can be resolved
+   */
+  resolveDatabase(serverId: string, database?: string): string {
+    if (database) {
+      return database;
+    }
+
+    const server = this.getServerById(serverId);
+    const activeDatabases = server.databases.filter(db => db.active);
+
+    // Discovery mode - no databases configured
+    if (server.databases.length === 0) {
+      throw new Error(
+        `Server '${serverId}' is in discovery mode (no databases pre-configured). ` +
+        `You must specify the database parameter. Use sql-list-databases to discover available databases.`
+      );
+    }
+
+    // No active databases
+    if (activeDatabases.length === 0) {
+      const available = server.databases.map(db => db.name).join(', ');
+      throw new Error(
+        `No active databases on server '${serverId}'. Available databases: ${available}. ` +
+        `Set active=true in configuration or specify the database parameter explicitly.`
+      );
+    }
+
+    return activeDatabases[0].name;
   }
 
   /**

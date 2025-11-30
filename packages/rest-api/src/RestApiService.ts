@@ -10,6 +10,75 @@
 
 import https from "https";
 
+/**
+ * Endpoint definition for API discovery
+ */
+export interface EndpointDefinition {
+  /** Endpoint path (e.g., "/users", "/sic_exams") */
+  path: string;
+  /** Supported HTTP methods */
+  methods: ("GET" | "POST" | "PUT" | "DELETE" | "PATCH")[];
+  /** Entity name (singular) if applicable */
+  entityName?: string;
+  /** Human-readable description */
+  description?: string;
+}
+
+/**
+ * Field definition for entity schema
+ */
+export interface FieldDefinition {
+  /** Field name */
+  name: string;
+  /** Data type (e.g., "string", "Guid", "int", "datetime", "decimal") */
+  type: string;
+  /** Whether the field is required for creation */
+  required: boolean;
+  /** Whether the field can be null */
+  nullable: boolean;
+  /** Maximum length for string fields */
+  maxLength?: number;
+  /** Human-readable description */
+  description?: string;
+  /** Foreign key reference */
+  foreignKey?: {
+    entity: string;
+    field: string;
+  };
+  /** Enum/option set values */
+  enumValues?: string[];
+}
+
+/**
+ * Entity schema definition
+ */
+export interface EntitySchema {
+  /** Entity name (singular) */
+  entityName: string;
+  /** Plural name for the endpoint */
+  pluralName: string;
+  /** Endpoint path */
+  endpoint: string;
+  /** Primary key field name */
+  primaryKey: string;
+  /** Field definitions */
+  fields: FieldDefinition[];
+  /** Example object for creating/updating */
+  example?: Record<string, any>;
+}
+
+/**
+ * Endpoints configuration (can be loaded from JSON)
+ */
+export interface EndpointsConfig {
+  /** List of endpoint definitions */
+  endpoints: EndpointDefinition[];
+  /** Entity schemas (keyed by entity name) */
+  schemas?: Record<string, EntitySchema>;
+  /** Last update timestamp */
+  lastUpdated?: string;
+}
+
 export interface RestApiConfig {
   /** Base URL for all requests (e.g., "https://api.example.com/v1") */
   baseUrl: string;
@@ -56,6 +125,12 @@ export interface RestApiConfig {
 
   /** Request timeout in milliseconds (default: 30000) */
   timeout?: number;
+
+  /** Endpoint discovery configuration */
+  endpoints?: EndpointsConfig;
+
+  /** URL to fetch OpenAPI/Swagger spec for dynamic discovery */
+  openApiUrl?: string;
 }
 
 export interface RequestOptions {
@@ -448,6 +523,8 @@ export class RestApiService {
     responseSizeLimit: number;
     customHeaderCount: number;
     oauth2TokenUrl?: string;
+    hasEndpointConfig: boolean;
+    openApiUrl?: string;
   } {
     return {
       baseUrl: this.config.baseUrl,
@@ -456,6 +533,88 @@ export class RestApiService {
       responseSizeLimit: this.config.responseSizeLimit || 10000,
       customHeaderCount: Object.keys(this.config.customHeaders || {}).length,
       ...(this.config.oauth2 && { oauth2TokenUrl: this.config.oauth2.tokenUrl }),
+      hasEndpointConfig: !!this.config.endpoints,
+      ...(this.config.openApiUrl && { openApiUrl: this.config.openApiUrl }),
     };
+  }
+
+  /**
+   * List all available API endpoints
+   * @param filter Optional filter to match endpoint paths (case-insensitive contains match)
+   */
+  listEndpoints(filter?: string): {
+    baseUrl: string;
+    endpointCount: number;
+    endpoints: EndpointDefinition[];
+    source: string;
+  } {
+    const endpoints = this.config.endpoints?.endpoints || [];
+
+    if (endpoints.length === 0) {
+      return {
+        baseUrl: this.config.baseUrl,
+        endpointCount: 0,
+        endpoints: [],
+        source: "No endpoints configured. Set REST_ENDPOINTS_JSON environment variable with endpoint definitions.",
+      };
+    }
+
+    // Apply filter if provided
+    const filteredEndpoints = filter
+      ? endpoints.filter(
+          (ep) =>
+            ep.path.toLowerCase().includes(filter.toLowerCase()) ||
+            ep.entityName?.toLowerCase().includes(filter.toLowerCase()) ||
+            ep.description?.toLowerCase().includes(filter.toLowerCase())
+        )
+      : endpoints;
+
+    return {
+      baseUrl: this.config.baseUrl,
+      endpointCount: filteredEndpoints.length,
+      endpoints: filteredEndpoints,
+      source: this.config.endpoints?.lastUpdated
+        ? `Configured endpoints (last updated: ${this.config.endpoints.lastUpdated})`
+        : "Configured endpoints",
+    };
+  }
+
+  /**
+   * Get schema for a specific entity
+   * @param entity Entity name (singular or plural)
+   */
+  getSchema(entity: string): EntitySchema | null {
+    if (!this.config.endpoints?.schemas) {
+      return null;
+    }
+
+    const normalizedEntity = entity.toLowerCase();
+
+    // Try direct match
+    for (const [key, schema] of Object.entries(this.config.endpoints.schemas)) {
+      if (
+        key.toLowerCase() === normalizedEntity ||
+        schema.entityName.toLowerCase() === normalizedEntity ||
+        schema.pluralName.toLowerCase() === normalizedEntity
+      ) {
+        return schema;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Check if endpoint configuration is available
+   */
+  hasEndpointConfig(): boolean {
+    return !!(this.config.endpoints && this.config.endpoints.endpoints.length > 0);
+  }
+
+  /**
+   * Check if schema configuration is available
+   */
+  hasSchemaConfig(): boolean {
+    return !!(this.config.endpoints?.schemas && Object.keys(this.config.endpoints.schemas).length > 0);
   }
 }

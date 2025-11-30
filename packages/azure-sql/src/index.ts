@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import { realpathSync } from "node:fs";
 import { createMcpServer, createEnvLoader } from "@mcp-consultant-tools/core";
 import { AzureSqlService } from "./AzureSqlService.js";
-import type { AzureSqlConfig } from "./AzureSqlService.js";
+import type { AzureSqlConfig, DefaultConfiguration } from "./AzureSqlService.js";
 import { z } from 'zod';
 import { formatSqlResultsAsMarkdown, formatTableList, formatViewList, formatProcedureList, formatTableSchemaAsMarkdown, formatDatabaseOverview } from './utils/sql-formatters.js';
 
@@ -217,6 +217,36 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
             {
               type: "text",
               text: `Error listing databases: ${error.message}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "sql-get-defaults",
+    "Get the default server and database configuration. Use this once at the start of a session to understand the SQL environment, or skip entirely and use the defaults directly in sql-execute-query by omitting serverId and database parameters.",
+    {},
+    async () => {
+      try {
+        const sqlService = getAzureSqlService();
+        const defaults = sqlService.getDefaultConfiguration();
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(defaults, null, 2),
+            },
+          ],
+        };
+      } catch (error: any) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error getting defaults: ${error.message}`,
             },
           ],
           isError: true,
@@ -496,23 +526,36 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
 
   server.tool(
     "sql-execute-query",
-    "Execute a SELECT query against the Azure SQL Database (read-only, with result limits)",
+    "Execute a SELECT query against the Azure SQL Database (read-only, with result limits). For most use cases, you can omit serverId and database - they will default to the primary configured server and database.",
     {
-      serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
-      database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+      serverId: z.string().optional().describe("Server ID. Optional - defaults to the primary configured server if omitted. Use sql-list-servers to see available servers."),
+      database: z.string().optional().describe("Database name. Optional - defaults to the primary database on the selected server if omitted. Use sql-list-databases to see available databases."),
       query: z.string().describe("SELECT query to execute (e.g., 'SELECT TOP 10 * FROM dbo.Users WHERE IsActive = 1')"),
     },
-    async ({ serverId, database, query }: any) => {
+    async ({ serverId, database, query }: { serverId?: string; database?: string; query: string }) => {
       try {
         const sqlService = getAzureSqlService();
-        const result = await sqlService.executeSelectQuery(serverId, database, query);
-  
+
+        // Resolve defaults for optional parameters
+        const resolvedServerId = sqlService.resolveServerId(serverId);
+        const resolvedDatabase = sqlService.resolveDatabase(resolvedServerId, database);
+
+        const result = await sqlService.executeSelectQuery(resolvedServerId, resolvedDatabase, query);
+
         let text = JSON.stringify(result, null, 2);
-  
+
         if (result.truncated) {
           text += `\n\n⚠️ WARNING: Results truncated to ${result.rowCount} rows. Add WHERE clause to filter results.`;
         }
-  
+
+        // Add context about resolved defaults if parameters were omitted
+        if (!serverId || !database) {
+          const defaultsUsed: string[] = [];
+          if (!serverId) defaultsUsed.push(`server='${resolvedServerId}'`);
+          if (!database) defaultsUsed.push(`database='${resolvedDatabase}'`);
+          text += `\n\nℹ️ Used defaults: ${defaultsUsed.join(', ')}`;
+        }
+
         return {
           content: [
             {
@@ -535,9 +578,7 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     }
   );
 
-  console.error("azure-sql tools registered: 11 tools, 3 prompts");
-
-  console.error("Azure SQL tools registered: 11 tools, 3 prompts");
+  console.error("Azure SQL tools registered: 12 tools, 3 prompts");
 }
 
 // CLI entry point (standalone execution)
