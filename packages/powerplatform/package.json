@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/powerplatform",
-  "version": "21.0.0-beta.1",
+  "version": "21.0.0",
   "description": "MCP server for Microsoft PowerPlatform/Dataverse - read-only access (production-safe)",
   "type": "module",
   "main": "./build/index.js",
