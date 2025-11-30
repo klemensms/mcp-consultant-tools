@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../../../.claude/hooks"
+		},
+		{
+			"path": "../../../Downloads/mcp-rest-api-main"
 		}
 	],
 	"settings": {}
