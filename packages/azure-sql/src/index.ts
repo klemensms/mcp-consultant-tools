@@ -64,18 +64,20 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-database-overview",
     "Get a comprehensive overview of the Azure SQL Database schema",
     {
-      serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
-      database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
+      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
     },
-    async ({ serverId, database }: any) => {
+    async ({ serverId, database }: { serverId?: string; database?: string }) => {
       const sqlService = getAzureSqlService();
-  
+      const resolvedServerId = sqlService.resolveServerId(serverId);
+      const resolvedDatabase = sqlService.resolveDatabase(resolvedServerId, database);
+
       const [tables, views, procedures, triggers, functions] = await Promise.all([
-        sqlService.listTables(serverId, database),
-        sqlService.listViews(serverId, database),
-        sqlService.listStoredProcedures(serverId, database),
-        sqlService.listTriggers(serverId, database),
-        sqlService.listFunctions(serverId, database),
+        sqlService.listTables(resolvedServerId, resolvedDatabase),
+        sqlService.listViews(resolvedServerId, resolvedDatabase),
+        sqlService.listStoredProcedures(resolvedServerId, resolvedDatabase),
+        sqlService.listTriggers(resolvedServerId, resolvedDatabase),
+        sqlService.listFunctions(resolvedServerId, resolvedDatabase),
       ]);
   
       const formattedOverview = formatDatabaseOverview(tables, views, procedures, triggers, functions);
@@ -98,14 +100,16 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-table-details",
     "Get detailed report for a specific table with columns, indexes, and relationships",
     {
-      serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
-      database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
+      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
       schemaName: z.string().describe("Schema name (e.g., 'dbo')"),
       tableName: z.string().describe("Table name"),
     },
-    async ({ serverId, database, schemaName, tableName }: any) => {
+    async ({ serverId, database, schemaName, tableName }: { serverId?: string; database?: string; schemaName: string; tableName: string }) => {
       const sqlService = getAzureSqlService();
-      const schema = await sqlService.getTableSchema(serverId, database, schemaName, tableName);
+      const resolvedServerId = sqlService.resolveServerId(serverId);
+      const resolvedDatabase = sqlService.resolveDatabase(resolvedServerId, database);
+      const schema = await sqlService.getTableSchema(resolvedServerId, resolvedDatabase, schemaName, tableName);
   
       let template = formatTableSchemaAsMarkdown(schema);
       template += `\n\n### Sample Query\n\n\`\`\`sql\nSELECT TOP 100 * FROM ${schemaName}.${tableName}\n\`\`\``;
@@ -128,13 +132,15 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-query-results",
     "Execute a query and return formatted results with column headers",
     {
-      serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
-      database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
+      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
       query: z.string().describe("SELECT query to execute"),
     },
-    async ({ serverId, database, query }: any) => {
+    async ({ serverId, database, query }: { serverId?: string; database?: string; query: string }) => {
       const sqlService = getAzureSqlService();
-      const result = await sqlService.executeSelectQuery(serverId, database, query);
+      const resolvedServerId = sqlService.resolveServerId(serverId);
+      const resolvedDatabase = sqlService.resolveDatabase(resolvedServerId, database);
+      const result = await sqlService.executeSelectQuery(resolvedServerId, resolvedDatabase, query);
   
       let template = `## Query Results\n\n`;
       template += `**Query:**\n\`\`\`sql\n${query}\n\`\`\`\n\n`;
@@ -165,7 +171,7 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
 
   server.tool(
     "sql-list-servers",
-    "List all configured SQL servers with active/inactive status",
+    "List all configured SQL servers. SKIP THIS for most queries - a default server is pre-configured. Only use if you need to switch to a different server or see all available servers.",
     {},
     async () => {
       try {
@@ -195,14 +201,15 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
 
   server.tool(
     "sql-list-databases",
-    "List databases on a SQL server (configured or discovered)",
+    "List databases on a SQL server. SKIP THIS for most queries - a default database is pre-configured. Only use if you need to switch to a different database or see all available databases.",
     {
-      serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
+      serverId: z.string().optional().describe("Server ID. Optional - uses default server if omitted."),
     },
-    async ({ serverId }: any) => {
+    async ({ serverId }: { serverId?: string }) => {
       try {
         const sqlService = getAzureSqlService();
-        const databases = await sqlService.listDatabases(serverId);
+        const resolvedServerId = sqlService.resolveServerId(serverId);
+        const databases = await sqlService.listDatabases(resolvedServerId);
         return {
           content: [
             {
@@ -227,7 +234,7 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
 
   server.tool(
     "sql-get-defaults",
-    "Get the default server and database configuration. Use this once at the start of a session to understand the SQL environment, or skip entirely and use the defaults directly in sql-execute-query by omitting serverId and database parameters.",
+    "Get the default server and database configuration. OPTIONAL - you can skip this entirely and just call sql-execute-query with only a query parameter. Defaults are automatically applied.",
     {},
     async () => {
       try {
@@ -259,13 +266,15 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-test-connection",
     "Test SQL Server connectivity and return connection information",
     {
-      serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
-      database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
+      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
     },
-    async ({ serverId, database }: any) => {
+    async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
         const sqlService = getAzureSqlService();
-        const result = await sqlService.testConnection(serverId, database);
+        const resolvedServerId = sqlService.resolveServerId(serverId);
+        const resolvedDatabase = sqlService.resolveDatabase(resolvedServerId, database);
+        const result = await sqlService.testConnection(resolvedServerId, resolvedDatabase);
         return {
           content: [
             {
@@ -292,13 +301,15 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-list-tables",
     "List all user tables in the database with row counts and sizes",
     {
-      serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
-      database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
+      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
     },
-    async ({ serverId, database }: any) => {
+    async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
         const sqlService = getAzureSqlService();
-        const tables = await sqlService.listTables(serverId, database);
+        const resolvedServerId = sqlService.resolveServerId(serverId);
+        const resolvedDatabase = sqlService.resolveDatabase(resolvedServerId, database);
+        const tables = await sqlService.listTables(resolvedServerId, resolvedDatabase);
         return {
           content: [
             {
@@ -325,13 +336,15 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-list-views",
     "List all views in the database",
     {
-      serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
-      database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
+      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
     },
-    async ({ serverId, database }: any) => {
+    async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
         const sqlService = getAzureSqlService();
-        const views = await sqlService.listViews(serverId, database);
+        const resolvedServerId = sqlService.resolveServerId(serverId);
+        const resolvedDatabase = sqlService.resolveDatabase(resolvedServerId, database);
+        const views = await sqlService.listViews(resolvedServerId, resolvedDatabase);
         return {
           content: [
             {
@@ -358,13 +371,15 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-list-stored-procedures",
     "List all stored procedures in the Azure SQL Database",
     {
-      serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
-      database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
+      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
     },
-    async ({ serverId, database }: any) => {
+    async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
         const sqlService = getAzureSqlService();
-        const procedures = await sqlService.listStoredProcedures(serverId, database);
+        const resolvedServerId = sqlService.resolveServerId(serverId);
+        const resolvedDatabase = sqlService.resolveDatabase(resolvedServerId, database);
+        const procedures = await sqlService.listStoredProcedures(resolvedServerId, resolvedDatabase);
         return {
           content: [
             {
@@ -391,13 +406,15 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-list-triggers",
     "List all database triggers in the Azure SQL Database",
     {
-      serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
-      database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
+      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
     },
-    async ({ serverId, database }: any) => {
+    async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
         const sqlService = getAzureSqlService();
-        const triggers = await sqlService.listTriggers(serverId, database);
+        const resolvedServerId = sqlService.resolveServerId(serverId);
+        const resolvedDatabase = sqlService.resolveDatabase(resolvedServerId, database);
+        const triggers = await sqlService.listTriggers(resolvedServerId, resolvedDatabase);
         return {
           content: [
             {
@@ -424,13 +441,15 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-list-functions",
     "List all user-defined functions in the Azure SQL Database",
     {
-      serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
-      database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
+      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
     },
-    async ({ serverId, database }: any) => {
+    async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
         const sqlService = getAzureSqlService();
-        const functions = await sqlService.listFunctions(serverId, database);
+        const resolvedServerId = sqlService.resolveServerId(serverId);
+        const resolvedDatabase = sqlService.resolveDatabase(resolvedServerId, database);
+        const functions = await sqlService.listFunctions(resolvedServerId, resolvedDatabase);
         return {
           content: [
             {
@@ -457,15 +476,17 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-get-table-schema",
     "Get detailed schema information for a table including columns, indexes, and foreign keys",
     {
-      serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
-      database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
+      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
       schemaName: z.string().describe("Schema name (e.g., 'dbo')"),
       tableName: z.string().describe("Table name (e.g., 'Users')"),
     },
-    async ({ serverId, database, schemaName, tableName }: any) => {
+    async ({ serverId, database, schemaName, tableName }: { serverId?: string; database?: string; schemaName: string; tableName: string }) => {
       try {
         const sqlService = getAzureSqlService();
-        const schema = await sqlService.getTableSchema(serverId, database, schemaName, tableName);
+        const resolvedServerId = sqlService.resolveServerId(serverId);
+        const resolvedDatabase = sqlService.resolveDatabase(resolvedServerId, database);
+        const schema = await sqlService.getTableSchema(resolvedServerId, resolvedDatabase, schemaName, tableName);
         return {
           content: [
             {
@@ -492,16 +513,18 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
     "sql-get-object-definition",
     "Get the SQL definition for a view, stored procedure, function, or trigger",
     {
-      serverId: z.string().describe("Server ID (use sql-list-servers to find IDs)"),
-      database: z.string().describe("Database name (use sql-list-databases to find databases)"),
+      serverId: z.string().optional().describe("Server ID. Optional - uses default if omitted."),
+      database: z.string().optional().describe("Database name. Optional - uses default if omitted."),
       schemaName: z.string().describe("Schema name (e.g., 'dbo')"),
       objectName: z.string().describe("Object name"),
       objectType: z.enum(['VIEW', 'PROCEDURE', 'FUNCTION', 'TRIGGER']).describe("Object type"),
     },
-    async ({ serverId, database, schemaName, objectName, objectType }: any) => {
+    async ({ serverId, database, schemaName, objectName, objectType }: { serverId?: string; database?: string; schemaName: string; objectName: string; objectType: 'VIEW' | 'PROCEDURE' | 'FUNCTION' | 'TRIGGER' }) => {
       try {
         const sqlService = getAzureSqlService();
-        const definition = await sqlService.getObjectDefinition(serverId, database, schemaName, objectName, objectType);
+        const resolvedServerId = sqlService.resolveServerId(serverId);
+        const resolvedDatabase = sqlService.resolveDatabase(resolvedServerId, database);
+        const definition = await sqlService.getObjectDefinition(resolvedServerId, resolvedDatabase, schemaName, objectName, objectType);
         return {
           content: [
             {
@@ -526,10 +549,10 @@ export function registerAzureSqlTools(server: any, azuresqlService?: AzureSqlSer
 
   server.tool(
     "sql-execute-query",
-    "Execute a SELECT query against the Azure SQL Database (read-only, with result limits). For most use cases, you can omit serverId and database - they will default to the primary configured server and database.",
+    "Execute a SELECT query against the Azure SQL Database. RECOMMENDED: Just provide the query parameter - serverId and database have pre-configured defaults and can be omitted. No discovery calls needed.",
     {
-      serverId: z.string().optional().describe("Server ID. Optional - defaults to the primary configured server if omitted. Use sql-list-servers to see available servers."),
-      database: z.string().optional().describe("Database name. Optional - defaults to the primary database on the selected server if omitted. Use sql-list-databases to see available databases."),
+      serverId: z.string().optional().describe("Server ID. OPTIONAL - omit to use pre-configured default."),
+      database: z.string().optional().describe("Database name. OPTIONAL - omit to use pre-configured default."),
       query: z.string().describe("SELECT query to execute (e.g., 'SELECT TOP 10 * FROM dbo.Users WHERE IsActive = 1')"),
     },
     async ({ serverId, database, query }: { serverId?: string; database?: string; query: string }) => {
