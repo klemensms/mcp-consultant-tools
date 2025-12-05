@@ -32,7 +32,7 @@ As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isol
 |---------|---------|-------|---------|------------------|
 | **[@mcp-consultant-tools/powerplatform](POWERPLATFORM.md)** | Read-only access | 38 | 10 | ✅ **YES** |
 | **[@mcp-consultant-tools/powerplatform-customization](POWERPLATFORM_CUSTOMIZATION.md)** | Schema changes | 40 | 2 | ⚠️ **NO** - Dev/config only |
-| **[@mcp-consultant-tools/powerplatform-data](POWERPLATFORM_DATA.md)** (This Package) | Data CRUD | 3 | 0 | ⚠️ **NO** - Operational use |
+| **[@mcp-consultant-tools/powerplatform-data](POWERPLATFORM_DATA.md)** (This Package) | Data CRUD + Actions | 4 | 0 | ⚠️ **NO** - Operational use |
 
 **This documentation covers the data CRUD package only.** For read-only access or schema customization, see the respective package documentation.
 
@@ -125,7 +125,7 @@ await mcpClient.invoke("create-record", {
 
 ### Data CRUD Operations (Tools)
 
-This package provides **3 specialized tools** for data modification operations. Unlike the read-only package, this package has **0 prompts** to emphasize that all operations are explicit and require intentional tool invocations.
+This package provides **4 specialized tools** for data modification and action execution. Unlike the read-only package, this package has **0 prompts** to emphasize that all operations are explicit and require intentional tool invocations.
 
 #### Production Data Tools
 
@@ -147,10 +147,16 @@ This package provides **3 specialized tools** for data modification operations. 
    - Audit logged: ✅ All deletions logged with confirmation
    - Safety: Two-layer protection (flag + confirmation)
 
+4. **`execute-action`** - Execute Custom APIs and Actions (unbound or bound)
+   - Example: `"Execute the WhoAmI action to get current user info"`
+   - Requires: `POWERPLATFORM_ENABLE_ACTIONS=true`
+   - Audit logged: ✅ All action executions logged
+   - Supports: Unbound actions (global) and bound actions (entity-specific)
+
 ### Security Features
 
 **Granular Operation Control:**
-- Each operation (create/update/delete) requires separate environment flag
+- Each operation (create/update/delete/execute) requires separate environment flag
 - Delete operations require explicit `confirm: true` parameter
 - All operations logged for audit compliance
 - Field-level validation before API calls
@@ -178,10 +184,11 @@ This package provides **3 specialized tools** for data modification operations. 
    - [Environment Variables](#environment-variables)
    - [Required Permissions](#required-permissions)
 
-3. [Tools (3 Total)](#tools-3-total)
+3. [Tools (4 Total)](#tools-4-total)
    - [create-record](#create-record)
    - [update-record](#update-record)
    - [delete-record](#delete-record)
+   - [execute-action](#execute-action)
 
 4. [Data Format Reference](#data-format-reference)
    - [Field Types](#field-types)
@@ -194,6 +201,7 @@ This package provides **3 specialized tools** for data modification operations. 
    - [Create Records](#create-records)
    - [Update Records](#update-records)
    - [Delete Records](#delete-records)
+   - [Execute Actions](#execute-actions)
    - [Bulk Operations](#bulk-operations)
 
 6. [Best Practices](#best-practices)
@@ -318,6 +326,7 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform @mcp-
 | `POWERPLATFORM_ENABLE_CREATE` | ❌ No | `"false"` | ⚠️ Enable record creation (create-record tool) |
 | `POWERPLATFORM_ENABLE_UPDATE` | ❌ No | `"false"` | ⚠️ Enable record updates (update-record tool) |
 | `POWERPLATFORM_ENABLE_DELETE` | ❌ No | `"false"` | ⚠️ Enable record deletion (delete-record tool) |
+| `POWERPLATFORM_ENABLE_ACTIONS` | ❌ No | `"false"` | ⚠️ Enable action execution (execute-action tool) |
 
 ```bash
 # Required - PowerPlatform Authentication
@@ -331,6 +340,7 @@ POWERPLATFORM_TENANT_ID=your-azure-tenant-id
 POWERPLATFORM_ENABLE_CREATE=true   # Optional - enables create-record tool
 POWERPLATFORM_ENABLE_UPDATE=true   # Optional - enables update-record tool
 POWERPLATFORM_ENABLE_DELETE=true   # Optional - enables delete-record tool
+POWERPLATFORM_ENABLE_ACTIONS=true  # Optional - enables execute-action tool
 ```
 
 **Claude Desktop Config (Development - Full CRUD):**
@@ -414,7 +424,7 @@ The application user must have appropriate **CRUD privileges** on target entitie
 
 ---
 
-## Tools (3 Total)
+## Tools (4 Total)
 
 ### create-record
 
@@ -558,6 +568,93 @@ await invoke("delete-record", {
   success: true,
   parameters: { entityNamePlural, recordId, confirmed: true },
   executionTimeMs: 156
+}
+```
+
+---
+
+### execute-action
+
+**Execute a Custom API or Action in Dataverse**
+
+Supports both **unbound actions** (not tied to any entity) and **bound actions** (tied to a specific record).
+
+**Parameters:**
+- `actionName` (string, required): The unique name of the Custom API or Action (e.g., `"WhoAmI"`, `"new_CalculateTotals"`, `"WinOpportunity"`)
+- `parameters` (object, optional): Input parameters for the action as JSON object
+- `boundTo` (object, optional): For bound actions only - specifies the entity and record
+  - `entityNamePlural` (string): Plural name of the entity (e.g., `"opportunities"`)
+  - `recordId` (string): GUID of the record to bind to
+
+**Returns:**
+- Action response with output parameters (if any)
+
+**Example - Unbound Action (WhoAmI):**
+```javascript
+await invoke("execute-action", {
+  actionName: "WhoAmI"
+});
+// Returns: { UserId: "guid", BusinessUnitId: "guid", OrganizationId: "guid" }
+```
+
+**Example - Unbound Action with Parameters:**
+```javascript
+await invoke("execute-action", {
+  actionName: "new_CalculateTotals",
+  parameters: {
+    Amount: 1000,
+    TaxRate: 0.08
+  }
+});
+// Returns: { Total: 1080, Tax: 80 }
+```
+
+**Example - Bound Action (WinOpportunity):**
+```javascript
+await invoke("execute-action", {
+  actionName: "WinOpportunity",
+  parameters: {
+    Status: 3,
+    OpportunityClose: {
+      subject: "Won - Closed deal with Contoso",
+      actualend: "2025-01-15T00:00:00Z",
+      actualrevenue: 50000.00
+    }
+  },
+  boundTo: {
+    entityNamePlural: "opportunities",
+    recordId: "12345678-1234-1234-1234-123456789012"
+  }
+});
+```
+
+**Validation:**
+- Permission check: Requires `POWERPLATFORM_ENABLE_ACTIONS=true` environment flag
+- Validates `actionName` is not empty
+- For bound actions: validates `recordId` is valid GUID format
+- Action must exist in Dataverse (checked by API)
+
+**Common Built-in Actions:**
+| Action Name | Type | Description |
+|-------------|------|-------------|
+| `WhoAmI` | Unbound | Get current user, business unit, and organization |
+| `WinOpportunity` | Bound (opportunity) | Close opportunity as won |
+| `LoseOpportunity` | Bound (opportunity) | Close opportunity as lost |
+| `SetState` | Bound | Set record state and status |
+| `CalculatePrice` | Bound (opportunity/quote/order/invoice) | Calculate pricing |
+| `Merge` | Bound | Merge two records |
+| `ConvertSalesOrderToInvoice` | Bound (salesorder) | Convert order to invoice |
+
+**Audit Log:**
+```javascript
+{
+  operation: 'execute-action',
+  operationType: 'EXECUTE',
+  resourceId: actionName,
+  componentType: 'Action',
+  success: true,
+  parameters: { actionName, hasParameters: true, isBound: false },
+  executionTimeMs: 312
 }
 ```
 
@@ -764,6 +861,77 @@ await invoke("delete-record", {
 // Error: Delete operations require explicit confirmation (confirm: true)
 ```
 
+### Execute Actions
+
+**Execute Unbound Action (WhoAmI):**
+```javascript
+const result = await invoke("execute-action", {
+  actionName: "WhoAmI"
+});
+
+console.log(`Current User ID: ${result.UserId}`);
+console.log(`Business Unit ID: ${result.BusinessUnitId}`);
+```
+
+**Execute Custom API with Parameters:**
+```javascript
+const result = await invoke("execute-action", {
+  actionName: "new_ValidateAddress",
+  parameters: {
+    Street: "123 Main St",
+    City: "Seattle",
+    State: "WA",
+    PostalCode: "98101"
+  }
+});
+
+if (result.IsValid) {
+  console.log("Address is valid");
+} else {
+  console.log(`Address validation failed: ${result.ValidationMessage}`);
+}
+```
+
+**Execute Bound Action (Close Opportunity as Won):**
+```javascript
+await invoke("execute-action", {
+  actionName: "WinOpportunity",
+  parameters: {
+    Status: 3,  // Won
+    OpportunityClose: {
+      subject: "Won - Deal closed",
+      actualend: new Date().toISOString(),
+      actualrevenue: 75000.00
+    }
+  },
+  boundTo: {
+    entityNamePlural: "opportunities",
+    recordId: opportunityId
+  }
+});
+```
+
+**Execute Bound Action (Qualify Lead):**
+```javascript
+const result = await invoke("execute-action", {
+  actionName: "QualifyLead",
+  parameters: {
+    CreateAccount: true,
+    CreateContact: true,
+    CreateOpportunity: true,
+    Status: 3  // Qualified
+  },
+  boundTo: {
+    entityNamePlural: "leads",
+    recordId: leadId
+  }
+});
+
+console.log(`Created Account: ${result.CreatedEntities.accountid}`);
+console.log(`Created Contact: ${result.CreatedEntities.contactid}`);
+console.log(`Created Opportunity: ${result.CreatedEntities.opportunityid}`);
+```
+
 ### Bulk Operations
 
 **Create Multiple Records (Sequential):**
@@ -863,6 +1031,18 @@ for (const update of updates) {
 **Error:** `Data object cannot be empty`
 - **Cause**: Empty `data` object passed to create-record or update-record
 - **Fix**: Provide at least one field in `data` object
+
+**Error:** `Action execution is disabled`
+- **Cause**: `POWERPLATFORM_ENABLE_ACTIONS` not set to `true`
+- **Fix**: Add `POWERPLATFORM_ENABLE_ACTIONS=true` to environment variables
+
+**Error:** `Action name cannot be empty`
+- **Cause**: Empty or missing `actionName` parameter
+- **Fix**: Provide the action name (e.g., `actionName: "WhoAmI"`)
+
+**Error:** `Bound action requires entityNamePlural`
+- **Cause**: `boundTo` object provided but missing `entityNamePlural`
+- **Fix**: Include both `entityNamePlural` and `recordId` in the `boundTo` object
 
 ### Permission Issues
 

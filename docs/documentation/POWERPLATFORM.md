@@ -32,7 +32,7 @@ Add this to your VS Code `settings.json`:
 ```json
 {
   "mcp.servers": {
-    "powerplatform": {
+    "powerplatform-readonly": {
       "command": "npx",
       "args": ["-y", "@mcp-consultant-tools/powerplatform"],
       "env": {
@@ -57,7 +57,7 @@ Add this to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "powerplatform": {
+    "powerplatform-readonly": {
       "command": "npx",
       "args": ["-y", "@mcp-consultant-tools/powerplatform"],
       "env": {
@@ -388,7 +388,7 @@ Adjust `POWERPLATFORM_URL` based on your region:
 ```json
 {
   "mcpServers": {
-    "powerplatform": {
+    "powerplatform-readonly": {
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/powerplatform", "mcp-pp"],
       "env": {
@@ -407,7 +407,7 @@ Adjust `POWERPLATFORM_URL` based on your region:
 ```json
 {
   "mcp.servers": {
-    "powerplatform": {
+    "powerplatform-readonly": {
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/powerplatform", "mcp-pp"],
       "env": {

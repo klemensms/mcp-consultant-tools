@@ -14,7 +14,7 @@ Add this to your `settings.json`:
 ```json
 {
   "mcp.servers": {
-    "powerplatform": {
+    "powerplatform-readonly": {
       "command": "node",
       "args": [
         "/Users/klemensstelk/Repo/mcp-consultant-tools/build/index.js"
@@ -54,7 +54,7 @@ export POWERPLATFORM_DEFAULT_SOLUTION="YourSolutionName"
 ```json
 {
   "mcp.servers": {
-    "powerplatform": {
+    "powerplatform-readonly": {
       "command": "node",
       "args": [
         "/Users/klemensstelk/Repo/mcp-consultant-tools/build/index.js"
@@ -75,7 +75,7 @@ Since you already have a `.env` file in the repo:
 ```json
 {
   "mcp.servers": {
-    "powerplatform": {
+    "powerplatform-readonly": {
       "command": "node",
       "args": [
         "/Users/klemensstelk/Repo/mcp-consultant-tools/build/index.js"

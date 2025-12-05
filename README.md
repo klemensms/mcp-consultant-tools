@@ -7,9 +7,9 @@
 
 ## 🎯 Overview
 
-MCP Consultant Tools v15 is a **modular monorepo** with **14 independently published npm packages** under the `@mcp-consultant-tools` organization. Use individual packages for specific integrations or install the complete meta-package for everything.
+MCP Consultant Tools v15 is a **modular monorepo** with **15 independently published npm packages** under the `@mcp-consultant-tools` organization. Use individual packages for specific integrations or install the complete meta-package for everything.
 
-**Total Capabilities:** 177 tools + 50 prompts across 11 service integrations
+**Total Capabilities:** 188 tools + 52 prompts across 12 service integrations
 
 ## 📦 Package Architecture
 
@@ -31,6 +31,7 @@ MCP Consultant Tools v15 is a **modular monorepo** with **14 independently publi
 | **[@mcp-consultant-tools/azure-devops](packages/azure-devops)** | Azure DevOps | 18 | 6 | 76KB | ✅ Read-Only (default) |
 | **[@mcp-consultant-tools/application-insights](packages/application-insights)** | Application Insights | 10 | 5 | 76KB | ✅ Read-Only |
 | **[@mcp-consultant-tools/rest-api](packages/rest-api)** | REST API (OAuth2) | 4 | 2 | 45KB | ✅ Read-Only |
+| **[@mcp-consultant-tools/azure-b2c](packages/azure-b2c)** | Azure AD B2C | 11 | 2 | 65KB | ✅ Read-Only (default) |
 
 ### Meta-Package (All Services)
 - **[mcp-consultant-tools](packages/meta)** - Complete package with all integrations
@@ -131,7 +132,7 @@ npm install @mcp-consultant-tools/core @mcp-consultant-tools/powerplatform
 ```json
 {
   "mcpServers": {
-    "powerplatform": {
+    "powerplatform-readonly": {
       "command": "npx",
       "args": ["-y", "--package=@mcp-consultant-tools/powerplatform", "mcp-pp"],
       "env": {
@@ -209,7 +210,7 @@ For local development and testing (e.g., testing changes before publishing):
 ```json
 {
   "mcpServers": {
-    "powerplatform-local": {
+    "powerplatform-readonly-local": {
       "command": "node",
       "args": ["/absolute/path/to/mcp-consultant-tools/packages/powerplatform/build/index.js"],
       "env": {

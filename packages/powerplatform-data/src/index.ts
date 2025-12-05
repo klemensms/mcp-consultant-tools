@@ -60,6 +60,12 @@ function checkDeleteEnabled() {
   }
 }
 
+function checkActionsEnabled() {
+  if (process.env.POWERPLATFORM_ENABLE_ACTIONS !== 'true') {
+    throw new Error('Action execution is disabled. Set POWERPLATFORM_ENABLE_ACTIONS=true to enable.');
+  }
+}
+
   // Tool registrations
 server.tool(
   "create-record",
@@ -219,7 +225,80 @@ server.tool(
   }
 );
 
-  console.error(`✅ powerplatform-data tools registered (${3} tools)`);
+server.tool(
+  "execute-action",
+  "Execute a Custom API or Action in Dataverse. Supports both unbound actions (not tied to any entity) and bound actions (tied to a specific record). Requires POWERPLATFORM_ENABLE_ACTIONS=true.",
+  {
+    actionName: z
+      .string()
+      .describe(
+        "The unique name of the Custom API or Action to execute (e.g., 'new_MyCustomAction', 'WhoAmI', 'WinOpportunity'). " +
+        "For bound actions, do NOT include the 'Microsoft.Dynamics.CRM.' prefix - it will be added automatically."
+      ),
+    parameters: z
+      .record(z.any())
+      .optional()
+      .describe(
+        "Input parameters for the action as JSON object. Parameter names and types must match the action definition. " +
+        "Example: { 'Amount': 100, 'Description': 'Test' }. Leave empty for actions with no input parameters."
+      ),
+    boundTo: z
+      .object({
+        entityNamePlural: z.string().describe("The plural name of the entity (e.g., 'opportunities', 'accounts')"),
+        recordId: z.string().describe("The GUID of the record to bind the action to"),
+      })
+      .optional()
+      .describe(
+        "For bound actions only: specify the entity and record the action is bound to. " +
+        "Leave empty for unbound actions. Example: { entityNamePlural: 'opportunities', recordId: '12345678-...' }"
+      ),
+  },
+  async ({ actionName, parameters, boundTo }: any) => {
+    try {
+      checkActionsEnabled();
+      const service = getPowerPlatformService();
+      const result = await service.executeAction(actionName, parameters, boundTo);
+
+      const boundInfo = boundTo
+        ? `\n**Bound To:** ${boundTo.entityNamePlural}(${boundTo.recordId})`
+        : '\n**Type:** Unbound action';
+
+      const paramsInfo = parameters && Object.keys(parameters).length > 0
+        ? `\n**Input Parameters:**\n\`\`\`json\n${JSON.stringify(parameters, null, 2)}\n\`\`\``
+        : '';
+
+      const responseInfo = result && Object.keys(result).length > 0
+        ? `\n**Response:**\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``
+        : '\n**Response:** (no output parameters)';
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `✅ Action executed successfully\n\n` +
+              `**Action:** ${actionName}` +
+              boundInfo +
+              paramsInfo +
+              responseInfo,
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error executing action:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Failed to execute action: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+  console.error(`✅ powerplatform-data tools registered (${4} tools)`);
 }
 
 // CLI entry point (standalone execution)

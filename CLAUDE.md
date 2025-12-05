@@ -39,7 +39,7 @@ npx mcp-consultant-tools
 
 ### Overview
 
-**v15.0.0** introduced a modular monorepo architecture with **13 independently published packages** (including 3 security-isolated PowerPlatform packages):
+**v15.0.0** introduced a modular monorepo architecture with **14 independently published packages** (including 3 security-isolated PowerPlatform packages):
 
 ```
 mcp-consultant-tools/
@@ -56,6 +56,7 @@ mcp-consultant-tools/
 │   ├── service-bus/                    # Azure Service Bus (8 tools, 5 prompts)
 │   ├── sharepoint/                     # SharePoint Online (15 tools, 5 prompts)
 │   ├── github-enterprise/              # GitHub Enterprise (22 tools, 5 prompts)
+│   ├── azure-b2c/                      # Azure AD B2C (11 tools, 2 prompts)
 │   └── meta/                           # Complete package (all integrations)
 ├── package.json               # Workspace root
 └── tsconfig.base.json         # Shared TypeScript config
@@ -151,6 +152,7 @@ Detailed technical implementation guides for each integration are available in s
 - **[Azure SQL Technical Guide](docs/technical/AZURE_SQL_TECHNICAL.md)** - Multi-server architecture, query validation, security, connection pooling
 - **[Service Bus Technical Guide](docs/technical/SERVICE_BUS_TECHNICAL.md)** - Dual client architecture, message inspection, DLQ analysis, queue health
 - **[GitHub Enterprise Technical Guide](docs/technical/GITHUB_ENTERPRISE_TECHNICAL.md)** - Branch detection, caching, cross-service correlation
+- **[Azure B2C Technical Guide](docs/technical/AZURE_B2C_TECHNICAL.md)** - User management, password reset, Graph API integration
 
 These guides contain detailed implementation specifics, code examples, and API details that are too large for this file.
 
@@ -355,6 +357,7 @@ Release notes must be current before publishing beta. If release notes say "TBD"
    - **ServiceBusService** - Entra ID/Connection String auth, read-only message inspection, DLQ analysis
    - **SharePointService** - Entra ID auth via Graph API, site/library/file access, PowerPlatform validation, caching
    - **GitHubEnterpriseService** - PAT/GitHub App auth, repository access, branch detection, caching, cross-service correlation
+   - **AzureB2CService** - Entra ID auth via Graph API, user management, password reset, group operations
 
 ### Key Design Patterns
 

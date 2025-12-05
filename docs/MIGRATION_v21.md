@@ -109,7 +109,7 @@ If you have internal documentation referencing environment flags, update to refl
 ```json
 {
   "mcpServers": {
-    "powerplatform": {
+    "powerplatform-readonly": {
       "command": "npx",
       "args": ["-y", "@mcp-consultant-tools/powerplatform@latest"],
       "env": {
@@ -127,7 +127,7 @@ If you have internal documentation referencing environment flags, update to refl
 ```json
 {
   "mcpServers": {
-    "powerplatform": {
+    "powerplatform-readonly": {
       "command": "npx",
       "args": ["-y", "@mcp-consultant-tools/powerplatform@latest"],
       "env": { /* credentials */ }
@@ -148,7 +148,7 @@ If you have internal documentation referencing environment flags, update to refl
 ```json
 {
   "mcpServers": {
-    "powerplatform": {
+    "powerplatform-readonly": {
       "command": "npx",
       "args": ["-y", "@mcp-consultant-tools/powerplatform@latest"],
       "env": { /* credentials */ }

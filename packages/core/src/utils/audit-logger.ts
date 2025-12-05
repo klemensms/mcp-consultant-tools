@@ -8,7 +8,7 @@
 export interface AuditLogEntry {
   timestamp: Date;
   operation: string;
-  operationType: 'CREATE' | 'UPDATE' | 'DELETE' | 'PUBLISH' | 'READ';
+  operationType: 'CREATE' | 'UPDATE' | 'DELETE' | 'PUBLISH' | 'READ' | 'EXECUTE';
   componentType: string;
   componentName?: string;
   componentId?: string;

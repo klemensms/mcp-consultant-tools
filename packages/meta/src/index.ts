@@ -14,11 +14,12 @@ import { registerAzureSqlTools } from "@mcp-consultant-tools/azure-sql";
 import { registerServiceBusTools } from "@mcp-consultant-tools/service-bus";
 import { registerSharePointTools } from "@mcp-consultant-tools/sharepoint";
 import { registerGitHubEnterpriseTools } from "@mcp-consultant-tools/github-enterprise";
+import { registerAzureB2CTools } from "@mcp-consultant-tools/azure-b2c";
 
 /**
  * Register all MCP Consultant Tools
  *
- * This meta-package combines all 11 service packages (13 total with PowerPlatform split):
+ * This meta-package combines all 12 service packages (14 total with PowerPlatform split):
  * - PowerPlatform (read-only: 39 tools, 11 prompts)
  * - PowerPlatform Customization (schema changes: 40 tools)
  * - PowerPlatform Data (CRUD: 3 tools)
@@ -30,8 +31,9 @@ import { registerGitHubEnterpriseTools } from "@mcp-consultant-tools/github-ente
  * - Service Bus (queue monitoring, dead letter analysis)
  * - SharePoint (sites, document libraries, PowerPlatform validation)
  * - GitHub Enterprise (repositories, commits, PRs, code search)
+ * - Azure AD B2C (user management, password reset, groups)
  *
- * Total: 172 tools + 45 prompts
+ * Total: 183 tools + 47 prompts
  */
 export function registerAllTools(server: any) {
   console.error("Registering all MCP Consultant Tools...");
@@ -61,9 +63,10 @@ export function registerAllTools(server: any) {
   registerServiceBusTools(server);
   registerSharePointTools(server);
   registerGitHubEnterpriseTools(server);
+  registerAzureB2CTools(server);
 
   console.error("All tools registered successfully!");
-  console.error("Total integrations: 11 services | 172 tools | 45 prompts");
+  console.error("Total integrations: 12 services | 183 tools | 47 prompts");
 }
 
 // CLI entry point (standalone execution)

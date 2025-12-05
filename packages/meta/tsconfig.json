@@ -9,6 +9,7 @@
   "references": [
     { "path": "../core" },
     { "path": "../application-insights" },
+    { "path": "../azure-b2c" },
     { "path": "../azure-devops" },
     { "path": "../azure-sql" },
     { "path": "../figma" },

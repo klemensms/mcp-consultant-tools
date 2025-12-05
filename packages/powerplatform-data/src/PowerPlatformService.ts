@@ -447,6 +447,100 @@ export class PowerPlatformService {
   }
 
   /**
+   * Execute a Custom API or Action in Dataverse
+   * Supports both unbound actions (not tied to any entity) and bound actions (tied to a specific record)
+   *
+   * @param actionName The unique name of the Custom API or Action (e.g., 'new_MyCustomAction', 'WinOpportunity')
+   * @param parameters Input parameters for the action as JSON object (optional)
+   * @param boundTo For bound actions: object with entityNamePlural and recordId (optional)
+   * @returns Action response with output parameters
+   *
+   * @example Unbound action:
+   *   await executeAction('new_CalculateTotals', { amount: 100 });
+   *
+   * @example Bound action:
+   *   await executeAction('Microsoft.Dynamics.CRM.WinOpportunity',
+   *     { Status: 3, OpportunityClose: { subject: 'Won!' } },
+   *     { entityNamePlural: 'opportunities', recordId: 'guid-here' }
+   *   );
+   */
+  async executeAction(
+    actionName: string,
+    parameters?: Record<string, any>,
+    boundTo?: { entityNamePlural: string; recordId: string }
+  ): Promise<any> {
+    const timer = auditLogger.startTimer();
+
+    try {
+      // Validate action name
+      if (!actionName || actionName.trim().length === 0) {
+        throw new Error('Action name cannot be empty');
+      }
+
+      // If bound action, validate the bound parameters
+      if (boundTo) {
+        if (!boundTo.entityNamePlural || boundTo.entityNamePlural.trim().length === 0) {
+          throw new Error('Bound action requires entityNamePlural');
+        }
+        if (!boundTo.recordId || boundTo.recordId.trim().length === 0) {
+          throw new Error('Bound action requires recordId');
+        }
+
+        // Validate recordId is a valid GUID
+        const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!guidRegex.test(boundTo.recordId)) {
+          throw new Error(`Invalid record ID format: ${boundTo.recordId}. Must be a valid GUID.`);
+        }
+      }
+
+      // Build endpoint URL
+      // Unbound: POST api/data/v9.2/actionName
+      // Bound: POST api/data/v9.2/entityNamePlural(recordId)/Microsoft.Dynamics.CRM.actionName
+      let endpoint: string;
+      if (boundTo) {
+        // For bound actions, need to use fully qualified name with Microsoft.Dynamics.CRM prefix
+        const qualifiedActionName = actionName.startsWith('Microsoft.Dynamics.CRM.')
+          ? actionName
+          : `Microsoft.Dynamics.CRM.${actionName}`;
+        endpoint = `api/data/v9.2/${boundTo.entityNamePlural}(${boundTo.recordId})/${qualifiedActionName}`;
+      } else {
+        endpoint = `api/data/v9.2/${actionName}`;
+      }
+
+      // Make POST request to execute action
+      const response = await this.makeRequest(
+        endpoint,
+        'POST',
+        parameters || {}
+      );
+
+      // Audit logging
+      auditLogger.log({
+        operation: 'execute-action',
+        operationType: 'EXECUTE',
+        componentType: 'Action',
+        componentName: actionName,
+        success: true,
+        executionTimeMs: timer(),
+      });
+
+      return response;
+    } catch (error: any) {
+      // Audit failed operation
+      auditLogger.log({
+        operation: 'execute-action',
+        operationType: 'EXECUTE',
+        componentType: 'Action',
+        componentName: actionName,
+        success: false,
+        error: error.message,
+        executionTimeMs: timer(),
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Get all plugin assemblies in the environment
    * @param includeManaged Include managed assemblies (default: false)
    * @param maxRecords Maximum number of assemblies to return (default: 100)

@@ -49,6 +49,7 @@
     "@mcp-consultant-tools/sharepoint": "workspace:*",
     "@mcp-consultant-tools/github-enterprise": "workspace:*",
     "@mcp-consultant-tools/rest-api": "workspace:*",
+    "@mcp-consultant-tools/azure-b2c": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "dotenv": "^16.4.5"
   },
