@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/powerplatform",
-  "version": "21.0.0",
+  "version": "23.0.0-beta.1",
   "description": "MCP server for Microsoft PowerPlatform/Dataverse - read-only access (production-safe)",
   "type": "module",
   "main": "./build/index.js",
@@ -18,7 +18,8 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf build *.tsbuildinfo",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "start:http": "node build/http-server.js"
   },
   "keywords": [
     "mcp",
@@ -43,13 +44,16 @@
     "@mcp-consultant-tools/core": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "axios": "^1.8.3",
+    "express": "^4.21.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/express": "^4.17.21",
     "@types/node": "^22.10.5",
     "typescript": "^5.8.2"
   },
   "bin": {
-    "mcp-pp": "build/index.js"
+    "mcp-pp": "build/index.js",
+    "mcp-pp-http": "build/http-server.js"
   }
 }
