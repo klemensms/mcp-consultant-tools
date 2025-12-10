@@ -641,8 +641,9 @@ export class AzureDevOpsService {
   async getWorkItemComments(project: string, workItemId: number): Promise<any> {
     this.validateProject(project);
 
+    // Comments API requires -preview suffix (not GA in 7.1)
     const response = await this.makeRequest<AdoApiCollectionResponse<any>>(
-      `${project}/_apis/wit/workItems/${workItemId}/comments?api-version=${this.apiVersion}`
+      `${project}/_apis/wit/workItems/${workItemId}/comments?api-version=7.1-preview`
     );
 
     return {
@@ -675,8 +676,9 @@ export class AzureDevOpsService {
       throw new Error('Work item write operations are disabled. Set AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true to enable.');
     }
 
+    // Comments API requires -preview suffix (not GA in 7.1)
     const response = await this.makeRequest<any>(
-      `${project}/_apis/wit/workItems/${workItemId}/comments?api-version=${this.apiVersion}`,
+      `${project}/_apis/wit/workItems/${workItemId}/comments?api-version=7.1-preview`,
       'POST',
       { text: commentText }
     );
