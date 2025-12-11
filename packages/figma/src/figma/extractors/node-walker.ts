@@ -7,7 +7,9 @@ import type {
   TraversalOptions,
   GlobalVars,
   SimplifiedNode,
+  MarkdownTableNode,
 } from "./types.js";
+import { isTableNode, convertTableToMarkdown } from "../transformers/table-to-markdown.js";
 
 /**
  * Extract data from Figma nodes using a flexible, single-pass approach.
@@ -48,9 +50,19 @@ function processNodeWithExtractors(
   extractors: ExtractorFn[],
   context: TraversalContext,
   options: TraversalOptions,
-): SimplifiedNode | null {
+): SimplifiedNode | MarkdownTableNode | null {
   if (!shouldProcessNode(node, options)) {
     return null;
+  }
+
+  // Handle TABLE nodes with markdown conversion if enabled
+  if (options.optimization?.tablesToMarkdown && isTableNode(node)) {
+    const markdownTable = convertTableToMarkdown(node);
+    if (markdownTable) {
+      // Return the markdown representation instead of the full node tree
+      return markdownTable;
+    }
+    // If conversion fails, fall through to normal processing
   }
 
   // Always include base metadata

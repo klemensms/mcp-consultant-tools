@@ -4,13 +4,40 @@ import type {
 } from "@figma/rest-api-spec";
 import { fetchWithRetry } from "./figma/utils/fetch-with-retry.js";
 import { simplifyRawFigmaObject } from "./figma/extractors/design-extractor.js";
-import { allExtractors } from "./figma/extractors/built-in.js";
-import type { SimplifiedDesign, TraversalOptions } from "./figma/extractors/types.js";
+import {
+  allExtractors,
+  layoutExtractor,
+  textExtractor,
+  visualsExtractor,
+  componentExtractor,
+  connectorExtractor,
+  simplifyAllConnectors,
+} from "./figma/extractors/built-in.js";
+import type { SimplifiedDesign, TraversalOptions, ExtractorFn } from "./figma/extractors/types.js";
+import { stripStylesFromDesign } from "./figma/transformers/style-stripper.js";
+import { simplifyAllComponentInstances } from "./figma/transformers/component-simplifier.js";
 
 export interface FigmaConfig {
   apiKey?: string;
   oauthToken?: string;
   useOAuth: boolean;
+}
+
+/**
+ * Options for controlling what data is extracted and how it's formatted.
+ * All options default to false to preserve backward compatibility.
+ */
+export interface FigmaDataOptions {
+  /** Remove all styling info (fills, strokes, effects, textStyle, opacity, borderRadius) */
+  excludeStyles?: boolean;
+  /** Convert TABLE nodes to markdown format */
+  tablesToMarkdown?: boolean;
+  /** Simplify CONNECTOR nodes to just endpoints (startNodeId, endNodeId) */
+  simplifyConnectors?: boolean;
+  /** Keep componentId and componentProperties but remove visual styling from INSTANCE nodes */
+  simplifyComponentInstances?: boolean;
+  /** Override which extractors to use: "layout", "text", "visuals", "component" */
+  extractors?: ("layout" | "text" | "visuals" | "component")[];
 }
 
 /**
@@ -112,14 +139,25 @@ export class FigmaService {
    * @param fileKey - The Figma file key from the URL
    * @param nodeId - Optional specific node ID(s) to fetch (format: "1:10" or "1:10;2:20")
    * @param depth - Optional tree traversal depth limit
+   * @param dataOptions - Optional optimization options for reducing output size
    * @returns Simplified design data ready for AI consumption
    */
   async getFigmaData(
     fileKey: string,
     nodeId?: string,
     depth?: number,
+    dataOptions?: FigmaDataOptions,
   ): Promise<SimplifiedDesign> {
     try {
+      // Apply defaults - optimizations ON by default for reduced context usage
+      const effectiveOptions = {
+        excludeStyles: dataOptions?.excludeStyles ?? true,
+        tablesToMarkdown: dataOptions?.tablesToMarkdown ?? true,
+        simplifyConnectors: dataOptions?.simplifyConnectors ?? true,
+        simplifyComponentInstances: dataOptions?.simplifyComponentInstances ?? true,
+        extractors: dataOptions?.extractors,
+      };
+
       // Fetch raw data from Figma API
       let rawData: GetFileResponse | GetFileNodesResponse;
 
@@ -131,16 +169,66 @@ export class FigmaService {
         rawData = await this.getFigmaFile(fileKey, depth);
       }
 
+      // Build extractor array based on options
+      let extractorList: ExtractorFn[] = [...allExtractors];
+
+      if (effectiveOptions.extractors) {
+        // Use custom extractor selection
+        extractorList = [];
+        if (effectiveOptions.extractors.includes("layout")) {
+          extractorList.push(layoutExtractor);
+        }
+        if (effectiveOptions.extractors.includes("text")) {
+          extractorList.push(textExtractor);
+        }
+        if (effectiveOptions.extractors.includes("visuals")) {
+          extractorList.push(visualsExtractor);
+        }
+        if (effectiveOptions.extractors.includes("component")) {
+          extractorList.push(componentExtractor);
+        }
+      }
+
+      // Always add connector extractor for relationship data
+      extractorList.push(connectorExtractor);
+
       // Transform raw Figma data into simplified format using extractors
-      const options: TraversalOptions = {
+      const traversalOptions: TraversalOptions = {
         maxDepth: depth,
+        optimization: {
+          tablesToMarkdown: effectiveOptions.tablesToMarkdown,
+          // Note: simplifyConnectors and simplifyComponentInstances are applied post-processing
+        },
       };
 
-      const simplifiedData = simplifyRawFigmaObject(
+      let simplifiedData = simplifyRawFigmaObject(
         rawData,
-        allExtractors,
-        options,
+        extractorList,
+        traversalOptions,
       );
+
+      // Apply post-processing transformations
+      // Order matters: apply connector simplification before style stripping
+      // so connector endpoints are preserved
+
+      if (effectiveOptions.simplifyConnectors) {
+        simplifiedData = {
+          ...simplifiedData,
+          nodes: simplifyAllConnectors(simplifiedData.nodes),
+        };
+      }
+
+      if (effectiveOptions.simplifyComponentInstances) {
+        simplifiedData = {
+          ...simplifiedData,
+          nodes: simplifyAllComponentInstances(simplifiedData.nodes),
+        };
+      }
+
+      // Apply style stripping last - it removes styling from all nodes
+      if (effectiveOptions.excludeStyles) {
+        simplifiedData = stripStylesFromDesign(simplifiedData);
+      }
 
       return simplifiedData;
     } catch (error: any) {

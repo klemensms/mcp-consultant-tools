@@ -13,7 +13,7 @@ import { pathToFileURL } from "node:url";
 import { realpathSync } from "node:fs";
 import { createMcpServer, createEnvLoader, createErrorResponse, createSuccessResponse } from "@mcp-consultant-tools/core";
 import { FigmaService } from "./FigmaService.js";
-import type { FigmaConfig } from "./FigmaService.js";
+import type { FigmaConfig, FigmaDataOptions } from "./FigmaService.js";
 
 /**
  * Register Figma tools and prompts to an MCP server
@@ -53,16 +53,50 @@ export function registerFigmaTools(server: any, figmaService?: FigmaService) {
   // Tool: get-figma-data
   server.tool(
     "get-figma-data",
-    "Get comprehensive Figma design data including layout, text, styles, and components. Fetches from Figma API and transforms into simplified, AI-friendly format. Can fetch entire files or specific nodes. Automatically deduplicates styles.",
+    "Get comprehensive Figma design data including layout, text, styles, and components. Fetches from Figma API and transforms into simplified, AI-friendly format. Can fetch entire files or specific nodes. Automatically deduplicates styles. Supports optimization options to reduce context window usage.",
     {
       fileKey: z.string().describe("Figma file key (alphanumeric string from URL). Example: From 'https://figma.com/file/ABC123/MyFile', use 'ABC123'"),
       nodeId: z.string().optional().describe("Optional specific node ID(s) to fetch. Format: '1234:5678' or multiple '1:10;2:20'. If omitted, fetches entire file."),
       depth: z.number().optional().describe("Optional tree traversal depth limit. Useful for large files. Example: depth=3 stops after 3 levels of children."),
+      // Optimization options for reducing context window usage
+      excludeStyles: z.boolean().optional().describe("Remove all styling info (fills, strokes, effects, textStyle, opacity, borderRadius) and globalVars.styles. Useful for understanding architecture without visual details. Default: true. Set to false for full styling data."),
+      tablesToMarkdown: z.boolean().optional().describe("Convert TABLE nodes to markdown table format instead of nested node structures. Significantly reduces token usage for tables. Default: true. Set to false for full node tree."),
+      simplifyConnectors: z.boolean().optional().describe("Simplify CONNECTOR nodes to just connection endpoints (startNodeId, endNodeId, text). Preserves relationship data while removing visual properties. Default: true. Set to false for full connector data."),
+      simplifyComponentInstances: z.boolean().optional().describe("Keep componentId and componentProperties on INSTANCE nodes but remove visual styling. Ideal for ADO User Story components. Default: true. Set to false for full instance data."),
+      extractors: z.array(z.enum(["layout", "text", "visuals", "component"])).optional().describe("Override which extractors to use. Options: layout, text, visuals, component. Default uses all. Example: ['text', 'component'] for content-focused extraction."),
     },
-    async ({ fileKey, nodeId, depth }: { fileKey: string; nodeId?: string; depth?: number }) => {
+    async ({
+      fileKey,
+      nodeId,
+      depth,
+      excludeStyles,
+      tablesToMarkdown,
+      simplifyConnectors,
+      simplifyComponentInstances,
+      extractors
+    }: {
+      fileKey: string;
+      nodeId?: string;
+      depth?: number;
+      excludeStyles?: boolean;
+      tablesToMarkdown?: boolean;
+      simplifyConnectors?: boolean;
+      simplifyComponentInstances?: boolean;
+      extractors?: ("layout" | "text" | "visuals" | "component")[];
+    }) => {
       try {
         const figmaService = getFigmaService();
-        const result = await figmaService.getFigmaData(fileKey, nodeId, depth);
+
+        // Build data options from parameters
+        const dataOptions: FigmaDataOptions = {
+          excludeStyles,
+          tablesToMarkdown,
+          simplifyConnectors,
+          simplifyComponentInstances,
+          extractors,
+        };
+
+        const result = await figmaService.getFigmaData(fileKey, nodeId, depth, dataOptions);
         return createSuccessResponse(result);
       } catch (error) {
         return createErrorResponse(error, "get-figma-data");
@@ -93,7 +127,7 @@ export function registerFigmaTools(server: any, figmaService?: FigmaService) {
  * Export service class for direct usage
  */
 export { FigmaService } from "./FigmaService.js";
-export type { FigmaConfig } from "./FigmaService.js";
+export type { FigmaConfig, FigmaDataOptions } from "./FigmaService.js";
 
 /**
  * Standalone CLI server (when run directly)

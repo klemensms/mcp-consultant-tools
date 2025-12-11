@@ -176,10 +176,20 @@ function getStyleName(
   return undefined;
 }
 
+// -------------------- CONNECTOR EXTRACTOR --------------------
+
+// Re-export connector extractors from dedicated module
+export {
+  connectorExtractor,
+  simplifiedConnectorExtractor,
+  simplifyConnectorNode,
+  simplifyAllConnectors,
+} from "./connector-extractor.js";
+
 // -------------------- CONVENIENCE COMBINATIONS --------------------
 
 /**
- * All extractors - replicates the current parseNode behavior.
+ * All extractors - includes connector extraction for relationship data.
  */
 export const allExtractors = [layoutExtractor, textExtractor, visualsExtractor, componentExtractor];
 

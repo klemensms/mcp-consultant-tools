@@ -21,6 +21,21 @@ export type GlobalVars = {
   styles: Record<string, StyleTypes>;
 };
 
+/**
+ * Optimization options for reducing output size and context window usage.
+ * All options default to false to preserve backward compatibility.
+ */
+export interface OptimizationOptions {
+  /** Remove all styling info (fills, strokes, effects, textStyle, opacity, borderRadius) */
+  excludeStyles?: boolean;
+  /** Convert TABLE nodes to markdown format */
+  tablesToMarkdown?: boolean;
+  /** Simplify CONNECTOR nodes to just endpoints (startNodeId, endNodeId) */
+  simplifyConnectors?: boolean;
+  /** Keep componentId and componentProperties but remove visual styling from INSTANCE nodes */
+  simplifyComponentInstances?: boolean;
+}
+
 export interface TraversalContext {
   globalVars: GlobalVars & { extraStyles?: Record<string, Style> };
   currentDepth: number;
@@ -44,6 +59,8 @@ export interface TraversalOptions {
     result: SimplifiedNode,
     children: SimplifiedNode[],
   ) => SimplifiedNode[];
+  /** Optimization options for reducing output size */
+  optimization?: OptimizationOptions;
 }
 
 /**
@@ -90,8 +107,27 @@ export interface SimplifiedNode {
   // for rect-specific strokes, etc.
   componentId?: string;
   componentProperties?: ComponentProperties[];
+  // connector endpoints (for CONNECTOR nodes)
+  startNodeId?: string;
+  endNodeId?: string;
   // children
   children?: SimplifiedNode[];
+}
+
+/**
+ * Simplified representation of a markdown table (used when tablesToMarkdown is true).
+ * Replaces the nested TABLE node structure with a compact markdown string.
+ */
+export interface MarkdownTableNode {
+  id: string;
+  name: string;
+  type: "TABLE_MARKDOWN";
+  /** Markdown representation of the table */
+  markdown: string;
+  /** Original row count for reference */
+  rowCount: number;
+  /** Original column count for reference */
+  columnCount: number;
 }
 
 export interface BoundingBox {
