@@ -1,14 +1,15 @@
-import { ConfidentialClientApplication } from '@azure/msal-node';
 import axios from 'axios';
 import { bestPracticesValidator } from './utils/bestPractices.js';
 import { iconManager } from './utils/iconManager.js';
 import { auditLogger } from '@mcp-consultant-tools/core';
 import { rateLimiter } from './utils/rate-limiter.js';
+import { type AuthProvider, createAuthProvider } from './auth/index.js';
 
 export interface PowerPlatformConfig {
   organizationUrl: string;
   clientId: string;
-  clientSecret: string;
+  /** Client secret is optional - if not provided, interactive auth will be used */
+  clientSecret?: string;
   tenantId: string;
 }
 
@@ -80,59 +81,52 @@ export interface BestPracticesValidationResult {
 
 export class PowerPlatformService {
   private config: PowerPlatformConfig;
-  private msalClient: ConfidentialClientApplication;
-  private accessToken: string | null = null;
-  private tokenExpirationTime: number = 0;
-  private flowManagementToken: string | null = null;
-  private flowManagementTokenExpirationTime: number = 0;
+  private authProvider: AuthProvider;
   private environmentId: string | null = null;
 
-  constructor(config: PowerPlatformConfig) {
+  constructor(config: PowerPlatformConfig, authProvider?: AuthProvider) {
     this.config = config;
-    
-    // Initialize MSAL client
-    this.msalClient = new ConfidentialClientApplication({
-      auth: {
-        clientId: this.config.clientId,
-        clientSecret: this.config.clientSecret,
-        authority: `https://login.microsoftonline.com/${this.config.tenantId}`,
-      }
+
+    // Use provided auth provider or create one based on config
+    this.authProvider = authProvider || createAuthProvider({
+      organizationUrl: config.organizationUrl,
+      clientId: config.clientId,
+      clientSecret: config.clientSecret,
+      tenantId: config.tenantId,
     });
+  }
+
+  /**
+   * Get the authentication mode being used
+   */
+  getAuthMode(): 'service-principal' | 'interactive' {
+    return this.authProvider.getAuthMode();
+  }
+
+  /**
+   * Get information about the authenticated user (if using interactive auth)
+   */
+  async getUserInfo(): Promise<{ name: string; email: string; oid: string } | null> {
+    if (this.authProvider.getUserInfo) {
+      return this.authProvider.getUserInfo();
+    }
+    return null;
+  }
+
+  /**
+   * Clear cached tokens (logout) - only applicable for interactive auth
+   */
+  async logout(): Promise<void> {
+    if (this.authProvider.clearCache) {
+      await this.authProvider.clearCache();
+    }
   }
 
   /**
    * Get an access token for the PowerPlatform API
    */
   private async getAccessToken(): Promise<string> {
-    const currentTime = Date.now();
-    
-    // If we have a token that isn't expired, return it
-    if (this.accessToken && this.tokenExpirationTime > currentTime) {
-      return this.accessToken;
-    }
-
-    try {
-      // Get a new token
-      const result = await this.msalClient.acquireTokenByClientCredential({
-        scopes: [`${this.config.organizationUrl}/.default`],
-      });
-
-      if (!result || !result.accessToken) {
-        throw new Error('Failed to acquire access token');
-      }
-
-      this.accessToken = result.accessToken;
-      
-      // Set expiration time (subtract 5 minutes to refresh early)
-      if (result.expiresOn) {
-        this.tokenExpirationTime = result.expiresOn.getTime() - (5 * 60 * 1000);
-      }
-
-      return this.accessToken;
-    } catch (error) {
-      console.error('Error acquiring access token:', error);
-      throw new Error('Authentication failed');
-    }
+    return this.authProvider.getAccessToken(this.config.organizationUrl);
   }
 
   /**
@@ -201,28 +195,47 @@ export class PowerPlatformService {
    * Get metadata about entity attributes/fields
    * @param entityName The logical name of the entity
    */
-  async getEntityAttributes(entityName: string): Promise<ApiCollectionResponse<any>> {
+  async getEntityAttributes(
+    entityName: string,
+    options?: {
+      prefix?: string;
+      attributeType?: string;
+      maxAttributes?: number;
+    }
+  ): Promise<{ value: any[], hasMore: boolean, returnedCount: number, totalBeforeFilter?: number }> {
     const selectProperties = [
       'LogicalName',
+      'AttributeType',
+      'DisplayName',
+      'RequiredLevel'
     ].join(',');
-    
+
+    // Build filter conditions
+    const filters: string[] = ["AttributeType ne 'Virtual'"];
+    if (options?.attributeType) {
+      filters.push(`AttributeType eq '${options.attributeType}'`);
+    }
+    const filterString = filters.join(' and ');
+
     // Make the request to get attributes
-    const response = await this.makeRequest<ApiCollectionResponse<any>>(`api/data/v9.2/EntityDefinitions(LogicalName='${entityName}')/Attributes?$select=${selectProperties}&$filter=AttributeType ne 'Virtual'`);
-    
+    const response = await this.makeRequest<ApiCollectionResponse<any>>(
+      `api/data/v9.2/EntityDefinitions(LogicalName='${entityName}')/Attributes?$select=${selectProperties}&$filter=${filterString}`
+    );
+
     if (response && response.value) {
       // First pass: Filter out attributes that end with 'yominame'
       response.value = response.value.filter((attribute: any) => {
         const logicalName = attribute.LogicalName || '';
         return !logicalName.endsWith('yominame');
       });
-      
+
       // Filter out attributes that end with 'name' if there is another attribute with the same name without the 'name' suffix
       const baseNames = new Set<string>();
       const namesAttributes = new Map<string, any>();
-      
+
       for (const attribute of response.value) {
         const logicalName = attribute.LogicalName || '';
-      
+
         if (logicalName.endsWith('name') && logicalName.length > 4) {
           const baseName = logicalName.slice(0, -4); // Remove 'name' suffix
           namesAttributes.set(baseName, attribute);
@@ -231,7 +244,7 @@ export class PowerPlatformService {
           baseNames.add(logicalName);
         }
       }
-      
+
       // Find attributes to remove that match the pattern
       const attributesToRemove = new Set<any>();
       for (const [baseName, nameAttribute] of namesAttributes.entries()) {
@@ -241,9 +254,39 @@ export class PowerPlatformService {
       }
 
       response.value = response.value.filter(attribute => !attributesToRemove.has(attribute));
+
+      // Apply prefix filter if specified
+      if (options?.prefix) {
+        const prefix = options.prefix.toLowerCase();
+        response.value = response.value.filter((attr: any) =>
+          attr.LogicalName?.toLowerCase().startsWith(prefix)
+        );
+      }
     }
-    
-    return response;
+
+    const totalBeforeLimit = response.value?.length || 0;
+
+    // Apply maxAttributes limit if specified
+    let hasMore = false;
+    if (options?.maxAttributes && response.value && response.value.length > options.maxAttributes) {
+      hasMore = true;
+      response.value = response.value.slice(0, options.maxAttributes);
+    }
+
+    // Format the response with display names
+    const formattedAttributes = (response.value || []).map((attr: any) => ({
+      logicalName: attr.LogicalName,
+      attributeType: attr.AttributeType,
+      displayName: attr.DisplayName?.UserLocalizedLabel?.Label || attr.LogicalName,
+      requiredLevel: attr.RequiredLevel?.Value || 'None'
+    }));
+
+    return {
+      value: formattedAttributes,
+      hasMore,
+      returnedCount: formattedAttributes.length,
+      totalBeforeFilter: totalBeforeLimit
+    };
   }
 
   /**
@@ -346,8 +389,36 @@ export class PowerPlatformService {
    * @param maxRecords Maximum number of records to retrieve (default: 50)
    * @returns Filtered list of records
    */
-  async queryRecords(entityNamePlural: string, filter: string, maxRecords: number = 50): Promise<ApiCollectionResponse<any>> {
-    return this.makeRequest<ApiCollectionResponse<any>>(`api/data/v9.2/${entityNamePlural}?$filter=${encodeURIComponent(filter)}&$top=${maxRecords}`);
+  async queryRecords(
+    entityNamePlural: string,
+    filter: string,
+    maxRecords: number = 50,
+    select?: string[]
+  ): Promise<{ value: any[], hasMore: boolean, returnedCount: number, requestedMax: number }> {
+    // Request one extra record to detect if there are more
+    const requestLimit = maxRecords + 1;
+
+    let url = `api/data/v9.2/${entityNamePlural}?$filter=${encodeURIComponent(filter)}&$top=${requestLimit}`;
+
+    // Add $select if columns specified
+    if (select && select.length > 0) {
+      url += `&$select=${select.join(',')}`;
+    }
+
+    const response = await this.makeRequest<ApiCollectionResponse<any>>(url);
+
+    // Check if there are more records than requested
+    const hasMore = response.value.length > maxRecords;
+
+    // Trim to the requested max
+    const trimmedValue = hasMore ? response.value.slice(0, maxRecords) : response.value;
+
+    return {
+      value: trimmedValue,
+      hasMore,
+      returnedCount: trimmedValue.length,
+      requestedMax: maxRecords
+    };
   }
 
   /**
@@ -829,18 +900,26 @@ export class PowerPlatformService {
    * @param maxRecords Maximum number of flows to return (default: 100)
    * @returns List of Power Automate flows with basic information
    */
-  async getFlows(activeOnly: boolean = false, maxRecords: number = 100): Promise<any> {
+  async getFlows(activeOnly: boolean = false, maxRecords: number = 25): Promise<any> {
     // Category 5 = Modern Flow (Power Automate cloud flows)
     // StateCode: 0=Draft, 1=Activated, 2=Suspended
     // Type: 1=Definition, 2=Activation
+    // Note: clientdata removed from select to reduce response size - use getFlowDefinition for full definition
     const stateFilter = activeOnly ? ' and statecode eq 1' : '';
 
+    // Request one extra to detect if there are more
+    const requestLimit = maxRecords + 1;
+
     const flows = await this.makeRequest<ApiCollectionResponse<any>>(
-      `api/data/v9.2/workflows?$filter=category eq 5${stateFilter}&$select=workflowid,name,statecode,statuscode,description,createdon,modifiedon,type,ismanaged,iscrmuiworkflow,primaryentity,clientdata&$expand=modifiedby($select=fullname)&$orderby=modifiedon desc&$top=${maxRecords}`
+      `api/data/v9.2/workflows?$filter=category eq 5${stateFilter}&$select=workflowid,name,statecode,statuscode,description,createdon,modifiedon,type,ismanaged,iscrmuiworkflow,primaryentity,_ownerid_value&$expand=modifiedby($select=fullname)&$orderby=modifiedon desc&$top=${requestLimit}`
     );
 
+    // Check if there are more records
+    const hasMore = flows.value.length > maxRecords;
+    const trimmedFlows = hasMore ? flows.value.slice(0, maxRecords) : flows.value;
+
     // Format the results for better readability
-    const formattedFlows = flows.value.map((flow: any) => ({
+    const formattedFlows = trimmedFlows.map((flow: any) => ({
       workflowid: flow.workflowid,
       name: flow.name,
       description: flow.description,
@@ -853,12 +932,13 @@ export class PowerPlatformService {
       ownerId: flow._ownerid_value,
       modifiedOn: flow.modifiedon,
       modifiedBy: flow.modifiedby?.fullname,
-      createdOn: flow.createdon,
-      hasDefinition: !!flow.clientdata
+      createdOn: flow.createdon
     }));
 
     return {
       totalCount: formattedFlows.length,
+      hasMore,
+      requestedMax: maxRecords,
       flows: formattedFlows
     };
   }
@@ -868,23 +948,30 @@ export class PowerPlatformService {
    * @param flowId The GUID of the flow (workflowid)
    * @returns Complete flow information including the flow definition JSON
    */
-  async getFlowDefinition(flowId: string): Promise<any> {
+  async getFlowDefinition(flowId: string, summary: boolean = false): Promise<any> {
     const flow = await this.makeRequest<any>(
-      `api/data/v9.2/workflows(${flowId})?$select=workflowid,name,statecode,statuscode,description,createdon,modifiedon,type,category,ismanaged,iscrmuiworkflow,primaryentity,clientdata,xaml&$expand=modifiedby($select=fullname),createdby($select=fullname)`
+      `api/data/v9.2/workflows(${flowId})?$select=workflowid,name,statecode,statuscode,description,createdon,modifiedon,type,category,ismanaged,iscrmuiworkflow,primaryentity,clientdata&$expand=modifiedby($select=fullname),createdby($select=fullname)`
     );
 
     // Parse the clientdata (flow definition) if it exists
     let flowDefinition = null;
+    let flowSummary = null;
+
     if (flow.clientdata) {
       try {
         flowDefinition = JSON.parse(flow.clientdata);
+
+        // If summary mode, extract key information instead of returning full definition
+        if (summary && flowDefinition) {
+          flowSummary = this.parseFlowSummary(flowDefinition);
+        }
       } catch (error) {
         console.error('Failed to parse flow definition JSON:', error);
-        flowDefinition = { parseError: 'Failed to parse flow definition', raw: flow.clientdata };
+        flowDefinition = { parseError: 'Failed to parse flow definition', raw: flow.clientdata?.substring(0, 500) + '...' };
       }
     }
 
-    return {
+    const baseResult = {
       workflowid: flow.workflowid,
       name: flow.name,
       description: flow.description,
@@ -895,13 +982,114 @@ export class PowerPlatformService {
       category: flow.category,
       primaryEntity: flow.primaryentity,
       isManaged: flow.ismanaged,
-      ownerId: flow._ownerid_value,
       createdOn: flow.createdon,
       createdBy: flow.createdby?.fullname,
       modifiedOn: flow.modifiedon,
-      modifiedBy: flow.modifiedby?.fullname,
+      modifiedBy: flow.modifiedby?.fullname
+    };
+
+    if (summary) {
+      return {
+        ...baseResult,
+        summary: flowSummary,
+        note: 'Use summary=false to get the full flow definition'
+      };
+    }
+
+    return {
+      ...baseResult,
       flowDefinition: flowDefinition
     };
+  }
+
+  /**
+   * Parse a flow definition to extract a summary
+   * @param flowDef The parsed flow definition JSON
+   * @returns Summary object with trigger, actions, and connectors
+   */
+  private parseFlowSummary(flowDef: any): any {
+    const summary: any = {
+      trigger: null,
+      actions: [],
+      connectors: new Set<string>(),
+      actionCount: 0,
+      hasConditions: false,
+      hasLoops: false,
+      hasErrorHandling: false
+    };
+
+    try {
+      // Extract trigger information
+      if (flowDef.properties?.definition?.triggers) {
+        const triggers = flowDef.properties.definition.triggers;
+        const triggerNames = Object.keys(triggers);
+        if (triggerNames.length > 0) {
+          const triggerName = triggerNames[0];
+          const trigger = triggers[triggerName];
+          summary.trigger = {
+            name: triggerName,
+            type: trigger.type,
+            kind: trigger.kind,
+            recurrence: trigger.recurrence
+          };
+        }
+      }
+
+      // Extract actions information
+      if (flowDef.properties?.definition?.actions) {
+        const actions = flowDef.properties.definition.actions;
+        summary.actionCount = Object.keys(actions).length;
+
+        for (const [actionName, action] of Object.entries(actions) as [string, any][]) {
+          const actionType = action.type?.toLowerCase() || '';
+
+          // Detect conditions and loops
+          if (actionType === 'if' || actionType === 'switch') {
+            summary.hasConditions = true;
+          }
+          if (actionType === 'foreach' || actionType === 'until') {
+            summary.hasLoops = true;
+          }
+          if (actionType === 'scope' && action.runAfter && Object.values(action.runAfter).some((r: any) => r.includes('Failed'))) {
+            summary.hasErrorHandling = true;
+          }
+
+          // Extract connector information
+          if (action.type === 'OpenApiConnection' || action.type === 'ApiConnection') {
+            const connectorId = action.inputs?.host?.connectionName ||
+                               action.inputs?.host?.apiId ||
+                               action.metadata?.operationMetadataId;
+            if (connectorId) {
+              summary.connectors.add(connectorId.split('/').pop() || connectorId);
+            }
+          }
+
+          // Add action summary (limited info)
+          summary.actions.push({
+            name: actionName,
+            type: action.type,
+            runAfter: action.runAfter ? Object.keys(action.runAfter) : []
+          });
+        }
+      }
+
+      // Convert connectors Set to array
+      summary.connectors = Array.from(summary.connectors);
+
+      // Add connection references if available
+      if (flowDef.properties?.connectionReferences) {
+        summary.connectionReferences = Object.keys(flowDef.properties.connectionReferences).map(key => ({
+          name: key,
+          type: flowDef.properties.connectionReferences[key].api?.name || 'unknown'
+        }));
+      }
+
+    } catch (error) {
+      console.error('Error parsing flow summary:', error);
+      summary.parseError = 'Partial parse - some information may be missing';
+    }
+
+    return summary;
   }
 
   /**
@@ -987,35 +1175,7 @@ export class PowerPlatformService {
    * @returns Access token for management.azure.com
    */
   private async getFlowManagementToken(): Promise<string> {
-    const currentTime = Date.now();
-
-    // If we have a token that isn't expired, return it
-    if (this.flowManagementToken && this.flowManagementTokenExpirationTime > currentTime) {
-      return this.flowManagementToken;
-    }
-
-    try {
-      // Get a new token for the Flow Management API
-      const result = await this.msalClient.acquireTokenByClientCredential({
-        scopes: ['https://management.azure.com/.default'],
-      });
-
-      if (!result || !result.accessToken) {
-        throw new Error('Failed to acquire Flow Management API access token');
-      }
-
-      this.flowManagementToken = result.accessToken;
-
-      // Set expiration time (subtract 5 minutes to refresh early)
-      if (result.expiresOn) {
-        this.flowManagementTokenExpirationTime = result.expiresOn.getTime() - (5 * 60 * 1000);
-      }
-
-      return this.flowManagementToken;
-    } catch (error) {
-      console.error('Error acquiring Flow Management API access token:', error);
-      throw new Error('Flow Management API authentication failed');
-    }
+    return this.authProvider.getAccessToken('https://management.azure.com');
   }
 
   /**
@@ -1122,18 +1282,25 @@ export class PowerPlatformService {
    * @param maxRecords Maximum number of workflows to return (default: 100)
    * @returns List of classic workflows with basic information
    */
-  async getWorkflows(activeOnly: boolean = false, maxRecords: number = 100): Promise<any> {
+  async getWorkflows(activeOnly: boolean = false, maxRecords: number = 25): Promise<any> {
     // Category 0 = Classic Workflow
     // StateCode: 0=Draft, 1=Activated, 2=Suspended
     // Type: 1=Definition, 2=Activation
     const stateFilter = activeOnly ? ' and statecode eq 1' : '';
 
+    // Request one extra to detect if there are more
+    const requestLimit = maxRecords + 1;
+
     const workflows = await this.makeRequest<ApiCollectionResponse<any>>(
-      `api/data/v9.2/workflows?$filter=category eq 0${stateFilter}&$select=workflowid,name,statecode,statuscode,description,createdon,modifiedon,type,ismanaged,iscrmuiworkflow,primaryentity,mode,subprocess,ondemand,triggeroncreate,triggerondelete,syncworkflowlogonfailure&$expand=ownerid($select=fullname),modifiedby($select=fullname)&$orderby=modifiedon desc&$top=${maxRecords}`
+      `api/data/v9.2/workflows?$filter=category eq 0${stateFilter}&$select=workflowid,name,statecode,statuscode,description,createdon,modifiedon,type,ismanaged,iscrmuiworkflow,primaryentity,mode,subprocess,ondemand,triggeroncreate,triggerondelete,syncworkflowlogonfailure,_ownerid_value&$expand=modifiedby($select=fullname)&$orderby=modifiedon desc&$top=${requestLimit}`
     );
 
+    // Check if there are more records
+    const hasMore = workflows.value.length > maxRecords;
+    const trimmedWorkflows = hasMore ? workflows.value.slice(0, maxRecords) : workflows.value;
+
     // Format the results for better readability
-    const formattedWorkflows = workflows.value.map((workflow: any) => ({
+    const formattedWorkflows = trimmedWorkflows.map((workflow: any) => ({
       workflowid: workflow.workflowid,
       name: workflow.name,
       description: workflow.description,
@@ -1148,7 +1315,7 @@ export class PowerPlatformService {
       triggerOnCreate: workflow.triggeroncreate,
       triggerOnDelete: workflow.triggerondelete,
       isSubprocess: workflow.subprocess,
-      owner: workflow.ownerid?.fullname,
+      ownerId: workflow._ownerid_value,
       modifiedOn: workflow.modifiedon,
       modifiedBy: workflow.modifiedby?.fullname,
       createdOn: workflow.createdon
@@ -1156,6 +1323,8 @@ export class PowerPlatformService {
 
     return {
       totalCount: formattedWorkflows.length,
+      hasMore,
+      requestedMax: maxRecords,
       workflows: formattedWorkflows
     };
   }
@@ -1163,14 +1332,15 @@ export class PowerPlatformService {
   /**
    * Get a specific classic workflow with its complete XAML definition
    * @param workflowId The GUID of the workflow (workflowid)
-   * @returns Complete workflow information including the XAML definition
+   * @param summary If true, parse XAML and return structured summary instead of raw XAML
+   * @returns Complete workflow information including the XAML definition or parsed summary
    */
-  async getWorkflowDefinition(workflowId: string): Promise<any> {
+  async getWorkflowDefinition(workflowId: string, summary: boolean = false): Promise<any> {
     const workflow = await this.makeRequest<any>(
-      `api/data/v9.2/workflows(${workflowId})?$select=workflowid,name,statecode,statuscode,description,createdon,modifiedon,type,category,ismanaged,iscrmuiworkflow,primaryentity,mode,subprocess,ondemand,triggeroncreate,triggerondelete,triggeronupdateattributelist,syncworkflowlogonfailure,xaml&$expand=ownerid($select=fullname),modifiedby($select=fullname),createdby($select=fullname)`
+      `api/data/v9.2/workflows(${workflowId})?$select=workflowid,name,statecode,statuscode,description,createdon,modifiedon,type,category,ismanaged,iscrmuiworkflow,primaryentity,mode,subprocess,ondemand,triggeroncreate,triggerondelete,triggeronupdateattributelist,syncworkflowlogonfailure,xaml,_ownerid_value&$expand=modifiedby($select=fullname),createdby($select=fullname)`
     );
 
-    return {
+    const baseResult = {
       workflowid: workflow.workflowid,
       name: workflow.name,
       description: workflow.description,
@@ -1188,13 +1358,148 @@ export class PowerPlatformService {
       triggerOnUpdateAttributes: workflow.triggeronupdateattributelist ? workflow.triggeronupdateattributelist.split(',') : [],
       isSubprocess: workflow.subprocess,
       syncWorkflowLogOnFailure: workflow.syncworkflowlogonfailure,
-      owner: workflow.ownerid?.fullname,
+      ownerId: workflow._ownerid_value,
       createdOn: workflow.createdon,
       createdBy: workflow.createdby?.fullname,
       modifiedOn: workflow.modifiedon,
-      modifiedBy: workflow.modifiedby?.fullname,
+      modifiedBy: workflow.modifiedby?.fullname
+    };
+
+    if (summary) {
+      const workflowSummary = this.parseWorkflowXamlSummary(workflow.xaml);
+      return {
+        ...baseResult,
+        summary: workflowSummary,
+        note: 'Use summary=false to get the full XAML definition'
+      };
+    }
+
+    return {
+      ...baseResult,
       xaml: workflow.xaml
     };
+  }
+
+  /**
+   * Parse workflow XAML to extract a structured summary
+   * @param xaml The raw XAML string
+   * @returns Summary object with activities, conditions, and variables
+   */
+  private parseWorkflowXamlSummary(xaml: string | null): any {
+    if (!xaml) {
+      return { error: 'No XAML definition available' };
+    }
+
+    const summary: any = {
+      activities: [],
+      activityCount: 0,
+      hasConditions: false,
+      hasWaitConditions: false,
+      sendsEmail: false,
+      createsRecords: false,
+      updatesRecords: false,
+      assignsRecords: false,
+      callsChildWorkflows: false,
+      variables: [],
+      xamlSize: xaml.length
+    };
+
+    try {
+      // Extract activities using regex patterns (simpler than full XML parsing)
+      // Look for common activity patterns in CRM workflow XAML
+
+      // Count and identify activities
+      const activityPattern = /<(mxswa:)?Activity[^>]*x:Class="([^"]*)"[^>]*>/gi;
+      const activityMatches = xaml.matchAll(activityPattern);
+      for (const match of activityMatches) {
+        summary.activities.push({ type: 'Activity', class: match[2] });
+      }
+
+      // SendEmail activities
+      const emailPattern = /<(SendEmail|mxswa:SendEmail)[^>]*>/gi;
+      const emailCount = (xaml.match(emailPattern) || []).length;
+      if (emailCount > 0) {
+        summary.sendsEmail = true;
+        summary.activities.push({ type: 'SendEmail', count: emailCount });
+      }
+
+      // CreateEntity activities
+      const createPattern = /<(CreateEntity|mxswa:CreateEntity)[^>]*>/gi;
+      const createCount = (xaml.match(createPattern) || []).length;
+      if (createCount > 0) {
+        summary.createsRecords = true;
+        summary.activities.push({ type: 'CreateEntity', count: createCount });
+      }
+
+      // UpdateEntity activities
+      const updatePattern = /<(UpdateEntity|mxswa:UpdateEntity)[^>]*>/gi;
+      const updateCount = (xaml.match(updatePattern) || []).length;
+      if (updateCount > 0) {
+        summary.updatesRecords = true;
+        summary.activities.push({ type: 'UpdateEntity', count: updateCount });
+      }
+
+      // AssignEntity activities
+      const assignPattern = /<(AssignEntity|mxswa:AssignEntity)[^>]*>/gi;
+      const assignCount = (xaml.match(assignPattern) || []).length;
+      if (assignCount > 0) {
+        summary.assignsRecords = true;
+        summary.activities.push({ type: 'AssignEntity', count: assignCount });
+      }
+
+      // SetState activities
+      const setStatePattern = /<(SetState|mxswa:SetState)[^>]*>/gi;
+      const setStateCount = (xaml.match(setStatePattern) || []).length;
+      if (setStateCount > 0) {
+        summary.activities.push({ type: 'SetState', count: setStateCount });
+      }
+
+      // Conditions
+      const conditionPattern = /<(Condition|mxswa:ConditionBranch|If|Switch)[^>]*>/gi;
+      const conditionCount = (xaml.match(conditionPattern) || []).length;
+      if (conditionCount > 0) {
+        summary.hasConditions = true;
+        summary.activities.push({ type: 'Condition', count: conditionCount });
+      }
+
+      // Wait conditions
+      const waitPattern = /<(Wait|mxswa:Wait|WaitConditionBranch)[^>]*>/gi;
+      const waitCount = (xaml.match(waitPattern) || []).length;
+      if (waitCount > 0) {
+        summary.hasWaitConditions = true;
+        summary.activities.push({ type: 'Wait', count: waitCount });
+      }
+
+      // Child workflow calls
+      const childWorkflowPattern = /<(ExecuteWorkflow|mxswa:ExecuteWorkflow)[^>]*>/gi;
+      const childWorkflowCount = (xaml.match(childWorkflowPattern) || []).length;
+      if (childWorkflowCount > 0) {
+        summary.callsChildWorkflows = true;
+        summary.activities.push({ type: 'ExecuteWorkflow', count: childWorkflowCount });
+      }
+
+      // Custom workflow activities
+      const customActivityPattern = /<(mxswa:ActivityReference|WorkflowActivity)[^>]*TypeName="([^"]*)"[^>]*>/gi;
+      const customMatches = xaml.matchAll(customActivityPattern);
+      for (const match of customMatches) {
+        summary.activities.push({ type: 'CustomActivity', typeName: match[2] });
+      }
+
+      // Extract variables
+      const variablePattern = /<Variable[^>]*x:Name="([^"]*)"[^>]*x:TypeArguments="([^"]*)"[^>]*>/gi;
+      const varMatches = xaml.matchAll(variablePattern);
+      for (const match of varMatches) {
+        summary.variables.push({ name: match[1], type: match[2] });
+      }
+
+      summary.activityCount = summary.activities.length;
+
+    } catch (error) {
+      console.error('Error parsing workflow XAML:', error);
+      summary.parseError = 'Partial parse - some information may be missing';
+    }
+
+    return summary;
   }
 
   /**

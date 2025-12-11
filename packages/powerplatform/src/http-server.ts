@@ -8,9 +8,8 @@
  *   # Then: ngrok http 3000
  */
 import express, { Request, Response, NextFunction } from 'express';
-import { randomUUID } from 'crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createEnvLoader } from '@mcp-consultant-tools/core';
 import { registerPowerPlatformTools } from './index.js';
 
@@ -31,64 +30,192 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Store transports by session ID for stateful mode
-const transports = new Map<string, StreamableHTTPServerTransport>();
+// API Key authentication middleware
+const apiKeyAuth = (req: Request, res: Response, next: NextFunction) => {
+  const expectedKey = process.env.MCP_API_KEY;
+  if (req.path === '/health' || req.path === '/' || req.method === 'OPTIONS') {
+    return next();
+  }
+  if (!expectedKey) {
+    return next();
+  }
+  const providedKey = req.headers['x-api-key'] as string;
+  if (providedKey !== expectedKey) {
+    console.error('API key authentication failed');
+    return res.status(401).json({ error: 'Invalid or missing API key' });
+  }
+  next();
+};
 
-// MCP endpoint - handles all HTTP methods
-app.all('/mcp', async (req: Request, res: Response) => {
+app.use(apiKeyAuth);
+
+// Debug logging
+app.use((req: Request, res: Response, next: NextFunction) => {
+  console.error(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.error('  Body:', JSON.stringify(req.body).substring(0, 300));
+  }
+  next();
+});
+
+// Global MCP server instance
+let mcpServer: McpServer | null = null;
+let serverTransport: InMemoryTransport | null = null;
+let clientTransport: InMemoryTransport | null = null;
+
+async function initializeMcpServer() {
+  if (mcpServer) return;
+
+  mcpServer = new McpServer({
+    name: 'powerplatform-http',
+    version: '23.0.0-beta.1',
+  });
+
+  registerPowerPlatformTools(mcpServer);
+
+  // Create linked in-memory transports
+  const [server, client] = InMemoryTransport.createLinkedPair();
+  serverTransport = server;
+  clientTransport = client;
+
+  await mcpServer.connect(serverTransport);
+  console.error('✅ MCP server initialized with InMemoryTransport');
+}
+
+// MCP endpoint - manual JSON-RPC handling
+app.post('/mcp', async (req: Request, res: Response) => {
   try {
-    // Check for existing session
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
-    let transport: StreamableHTTPServerTransport;
+    await initializeMcpServer();
 
-    if (sessionId && transports.has(sessionId)) {
-      // Reuse existing transport for this session
-      transport = transports.get(sessionId)!;
-    } else if (req.method === 'GET' || (req.method === 'POST' && !sessionId)) {
-      // New session - create server and transport
-      const server = new McpServer({
-        name: 'powerplatform-http',
-        version: '21.0.0',
-      });
+    const jsonRpcRequest = req.body;
+    console.error('  JSON-RPC method:', jsonRpcRequest.method);
 
-      // Register all PowerPlatform tools and prompts
-      // (prompts are registered inside registerPowerPlatformTools)
-      registerPowerPlatformTools(server);
+    // Check if this is a notification (no id = no response expected)
+    const isNotification = jsonRpcRequest.id === undefined;
 
-      // Create transport with session management
-      transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => randomUUID(),
-        onsessioninitialized: (id) => {
-          transports.set(id, transport);
-          console.error(`Session initialized: ${id}`);
-        },
-        onsessionclosed: (id) => {
-          transports.delete(id);
-          console.error(`Session closed: ${id}`);
-        },
-      });
+    // Send request through client transport
+    await clientTransport!.send(jsonRpcRequest);
 
-      // Connect server to transport
-      await server.connect(transport);
-    } else {
-      // Invalid request - session required but not found
-      res.status(400).json({ error: 'Invalid session' });
+    if (isNotification) {
+      // Notifications don't expect a response - just acknowledge
+      console.error('  (notification - no response expected)');
+      res.status(202).json({ jsonrpc: '2.0', result: 'accepted' });
       return;
     }
 
-    // Let transport handle the request
-    await transport.handleRequest(req, res);
+    // Wait for response (with timeout)
+    const response = await Promise.race([
+      new Promise<any>((resolve) => {
+        const handler = (msg: any) => {
+          if (msg.id === jsonRpcRequest.id) {
+            clientTransport!.onmessage = undefined;
+            resolve(msg);
+          }
+        };
+        clientTransport!.onmessage = handler;
+      }),
+      new Promise<any>((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout waiting for MCP response')), 30000)
+      ),
+    ]);
+
+    console.error('  Response:', JSON.stringify(response).substring(0, 200));
+    res.json(response);
   } catch (error: any) {
     console.error('MCP HTTP error:', error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: error.message });
-    }
+    res.status(500).json({
+      jsonrpc: '2.0',
+      error: { code: -32603, message: error.message },
+      id: req.body?.id || null,
+    });
   }
+});
+
+// SSE endpoint for streaming (required by some clients)
+app.get('/mcp', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  // Send initial connection message
+  res.write(`data: ${JSON.stringify({ type: 'connected' })}\n\n`);
+
+  // Keep connection alive
+  const keepAlive = setInterval(() => {
+    res.write(': keepalive\n\n');
+  }, 30000);
+
+  req.on('close', () => {
+    clearInterval(keepAlive);
+    console.error('SSE connection closed');
+  });
 });
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', sessions: transports.size });
+  res.json({ status: 'ok', serverInitialized: mcpServer !== null });
+});
+
+// Root endpoint - required for ChatGPT connector validation
+app.get('/', (req: Request, res: Response) => {
+  res.json({
+    name: 'PowerPlatform MCP Server',
+    version: '23.0.0-beta.1',
+    mcp_endpoint: '/mcp',
+    health_endpoint: '/health',
+  });
+});
+
+// REST-style tool endpoint for ChatGPT compatibility
+// ChatGPT constructs paths like /connector_name/link_xxx/tool_name
+// This catches those and converts to MCP tools/call
+app.post('/:connector/:linkId/:toolName', async (req: Request, res: Response) => {
+  try {
+    await initializeMcpServer();
+
+    const toolName = req.params.toolName;
+    const args = req.body.args ? JSON.parse(req.body.args) : req.body;
+
+    console.error(`  REST→MCP: ${toolName} with args:`, JSON.stringify(args).substring(0, 200));
+
+    const requestId = Date.now();
+    const jsonRpcRequest = {
+      jsonrpc: '2.0' as const,
+      id: requestId,
+      method: 'tools/call',
+      params: {
+        name: toolName,
+        arguments: args,
+      },
+    };
+
+    await clientTransport!.send(jsonRpcRequest);
+
+    const response = await Promise.race([
+      new Promise<any>((resolve) => {
+        const handler = (msg: any) => {
+          if (msg.id === requestId) {
+            clientTransport!.onmessage = undefined;
+            resolve(msg);
+          }
+        };
+        clientTransport!.onmessage = handler;
+      }),
+      new Promise<any>((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout')), 30000)
+      ),
+    ]);
+
+    // Extract text content from MCP response for simpler REST response
+    if (response.result?.content?.[0]?.text) {
+      res.json({ result: response.result.content[0].text });
+    } else {
+      res.json(response);
+    }
+  } catch (error: any) {
+    console.error('REST→MCP error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 const PORT = process.env.HTTP_PORT || 3000;

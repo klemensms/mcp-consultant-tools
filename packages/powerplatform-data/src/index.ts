@@ -67,6 +67,107 @@ function checkActionsEnabled() {
 }
 
   // Tool registrations
+
+// Read-only query tools (no permission flags required)
+server.tool(
+  "query-records",
+  "Query Dataverse records using an OData filter expression. Use the 'select' parameter to limit returned columns and reduce response size. No permission flag required (read-only).",
+  {
+    entityNamePlural: z
+      .string()
+      .describe("The plural name of the entity (e.g., 'accounts', 'contacts', 'sic_applications')"),
+    filter: z
+      .string()
+      .describe("OData filter expression (e.g., \"name eq 'Acme Corp'\", \"createdon gt 2024-01-01\", \"statecode eq 0\")"),
+    select: z
+      .array(z.string())
+      .optional()
+      .describe("List of column names to return (e.g., ['name', 'accountid', 'statuscode']). Omit to return all columns (not recommended for large entities)."),
+    maxRecords: z
+      .number()
+      .optional()
+      .describe("Maximum number of records to retrieve (default: 50, max: 5000)"),
+  },
+  async ({ entityNamePlural, filter, select, maxRecords }: any) => {
+    try {
+      const service = getPowerPlatformService();
+      const result = await service.queryRecords(entityNamePlural, filter, maxRecords || 50, select);
+
+      const recordsStr = JSON.stringify(result, null, 2);
+
+      let message = `📋 Retrieved ${result.returnedCount} records from '${entityNamePlural}' with filter '${filter}'`;
+      if (result.hasMore) {
+        message += `\n⚠️ More records available - increase maxRecords (currently ${result.requestedMax}) to retrieve more`;
+      }
+      if (select && select.length > 0) {
+        message += `\nColumns: ${select.join(', ')}`;
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${message}:\n\n\`\`\`json\n${recordsStr}\n\`\`\``,
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error querying records:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Failed to query records: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  "get-record",
+  "Get a specific Dataverse record by entity name and ID. Use this to retrieve a record before updating/deleting or to validate changes after operations. No permission flag required (read-only).",
+  {
+    entityNamePlural: z
+      .string()
+      .describe("The plural name of the entity (e.g., 'accounts', 'contacts', 'sic_applications')"),
+    recordId: z
+      .string()
+      .describe("The GUID of the record to retrieve"),
+  },
+  async ({ entityNamePlural, recordId }: any) => {
+    try {
+      const service = getPowerPlatformService();
+      const record = await service.getRecord(entityNamePlural, recordId);
+
+      const recordStr = JSON.stringify(record, null, 2);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `📋 Record from '${entityNamePlural}' with ID '${recordId}':\n\n\`\`\`json\n${recordStr}\n\`\`\``,
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error getting record:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Failed to get record: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Data modification tools (require permission flags)
 server.tool(
   "create-record",
   "Create a new record in Dataverse. Requires POWERPLATFORM_ENABLE_CREATE=true.",
@@ -298,7 +399,7 @@ server.tool(
   }
 );
 
-  console.error(`✅ powerplatform-data tools registered (${4} tools)`);
+  console.error(`✅ powerplatform-data tools registered (${6} tools)`);
 }
 
 // CLI entry point (standalone execution)

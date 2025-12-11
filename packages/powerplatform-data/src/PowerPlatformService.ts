@@ -281,10 +281,39 @@ export class PowerPlatformService {
    * @param entityNamePlural The plural name of the entity (e.g., 'accounts', 'contacts')
    * @param filter OData filter expression (e.g., "name eq 'test'")
    * @param maxRecords Maximum number of records to retrieve (default: 50)
-   * @returns Filtered list of records
+   * @param select Optional list of column names to return (reduces response size)
+   * @returns Filtered list of records with hasMore indicator
    */
-  async queryRecords(entityNamePlural: string, filter: string, maxRecords: number = 50): Promise<ApiCollectionResponse<any>> {
-    return this.makeRequest<ApiCollectionResponse<any>>(`api/data/v9.2/${entityNamePlural}?$filter=${encodeURIComponent(filter)}&$top=${maxRecords}`);
+  async queryRecords(
+    entityNamePlural: string,
+    filter: string,
+    maxRecords: number = 50,
+    select?: string[]
+  ): Promise<{ value: any[], hasMore: boolean, returnedCount: number, requestedMax: number }> {
+    // Request one extra record to detect if there are more
+    const requestLimit = maxRecords + 1;
+
+    let url = `api/data/v9.2/${entityNamePlural}?$filter=${encodeURIComponent(filter)}&$top=${requestLimit}`;
+
+    // Add $select if columns specified
+    if (select && select.length > 0) {
+      url += `&$select=${select.join(',')}`;
+    }
+
+    const response = await this.makeRequest<ApiCollectionResponse<any>>(url);
+
+    // Check if there are more records than requested
+    const hasMore = response.value.length > maxRecords;
+
+    // Trim to the requested max
+    const trimmedValue = hasMore ? response.value.slice(0, maxRecords) : response.value;
+
+    return {
+      value: trimmedValue,
+      hasMore,
+      returnedCount: trimmedValue.length,
+      requestedMax: maxRecords
+    };
   }
 
   /**

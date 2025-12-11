@@ -7,6 +7,7 @@ import { createMcpServer, createEnvLoader } from '@mcp-consultant-tools/core';
 import { PowerPlatformService, PowerPlatformConfig } from './PowerPlatformService.js';
 import { ENTITY_OVERVIEW, ATTRIBUTE_DETAILS, QUERY_TEMPLATE, RELATIONSHIP_MAP } from './utils/prompt-templates.js';
 import { formatBestPracticesReport } from './utils/best-practices-formatters.js';
+import { TokenCache } from './auth/token-cache.js';
 
 const POWERPLATFORM_DEFAULT_SOLUTION = process.env.POWERPLATFORM_DEFAULT_SOLUTION || "";
 
@@ -20,26 +21,33 @@ export function registerPowerPlatformTools(server: any, service?: PowerPlatformS
 
   function getPowerPlatformService(): PowerPlatformService {
     if (!ppService) {
-      const requiredVars = [
+      // Required for all auth modes
+      const coreRequiredVars = [
         'POWERPLATFORM_URL',
         'POWERPLATFORM_CLIENT_ID',
-        'POWERPLATFORM_CLIENT_SECRET',
         'POWERPLATFORM_TENANT_ID'
       ];
 
-      const missing = requiredVars.filter(v => !process.env[v]);
+      const missing = coreRequiredVars.filter(v => !process.env[v]);
       if (missing.length > 0) {
         throw new Error(`Missing required PowerPlatform configuration: ${missing.join(', ')}`);
       }
 
+      // Determine auth mode based on presence of client secret
+      const hasClientSecret = !!process.env.POWERPLATFORM_CLIENT_SECRET;
+
       const config: PowerPlatformConfig = {
         organizationUrl: process.env.POWERPLATFORM_URL!,
         clientId: process.env.POWERPLATFORM_CLIENT_ID!,
-        clientSecret: process.env.POWERPLATFORM_CLIENT_SECRET!,
+        clientSecret: process.env.POWERPLATFORM_CLIENT_SECRET, // Optional - undefined triggers interactive auth
         tenantId: process.env.POWERPLATFORM_TENANT_ID!,
       };
 
       ppService = new PowerPlatformService(config);
+
+      // Log auth mode being used (to stderr for MCP protocol compatibility)
+      const authMode = hasClientSecret ? 'service-principal' : 'interactive';
+      console.error(`PowerPlatform auth mode: ${authMode}`);
     }
     return ppService;
   }
@@ -84,24 +92,42 @@ server.tool(
 
 server.tool(
   "get-entity-attributes",
-  "Get attributes/fields of a PowerPlatform entity",
+  "Get attributes/fields of a PowerPlatform entity. Use filtering options to reduce response size for large entities.",
   {
     entityName: z.string().describe("The logical name of the entity"),
+    prefix: z.string().optional().describe("Filter attributes by schema name prefix (e.g., 'si_' to get only custom columns)"),
+    attributeType: z.enum(['String', 'Integer', 'Boolean', 'DateTime', 'Decimal', 'Double', 'Money', 'Lookup', 'Picklist', 'State', 'Status', 'Uniqueidentifier', 'Memo', 'BigInt', 'Owner', 'Customer', 'PartyList']).optional().describe("Filter by attribute type"),
+    maxAttributes: z.number().optional().describe("Maximum number of attributes to return (omit for all)"),
   },
-  async ({ entityName }: any) => {
+  async ({ entityName, prefix, attributeType, maxAttributes }: any) => {
     try {
       // Get or initialize PowerPlatformService
       const service = getPowerPlatformService();
-      const attributes = await service.getEntityAttributes(entityName);
-      
+      const result = await service.getEntityAttributes(entityName, {
+        prefix,
+        attributeType,
+        maxAttributes
+      });
+
       // Format the attributes as a string for text display
-      const attributesStr = JSON.stringify(attributes, null, 2);
-      
+      const attributesStr = JSON.stringify(result, null, 2);
+
+      let message = `Attributes for entity '${entityName}' (${result.returnedCount} returned)`;
+      if (prefix) {
+        message += `\nFiltered by prefix: ${prefix}`;
+      }
+      if (attributeType) {
+        message += `\nFiltered by type: ${attributeType}`;
+      }
+      if (result.hasMore) {
+        message += `\n⚠️ More attributes available - ${result.totalBeforeFilter} total before limit`;
+      }
+
       return {
         content: [
           {
             type: "text",
-            text: `Attributes for entity '${entityName}':\n\n${attributesStr}`,
+            text: `${message}:\n\n${attributesStr}`,
           },
         ],
       };
@@ -271,27 +297,35 @@ server.tool(
 
 server.tool(
   "query-records",
-  "Query records using an OData filter expression",
+  "Query records using an OData filter expression. Use the 'select' parameter to limit returned columns and reduce response size.",
   {
     entityNamePlural: z.string().describe("The plural name of the entity (e.g., 'accounts', 'contacts')"),
     filter: z.string().describe("OData filter expression (e.g., \"name eq 'test'\" or \"createdon gt 2023-01-01\")"),
+    select: z.array(z.string()).optional().describe("List of column names to return (e.g., ['name', 'accountid', 'statuscode']). Omit to return all columns (not recommended for large entities)."),
     maxRecords: z.number().optional().describe("Maximum number of records to retrieve (default: 50)"),
   },
-  async ({ entityNamePlural, filter, maxRecords }: any) => {
+  async ({ entityNamePlural, filter, select, maxRecords }: any) => {
     try {
       // Get or initialize PowerPlatformService
       const service = getPowerPlatformService();
-      const records = await service.queryRecords(entityNamePlural, filter, maxRecords || 50);
-      
+      const result = await service.queryRecords(entityNamePlural, filter, maxRecords || 50, select);
+
       // Format the records as a string for text display
-      const recordsStr = JSON.stringify(records, null, 2);
-      const recordCount = records.value?.length || 0;
-      
+      const recordsStr = JSON.stringify(result, null, 2);
+
+      let message = `Retrieved ${result.returnedCount} records from '${entityNamePlural}' with filter '${filter}'`;
+      if (result.hasMore) {
+        message += `\n⚠️ More records available - increase maxRecords (currently ${result.requestedMax}) to retrieve more`;
+      }
+      if (select && select.length > 0) {
+        message += `\nColumns: ${select.join(', ')}`;
+      }
+
       return {
         content: [
           {
             type: "text",
-            text: `Retrieved ${recordCount} records from '${entityNamePlural}' with filter '${filter}':\n\n${recordsStr}`,
+            text: `${message}:\n\n${recordsStr}`,
           },
         ],
       };
@@ -469,23 +503,28 @@ server.tool(
 
 server.tool(
   "get-flows",
-  "Get a list of all Power Automate cloud flows in the environment",
+  "Get a list of Power Automate cloud flows in the environment. Returns summary info only - use get-flow-definition for full flow details.",
   {
     activeOnly: z.boolean().optional().describe("Only return activated flows (default: false)"),
-    maxRecords: z.number().optional().describe("Maximum number of flows to return (default: 100)"),
+    maxRecords: z.number().optional().describe("Maximum number of flows to return (default: 25)"),
   },
   async ({ activeOnly, maxRecords }: any) => {
     try {
       const service = getPowerPlatformService();
-      const result = await service.getFlows(activeOnly || false, maxRecords || 100);
+      const result = await service.getFlows(activeOnly || false, maxRecords || 25);
 
       const resultStr = JSON.stringify(result, null, 2);
+
+      let message = `Found ${result.totalCount} Power Automate flows`;
+      if (result.hasMore) {
+        message += `\n⚠️ More flows available - increase maxRecords (currently ${result.requestedMax}) to retrieve more`;
+      }
 
       return {
         content: [
           {
             type: "text",
-            text: `Found ${result.totalCount} Power Automate flows:\n\n${resultStr}`,
+            text: `${message}:\n\n${resultStr}`,
           },
         ],
       };
@@ -505,22 +544,28 @@ server.tool(
 
 server.tool(
   "get-flow-definition",
-  "Get the complete definition of a specific Power Automate flow including its logic",
+  "Get the definition of a specific Power Automate flow. Use summary=true to get a parsed summary (trigger, actions, connectors) instead of the full JSON definition.",
   {
     flowId: z.string().describe("The GUID of the flow (workflowid)"),
+    summary: z.boolean().optional().describe("Return parsed summary instead of full definition (default: false). Recommended for initial analysis to reduce response size."),
   },
-  async ({ flowId }: any) => {
+  async ({ flowId, summary }: any) => {
     try {
       const service = getPowerPlatformService();
-      const result = await service.getFlowDefinition(flowId);
+      const result = await service.getFlowDefinition(flowId, summary || false);
 
       const resultStr = JSON.stringify(result, null, 2);
+
+      let message = `Flow definition for '${result.name}'`;
+      if (summary) {
+        message += ' (summary mode)';
+      }
 
       return {
         content: [
           {
             type: "text",
-            text: `Flow definition for '${result.name}':\n\n${resultStr}`,
+            text: `${message}:\n\n${resultStr}`,
           },
         ],
       };
@@ -629,23 +674,28 @@ server.tool(
 
 server.tool(
   "get-workflows",
-  "Get a list of all classic Dynamics workflows in the environment",
+  "Get a list of classic Dynamics workflows in the environment. Returns summary info only - use get-workflow-definition for full XAML.",
   {
     activeOnly: z.boolean().optional().describe("Only return activated workflows (default: false)"),
-    maxRecords: z.number().optional().describe("Maximum number of workflows to return (default: 100)"),
+    maxRecords: z.number().optional().describe("Maximum number of workflows to return (default: 25)"),
   },
   async ({ activeOnly, maxRecords }: any) => {
     try {
       const service = getPowerPlatformService();
-      const result = await service.getWorkflows(activeOnly || false, maxRecords || 100);
+      const result = await service.getWorkflows(activeOnly || false, maxRecords || 25);
 
       const resultStr = JSON.stringify(result, null, 2);
+
+      let message = `Found ${result.totalCount} classic Dynamics workflows`;
+      if (result.hasMore) {
+        message += `\n⚠️ More workflows available - increase maxRecords (currently ${result.requestedMax}) to retrieve more`;
+      }
 
       return {
         content: [
           {
             type: "text",
-            text: `Found ${result.totalCount} classic Dynamics workflows:\n\n${resultStr}`,
+            text: `${message}:\n\n${resultStr}`,
           },
         ],
       };
@@ -665,22 +715,28 @@ server.tool(
 
 server.tool(
   "get-workflow-definition",
-  "Get the complete definition of a specific classic Dynamics workflow including its XAML",
+  "Get the definition of a specific classic Dynamics workflow. Use summary=true to get a parsed summary (activities, conditions, email sends) instead of raw XAML.",
   {
     workflowId: z.string().describe("The GUID of the workflow (workflowid)"),
+    summary: z.boolean().optional().describe("Return parsed summary instead of full XAML (default: false). Recommended for initial analysis to reduce response size."),
   },
-  async ({ workflowId }: any) => {
+  async ({ workflowId, summary }: any) => {
     try {
       const service = getPowerPlatformService();
-      const result = await service.getWorkflowDefinition(workflowId);
+      const result = await service.getWorkflowDefinition(workflowId, summary || false);
 
       const resultStr = JSON.stringify(result, null, 2);
+
+      let message = `Workflow definition for '${result.name}'`;
+      if (summary) {
+        message += ' (summary mode)';
+      }
 
       return {
         content: [
           {
             type: "text",
-            text: `Workflow definition for '${result.name}':\n\n${resultStr}`,
+            text: `${message}:\n\n${resultStr}`,
           },
         ],
       };
@@ -2375,6 +2431,69 @@ if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const loadEnv = createEnvLoader();
   loadEnv();
 
+  // Handle CLI commands
+  const args = process.argv.slice(2);
+
+  if (args.includes('--logout') || args.includes('-l')) {
+    // Logout: Clear cached tokens
+    const clientId = process.env.POWERPLATFORM_CLIENT_ID;
+    if (!clientId) {
+      console.error('Error: POWERPLATFORM_CLIENT_ID is required for logout');
+      console.error('Set the environment variable or use a .env file');
+      process.exit(1);
+    }
+
+    const cache = new TokenCache(clientId);
+    if (cache.exists()) {
+      cache.clear();
+      console.log('✓ Cached tokens cleared successfully');
+      console.log(`  Cache file: ${cache.getCachePath()}`);
+    } else {
+      console.log('No cached tokens found');
+    }
+    process.exit(0);
+  }
+
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(`
+PowerPlatform MCP Server
+
+USAGE:
+  npx @mcp-consultant-tools/powerplatform [OPTIONS]
+
+OPTIONS:
+  --help, -h      Show this help message
+  --logout, -l    Clear cached authentication tokens
+
+AUTHENTICATION:
+  Service Principal (with client secret):
+    POWERPLATFORM_URL=https://org.crm.dynamics.com
+    POWERPLATFORM_CLIENT_ID=your-client-id
+    POWERPLATFORM_CLIENT_SECRET=your-secret
+    POWERPLATFORM_TENANT_ID=your-tenant-id
+
+  Interactive User Auth (without client secret):
+    POWERPLATFORM_URL=https://org.crm.dynamics.com
+    POWERPLATFORM_CLIENT_ID=your-client-id
+    POWERPLATFORM_TENANT_ID=your-tenant-id
+
+  When no client secret is provided, the server will open a browser
+  for interactive sign-in using Microsoft Entra ID SSO.
+
+EXAMPLES:
+  # Start MCP server with service principal
+  POWERPLATFORM_CLIENT_SECRET=xxx npx @mcp-consultant-tools/powerplatform
+
+  # Start MCP server with interactive auth (opens browser)
+  npx @mcp-consultant-tools/powerplatform
+
+  # Clear cached tokens
+  npx @mcp-consultant-tools/powerplatform --logout
+`);
+    process.exit(0);
+  }
+
+  // Start MCP server
   const server = createMcpServer({
     name: '@mcp-consultant-tools/powerplatform',
     version: '1.0.0',
