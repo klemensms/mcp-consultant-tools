@@ -9,7 +9,7 @@
 
 MCP Consultant Tools v15 is a **modular monorepo** with **15 independently published npm packages** under the `@mcp-consultant-tools` organization. Use individual packages for specific integrations or install the complete meta-package for everything.
 
-**Total Capabilities:** 188 tools + 52 prompts across 12 service integrations
+**Total Capabilities:** 191 tools + 52 prompts across 12 service integrations
 
 ## 📦 Package Architecture
 
@@ -21,7 +21,7 @@ MCP Consultant Tools v15 is a **modular monorepo** with **15 independently publi
 |---------|-------------|-------|---------|------|----------|
 | **[@mcp-consultant-tools/powerplatform](packages/powerplatform)** | PowerPlatform/Dataverse (Read-Only) | 40 | 11 | 280KB | ✅ Production-Safe |
 | **[@mcp-consultant-tools/powerplatform-customization](packages/powerplatform-customization)** | PowerPlatform Schema Changes | 45 | 0 | 295KB | ⚠️ Dev/Config Only |
-| **[@mcp-consultant-tools/powerplatform-data](packages/powerplatform-data)** | PowerPlatform Data CRUD | 3 | 0 | 185KB | ⚠️ Requires Explicit Permissions |
+| **[@mcp-consultant-tools/powerplatform-data](packages/powerplatform-data)** | PowerPlatform Data Query + CRUD | 6 | 0 | 185KB | ⚠️ Requires Explicit Permissions |
 | **[@mcp-consultant-tools/sharepoint](packages/sharepoint)** | SharePoint Online | 15 | 5 | 188KB | ✅ Read-Only |
 | **[@mcp-consultant-tools/github-enterprise](packages/github-enterprise)** | GitHub Enterprise | 22 | 5 | 152KB | ✅ Read-Only (default) |
 | **[@mcp-consultant-tools/figma](packages/figma)** | Figma Design | 2 | 0 | 312KB | ✅ Read-Only |
@@ -74,6 +74,43 @@ npm install @mcp-consultant-tools/powerplatform
 npm install @mcp-consultant-tools/azure-devops
 # ... etc
 ```
+
+### Option 3: Docker Desktop (One-Click Install)
+
+The easiest way to get started is via **Docker Desktop's MCP Toolkit**:
+
+1. Open **Docker Desktop** → **MCP Toolkit** → **Catalog**
+2. Search for `mcp-consultant-tools-powerplatform`
+3. Click **Add** and configure your credentials
+4. Enable the server
+
+**Benefits:**
+- One-click installation from catalog
+- Secure credential management via Docker secrets
+- Automatic updates when new versions are released
+- Token-efficient dynamic tool discovery
+
+**Available in Docker Catalog:**
+| Package | Description |
+|---------|-------------|
+| `mcp-consultant-tools-powerplatform` | PowerPlatform/Dataverse read-only |
+| `mcp-consultant-tools-azure-devops` | Azure DevOps wikis and work items |
+| `mcp-consultant-tools-figma` | Figma design extraction |
+| *(more packages available)* | |
+
+**Claude Desktop Config (Docker Gateway):**
+```json
+{
+  "mcpServers": {
+    "docker": {
+      "command": "docker",
+      "args": ["mcp", "gateway"]
+    }
+  }
+}
+```
+
+**📖 [Full Docker Installation Guide](docs/documentation/docker-installation.md)**
 
 ### Configuration Modes
 

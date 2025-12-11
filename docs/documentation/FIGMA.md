@@ -397,6 +397,22 @@ Extract design specifications from Figma files in a simplified, AI-friendly JSON
 | `fileKey` | string | Yes | Figma file key from URL (alphanumeric string) |
 | `nodeId` | string | No | Specific node ID(s) to fetch (format: "1:10" or "1:10;2:20" for multiple) |
 | `depth` | number | No | Tree traversal depth limit (prevents token overflow on large files) |
+| `excludeStyles` | boolean | No | Remove all styling info (fills, strokes, effects, textStyle, opacity, borderRadius). Useful for architecture analysis. Default: true. Set to false for full styling. |
+| `tablesToMarkdown` | boolean | No | Convert TABLE nodes to markdown format. Significantly reduces token usage. Default: true. Set to false for full node tree. |
+| `simplifyConnectors` | boolean | No | Simplify CONNECTOR nodes to just endpoints (startNodeId, endNodeId, text). Default: true. Set to false for full connector data. |
+| `simplifyComponentInstances` | boolean | No | Keep componentId and componentProperties but remove visual styling from INSTANCE nodes. Ideal for ADO User Story components. Default: true. Set to false for full instance data. |
+| `extractors` | string[] | No | Override which extractors to use: "layout", "text", "visuals", "component". Default: all |
+
+**Context Window Optimization:**
+The new optimization parameters help reduce context window usage when working with large Figma files:
+
+| Optimization | Estimated Reduction | Use Case |
+|--------------|---------------------|----------|
+| `excludeStyles: true` | 40-60% | Architecture analysis, understanding structure without visual details |
+| `tablesToMarkdown: true` | 70-90% for TABLE nodes | Working with Figma tables, extracting tabular data |
+| `simplifyConnectors: true` | 50-70% per CONNECTOR | Understanding relationships without visual properties |
+| `simplifyComponentInstances: true` | 30-50% per INSTANCE | ADO User Story components, extracting component properties |
+| Combined optimizations | Up to 80% | Architecture-focused analysis |
 
 **File Key Extraction:**
 From a Figma URL like `https://www.figma.com/file/ABC123xyz/MyDesignFile`, the file key is `ABC123xyz`.
@@ -546,6 +562,31 @@ await mcpClient.invoke("get-figma-data", {
   fileKey: "ABC123xyz",
   nodeId: "1:10",
   depth: 1  // Only get the component itself, no children
+});
+
+// Default behavior: optimized output (all optimizations enabled)
+await mcpClient.invoke("get-figma-data", {
+  fileKey: "ABC123xyz",
+  nodeId: "30-544"
+  // excludeStyles: true (default) - Removes fills, strokes, effects
+  // tablesToMarkdown: true (default) - Converts tables to markdown
+  // simplifyConnectors: true (default) - Keeps only connection endpoints
+  // simplifyComponentInstances: true (default) - Keeps componentProperties only
+});
+
+// Get full styling data (disable optimizations)
+await mcpClient.invoke("get-figma-data", {
+  fileKey: "ABC123xyz",
+  nodeId: "30-544",
+  excludeStyles: false,  // Include all fills, strokes, effects
+  simplifyConnectors: false,  // Include full connector visual data
+  simplifyComponentInstances: false  // Include full INSTANCE styling
+});
+
+// Content-focused extraction (text and components only)
+await mcpClient.invoke("get-figma-data", {
+  fileKey: "ABC123xyz",
+  extractors: ["text", "component"]  // Only extract text and component data
 });
 ```
 

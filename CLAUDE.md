@@ -70,7 +70,7 @@ mcp-consultant-tools/
 |---------|---------|-------|---------|------------------|
 | **powerplatform** | Read-only access | 38 | 10 | ✅ **YES** - Install in production |
 | **powerplatform-customization** | Schema changes | 40 | 2 | ⚠️ **NO** - Dev/config only |
-| **powerplatform-data** | Data CRUD operations | 3 | 0 | ⚠️ **NO** - Operational use |
+| **powerplatform-data** | Data Query + CRUD | 6 | 0 | ⚠️ **NO** - Operational use |
 
 **Rationale:**
 
@@ -139,6 +139,21 @@ Provides shared utilities: `createMcpServer()`, `createEnvLoader()` (suppresses 
 **Local testing:** `node build/index.js` in package directory
 
 See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for v14→v15 migration details (import path changes, backward compatibility via meta-package).
+
+### Docker Distribution
+
+Packages are also distributed via **Docker MCP Registry** for use with Docker Desktop's MCP Toolkit:
+
+- **Image naming:** `mcp/mcp-consultant-tools-{package}` (e.g., `mcp/mcp-consultant-tools-powerplatform`)
+- **Dockerfiles:** `packages/{package}/Dockerfile`
+- **Registry entries:** Maintained in `docker-registry/` directory (to be submitted to `docker/mcp-registry`)
+
+**Key files:**
+- `packages/powerplatform/Dockerfile` - Multi-stage build for PowerPlatform package
+- `docker-registry/servers/mcp-consultant-tools-powerplatform/server.yaml` - Docker catalog configuration
+- `docs/documentation/docker-installation.md` - User installation guide
+
+**Dual distribution:** Both npm (npx) and Docker distribution are maintained. Docker provides one-click install with secure credential management; npm provides direct usage flexibility.
 
 ## Integration Technical Documentation
 

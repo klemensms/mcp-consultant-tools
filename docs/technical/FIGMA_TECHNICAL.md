@@ -195,6 +195,36 @@ Transform complex Figma API data into simplified structures:
 - Component properties and variants
 - Instance overrides and swapping
 
+### table-to-markdown.ts
+- Converts TABLE nodes to markdown format
+- Reconstructs grid from TABLE_CELL positions
+- Significantly reduces token usage for tabular data
+
+### style-stripper.ts
+- Removes all styling properties from nodes
+- Clears globalVars.styles for maximum reduction
+- Preserves critical data: id, name, type, text, componentId, componentProperties, connector endpoints
+
+### component-simplifier.ts
+- Simplifies INSTANCE nodes while preserving componentProperties
+- Ideal for ADO User Story components
+- Keeps component relationship data, removes visual styling
+
+---
+
+## Optimization Extractors
+
+**Location:** [packages/figma/src/figma/extractors/connector-extractor.ts](../../packages/figma/src/figma/extractors/connector-extractor.ts)
+
+### connectorExtractor
+- Extracts connector start/end node IDs
+- Full connector data with visual properties
+
+### simplifiedConnectorExtractor
+- Extracts only connection endpoints (startNodeId, endNodeId)
+- Removes visual properties (fills, strokes, etc.)
+- Preserves text labels on connectors
+
 ---
 
 ## Available Tools
@@ -209,11 +239,17 @@ Fetches comprehensive Figma design data and returns simplified, AI-friendly JSON
 - `fileKey` (required): Figma file key from URL (alphanumeric)
 - `nodeId` (optional): Specific node ID(s) to fetch (format: `1:10` or `1:10;2:20`)
 - `depth` (optional): Tree traversal depth limit
+- `excludeStyles` (optional): Remove all styling info. Default: true. Set to false for full styling data.
+- `tablesToMarkdown` (optional): Convert TABLE nodes to markdown. Default: true. Set to false for full node tree.
+- `simplifyConnectors` (optional): Simplify CONNECTOR nodes to just endpoints. Default: true. Set to false for full connector data.
+- `simplifyComponentInstances` (optional): Keep componentId/Properties, remove styling from INSTANCE nodes. Default: true. Set to false for full instance data.
+- `extractors` (optional): Override extractors array: `["layout", "text", "visuals", "component"]`
 
 **Features:**
 - Supports entire file or specific node fetching
 - Supports depth limiting for large files
 - Automatic style deduplication
+- Context window optimization options
 
 **Output Structure:**
 ```typescript

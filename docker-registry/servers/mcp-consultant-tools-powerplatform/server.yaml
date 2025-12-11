@@ -1,0 +1,73 @@
+# Docker MCP Registry entry for @mcp-consultant-tools/powerplatform
+# This file should be submitted to docker/mcp-registry via PR
+
+name: mcp-consultant-tools-powerplatform
+type: local
+image: mcp/mcp-consultant-tools-powerplatform
+
+meta:
+  category: enterprise
+  tags:
+    - microsoft
+    - dynamics365
+    - dataverse
+    - powerplatform
+    - crm
+    - entities
+    - plugins
+    - workflows
+
+about:
+  title: PowerPlatform / Dataverse (Read-Only)
+  description: >
+    Read-only access to Microsoft PowerPlatform/Dataverse environments.
+    Explore entities, inspect plugins, analyze workflows, query records,
+    and validate solutions. Production-safe with 38 tools and 10 prompts.
+    No write operations - safe for production environments.
+  icon: https://raw.githubusercontent.com/klemensms/mcp-consultant-tools/main/assets/icons/powerplatform.png
+
+source:
+  project: https://github.com/klemensms/mcp-consultant-tools
+  # Update this commit SHA when submitting PR
+  commit: 8c43330a0a4f3ef58cd2d5e03dcf3c9f70d39251
+
+run:
+  # Dockerfile location relative to source project root
+  dockerfile: packages/powerplatform/Dockerfile
+
+config:
+  description: >
+    Configure your PowerPlatform/Dataverse environment credentials.
+    Requires an Azure AD App Registration with Dynamics CRM API permissions.
+    See: https://github.com/klemensms/mcp-consultant-tools/blob/main/docs/documentation/powerplatform/setup.md
+
+  secrets:
+    - name: mcp-consultant-tools-powerplatform.url
+      env: POWERPLATFORM_URL
+      description: Your PowerPlatform environment URL
+      example: https://yourorg.crm.dynamics.com
+      required: true
+
+    - name: mcp-consultant-tools-powerplatform.tenant_id
+      env: POWERPLATFORM_TENANT_ID
+      description: Azure AD Tenant ID (GUID format)
+      example: 12345678-1234-1234-1234-123456789abc
+      required: true
+
+    - name: mcp-consultant-tools-powerplatform.client_id
+      env: POWERPLATFORM_CLIENT_ID
+      description: Azure AD App Registration Client ID
+      example: 87654321-4321-4321-4321-cba987654321
+      required: true
+
+    - name: mcp-consultant-tools-powerplatform.client_secret
+      env: POWERPLATFORM_CLIENT_SECRET
+      description: Azure AD App Registration Client Secret
+      example: your-client-secret-value
+      required: true
+
+    - name: mcp-consultant-tools-powerplatform.default_solution
+      env: POWERPLATFORM_DEFAULT_SOLUTION
+      description: (Optional) Default solution unique name for filtering plugins and workflows
+      example: MySolution
+      required: false

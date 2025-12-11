@@ -1,0 +1,50 @@
+# Docker build ignore file
+# Optimizes build context by excluding unnecessary files
+
+# Git
+.git
+.gitignore
+
+# Node modules (will be installed fresh in container)
+node_modules
+packages/*/node_modules
+
+# Build outputs (will be built fresh in container)
+packages/*/build
+*.tsbuildinfo
+
+# Development files
+.env
+.env.*
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Documentation (not needed in runtime)
+docs/
+*.md
+!packages/*/README.md
+
+# Test files
+**/*.test.ts
+**/*.spec.ts
+__tests__/
+coverage/
+
+# Other packages not needed for specific builds
+# (uncomment as needed for package-specific builds)
+# packages/azure-devops/
+# packages/figma/
+# packages/application-insights/
+# packages/log-analytics/
+# packages/azure-sql/
+# packages/service-bus/
+# packages/sharepoint/
+# packages/github-enterprise/
+# packages/azure-b2c/
+# packages/rest-api/
+# packages/meta/

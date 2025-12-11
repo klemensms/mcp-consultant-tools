@@ -32,7 +32,7 @@ As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isol
 |---------|---------|-------|---------|------------------|
 | **[@mcp-consultant-tools/powerplatform](POWERPLATFORM.md)** | Read-only access | 38 | 10 | ✅ **YES** |
 | **[@mcp-consultant-tools/powerplatform-customization](POWERPLATFORM_CUSTOMIZATION.md)** | Schema changes | 40 | 2 | ⚠️ **NO** - Dev/config only |
-| **[@mcp-consultant-tools/powerplatform-data](POWERPLATFORM_DATA.md)** (This Package) | Data CRUD + Actions | 4 | 0 | ⚠️ **NO** - Operational use |
+| **[@mcp-consultant-tools/powerplatform-data](POWERPLATFORM_DATA.md)** (This Package) | Data Query + CRUD + Actions | 6 | 0 | ⚠️ **NO** - Operational use |
 
 **This documentation covers the data CRUD package only.** For read-only access or schema customization, see the respective package documentation.
 
@@ -123,9 +123,25 @@ await mcpClient.invoke("create-record", {
 
 ## 🎯 Key Features for Consultants
 
-### Data CRUD Operations (Tools)
+### Data Query & CRUD Operations (Tools)
 
-This package provides **4 specialized tools** for data modification and action execution. Unlike the read-only package, this package has **0 prompts** to emphasize that all operations are explicit and require intentional tool invocations.
+This package provides **6 specialized tools** for data querying, modification, and action execution. Unlike the read-only package, this package has **0 prompts** to emphasize that all operations are explicit and require intentional tool invocations.
+
+#### Read-Only Query Tools (No Permission Flags Required)
+
+These tools allow you to query data before and after CRUD operations without needing a second MCP server:
+
+1. **`query-records`** - Query records using OData filter expressions
+   - Example: `"Find all accounts where name contains 'Acme'"`
+   - No permission flag required (read-only)
+   - Use before operations to check what exists
+   - Use after operations to validate changes
+
+2. **`get-record`** - Get a specific record by entity name and ID
+   - Example: `"Get the account with ID 12345678-..."`
+   - No permission flag required (read-only)
+   - Use to verify a record before updating/deleting
+   - Use after create/update to validate the result
 
 #### Production Data Tools
 
@@ -184,7 +200,9 @@ This package provides **4 specialized tools** for data modification and action e
    - [Environment Variables](#environment-variables)
    - [Required Permissions](#required-permissions)
 
-3. [Tools (4 Total)](#tools-4-total)
+3. [Tools (6 Total)](#tools-6-total)
+   - [query-records](#query-records) (Read-only)
+   - [get-record](#get-record) (Read-only)
    - [create-record](#create-record)
    - [update-record](#update-record)
    - [delete-record](#delete-record)
@@ -221,15 +239,18 @@ This package provides **4 specialized tools** for data modification and action e
 
 ### What is This Package?
 
-The `powerplatform-data` package provides programmatic access to **Dataverse data modification operations**. It enables:
+The `powerplatform-data` package provides programmatic access to **Dataverse data operations** as a self-contained CRUD package. It enables:
 
-- Creating new records in Dataverse entities
-- Updating existing records (partial or full updates)
-- Deleting records (permanent deletion)
+- **Querying records** using OData filters (read-only, no permission flags required)
+- **Getting specific records** by ID (read-only, no permission flags required)
+- **Creating new records** in Dataverse entities (requires flag)
+- **Updating existing records** - partial or full updates (requires flag)
+- **Deleting records** - permanent deletion (requires flag)
+- **Executing Custom APIs and Actions** - unbound or bound (requires flag)
 
-This package **requires explicit enablement** via individual environment flags (`POWERPLATFORM_ENABLE_CREATE`, `POWERPLATFORM_ENABLE_UPDATE`, `POWERPLATFORM_ENABLE_DELETE`) to prevent accidental data modifications.
+**Self-Contained CRUD Workflow:** Unlike previous versions, this package includes query tools so you can check what exists before operations and validate changes after - without needing a second MCP server.
 
-Each operation is independently gated, allowing fine-grained control over which data operations are permitted.
+Data modification operations **require explicit enablement** via individual environment flags (`POWERPLATFORM_ENABLE_CREATE`, `POWERPLATFORM_ENABLE_UPDATE`, `POWERPLATFORM_ENABLE_DELETE`, `POWERPLATFORM_ENABLE_ACTIONS`) to prevent accidental data modifications.
 
 ### Use Cases
 
@@ -251,10 +272,14 @@ User: Reviews created record, confirms correctness
 
 ### Key Features
 
+- ✅ **Self-Contained**: Query, create, update, delete in one package (no second MCP server needed)
+- ✅ **Query Records**: Find records using OData filters (no permission flags required)
+- ✅ **Get Record**: Retrieve specific records by ID (no permission flags required)
 - ✅ **Record Creation**: Create new records with all field types
 - ✅ **Record Updates**: Partial updates (only specified fields changed)
 - ✅ **Record Deletion**: Permanent deletion with explicit confirmation
-- ✅ **Granular Permissions**: Separate flags for create/update/delete
+- ✅ **Action Execution**: Execute Custom APIs and Actions (unbound or bound)
+- ✅ **Granular Permissions**: Separate flags for create/update/delete/execute
 - ✅ **Field Validation**: Pre-validation before API calls
 - ✅ **Audit Logging**: All operations logged with user context
 - ✅ **Error Handling**: Clear error messages for validation and permission issues
@@ -424,7 +449,107 @@ The application user must have appropriate **CRUD privileges** on target entitie
 
 ---
 
-## Tools (4 Total)
+## Tools (6 Total)
+
+### query-records
+
+**Query Dataverse records using an OData filter expression**
+
+Use this tool to find records before performing CRUD operations or to validate changes after operations. This is a **read-only** operation and does not require any permission flags.
+
+**Parameters:**
+- `entityNamePlural` (string, required): Plural logical name (e.g., "accounts", "contacts")
+- `filter` (string, required): OData filter expression
+- `maxRecords` (number, optional): Maximum records to retrieve (default: 50, max: 5000)
+
+**Returns:**
+- List of matching records with all fields
+
+**Example - Find accounts by name:**
+```javascript
+await invoke("query-records", {
+  entityNamePlural: "accounts",
+  filter: "contains(name, 'Acme')"
+});
+```
+
+**Example - Find active contacts:**
+```javascript
+await invoke("query-records", {
+  entityNamePlural: "contacts",
+  filter: "statecode eq 0",
+  maxRecords: 100
+});
+```
+
+**Example - Find records created recently:**
+```javascript
+await invoke("query-records", {
+  entityNamePlural: "opportunities",
+  filter: "createdon gt 2024-01-01"
+});
+```
+
+**Common OData Filter Expressions:**
+| Filter | Description |
+|--------|-------------|
+| `name eq 'Acme Corp'` | Exact match |
+| `contains(name, 'Acme')` | Contains substring |
+| `startswith(name, 'A')` | Starts with |
+| `statecode eq 0` | Active records |
+| `createdon gt 2024-01-01` | Created after date |
+| `revenue gt 1000000` | Greater than |
+| `_parentaccountid_value eq 'guid'` | Lookup field match |
+
+**Validation:**
+- No permission flag required (read-only operation)
+- Validates `filter` is not empty
+- Validates `maxRecords` is within bounds
+
+---
+
+### get-record
+
+**Get a specific Dataverse record by entity name and ID**
+
+Use this tool to retrieve a specific record before updating/deleting or to validate changes after create/update operations. This is a **read-only** operation and does not require any permission flags.
+
+**Parameters:**
+- `entityNamePlural` (string, required): Plural logical name (e.g., "accounts", "contacts")
+- `recordId` (string, required): GUID of the record
+
+**Returns:**
+- Complete record with all fields
+
+**Example - Get an account:**
+```javascript
+await invoke("get-record", {
+  entityNamePlural: "accounts",
+  recordId: "12345678-1234-1234-1234-123456789012"
+});
+```
+
+**Example - Verify after create:**
+```javascript
+// After creating a record, verify it was created correctly
+const createResult = await invoke("create-record", {
+  entityNamePlural: "contacts",
+  data: { firstname: "John", lastname: "Smith" }
+});
+
+// Get the created record to verify
+await invoke("get-record", {
+  entityNamePlural: "contacts",
+  recordId: createResult.contactid
+});
+```
+
+**Validation:**
+- No permission flag required (read-only operation)
+- Validates `recordId` format (GUID)
+- Returns 404 error if record doesn't exist
+
+---
 
 ### create-record
 
@@ -762,6 +887,72 @@ await invoke("execute-action", {
 ---
 
 ## Usage Examples
+
+### Query Records (Before/After CRUD Operations)
+
+**Check if a record exists before creating:**
+```javascript
+// Before creating a new account, check if one already exists with this name
+const existing = await invoke("query-records", {
+  entityNamePlural: "accounts",
+  filter: "name eq 'Contoso Ltd'"
+});
+
+if (existing.value.length > 0) {
+  console.log("Account already exists:", existing.value[0].accountid);
+} else {
+  // Safe to create
+  await invoke("create-record", { ... });
+}
+```
+
+**Get a specific record before updating:**
+```javascript
+// Verify the record exists and check current values before updating
+const record = await invoke("get-record", {
+  entityNamePlural: "accounts",
+  recordId: "12345678-1234-1234-1234-123456789012"
+});
+
+console.log("Current phone:", record.telephone1);
+// Now safe to update
+await invoke("update-record", {
+  entityNamePlural: "accounts",
+  recordId: "12345678-1234-1234-1234-123456789012",
+  data: { telephone1: "425-555-0199" }
+});
+```
+
+**Validate changes after update:**
+```javascript
+// After updating, verify the changes took effect
+await invoke("update-record", {
+  entityNamePlural: "contacts",
+  recordId: contactId,
+  data: { jobtitle: "VP of Sales" }
+});
+
+// Verify the update
+const updated = await invoke("get-record", {
+  entityNamePlural: "contacts",
+  recordId: contactId
+});
+console.log("Verified new job title:", updated.jobtitle);
+```
+
+**Find related records before deletion:**
+```javascript
+// Check if account has related contacts before deleting
+const contacts = await invoke("query-records", {
+  entityNamePlural: "contacts",
+  filter: `_parentcustomerid_value eq '${accountId}'`
+});
+
+if (contacts.value.length > 0) {
+  console.log(`Warning: Account has ${contacts.value.length} related contacts`);
+  // Handle related records first...
+}
+```
 
 ### Create Records
 

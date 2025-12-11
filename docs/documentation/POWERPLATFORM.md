@@ -23,37 +23,22 @@ As of **v16.0.0**, the PowerPlatform integration is split into **3 security-isol
 
 ### MCP Client Configuration
 
-Get started quickly with this minimal configuration. Just replace the placeholder values with your actual credentials:
+Get started quickly with this minimal configuration. Choose your authentication mode:
 
-#### For VS Code
+#### Authentication Modes (v23+)
 
-Add this to your VS Code `settings.json`:
+| Mode | When to Use | Config Required |
+|------|-------------|-----------------|
+| **Interactive (SSO)** | Individual users, desktop apps | No client secret needed |
+| **Service Principal** | CI/CD, automation, shared services | Client secret required |
 
-```json
-{
-  "mcp.servers": {
-    "powerplatform-readonly": {
-      "command": "npx",
-      "args": ["-y", "@mcp-consultant-tools/powerplatform"],
-      "env": {
-        // Required
-        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
-        "POWERPLATFORM_CLIENT_ID": "your-client-id",
-        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
-        "POWERPLATFORM_TENANT_ID": "your-tenant-id",
+---
 
-        // Optional (for solution-scoped queries)
-        "POWERPLATFORM_DEFAULT_SOLUTION": ""
-      }
-    }
-  }
-}
-```
+#### Option 1: Interactive User Auth (Recommended for Desktop)
 
-#### For Claude Desktop
+Opens a browser for Microsoft sign-in. User's Dynamics security roles apply. No secrets on user machines.
 
-Add this to your `claude_desktop_config.json`:
-
+**For Claude Desktop:**
 ```json
 {
   "mcpServers": {
@@ -61,19 +46,135 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "@mcp-consultant-tools/powerplatform"],
       "env": {
-        // Required
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
-        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
-        "POWERPLATFORM_TENANT_ID": "your-tenant-id",
-
-        // Optional (for solution-scoped queries)
-        "POWERPLATFORM_DEFAULT_SOLUTION": ""
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
       }
     }
   }
 }
 ```
+
+**For VS Code:**
+```json
+{
+  "mcp.servers": {
+    "powerplatform-readonly": {
+      "command": "npx",
+      "args": ["-y", "@mcp-consultant-tools/powerplatform"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-client-id",
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
+      }
+    }
+  }
+}
+```
+
+**First run:** Browser opens → Sign in → Tokens cached for ~90 days.
+
+**App Registration Requirements for Interactive Auth:**
+
+> ⚠️ **All 4 steps required** - Missing any will cause authentication to fail
+
+1. **Authentication Tab:**
+   - Enable **"Allow public client flows"** = **Yes**
+   - Add platform: **Mobile and desktop applications**
+   - Add redirect URI: `http://localhost`
+
+2. **API Permissions Tab - Add these delegated permissions:**
+   | API | Permission | Required? |
+   |-----|------------|-----------|
+   | **Dynamics CRM** | `user_impersonation` | **Required** |
+   | Microsoft Graph | `offline_access` | Recommended |
+   | Microsoft Graph | `User.Read` | Optional |
+
+3. **Grant Admin Consent:**
+   - Click **"Grant admin consent for [Your Org]"**
+   - This requires Global Administrator or Privileged Role Administrator
+   - **Without admin consent, users will see "Approval required" on first login**
+
+4. **CLI Commands (for token management):**
+   ```bash
+   npx @mcp-consultant-tools/powerplatform --help    # Show usage
+   npx @mcp-consultant-tools/powerplatform --logout  # Clear cached tokens
+   ```
+
+📖 **[Full Interactive Auth Setup Guide](#interactive-user-authentication-setup-v23)**
+
+---
+
+#### Option 2: Service Principal Auth (For Automation)
+
+Uses app identity. Best for CI/CD, scheduled tasks, or shared services.
+
+**For Claude Desktop:**
+```json
+{
+  "mcpServers": {
+    "powerplatform-readonly": {
+      "command": "npx",
+      "args": ["-y", "@mcp-consultant-tools/powerplatform"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
+      }
+    }
+  }
+}
+```
+
+**For VS Code:**
+```json
+{
+  "mcp.servers": {
+    "powerplatform-readonly": {
+      "command": "npx",
+      "args": ["-y", "@mcp-consultant-tools/powerplatform"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-client-id",
+        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id"
+      }
+    }
+  }
+}
+```
+
+#### For Docker Desktop (One-Click Install)
+
+The easiest installation method is via **Docker Desktop's MCP Toolkit**:
+
+1. Open **Docker Desktop** → **MCP Toolkit** → **Catalog**
+2. Search for `mcp-consultant-tools-powerplatform`
+3. Click **Add**
+4. Enter your credentials in the form:
+   - PowerPlatform URL
+   - Tenant ID
+   - Client ID
+   - Client Secret
+5. Enable the server
+
+Then configure Claude Desktop to use Docker gateway:
+
+```json
+{
+  "mcpServers": {
+    "docker": {
+      "command": "docker",
+      "args": ["mcp", "gateway"]
+    }
+  }
+}
+```
+
+**Benefits:** Secure credential storage, automatic updates, one-click setup.
+
+**📖 [Full Docker Installation Guide](docker-installation.md)**
 
 #### Test Your Setup
 
@@ -348,11 +449,15 @@ After registration:
 Configure the following environment variables for the **read-only package**:
 
 ```bash
-# PowerPlatform Configuration (Required - Read-Only Package)
+# PowerPlatform Configuration (Required for all modes)
 POWERPLATFORM_URL=https://yourenvironment.crm.dynamics.com
 POWERPLATFORM_CLIENT_ID=your-azure-app-client-id
-POWERPLATFORM_CLIENT_SECRET=your-azure-app-client-secret
 POWERPLATFORM_TENANT_ID=your-azure-tenant-id
+
+# Optional: Client Secret (omit for interactive browser auth)
+# If set: Uses service principal authentication (app identity)
+# If NOT set: Uses interactive browser auth (user identity + SSO)
+POWERPLATFORM_CLIENT_SECRET=your-azure-app-client-secret
 ```
 
 **Environment Variable Details:**
@@ -361,8 +466,15 @@ POWERPLATFORM_TENANT_ID=your-azure-tenant-id
 |----------|----------|-------------|
 | `POWERPLATFORM_URL` | Yes | Organization URL (e.g., `https://org.crm.dynamics.com`) |
 | `POWERPLATFORM_CLIENT_ID` | Yes | Azure AD app registration client ID (GUID) |
-| `POWERPLATFORM_CLIENT_SECRET` | Yes | Azure AD app registration client secret |
 | `POWERPLATFORM_TENANT_ID` | Yes | Azure tenant ID (GUID) |
+| `POWERPLATFORM_CLIENT_SECRET` | **Optional** | Client secret. Omit for interactive browser auth (v23+) |
+
+**Authentication Modes (v23+):**
+
+| Mode | When Client Secret Is | Behavior |
+|------|----------------------|----------|
+| Interactive | NOT provided | Opens browser for Microsoft SSO. User's security roles apply. |
+| Service Principal | Provided | Uses app identity. Best for automation. |
 
 **Note:** This read-only package provides 38 tools for querying metadata, records, plugins, and workflows. For additional capabilities, install separate packages:
 - [PowerPlatform Customization Package](POWERPLATFORM_CUSTOMIZATION.md) - Schema modifications (entities, attributes, relationships)
@@ -430,6 +542,167 @@ POWERPLATFORM_CLIENT_ID=12345678-1234-1234-1234-123456789abc
 POWERPLATFORM_CLIENT_SECRET=your-secret-value
 POWERPLATFORM_TENANT_ID=87654321-4321-4321-4321-cba987654321
 ```
+
+---
+
+## Interactive User Authentication Setup (v23+)
+
+Version 23 introduces **browser-based interactive authentication**, allowing users to sign in with their own Microsoft Entra ID credentials. This provides:
+
+- **User-level security**: User's Dynamics security roles apply (not app's roles)
+- **SSO experience**: Leverages existing Microsoft login session
+- **No secrets on client**: Uses PKCE, no client_secret required
+- **Audit trail**: All operations logged under user's identity
+
+### Tech Stack
+
+| Component | Technology | Description |
+|-----------|------------|-------------|
+| **OAuth Library** | `@azure/msal-node` v3.x | Microsoft Authentication Library for Node.js |
+| **Auth Flow** | Authorization Code + PKCE | Secure browser-based authentication |
+| **Token Storage** | Custom encrypted cache | AES-256-GCM encrypted file |
+| **Encryption** | `crypto.scryptSync` | Machine-specific key derivation |
+| **Browser Launch** | `open` v10.x | Cross-platform browser opener |
+| **Callback Server** | Node.js `http` | Temporary localhost server for OAuth callback |
+
+### Architecture
+
+```
+┌─────────────┐     ┌─────────────────┐     ┌──────────────┐
+│ Claude      │────▶│ MCP Server      │────▶│ Dynamics 365 │
+│ Desktop     │     │ (PowerPlatform) │     │ (API)        │
+└─────────────┘     └────────┬────────┘     └──────────────┘
+                             │
+              ┌──────────────┼──────────────┐
+              ▼              ▼              ▼
+       ┌──────────┐   ┌──────────┐   ┌──────────┐
+       │ Token    │   │ HTTP     │   │ Browser  │
+       │ Cache    │   │ Callback │   │ (SSO)    │
+       │ (AES)    │   │ Server   │   │          │
+       └──────────┘   └──────────┘   └──────────┘
+              │              │              │
+              └──────────────┼──────────────┘
+                             ▼
+                    ┌─────────────────┐
+                    │ Microsoft Entra │
+                    │ ID (OAuth 2.0)  │
+                    └─────────────────┘
+```
+
+### Complete Setup Guide
+
+#### Step 1: Configure Azure App Registration
+
+Navigate to **Azure Portal** → **Entra ID** → **App registrations** → Select or create your app.
+
+##### Authentication Tab
+
+1. Click **Add a platform** → **Mobile and desktop applications**
+2. Enter redirect URI: `http://localhost`
+3. Set **Allow public client flows** to **Yes**
+4. Click **Save**
+
+##### API Permissions Tab
+
+Add the following **Delegated** permissions:
+
+| API | Permission | Purpose | Admin Consent |
+|-----|------------|---------|---------------|
+| **Dynamics CRM** | `user_impersonation` | Access CRM as the user | **Required** |
+| Microsoft Graph | `offline_access` | Refresh token support | Recommended |
+| Microsoft Graph | `User.Read` | Display user info | Optional |
+
+> ⚠️ **Critical**: Click **"Grant admin consent for [Your Org]"** after adding permissions.
+>
+> Without admin consent, users will see an "Approval required" screen when they try to authenticate.
+
+#### Step 2: Configure MCP Client
+
+Add to your MCP client configuration **without** the `POWERPLATFORM_CLIENT_SECRET`:
+
+**Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):**
+
+```json
+{
+  "mcpServers": {
+    "powerplatform": {
+      "command": "npx",
+      "args": ["-y", "@mcp-consultant-tools/powerplatform"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourorg.crm.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "your-azure-app-client-id",
+        "POWERPLATFORM_TENANT_ID": "your-azure-tenant-id"
+      }
+    }
+  }
+}
+```
+
+> **Note**: No `POWERPLATFORM_CLIENT_SECRET` means interactive auth is used.
+
+#### Step 3: First Run
+
+1. Restart Claude Desktop (Cmd+Q and relaunch)
+2. Ask Claude to use any PowerPlatform tool (e.g., "List all entities")
+3. Browser opens with Microsoft sign-in
+4. If already signed into Microsoft (SSO), you'll see consent screen
+5. Click **Accept** to grant permissions
+6. Success page appears → close browser
+7. Claude receives data from Dynamics
+
+#### Step 4: Subsequent Runs
+
+After first authentication:
+- Tokens are cached for **~90 days** (refresh token lifetime)
+- No browser prompt needed until refresh token expires
+- Access tokens auto-refresh silently using cached refresh token
+
+### Token Management
+
+```bash
+# View help and options
+npx @mcp-consultant-tools/powerplatform --help
+
+# Clear cached tokens (forces re-authentication)
+npx @mcp-consultant-tools/powerplatform --logout
+
+# Token cache location
+~/.mcp-consultant-tools/token-cache-{clientId}.enc
+```
+
+### Security Considerations
+
+| Aspect | Implementation |
+|--------|---------------|
+| **No secrets on user machines** | Public client flow uses PKCE, no client_secret |
+| **Token encryption** | AES-256-GCM with machine-specific key |
+| **File permissions** | Cache file: 600, directory: 700 |
+| **Token scope** | Only Dynamics API access requested |
+| **Refresh tokens** | ~90 day lifetime, auto-refresh until expiry |
+| **Revocation** | Admin can revoke via Entra ID |
+| **MFA** | Enforced by Entra ID Conditional Access policies |
+
+### Comparison: Auth Modes
+
+| Feature | Interactive User Auth | Service Principal |
+|---------|----------------------|-------------------|
+| **Config** | No client_secret | Requires client_secret |
+| **Identity** | User's identity | App's identity |
+| **Security roles** | User's Dynamics roles | App's assigned roles |
+| **Audit trail** | User name in logs | App name in logs |
+| **Best for** | Desktop apps, debugging | CI/CD, automation |
+| **First run** | Opens browser | Transparent |
+| **Token lifetime** | ~90 days (refresh) | Configurable secret expiry |
+
+### Troubleshooting Interactive Auth
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `AADSTS650057: Invalid resource` | Missing Dynamics CRM permission | Add `user_impersonation` delegated permission |
+| "Approval required" screen | No admin consent | Admin must click "Grant admin consent" |
+| Browser doesn't open | Port blocked or `open` package issue | Check firewall, try `--logout` |
+| "Authentication timed out" | User didn't complete sign-in within 5 minutes | Try again, complete faster |
+| Token cache errors | Corrupted cache | Run `--logout` to clear cache |
 
 ---
 
@@ -3539,19 +3812,85 @@ await mcpClient.invoke("import-solution", {
 
 ## Troubleshooting
 
+### CLI Commands (v23+)
+
+The PowerPlatform package includes CLI commands for managing authentication:
+
+```bash
+# Show help and available options
+npx @mcp-consultant-tools/powerplatform --help
+
+# Clear cached authentication tokens (logout)
+npx @mcp-consultant-tools/powerplatform --logout
+
+# Start the MCP server normally
+npx @mcp-consultant-tools/powerplatform
+```
+
+**Token Cache Location:** `~/.mcp-consultant-tools/token-cache-{clientId}.enc`
+
+---
+
+### Interactive Authentication Issues (v23+)
+
+**Issue: Browser doesn't open for sign-in**
+
+**Solutions:**
+1. Check if a browser is available and set as default
+2. If running in a headless environment, interactive auth won't work - use service principal instead
+3. Try opening the URL manually (shown in console output)
+
+---
+
+**Issue: "Authentication timed out after 5 minutes"**
+
+**Solutions:**
+1. Complete the sign-in process faster
+2. Check if the browser window was closed accidentally
+3. Re-run the command and complete sign-in
+
+---
+
+**Issue: Token cache errors**
+
+```
+Token cache read error (will re-authenticate): ...
+```
+
+**Solutions:**
+1. Clear the cache: `npx @mcp-consultant-tools/powerplatform --logout`
+2. Token may be from a different machine or corrupted
+3. Re-authenticate by running any tool
+
+---
+
+**Issue: "Allow public client flows" not enabled**
+
+```
+AADSTS7000218: The request body must contain the following parameter: 'client_assertion' or 'client_secret'
+```
+
+**Solution:**
+1. Go to Azure Portal → App Registration → Authentication
+2. Enable "Allow public client flows" = Yes
+3. Add redirect URI: `http://localhost` under "Mobile and desktop applications"
+
+---
+
 ### Common Errors
 
 **Error: "Missing required PowerPlatform configuration"**
 
 ```
-Missing required PowerPlatform configuration: POWERPLATFORM_URL, POWERPLATFORM_CLIENT_ID, POWERPLATFORM_CLIENT_SECRET, POWERPLATFORM_TENANT_ID
+Missing required PowerPlatform configuration: POWERPLATFORM_URL, POWERPLATFORM_CLIENT_ID, POWERPLATFORM_TENANT_ID
 ```
 
 **Solution:**
-1. Verify all 4 environment variables are set
-2. Check for typos in variable names
-3. Ensure values are not empty strings
-4. Restart MCP client after updating configuration
+1. Verify required environment variables are set (URL, CLIENT_ID, TENANT_ID)
+2. CLIENT_SECRET is optional (omit for interactive auth)
+3. Check for typos in variable names
+4. Ensure values are not empty strings
+5. Restart MCP client after updating configuration
 
 ---
 
