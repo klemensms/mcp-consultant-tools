@@ -1,6 +1,6 @@
 {
   "name": "mcp-consultant-tools",
-  "version": "22.0.0",
+  "version": "23.0.0",
   "description": "Complete MCP Consultant Tools package with all integrations: PowerPlatform, Azure DevOps, Figma, Application Insights, Log Analytics, Azure SQL, Service Bus, SharePoint, GitHub Enterprise, and Azure AD B2C",
   "type": "module",
   "main": "./build/index.js",

@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/figma",
-  "version": "23.0.0-beta.1",
+  "version": "23.0.0",
   "description": "MCP server for Figma integration - design data extraction and transformation",
   "type": "module",
   "main": "./build/index.js",
