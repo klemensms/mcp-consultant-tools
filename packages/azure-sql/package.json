@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/azure-sql",
-  "version": "32.0.0",
+  "version": "33.0.0",
   "description": "MCP server for Azure SQL Database - queries, schema exploration, and optional write operations",
   "type": "module",
   "main": "./build/index.js",
@@ -39,7 +39,7 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "@mcp-consultant-tools/core": "32.0.0",
+    "@mcp-consultant-tools/core": "33.0.0",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "commander": "^14.0.3",
     "mssql": "^11.0.1",

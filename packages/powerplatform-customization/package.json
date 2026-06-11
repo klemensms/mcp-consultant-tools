@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/powerplatform-customization",
-  "version": "32.0.0",
+  "version": "33.0.0",
   "description": "MCP server for PowerPlatform schema/metadata customizations (dev/config environments)",
   "type": "module",
   "main": "./build/index.js",
@@ -39,8 +39,8 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "@mcp-consultant-tools/core": "32.0.0",
-    "@mcp-consultant-tools/powerplatform-core": "32.0.0",
+    "@mcp-consultant-tools/core": "33.0.0",
+    "@mcp-consultant-tools/powerplatform-core": "33.0.0",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "commander": "^14.0.3",
     "zod": "^3.24.1"

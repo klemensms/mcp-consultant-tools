@@ -201,3 +201,6 @@ tsconfig.json.v14-backup
 .context/
 .claude/.context/
 .context/.mcp.json.backup
+
+# Session handoffs (local working notes, never published)
+.claude/handoffs/

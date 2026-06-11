@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/sharepoint",
-  "version": "32.0.0",
+  "version": "33.0.0",
   "description": "MCP server for SharePoint Online - site management, document libraries, and PowerPlatform validation",
   "type": "module",
   "main": "./build/index.js",
@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@azure/msal-node": "^3.3.0",
-    "@mcp-consultant-tools/core": "32.0.0",
+    "@mcp-consultant-tools/core": "33.0.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "axios": "^1.8.3",

@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/todoist",
-  "version": "32.0.0",
+  "version": "33.0.0",
   "description": "MCP server and CLI for Todoist - projects and task CRUD",
   "type": "module",
   "main": "./build/index.js",
@@ -37,7 +37,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@mcp-consultant-tools/core": "32.0.0",
+    "@mcp-consultant-tools/core": "33.0.0",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "commander": "^14.0.3",
     "zod": "^3.24.1"
