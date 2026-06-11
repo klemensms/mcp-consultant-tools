@@ -1,0 +1,62 @@
+{
+  "name": "@mcp-consultant-tools/azure-storage",
+  "version": "32.0.0",
+  "description": "MCP server for Azure Storage - Blob, Files, Queues, and Tables",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build *.tsbuildinfo",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "azure",
+    "storage",
+    "blob",
+    "files",
+    "queues",
+    "tables"
+  ],
+  "author": "Michal Sobieraj",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klemensms/mcp-consultant-tools.git",
+    "directory": "packages/azure-storage"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "@azure/data-tables": "^13.2.2",
+    "@azure/identity": "^4.0.0",
+    "@azure/storage-blob": "^12.17.0",
+    "@azure/storage-file-share": "^12.17.0",
+    "@azure/storage-queue": "^12.16.0",
+    "commander": "^14.0.3",
+    "@mcp-consultant-tools/core": "32.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.8.2"
+  },
+  "bin": {
+    "mcp-storage": "build/index.js",
+    "mcp-storage-cli": "build/cli.js"
+  }
+}

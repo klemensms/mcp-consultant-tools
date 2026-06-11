@@ -1,0 +1,31 @@
+{
+  "enabled": true,
+  "layers": { "l1": true, "l2": true, "l3": true, "l4": true },
+  "fieldRules": {
+    "_comment_override": "This block intentionally mirrors the v31.0.0-beta.3 default contact rules — yomifullname / yomi-family / middlename are NOT in this list. Beta.4 added them to defaults; this fixture demonstrates the override-replacement rule from docs/documentation/pii-protection.md ('PII_CONFIG_PATH overrides are not additive'). Q5 of pii-demo-2 captures yomifullname returning raw 'Maria Schmidt' because this override carries forward the pre-beta.4 list. To pick up the new defaults, either remove the contact entry from this config or carry the yomi-family lines into your override.",
+    "contact": {
+      "excludeFromSelect": ["firstname", "lastname", "birthdate", "mobilephone"],
+      "redactInResponse": [
+        "firstname",
+        "lastname",
+        "fullname",
+        "emailaddress1",
+        "emailaddress2",
+        "emailaddress3",
+        "mobilephone",
+        "telephone1",
+        "telephone2",
+        "telephone3",
+        "birthdate"
+      ]
+    },
+    "account": {
+      "excludeFromSelect": [],
+      "redactInResponse": ["emailaddress1", "emailaddress2", "emailaddress3"]
+    },
+    "systemuser": {
+      "excludeFromSelect": [],
+      "redactInResponse": ["fullname", "firstname", "lastname", "internalemailaddress"]
+    }
+  }
+}

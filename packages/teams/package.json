@@ -1,0 +1,62 @@
+{
+  "name": "@mcp-consultant-tools/teams",
+  "version": "32.0.0",
+  "description": "MCP server for Microsoft Teams integration - send messages and adaptive cards to channels",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build *.tsbuildinfo",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "microsoft-teams",
+    "teams",
+    "adaptive-cards",
+    "release-announcements"
+  ],
+  "author": "Michal Sobieraj",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klemensms/mcp-consultant-tools.git",
+    "directory": "packages/teams"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^2.16.2",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
+    "@mcp-consultant-tools/core": "32.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "commander": "^14.0.3",
+    "dompurify": "^3.2.3",
+    "jsdom": "^26.0.0",
+    "marked": "^17.0.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/dompurify": "^3.0.5",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.8.2"
+  },
+  "bin": {
+    "mcp-teams": "build/index.js",
+    "mcp-teams-cli": "build/cli.js"
+  }
+}

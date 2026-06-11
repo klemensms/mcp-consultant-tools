@@ -1,0 +1,56 @@
+{
+  "name": "@mcp-consultant-tools/1password",
+  "version": "32.0.0",
+  "description": "MCP server for 1Password vault and item management",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build *.tsbuildinfo",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "1password",
+    "onepassword",
+    "secrets",
+    "vault"
+  ],
+  "author": "Klemens Stelk",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klemensms/mcp-consultant-tools.git",
+    "directory": "packages/1password"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@1password/sdk": "~0.4.0",
+    "@mcp-consultant-tools/core": "32.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "commander": "^14.0.3",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.8.2"
+  },
+  "bin": {
+    "mcp-op": "build/index.js",
+    "mcp-op-cli": "build/cli.js"
+  }
+}

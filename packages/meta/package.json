@@ -1,0 +1,88 @@
+{
+  "name": "mcp-consultant-tools",
+  "version": "32.0.1",
+  "description": "Complete MCP Consultant Tools package with all integrations: PowerPlatform, Azure DevOps, Azure Management, Figma, Application Insights, Log Analytics, Azure SQL, Service Bus, SharePoint, GitHub Enterprise, and Azure AD B2C",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "bin": {
+    "mcp-consultant-tools": "build/index.js",
+    "mcp-tools-cli": "build/cli.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build *.tsbuildinfo",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "powerplatform",
+    "dynamics",
+    "dataverse",
+    "azure-devops",
+    "figma",
+    "application-insights",
+    "log-analytics",
+    "azure-sql",
+    "sql-server",
+    "service-bus",
+    "sharepoint",
+    "sharepoint-online",
+    "github-enterprise",
+    "azure-b2c",
+    "identity",
+    "telemetry",
+    "monitoring",
+    "crm"
+  ],
+  "author": "Michal Sobieraj",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klemensms/mcp-consultant-tools.git",
+    "directory": "packages/meta"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "@mcp-consultant-tools/1password": "32.0.0",
+    "@mcp-consultant-tools/application-insights": "32.0.0",
+    "@mcp-consultant-tools/azure-b2c": "32.0.0",
+    "@mcp-consultant-tools/azure-data-factory": "32.0.0",
+    "@mcp-consultant-tools/azure-devops": "32.0.0",
+    "@mcp-consultant-tools/azure-devops-admin": "32.0.0",
+    "@mcp-consultant-tools/azure-management": "32.0.0",
+    "@mcp-consultant-tools/azure-sql": "32.0.0",
+    "@mcp-consultant-tools/azure-storage": "32.0.0",
+    "@mcp-consultant-tools/core": "32.0.0",
+    "@mcp-consultant-tools/fabric": "32.0.0",
+    "@mcp-consultant-tools/figma": "33.0.0",
+    "@mcp-consultant-tools/github-enterprise": "32.0.0",
+    "@mcp-consultant-tools/log-analytics": "32.0.0",
+    "@mcp-consultant-tools/powerplatform": "32.0.0",
+    "@mcp-consultant-tools/powerplatform-customization": "32.0.0",
+    "@mcp-consultant-tools/powerplatform-data": "32.0.0",
+    "@mcp-consultant-tools/rest-api": "32.0.0",
+    "@mcp-consultant-tools/service-bus": "32.0.0",
+    "@mcp-consultant-tools/sharepoint": "32.0.0",
+    "@mcp-consultant-tools/teams": "32.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "commander": "^14.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.8.2"
+  }
+}

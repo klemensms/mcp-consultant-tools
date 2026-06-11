@@ -1,0 +1,4 @@
+{
+  "enabled": true,
+  "layers": { "l1": false, "l2": true, "l3": true, "l4": false }
+}

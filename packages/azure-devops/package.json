@@ -1,0 +1,68 @@
+{
+  "name": "@mcp-consultant-tools/azure-devops",
+  "version": "33.0.0-beta.4",
+  "description": "MCP server for Azure DevOps integration - wikis, work items, pull requests, and variable group read access",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc && mkdir -p build/sync/templates && cp -r src/sync/templates/. build/sync/templates/ && vite build --config ui-vite.config.ts",
+    "clean": "rm -rf build *.tsbuildinfo",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "azure-devops",
+    "devops",
+    "wikis",
+    "work-items",
+    "pull-requests",
+    "azure"
+  ],
+  "author": "Michal Sobieraj",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klemensms/mcp-consultant-tools.git",
+    "directory": "packages/azure-devops"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.13.0",
+    "@mcp-consultant-tools/core": "33.0.0-beta.1",
+    "@modelcontextprotocol/ext-apps": "^1.1.2",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "axios": "^1.8.3",
+    "commander": "^14.0.3",
+    "marked": "^17.0.1",
+    "turndown": "^7.2.2",
+    "turndown-plugin-gfm": "^1.0.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/turndown": "^5.0.6",
+    "typescript": "^5.8.2",
+    "vite": "^7.3.1",
+    "vite-plugin-singlefile": "^2.3.0",
+    "vitest": "^2.1.9"
+  },
+  "bin": {
+    "mcp-ado": "build/index.js",
+    "mcp-ado-cli": "build/cli.js"
+  }
+}

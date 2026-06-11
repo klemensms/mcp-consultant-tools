@@ -1,0 +1,485 @@
+# Release Process & Pre-Release Testing
+
+This document describes the safe release process for mcp-consultant-tools packages, including pre-release testing strategies to prevent breaking production users.
+
+## Overview
+
+The monorepo uses **npm dist tags** to enable safe pre-release testing. This allows you to:
+- Test packages via `npx` before releasing to production
+- Publish beta versions that don't affect regular users
+- Quickly rollback if issues are discovered
+- Iterate on fixes without impacting the `latest` tag
+
+## Release Workflow
+
+### 1. Local Development & Testing
+
+Work on `release/*` branches and test locally:
+
+```bash
+# Build the package
+npm run build
+
+# Test using local node command
+node build/index.js
+
+# For specific package in monorepo
+cd packages/powerplatform
+npm run build
+node build/index.js
+```
+
+**Configuration**: Use absolute path in MCP client config:
+```json
+{
+  "command": "node",
+  "args": ["/absolute/path/to/mcp-consultant-tools/build/index.js"]
+}
+```
+
+### 2. Package Validation (Pre-Publish Check)
+
+Before publishing, validate the exact package structure that npm will publish:
+
+```bash
+# Pack the package (creates .tgz file)
+npm pack
+
+# Example output: mcp-consultant-tools-powerplatform-1.0.0-beta.1.tgz
+
+# Test the tarball with npx
+npx ./mcp-consultant-tools-powerplatform-1.0.0-beta.1.tgz
+
+# Or for meta-package
+cd packages/meta
+npm pack
+npx ./mcp-consultant-tools-1.0.0-beta.1.tgz
+```
+
+**What this tests:**
+- Package structure and `files` field in package.json
+- Binary paths and entry points
+- Dependency resolution
+- Exact behavior users will get from npm
+
+### 3. Beta Release (Safe External Testing)
+
+Publish to npm with `beta` tag for external validation:
+
+```bash
+# Create pre-release version
+npm version prerelease --preid=beta
+# Example: 1.0.0 → 1.0.0-beta.1
+
+# Publish with beta tag (doesn't affect 'latest')
+npm publish --tag beta
+
+# Push version commit and tag to GitHub
+git push && git push --tags
+```
+
+**Testing beta release:**
+```bash
+# Users must explicitly request beta
+npx @mcp-consultant-tools/powerplatform@beta mcp-pp
+
+# Or for meta-package
+npx mcp-consultant-tools@beta
+```
+
+**Benefits:**
+- Regular users on `latest` tag are unaffected
+- You can test via real npx from npm registry
+- Can iterate with multiple beta releases (beta.1, beta.2, etc.)
+
+### 4. Create Release Notes (Test Checklist)
+
+**Immediately after publishing to beta**, create user-facing release notes in `docs/release-notes/vX.Y.Z-beta.md`.
+
+**Purpose:** Release notes serve as a structured test checklist for beta validation.
+
+**Format:** TLDR-style, aimed at end users (not developers). Include:
+- Breaking changes
+- New features
+- Changes to existing features
+- **Beta testing configuration** (for updated integrations)
+
+**Template:**
+```markdown
+# Release vX.Y.Z-beta.1
+
+## Breaking Changes
+
+List any changes that require user action:
+- Environment variable `FOO` renamed to `BAR`
+- Tool `old_tool` removed, use `new_tool` instead
+
+## New Features
+
+List new capabilities:
+- Added SharePoint Online integration (15 tools, 5 prompts)
+- New prompt: `analyze-powerplatform-performance`
+
+**Beta Testing Configuration:**
+```json
+{
+  "mcpServers": {
+    "mcp-consultant-tools": {
+      "command": "npx",
+      "args": ["mcp-consultant-tools@beta"],
+      "env": {
+        "SHAREPOINT_TENANT_ID": "your-tenant-id",
+        "SHAREPOINT_CLIENT_ID": "your-client-id",
+        "SHAREPOINT_CLIENT_SECRET": "your-secret"
+      }
+    }
+  }
+}
+```
+
+## Changes to Existing Features
+
+- Improved error messages for authentication failures
+- Service Bus message inspection now shows full body
+```
+
+**Key points:**
+- Include `@beta` tag in config examples
+- List all updated integrations with their config
+- Users will use this as a test checklist
+
+---
+
+## 🛑 HARD STOP - MANUAL USER TESTING REQUIRED 🛑
+
+**After creating release notes, Claude Code must STOP and handover to the user.**
+
+### What the User Must Do:
+
+1. **Use release notes as test checklist:**
+   - Review `docs/release-notes/vX.Y.Z-beta.md`
+   - Configure beta testing using the provided config
+
+2. **Test the beta release manually:**
+   ```bash
+   npx mcp-consultant-tools@beta
+   ```
+
+3. **Verify all functionality from release notes:**
+   - All integrations load correctly
+   - Environment variables are read properly
+   - Tools and prompts work as expected
+   - No breaking changes or regressions
+   - Test with real MCP client (Claude Desktop, etc.)
+   - Check each feature listed in release notes
+
+4. **Decision point:**
+   - **If issues found:** Report to Claude Code, proceed to section 5 (Iterating on Beta)
+   - **If validation succeeds:** Proceed to section 6 (Finalize Release Notes), then section 7 (Production Release)
+
+**Why this matters:** Automated testing cannot catch all integration issues, environment-specific bugs, or UX problems. Manual validation by the developer is critical before production release.
+
+---
+
+### 5. Iterating on Beta
+
+If you find issues, fix them and publish a new beta:
+
+```bash
+# Make fixes on release/* branch
+npm run build
+
+# Test locally first
+npm pack
+npx ./*.tgz
+
+# Publish next beta iteration
+npm version prerelease --preid=beta
+# Example: 1.0.0-beta.1 → 1.0.0-beta.2
+
+npm publish --tag beta
+git push && git push --tags
+```
+
+**Important:** After each beta iteration, update the release notes:
+- Add any new fixes to "Changes to Existing Features"
+- Update the version number in the filename (e.g., v20.0.0-beta.2)
+- Keep beta config examples updated
+
+### 6. Finalize Release Notes
+
+**After beta testing is complete and validated**, finalize the release notes:
+
+1. **Rename file:** `vX.Y.Z-beta.md` → `vX.Y.Z.md`
+
+2. **Remove beta references:**
+   - Remove `-beta.1` from title
+   - Remove "Beta Testing Configuration" section
+   - Update config examples to use `@latest` (or no tag)
+
+3. **Add release date:**
+   ```markdown
+   # Release vX.Y.Z
+
+   Released: 2025-11-13
+   ```
+
+4. **Review and polish:**
+   - Ensure all sections are complete
+   - Verify accuracy of feature descriptions
+   - Remove any internal notes or TODOs
+
+**Example transformation:**
+
+**Before (beta):**
+```markdown
+# Release v20.0.0-beta.1
+
+**Beta Testing Configuration:**
+```json
+{
+  "command": "npx",
+  "args": ["mcp-consultant-tools@beta"]
+}
+```
+```
+
+**After (production):**
+```markdown
+# Release v20.0.0
+
+Released: 2025-11-13
+```
+
+**Keep it concise:** Users want a quick overview, not implementation details or code changes.
+
+### 7. Production Release
+
+When beta is validated and release notes are created, promote to production:
+
+**Option A: Promote existing beta version**
+```bash
+# Merge to main
+git checkout main
+git merge release/X.Y
+
+# Promote beta to latest tag
+npm dist-tag add @mcp-consultant-tools/powerplatform@1.0.0-beta.2 latest
+
+# Push to GitHub
+git push && git push --tags
+```
+
+**Option B: Publish as final version**
+```bash
+# Merge to main
+git checkout main
+git merge release/X.Y
+
+# Create final version (removes -beta suffix)
+npm version patch
+# Example: 1.0.0-beta.2 → 1.0.0
+
+# Publish to 'latest' (default tag)
+npm publish
+
+# Push to GitHub
+git push && git push --tags
+```
+
+## Version Numbering
+
+### Pre-Release Versions
+
+Follow semantic versioning with pre-release identifiers:
+
+```
+1.0.0-beta.1    # First beta
+1.0.0-beta.2    # Second beta
+1.0.0-rc.1      # Release candidate
+1.0.0           # Final release
+```
+
+### Version Bump Commands
+
+```bash
+# Pre-release versions
+npm version prerelease --preid=beta   # 1.0.0 → 1.0.0-beta.1
+npm version prerelease --preid=beta   # 1.0.0-beta.1 → 1.0.0-beta.2
+npm version prerelease --preid=rc     # 1.0.0-rc.1
+
+# Production versions
+npm version patch    # Bug fixes (1.0.0 → 1.0.1)
+npm version minor    # New features (1.0.0 → 1.1.0)
+npm version major    # Breaking changes (1.0.0 → 2.0.0)
+```
+
+## Viewing Published Versions
+
+Check what's published and under which tags:
+
+```bash
+# View all versions and tags for a package
+npm view @mcp-consultant-tools/powerplatform
+
+# View specific tag version
+npm view @mcp-consultant-tools/powerplatform@beta version
+
+# List all dist-tags
+npm dist-tag ls @mcp-consultant-tools/powerplatform
+
+# Example output:
+# latest: 1.0.0
+# beta: 1.0.1-beta.1
+```
+
+## Emergency Rollback
+
+If a broken version is accidentally published to `latest`:
+
+### Deprecate the Broken Version
+```bash
+# Warn users about the broken version
+npm deprecate @mcp-consultant-tools/powerplatform@1.0.5 "Broken - use 1.0.4 instead"
+```
+
+### Rollback 'latest' Tag
+```bash
+# Point 'latest' back to the last good version
+npm dist-tag add @mcp-consultant-tools/powerplatform@1.0.4 latest
+
+# Verify
+npm dist-tag ls @mcp-consultant-tools/powerplatform
+```
+
+**Note:** npm allows `unpublish` within 72 hours if the package has low downloads, but deprecation + tag rollback is safer and more transparent.
+
+## Monorepo Publishing
+
+### Individual Package Release
+
+For single package updates (e.g., only PowerPlatform changed):
+
+```bash
+cd packages/powerplatform
+
+# Build and validate
+npm run build
+npm pack
+npx ./*.tgz
+
+# Publish beta
+npm version prerelease --preid=beta
+npm publish --tag beta
+
+# Test via npx
+npx @mcp-consultant-tools/powerplatform@beta mcp-pp
+
+# Promote to latest
+npm dist-tag add @mcp-consultant-tools/powerplatform@$(npm view . version) latest
+```
+
+### Meta-Package Release
+
+When multiple packages change or for full releases:
+
+```bash
+# Publish individual packages first (to latest)
+cd packages/core && npm publish
+cd ../powerplatform && npm publish
+cd ../azure-devops && npm publish
+# ... etc
+
+# Then publish meta-package
+cd packages/meta
+npm version minor  # Bump meta-package version
+npm publish
+
+git push && git push --tags
+```
+
+**Use `scripts/publish-all.sh` for coordinated releases** (publishes in dependency order: core → services → meta).
+
+## Helpful Package.json Scripts
+
+Add these scripts to package.json for common tasks:
+
+```json
+{
+  "scripts": {
+    "build": "tsc",
+    "pack-test": "npm pack && echo 'Test with: npx ./*.tgz'",
+    "publish-beta": "npm version prerelease --preid=beta && npm publish --tag beta",
+    "publish-rc": "npm version prerelease --preid=rc && npm publish --tag rc",
+    "promote-latest": "npm dist-tag add @mcp-consultant-tools/powerplatform@$(npm view . version) latest"
+  }
+}
+```
+
+## Testing Checklist
+
+Before promoting to production, verify:
+
+- [ ] Local testing with `node build/index.js` passes
+- [ ] Package validation with `npm pack` + `npx ./*.tgz` passes
+- [ ] Beta release published and tested via `npx @scope/package@beta`
+- [ ] **Release notes created in `docs/release-notes/vX.Y.Z-beta.md`** (with beta config)
+- [ ] **🛑 Manual user testing completed** (all integrations, tools, prompts verified)
+- [ ] All tools and prompts work correctly in real MCP client
+- [ ] Environment variables load correctly
+- [ ] Error handling works as expected
+- [ ] Cross-service integrations work (if applicable)
+- [ ] All features from release notes tested and verified
+- [ ] **Release notes finalized** (beta references removed, file renamed to `vX.Y.Z.md`)
+- [ ] Documentation updated (README.md, CLAUDE.md, docs/documentation/*.md)
+
+## Quick Reference
+
+### Common Commands
+
+```bash
+# Local testing
+npm run build && node build/index.js
+
+# Package validation
+npm pack && npx ./*.tgz
+
+# Publish beta
+npm version prerelease --preid=beta && npm publish --tag beta
+
+# Test beta
+npx @mcp-consultant-tools/powerplatform@beta mcp-pp
+
+# Promote to latest
+npm dist-tag add @mcp-consultant-tools/powerplatform@1.0.0-beta.1 latest
+
+# Check published tags
+npm dist-tag ls @mcp-consultant-tools/powerplatform
+
+# Rollback latest
+npm dist-tag add @mcp-consultant-tools/powerplatform@1.0.4 latest
+```
+
+## Summary
+
+**Key Principles:**
+1. Never publish directly to `latest` without testing
+2. Use `npm pack` to validate package structure
+3. Use `beta` tag for external testing via npx
+4. **Create release notes immediately after beta publishing** (with beta config)
+5. **🛑 HARD STOP - Use release notes as test checklist**
+6. Iterate on beta releases until validated (update release notes each iteration)
+7. **Finalize release notes** (remove beta references) before production
+8. Promote to `latest` only when confident
+9. Keep `main` branch in sync with `latest` tag
+
+This workflow ensures:
+- ✅ Safe testing via real npx
+- ✅ No risk to production users
+- ✅ Release notes serve as structured test checklist
+- ✅ Beta config examples help users test correctly
+- ✅ Manual validation catches integration issues
+- ✅ User-facing release notes document changes
+- ✅ Easy rollback if issues found
+- ✅ Professional release workflow
+- ✅ Matches standard npm best practices

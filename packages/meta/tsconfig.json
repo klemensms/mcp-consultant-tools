@@ -1,0 +1,29 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./build",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "build"],
+  "references": [
+    { "path": "../core" },
+    { "path": "../application-insights" },
+    { "path": "../azure-b2c" },
+    { "path": "../azure-data-factory" },
+    { "path": "../azure-devops" },
+    { "path": "../azure-management" },
+    { "path": "../azure-sql" },
+    { "path": "../azure-storage" },
+    { "path": "../rest-api" },
+    { "path": "../figma" },
+    { "path": "../github-enterprise" },
+    { "path": "../log-analytics" },
+    { "path": "../powerplatform" },
+    { "path": "../powerplatform-customization" },
+    { "path": "../powerplatform-data" },
+    { "path": "../service-bus" },
+    { "path": "../sharepoint" },
+    { "path": "../teams" }
+  ]
+}

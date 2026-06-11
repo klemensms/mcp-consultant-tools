@@ -1,0 +1,62 @@
+{
+  "name": "@mcp-consultant-tools/powerplatform-data",
+  "version": "32.0.0",
+  "description": "MCP server for PowerPlatform data CRUD operations (operational use)",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build *.tsbuildinfo",
+    "prepublishOnly": "npm run build",
+    "start:http": "node --env-file=.env build/http-server.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "powerplatform",
+    "dynamics",
+    "dataverse",
+    "data"
+  ],
+  "author": "Michal Sobieraj",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klemensms/mcp-consultant-tools.git",
+    "directory": "packages/powerplatform-data"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "@mcp-consultant-tools/core": "32.0.0",
+    "@mcp-consultant-tools/powerplatform-core": "32.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "commander": "^14.0.3",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "jwks-rsa": "^4.0.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.8.2"
+  },
+  "bin": {
+    "mcp-pp-data": "build/index.js",
+    "mcp-pp-data-cli": "build/cli.js"
+  }
+}

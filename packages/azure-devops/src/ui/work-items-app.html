@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ADO Work Items</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: var(--font-family-sans, system-ui, -apple-system, sans-serif);
+        background: var(--color-background-primary, #ffffff);
+        color: var(--color-text-primary, #1a1a1a);
+        padding: 16px;
+        line-height: 1.5;
+      }
+      #app { max-width: 960px; margin: 0 auto; }
+      .loading { text-align: center; padding: 40px; color: #666; }
+      .error { color: #f85149; padding: 16px; background: #fdf0ef; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="loading">Loading work items...</div>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,59 @@
+{
+  "name": "@mcp-consultant-tools/fabric",
+  "version": "32.0.0",
+  "description": "MCP server for Microsoft Fabric - workspaces, capacities, items, shortcuts, domains, and admin",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build *.tsbuildinfo",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "microsoft-fabric",
+    "fabric",
+    "onelake",
+    "lakehouse",
+    "power-bi",
+    "azure"
+  ],
+  "author": "Michal Sobieraj",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klemensms/mcp-consultant-tools.git",
+    "directory": "packages/fabric"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.13.0",
+    "@mcp-consultant-tools/core": "32.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "axios": "^1.8.3",
+    "commander": "^14.0.3",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.8.2"
+  },
+  "bin": {
+    "mcp-fabric": "build/index.js",
+    "mcp-fabric-cli": "build/cli.js"
+  }
+}

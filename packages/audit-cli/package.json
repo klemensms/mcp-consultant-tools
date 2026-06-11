@@ -1,0 +1,32 @@
+{
+  "name": "@mcp-consultant-tools/audit-cli",
+  "version": "0.1.0",
+  "description": "CLI tools for the MCP Consultant Tools audit subsystem (verify, quarantine, search)",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "files": [
+    "build",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build *.tsbuildinfo",
+    "prepublishOnly": "npm run build"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "@mcp-consultant-tools/core": "32.0.0",
+    "commander": "^14.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.8.2"
+  },
+  "bin": {
+    "mcp-audit-cli": "build/index.js"
+  }
+}

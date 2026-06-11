@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "pp-data-audit-test": {
+      "command": "node",
+      "args": ["../../packages/powerplatform-data/build/index.js"],
+      "env": {
+        "MCP_ENVIRONMENT_TYPE": "uat",
+        "PII_PROTECTION": "true",
+        "MCP_AUDIT_LEVEL": "lean",
+        "MCP_AUDIT_CLIENT": "MCPTest",
+        "MCP_AUDIT_OPERATOR": "smoke-test@example.com",
+        "MCP_AUDIT_PATH": "./audit-out",
+        "POWERPLATFORM_URL": "https://mcptests.crm4.dynamics.com",
+        "POWERPLATFORM_CLIENT_ID": "<from 1Password>",
+        "POWERPLATFORM_CLIENT_SECRET": "<from 1Password>",
+        "POWERPLATFORM_TENANT_ID": "<from 1Password>"
+      }
+    }
+  }
+}

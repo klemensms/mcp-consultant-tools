@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PII Protection — What the Agent Sees</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-code: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    --bg-outer: #E8ECF2;
+    --bg: #F5F7FA;
+    --surface: #FFFFFF;
+    --surface2: #EDF1F7;
+    --surface3: #F8FAFD;
+    --text: #01052D;
+    --text-dim: #6B6D6D;
+    --accent: #0D3875;
+    --accent-dim: rgba(13, 56, 117, 0.08);
+    --accent-border: rgba(13, 56, 117, 0.15);
+    --orange: #F8941D;
+    --orange-text: #9A4D0C;
+    --orange-dim: rgba(248, 148, 29, 0.12);
+    --green: #15803D;
+    --green-dim: rgba(21, 128, 61, 0.12);
+    --red: #B91C1C;
+    --red-dim: rgba(185, 28, 28, 0.12);
+    --gold-text: #8B6914;
+    --gold-dim: rgba(252, 196, 18, 0.12);
+    --border: rgba(13, 56, 117, 0.1);
+    --border-bright: rgba(13, 56, 117, 0.22);
+    --code-bg: #F1F4F9;
+    --code-text: #0A1640;
+    --redact-bg: rgba(248, 148, 29, 0.18);
+    --redact-text: #6B3905;
+    --raw-bg: rgba(185, 28, 28, 0.1);
+    --raw-text: #7A0F0F;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-outer: #060A18;
+      --bg: #0B1225;
+      --surface: #FFFFFF;
+      --surface2: #F1F4F9;
+      --surface3: #FFFFFF;
+      --text: #01052D;
+      --text-dim: #6B6D6D;
+      --accent: #2563EB;
+      --accent-dim: rgba(37, 99, 235, 0.12);
+      --accent-border: rgba(37, 99, 235, 0.22);
+      --orange: #D97706;
+      --orange-text: #9A4D0C;
+      --orange-dim: rgba(217, 119, 6, 0.12);
+      --border: rgba(13, 56, 117, 0.12);
+      --border-bright: rgba(13, 56, 117, 0.28);
+      --code-bg: #F1F4F9;
+      --code-text: #0A1640;
+      --redact-bg: rgba(217, 119, 6, 0.20);
+      --redact-text: #6B3905;
+      --raw-bg: rgba(185, 28, 28, 0.12);
+      --raw-text: #7A0F0F;
+    }
+    body {
+      color-scheme: dark;
+    }
+    .heading-bright {
+      color: #F0F2F5 !important;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    font-family: var(--font-body);
+    color: var(--text);
+    background: var(--bg-outer);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page-wrap {
+    width: 100%;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px;
+    min-height: 100vh;
+    background: var(--bg);
+    background-image: radial-gradient(ellipse at 20% 0%, var(--accent-dim) 0%, transparent 60%);
+    box-shadow: 0 0 80px rgba(0, 0, 0, 0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    .page-wrap {
+      box-shadow: 0 0 80px rgba(0, 0, 0, 0.4);
+    }
+  }
+
+  .si-header {
+    display: flex;
+    align-items: center;
+    padding: 16px 32px;
+    background: var(--surface);
+    border-bottom: 3px solid var(--orange);
+    margin: -40px -40px 32px -40px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+  .si-logo {
+    font-family: var(--font-body);
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.6px;
+  }
+  .si-logo .smart { color: #0D3875; }
+  .si-logo .impact { color: #909292; }
+
+  .hero {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 40px;
+    margin-bottom: 28px;
+    box-shadow: 0 1px 2px rgba(13, 56, 117, 0.04);
+  }
+  .hero h1 {
+    margin: 0 0 6px;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.6px;
+    color: var(--accent);
+  }
+  .hero .subtitle {
+    margin: 0 0 20px;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  .hero .lede {
+    font-size: 17px;
+    color: var(--text);
+    margin: 0 0 16px;
+  }
+  .hero .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    border-radius: 100px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--font-code);
+  }
+  .pill.orange {
+    background: var(--orange-dim);
+    color: var(--orange-text);
+    border-color: rgba(248, 148, 29, 0.3);
+  }
+  .pill.green {
+    background: var(--green-dim);
+    color: var(--green);
+    border-color: rgba(21, 128, 61, 0.3);
+  }
+  .pill.red {
+    background: var(--raw-bg);
+    color: var(--raw-text);
+    border-color: rgba(185, 28, 28, 0.3);
+  }
+  .pill.gold {
+    background: var(--gold-dim);
+    color: var(--gold-text);
+    border-color: rgba(139, 105, 20, 0.3);
+  }
+  .pill.muted {
+    background: var(--surface2);
+    color: var(--text-dim);
+    border-color: var(--border);
+  }
+
+  h2 {
+    margin: 36px 0 16px;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.4px;
+  }
+  h3 {
+    margin: 20px 0 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .section-anchor::before {
+    content: "";
+    display: block;
+    height: 12px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 26px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 2px rgba(13, 56, 117, 0.04);
+  }
+
+  .layer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .layer-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 18px;
+  }
+  .layer-card.l1 { border-left-color: var(--accent); }
+  .layer-card.l2 { border-left-color: #1669A8; }
+  .layer-card.l3 { border-left-color: var(--orange); }
+  .layer-card.l4 { border-left-color: #15803D; }
+  .layer-card.observe { border-left-color: var(--gold-text); }
+  .layer-card .label {
+    font-family: var(--font-code);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .layer-card .name {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 2px 0 6px;
+    color: var(--text);
+  }
+  .layer-card .desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .mermaid-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+    overflow: auto;
+  }
+  .mermaid {
+    background: transparent;
+    color: #111111;
+  }
+
+  .query-section {
+    margin-top: 36px;
+  }
+  .query-header {
+    background: var(--accent);
+    color: #FFFFFF;
+    padding: 14px 22px;
+    border-radius: 12px 12px 0 0;
+    margin-bottom: 0;
+  }
+  .query-header h2 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    color: #FFFFFF;
+    font-weight: 600;
+  }
+  .query-header .query-detail {
+    font-family: var(--font-code);
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+    word-break: break-all;
+  }
+
+  .scenario-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    margin-bottom: 0;
+    border-radius: 0;
+    padding: 20px 22px 18px;
+  }
+  .scenario-card:first-of-type {
+    border-top: 1px solid var(--border);
+  }
+  .scenario-card:last-of-type {
+    border-radius: 0 0 12px 12px;
+    margin-bottom: 24px;
+  }
+  .scenario-card + .scenario-card {
+    border-top: none;
+  }
+  .scenario-card.no-protection { border-left: 3px solid var(--red); }
+  .scenario-card.l1-exclusion { border-left: 3px solid var(--accent); }
+  .scenario-card.l2-only { border-left: 3px solid #1669A8; }
+  .scenario-card.l2-l3 { border-left: 3px solid var(--orange); }
+  .scenario-card.full-l1-l4 { border-left: 3px solid var(--green); }
+  .scenario-card.observe-mode { border-left: 3px solid var(--gold-text); }
+
+  .scenario-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .scenario-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .scenario-meta {
+    font-size: 12px;
+    font-family: var(--font-code);
+    color: var(--text-dim);
+  }
+
+  pre.code-block {
+    background: var(--code-bg);
+    color: var(--code-text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: var(--font-code);
+    font-size: 12.5px;
+    line-height: 1.6;
+    margin: 8px 0 12px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  pre.code-block .redact {
+    background: var(--redact-bg);
+    color: var(--redact-text);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  pre.code-block .raw-pii {
+    background: var(--raw-bg);
+    color: var(--raw-text);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  pre.code-block .field-key {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .footer-note {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: var(--font-code);
+    font-size: 12.5px;
+    color: var(--accent);
+    margin-top: 4px;
+  }
+  .footer-note.observe {
+    background: var(--gold-dim);
+    border-color: rgba(139, 105, 20, 0.3);
+    color: var(--gold-text);
+  }
+  .footer-note.absent {
+    background: var(--raw-bg);
+    border-color: rgba(185, 28, 28, 0.3);
+    color: var(--raw-text);
+  }
+  .footer-note.absent::before {
+    content: "✗ ";
+    font-weight: 700;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--surface2);
+    font-weight: 600;
+    color: var(--accent);
+    font-size: 13px;
+    letter-spacing: 0.2px;
+  }
+  td.code, td.token {
+    font-family: var(--font-code);
+    font-size: 12.5px;
+  }
+  td.token {
+    color: var(--orange-text);
+    background: var(--redact-bg);
+  }
+  td.token.raw { color: var(--raw-text); background: var(--raw-bg); }
+  td.absent {
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  .findings-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .findings-list li {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    font-size: 14.5px;
+  }
+  .findings-list li strong {
+    color: var(--accent);
+  }
+  .findings-list li.warn { border-left-color: var(--orange); }
+  .findings-list li.warn strong { color: var(--orange-text); }
+  .findings-list li.fail { border-left-color: var(--red); }
+  .findings-list li.fail strong { color: var(--red); }
+
+  .out-of-scope {
+    background: var(--surface2);
+    border: 1px dashed var(--border-bright);
+    border-radius: 12px;
+    padding: 18px 22px;
+    color: var(--text-dim);
+    font-size: 13.5px;
+  }
+  .out-of-scope strong { color: var(--text); }
+
+  details.fixture-detail {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    margin-bottom: 8px;
+  }
+  details.fixture-detail summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--accent);
+    font-size: 14px;
+  }
+  details.fixture-detail[open] summary {
+    margin-bottom: 8px;
+  }
+
+  .footnote {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    font-style: italic;
+  }
+
+  hr.divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 36px 0;
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+  <header class="si-header">
+    <span class="si-logo"><span class="smart">smart</span><span class="impact">impact</span></span>
+  </header>
+
+  <section class="hero">
+    <h1>PII Protection — What the Agent Sees</h1>
+    <div class="subtitle">v31.0.0-beta.4 · Captured against <span style="font-family: var(--font-code);">acmedev.crm.dynamics.com</span> · 2026-04-30</div>
+
+    <p class="lede">
+      A side-by-side walkthrough of the v1 redaction pipeline, generated from real Dataverse responses across six toggle configurations against the same seeded fixtures. The question this answers: <strong>when the agent queries or modifies PII-rich data, what actually reaches the LLM?</strong>
+    </p>
+
+    <div class="meta">
+      <span class="pill">v31.0.0-beta.4</span>
+      <span class="pill orange">6 scenarios</span>
+      <span class="pill orange">5 queries</span>
+      <span class="pill orange">30 captured responses</span>
+      <span class="pill green">Reproducible</span>
+      <span class="pill green">Read + write paths</span>
+      <span class="pill green">Audit footer on writes</span>
+      <span class="pill muted">pp-data only</span>
+    </div>
+
+    <div class="card" style="margin-top: 20px; background: var(--green-dim); border-color: rgba(21, 128, 61, 0.3);">
+      <p style="margin: 0 0 8px; font-weight: 600; color: var(--green);">What changed in beta.4</p>
+      <p style="margin: 0 0 8px; font-size: 14px;">The beta.3 demo regen surfaced four follow-on findings (F4–F7). <strong>All four are addressed in beta.4</strong>: (F4) <code style="font-family: var(--font-code);">yomifullname</code> now redacts on contact writes via expanded default L2 rules; (F5) the <code style="font-family: var(--font-code);">[PII protection: …]</code> audit footer is now emitted on <code style="font-family: var(--font-code);">powerplatform-data</code> + <code style="font-family: var(--font-code);">azure-devops</code> write tools; (F6) locale date formats remain <code style="font-family: var(--font-code);">customPatterns</code>-only with copy-paste recipes added to <code style="font-family: var(--font-code);">pii-protection.md</code>; (F7) Yomi family added to default rules for <code style="font-family: var(--font-code);">contact</code> / <code style="font-family: var(--font-code);">lead</code> / <code style="font-family: var(--font-code);">systemuser</code> (lead had no defaults previously).</p>
+      <p style="margin: 0; font-size: 13px; color: var(--text-dim);">Beta.3 closed 3 earlier findings: OData FormattedValue annotations in scope (Q4), <code style="font-family: var(--font-code);">customPatterns</code> doc, write-path body redaction (Q5).</p>
+    </div>
+  </section>
+
+  <h2 class="heading-bright">The pipeline at a glance</h2>
+
+  <p style="font-size: 14px; color: var(--text-dim); margin: 0 0 16px;">
+    Four layers, each catching what the previous one missed. Configurable per-deployment; the v1 default has all four active.
+  </p>
+
+  <div class="layer-grid">
+    <div class="layer-card l1">
+      <div class="label">Layer 1 · request side</div>
+      <div class="name">Query-time exclusion</div>
+      <div class="desc">Strips configured PII fields from <code style="font-family: var(--font-code);">$select</code> before the request leaves. Data never reaches us.</div>
+    </div>
+    <div class="layer-card l2">
+      <div class="label">Layer 2 · response shape</div>
+      <div class="name">Configured-field redaction</div>
+      <div class="desc">Replaces values in known PII fields with synthetic tokens. Cheap, deterministic, auditable.</div>
+    </div>
+    <div class="layer-card l3">
+      <div class="label">Layer 3 · free text</div>
+      <div class="name">Regex on every string</div>
+      <div class="desc">Catches structured PII (email, phone, ISO date) in any field regardless of name.</div>
+    </div>
+    <div class="layer-card l4">
+      <div class="label">Layer 4 · free text</div>
+      <div class="name">NER on configured fields</div>
+      <div class="desc">Catches person names that don't match any pattern. Compromise.js multilingual NER.</div>
+    </div>
+    <div class="layer-card observe">
+      <div class="label">Audit · pre-flight</div>
+      <div class="name">Observe mode</div>
+      <div class="desc">Pipeline runs but values pass through unchanged. Footer reports what would have been redacted.</div>
+    </div>
+  </div>
+
+  <div class="mermaid-wrap" style="margin-top: 24px;">
+    <div class="mermaid">
+flowchart TD
+  Q["Tool call from agent<br/>query-records"] --> L1{"L1<br/>$select exclusion"}
+  L1 -->|configured PII fields stripped<br/>from request| API["Dataverse API"]
+  API -->|response| L2{"L2<br/>configured field redaction"}
+  L2 --> L3{"L3<br/>regex on free text"}
+  L3 --> L4{"L4<br/>NER on free text"}
+  L4 --> FOOTER["+ per-call footer<br/>[PII protection: ...]"]
+  FOOTER --> AGENT["Agent / LLM<br/>(receives redacted response)"]
+
+  classDef stage fill:#FFFFFF,stroke:#0D3875,stroke-width:1.5px,color:#111111;
+  classDef io fill:#F8F4ED,stroke:#9A4D0C,stroke-width:1.5px,color:#111111;
+  classDef agent fill:#E8F0E8,stroke:#15803D,stroke-width:1.5px,color:#111111;
+
+  class L1,L2,L3,L4 stage;
+  class Q,API,FOOTER io;
+  class AGENT agent;
+    </div>
+  </div>
+
+  <h2 class="heading-bright">The seeded fixtures</h2>
+
+  <p style="font-size: 14px; color: var(--text-dim); margin: 0 0 16px;">
+    Five deliberate records seeded in <span style="font-family: var(--font-code);">acmedev.crm.dynamics.com</span>. Each tests a specific layer's coverage.
+  </p>
+
+  <details class="fixture-detail" open>
+    <summary>Maria Schmidt (contact) — German PII, multilingual NER target</summary>
+    <pre class="code-block"><span class="raw-pii">"firstname": "Maria"</span>
+<span class="raw-pii">"lastname": "Schmidt"</span>
+<span class="raw-pii">"emailaddress1": "maria.schmidt@contoso.de"</span>
+<span class="raw-pii">"birthdate": "1985-03-12"</span>
+<span class="raw-pii">"mobilephone": "+49 30 12345678"</span>
+"description": "Spoke with <span class="raw-pii">Maria Schmidt</span> about the Q1 issue. She mentioned <span class="raw-pii">john.smith@example.com</span> is the right contact at the partner. Her German colleague <span class="raw-pii">Klaus Müller</span> is on holiday until <span class="raw-pii">2026-05-15</span>."</pre>
+    <p class="footnote">The description packs an embedded English email, a German colleague's name, and a future date that looks like a DOB — to exercise L3 (regex) and L4 (NER) on the same field that L2 doesn't cover.</p>
+  </details>
+
+  <details class="fixture-detail">
+    <summary>John Smith (contact) — English PII baseline</summary>
+    <pre class="code-block"><span class="raw-pii">"firstname": "John"</span>
+<span class="raw-pii">"lastname": "Smith"</span>
+<span class="raw-pii">"emailaddress1": "john.smith@example.com"</span>
+<span class="raw-pii">"birthdate": "1978-08-22"</span>
+<span class="raw-pii">"mobilephone": "+44 20 1234 5678"</span>
+"description": "Long-term customer. Last spoke 2024-11-03. Reachable on +44 20 1234 5678."</pre>
+  </details>
+
+  <details class="fixture-detail">
+    <summary>Klaus Müller (contact) — Unicode handling</summary>
+    <pre class="code-block"><span class="raw-pii">"firstname": "Klaus"</span>
+<span class="raw-pii">"lastname": "Müller"</span>
+<span class="raw-pii">"emailaddress1": "klaus.mueller@example.de"</span></pre>
+  </details>
+
+  <details class="fixture-detail">
+    <summary>Contoso Deutschland GmbH (account) — primary-contact lookup</summary>
+    <pre class="code-block">"name": "Contoso Deutschland GmbH"
+"emailaddress1": "info@contoso.de"
+"_primarycontactid_value": "&lt;Maria's GUID&gt;"</pre>
+  </details>
+
+  <details class="fixture-detail">
+    <summary>Annotation note on Maria — the hardest test</summary>
+    <pre class="code-block">"subject": "Customer call notes"
+"notetext": "Customer reported issue <span class="raw-pii">2026-04-15</span>. Spoke with <span class="raw-pii">Maria Schmidt</span> at <span class="raw-pii">maria.schmidt@contoso.de</span>, mobile <span class="raw-pii">+49 30 12345678</span>. DOB confirmed <span class="raw-pii">12 March 1985</span>. Original escalation came from <span class="raw-pii">John Smith</span> (<span class="raw-pii">john.smith@example.com</span>)."</pre>
+    <p class="footnote">Annotation entities have no per-entity field rules in v1 (the <code style="font-family: var(--font-code);">notetext</code> field is generic across all entity types) — so L2 alone <strong>cannot</strong> redact this. L3 + L4 must do all the work.</p>
+  </details>
+
+  <hr class="divider" />
+
+  <!-- ============= Query 1: Maria full record ============= -->
+  <div class="query-section">
+    <div class="query-header">
+      <h2>Query 1 · Maria Schmidt (configured fields)</h2>
+      <div class="query-detail">query-records contacts $filter=lastname eq 'Schmidt' $select=firstname,lastname,emailaddress1,birthdate,mobilephone,description</div>
+    </div>
+
+    <div class="scenario-card no-protection">
+      <div class="scenario-row">
+        <div class="scenario-name">No protection (baseline)</div>
+        <div class="scenario-meta"><span class="pill red">PII_PROTECTION=false</span></div>
+      </div>
+      <pre class="code-block"><span class="field-key">"firstname"</span>: <span class="raw-pii">"Maria"</span>,
+<span class="field-key">"lastname"</span>: <span class="raw-pii">"Schmidt"</span>,
+<span class="field-key">"emailaddress1"</span>: <span class="raw-pii">"maria.schmidt@contoso.de"</span>,
+<span class="field-key">"birthdate"</span>: <span class="raw-pii">"1985-03-12"</span>,
+<span class="field-key">"mobilephone"</span>: <span class="raw-pii">"+49 30 12345678"</span>,
+<span class="field-key">"description"</span>: "Spoke with <span class="raw-pii">Maria Schmidt</span> about the Q1 issue. She mentioned <span class="raw-pii">john.smith@example.com</span> is the right contact at the partner. Her German colleague <span class="raw-pii">Klaus Müller</span> is on holiday until <span class="raw-pii">2026-05-15</span>."</pre>
+      <div class="footer-note absent">no footer · pipeline disabled · agent receives every PII value raw</div>
+    </div>
+
+    <div class="scenario-card l2-only">
+      <div class="scenario-row">
+        <div class="scenario-name">L2 only — configured fields tokenised</div>
+        <div class="scenario-meta"><span class="pill">l1=off</span> <span class="pill">l2=on</span> <span class="pill muted">l3=off</span> <span class="pill muted">l4=off</span></div>
+      </div>
+      <pre class="code-block"><span class="field-key">"firstname"</span>: <span class="redact">[REDACTED:name:1eaad8]</span>,
+<span class="field-key">"lastname"</span>: <span class="redact">[REDACTED:name:135050]</span>,
+<span class="field-key">"emailaddress1"</span>: <span class="redact">[REDACTED:email:06aab6]</span>,
+<span class="field-key">"birthdate"</span>: <span class="redact">[REDACTED:dob:459d0a]</span>,
+<span class="field-key">"mobilephone"</span>: <span class="redact">[REDACTED:phone:8a591e]</span>,
+<span class="field-key">"description"</span>: "Spoke with <span class="raw-pii">Maria Schmidt</span> about the Q1 issue. She mentioned <span class="raw-pii">john.smith@example.com</span> is the right contact at the partner. Her German colleague <span class="raw-pii">Klaus Müller</span> is on holiday until <span class="raw-pii">2026-05-15</span>."</pre>
+      <div class="footer-note">[PII protection: 2 names + 1 email + 2 dobs + 1 phone redacted by L2]</div>
+      <p class="footnote">Configured fields cleanly tokenised — including the new <code style="font-family: var(--font-code);">birthdate@…FormattedValue</code> annotation that beta.3 lets through to the pipeline. <strong>The description still leaks every embedded PII value</strong> — field-rule-only protection misses free text.</p>
+    </div>
+
+    <div class="scenario-card l2-l3">
+      <div class="scenario-row">
+        <div class="scenario-name">L2 + L3 — adds regex on free text</div>
+        <div class="scenario-meta"><span class="pill muted">l1=off</span> <span class="pill">l2=on</span> <span class="pill">l3=on</span> <span class="pill muted">l4=off</span></div>
+      </div>
+      <pre class="code-block"><span class="field-key">"firstname"</span>: <span class="redact">[REDACTED:name:4c2783]</span>,
+<span class="field-key">"lastname"</span>: <span class="redact">[REDACTED:name:500829]</span>,
+<span class="field-key">"emailaddress1"</span>: <span class="redact">[REDACTED:email:0e6738]</span>,
+<span class="field-key">"birthdate"</span>: <span class="redact">[REDACTED:dob:c5fffa]</span>,
+<span class="field-key">"mobilephone"</span>: <span class="redact">[REDACTED:phone:2793d3]</span>,
+<span class="field-key">"description"</span>: "Spoke with <span class="raw-pii">Maria Schmidt</span> about the Q1 issue. She mentioned <span class="redact">[REDACTED:email:5db5c8]</span> is the right contact at the partner. Her German colleague <span class="raw-pii">Klaus Müller</span> is on holiday until <span class="redact">[REDACTED:dob:acb959]</span>."</pre>
+      <div class="footer-note">[PII protection: 2 names + 2 emails + 3 dobs + 1 phone redacted by L2/L3]</div>
+      <p class="footnote">Regex catches the embedded email and ISO-date. <strong>"Maria Schmidt" and "Klaus Müller" are still visible</strong> — regex can't reliably detect person names.</p>
+    </div>
+
+    <div class="scenario-card full-l1-l4">
+      <div class="scenario-row">
+        <div class="scenario-name">Full v1 — L1 + L2 + L3 + L4 (default)</div>
+        <div class="scenario-meta"><span class="pill green">l1=on</span> <span class="pill green">l2=on</span> <span class="pill green">l3=on</span> <span class="pill green">l4=on</span></div>
+      </div>
+      <pre class="code-block"><span class="field-key">"firstname"</span>: <span class="redact">[REDACTED:name:e517e8]</span>,
+<span class="field-key">"lastname"</span>: <span class="redact">[REDACTED:name:678a13]</span>,
+<span class="field-key">"emailaddress1"</span>: <span class="redact">[REDACTED:email:45b53f]</span>,
+<span class="field-key">"birthdate"</span>: <span class="redact">[REDACTED:dob:14ac52]</span>,
+<span class="field-key">"mobilephone"</span>: <span class="redact">[REDACTED:phone:117e63]</span>,
+<span class="field-key">"description"</span>: "Spoke with <span class="redact">[REDACTED:name:4dc861]</span> about the Q1 issue. She mentioned <span class="redact">[REDACTED:email:a04cd1]</span> is the right contact at the partner. Her German colleague <span class="redact">[REDACTED:name:749c66]</span> is on holiday until <span class="redact">[REDACTED:dob:c99ff6]</span>."</pre>
+      <div class="footer-note">[PII protection: 4 names + 2 emails + 3 dobs + 1 phone redacted by L1/L2/L3/L4]</div>
+      <p class="footnote">L4 NER catches "Maria Schmidt" and "Klaus Müller" in the description. Every PII slot is now an opaque token — but the <strong>shape</strong> of the conversation is preserved, so the agent can still reason about relationships.</p>
+    </div>
+
+    <div class="scenario-card l1-exclusion">
+      <div class="scenario-row">
+        <div class="scenario-name">L1 exclusion — data never collected</div>
+        <div class="scenario-meta"><span class="pill orange">l1 strips firstname/lastname/birthdate/mobilephone from $select</span></div>
+      </div>
+      <pre class="code-block"><span class="field-key">"emailaddress1"</span>: <span class="redact">[REDACTED:email:f93ab0]</span>,
+<span class="field-key">"description"</span>: "Spoke with <span class="redact">[REDACTED:name:77b45f]</span> about the Q1 issue. She mentioned <span class="redact">[REDACTED:email:728f6c]</span> is the right contact at the partner. Her German colleague <span class="redact">[REDACTED:name:9a7164]</span> is on holiday until <span class="redact">[REDACTED:dob:c51933]</span>."</pre>
+      <div class="footer-note">[PII protection: 4 excluded_fields + 2 emails + 1 dob + 2 names redacted by L1/L2/L3/L4]</div>
+      <p class="footnote">Notice the four configured fields are <strong>completely absent</strong> — not redacted, missing. Dataverse never returned them because Dataverse was never asked. The strongest GDPR posture: data not collected at all.</p>
+    </div>
+
+    <div class="scenario-card observe-mode">
+      <div class="scenario-row">
+        <div class="scenario-name">Observe mode — pipeline runs, data unchanged</div>
+        <div class="scenario-meta"><span class="pill gold">PII_OBSERVE_MODE=true</span></div>
+      </div>
+      <pre class="code-block"><span class="field-key">"firstname"</span>: <span class="raw-pii">"Maria"</span>,
+<span class="field-key">"lastname"</span>: <span class="raw-pii">"Schmidt"</span>,
+<span class="field-key">"emailaddress1"</span>: <span class="raw-pii">"maria.schmidt@contoso.de"</span>,
+<span class="field-key">"birthdate"</span>: <span class="raw-pii">"1985-03-12"</span>,
+<span class="field-key">"mobilephone"</span>: <span class="raw-pii">"+49 30 12345678"</span>,
+<span class="field-key">"description"</span>: "Spoke with <span class="raw-pii">Maria Schmidt</span> about the Q1 issue. She mentioned <span class="raw-pii">john.smith@example.com</span> is the right contact at the partner. Her German colleague <span class="raw-pii">Klaus Müller</span> is on holiday until <span class="raw-pii">2026-05-15</span>."</pre>
+      <div class="footer-note observe">[PII protection: 4 names + 3 emails + 4 dobs + 2 phones redacted by L1/L2/L3/L4 (observe-mode — values not changed)]</div>
+      <p class="footnote">Pre-flight check before going live for a new tenant. <strong>Counts can be higher than full mode</strong> because each layer detects independently when no actual redaction "consumes" the match.</p>
+    </div>
+  </div>
+
+  <!-- ============= Query 2: Cross-call correlation ============= -->
+  <div class="query-section">
+    <div class="query-header">
+      <h2>Query 2 · Cross-call correlation</h2>
+      <div class="query-detail">query-records contacts $filter=firstname eq 'Maria' $select=firstname,lastname,emailaddress1</div>
+    </div>
+
+    <div class="card">
+      <p style="margin: 0 0 12px;">Same Maria, different filter. <strong>Within one MCP server process the tokens must match across calls</strong> — otherwise the agent loses track of "is this the same person we just looked at?"</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Scenario</th>
+            <th>firstname</th>
+            <th>lastname</th>
+            <th>Match Q1?</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>no-protection</td>
+            <td class="token raw">Maria</td>
+            <td class="token raw">Schmidt</td>
+            <td>raw values · always identical</td>
+          </tr>
+          <tr>
+            <td>l1-exclusion</td>
+            <td class="absent">(absent — stripped from $select)</td>
+            <td class="absent">(absent — stripped from $select)</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>l2-only</td>
+            <td class="token">[REDACTED:name:1eaad8]</td>
+            <td class="token">[REDACTED:name:135050]</td>
+            <td><strong style="color: var(--green);">✓ matches Q1</strong></td>
+          </tr>
+          <tr>
+            <td>l2-l3</td>
+            <td class="token">[REDACTED:name:4c2783]</td>
+            <td class="token">[REDACTED:name:500829]</td>
+            <td><strong style="color: var(--green);">✓ matches Q1</strong></td>
+          </tr>
+          <tr>
+            <td>full-l1-l4</td>
+            <td class="token">[REDACTED:name:e517e8]</td>
+            <td class="token">[REDACTED:name:678a13]</td>
+            <td><strong style="color: var(--green);">✓ matches Q1</strong></td>
+          </tr>
+          <tr>
+            <td>observe-mode</td>
+            <td class="token raw">Maria</td>
+            <td class="token raw">Schmidt</td>
+            <td>raw values · always identical</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="footnote">Tokens differ across <em>scenarios</em> because each MCP server process has its own random salt. They are <strong>deterministic within a single process lifetime</strong> — that's what makes the agent's reasoning still work across multiple tool calls. Restart the server and the salt rotates, breaking long-term correlation by design (privacy boundary).</p>
+    </div>
+  </div>
+
+  <!-- ============= Query 3: Annotation note ============= -->
+  <div class="query-section">
+    <div class="query-header">
+      <h2>Query 3 · Annotation note (the hardest test)</h2>
+      <div class="query-detail">query-records annotations $filter=_objectid_value eq &lt;Maria's GUID&gt; $select=subject,notetext</div>
+    </div>
+
+    <div class="scenario-card no-protection">
+      <div class="scenario-row">
+        <div class="scenario-name">No protection</div>
+      </div>
+      <pre class="code-block"><span class="field-key">"notetext"</span>: "Customer reported issue <span class="raw-pii">2026-04-15</span>. Spoke with <span class="raw-pii">Maria Schmidt</span> at <span class="raw-pii">maria.schmidt@contoso.de</span>, mobile <span class="raw-pii">+49 30 12345678</span>. DOB confirmed <span class="raw-pii">12 March 1985</span>. Original escalation came from <span class="raw-pii">John Smith</span> (<span class="raw-pii">john.smith@example.com</span>)."</pre>
+      <div class="footer-note absent">no footer · 7 PII values exposed in one field</div>
+    </div>
+
+    <div class="scenario-card l2-only">
+      <div class="scenario-row">
+        <div class="scenario-name">L2 only — <strong style="color: var(--red);">nothing redacted</strong></div>
+      </div>
+      <pre class="code-block"><span class="field-key">"notetext"</span>: "Customer reported issue <span class="raw-pii">2026-04-15</span>. Spoke with <span class="raw-pii">Maria Schmidt</span> at <span class="raw-pii">maria.schmidt@contoso.de</span>, mobile <span class="raw-pii">+49 30 12345678</span>. DOB confirmed <span class="raw-pii">12 March 1985</span>. Original escalation came from <span class="raw-pii">John Smith</span> (<span class="raw-pii">john.smith@example.com</span>)."</pre>
+      <div class="footer-note">[PII protection: nothing redacted]</div>
+      <p class="footnote">Annotation entities have no field rules in v1, so L2 has nothing to do. <strong>Every piece of PII passes through.</strong> Strong demonstration of why field-rule-only protection isn't enough.</p>
+    </div>
+
+    <div class="scenario-card l2-l3">
+      <div class="scenario-row">
+        <div class="scenario-name">L2 + L3 — regex catches the structured patterns</div>
+      </div>
+      <pre class="code-block"><span class="field-key">"notetext"</span>: "Customer reported issue <span class="redact">[REDACTED:dob:c425cf]</span>. Spoke with <span class="raw-pii">Maria Schmidt</span> at <span class="redact">[REDACTED:email:0e6738]</span>, mobile <span class="redact">[REDACTED:phone:2793d3]</span>. DOB confirmed <span class="raw-pii">12 March 1985</span>. Original escalation came from <span class="raw-pii">John Smith</span> (<span class="redact">[REDACTED:email:5db5c8]</span>)."</pre>
+      <div class="footer-note">[PII protection: 2 emails + 1 phone + 1 dob redacted by L2/L3]</div>
+      <p class="footnote"><strong>"Maria Schmidt" and "John Smith" remain visible.</strong> "12 March 1985" also remains — a date but not in the YYYY-MM-DD pattern v1 regex matches (known limit, see Findings).</p>
+    </div>
+
+    <div class="scenario-card full-l1-l4">
+      <div class="scenario-row">
+        <div class="scenario-name">Full v1 — L4 NER closes the gap</div>
+      </div>
+      <pre class="code-block"><span class="field-key">"notetext"</span>: "Customer reported issue <span class="redact">[REDACTED:dob:d34222]</span>. Spoke with <span class="redact">[REDACTED:name:4dc861]</span> at <span class="redact">[REDACTED:email:45b53f]</span>, mobile <span class="redact">[REDACTED:phone:117e63]</span>. DOB confirmed <span class="raw-pii">12 March 1985</span>. Original escalation came from <span class="redact">[REDACTED:name:372cec]</span> (<span class="redact">[REDACTED:email:a04cd1]</span>)."</pre>
+      <div class="footer-note">[PII protection: 2 emails + 1 phone + 1 dob + 2 names redacted by L1/L2/L3/L4]</div>
+      <p class="footnote">NER catches the names. <strong>"DOB confirmed 12 March 1985" still passes through</strong> — neither L3 (date format mismatch) nor L4 (NER doesn't classify dates) handles this locale. Tracked for v1.5.</p>
+    </div>
+  </div>
+
+  <!-- ============= Query 4: Account lookup ============= -->
+  <div class="query-section">
+    <div class="query-header">
+      <h2>Query 4 · Account with primary-contact lookup (FormattedValue NER)</h2>
+      <div class="query-detail">query-records accounts $filter=name eq 'Contoso Deutschland GmbH' $select=name,emailaddress1,_primarycontactid_value</div>
+    </div>
+
+    <p style="font-size: 14px; color: var(--text-dim); margin: 0 0 16px;">
+      Tests whether L4 NER catches person names surfacing through OData FormattedValue annotations on lookup fields (the "relationship name problem" called out in the v1 plan, <strong style="color: var(--green);">closed in beta.3 by Finding 1</strong>).
+    </p>
+
+    <div class="scenario-card no-protection">
+      <div class="scenario-row">
+        <div class="scenario-name">No protection — annotation now in scope</div>
+      </div>
+      <pre class="code-block"><span class="field-key">"name"</span>: "Contoso Deutschland GmbH",
+<span class="field-key">"emailaddress1"</span>: <span class="raw-pii">"info@contoso.de"</span>,
+<span class="field-key">"_primarycontactid_value@…FormattedValue"</span>: <span class="raw-pii">"Maria Schmidt"</span>,
+<span class="field-key">"_primarycontactid_value"</span>: "91484a2f-7f44-f111-bec5-6045bdf2343f"</pre>
+      <div class="footer-note absent">no footer · pipeline disabled · FormattedValue exposes Maria's display name</div>
+      <p class="footnote">In beta.1/.2 the FormattedValue was suppressed because the read path didn't ask for annotations. beta.3 adds <code style="font-family: var(--font-code);">Prefer: odata.include-annotations="*"</code> to <code style="font-family: var(--font-code);">DataService</code>, so the display name now reaches the pipeline — and can therefore be redacted.</p>
+    </div>
+
+    <div class="scenario-card l2-only">
+      <div class="scenario-row">
+        <div class="scenario-name">L2 only — annotation passes (no L4 NER)</div>
+      </div>
+      <pre class="code-block"><span class="field-key">"_primarycontactid_value@…FormattedValue"</span>: <span class="raw-pii">"Maria Schmidt"</span>,
+<span class="field-key">"emailaddress1"</span>: <span class="redact">[REDACTED:email:eb06d2]</span>,
+<span class="field-key">"name"</span>: "Contoso Deutschland GmbH"</pre>
+      <div class="footer-note">[PII protection: 1 email redacted by L2]</div>
+      <p class="footnote">L2 catches the configured <code style="font-family: var(--font-code);">emailaddress1</code>. <strong>"Maria Schmidt" still leaks via the FormattedValue annotation</strong> — there's no L2 field rule for the relationship-name suffix and L4 isn't enabled.</p>
+    </div>
+
+    <div class="scenario-card l2-l3">
+      <div class="scenario-row">
+        <div class="scenario-name">L2 + L3 — same gap</div>
+      </div>
+      <pre class="code-block"><span class="field-key">"_primarycontactid_value@…FormattedValue"</span>: <span class="raw-pii">"Maria Schmidt"</span>,
+<span class="field-key">"emailaddress1"</span>: <span class="redact">[REDACTED:email:7d02a1]</span>,
+<span class="field-key">"name"</span>: "Contoso Deutschland GmbH"</pre>
+      <div class="footer-note">[PII protection: 1 email redacted by L2/L3]</div>
+      <p class="footnote">Regex doesn't match person names. The annotation still leaks — only L4 NER can close this.</p>
+    </div>
+
+    <div class="scenario-card full-l1-l4">
+      <div class="scenario-row">
+        <div class="scenario-name">Full v1 — L4 NER closes the relationship-name gap</div>
+      </div>
+      <pre class="code-block"><span class="field-key">"_primarycontactid_value@…FormattedValue"</span>: <span class="redact">[REDACTED:name:4dc861]</span>,
+<span class="field-key">"_primarycontactid_value"</span>: "91484a2f-7f44-f111-bec5-6045bdf2343f",
+<span class="field-key">"emailaddress1"</span>: <span class="redact">[REDACTED:email:744ba2]</span>,
+<span class="field-key">"name"</span>: "Contoso Deutschland GmbH"</pre>
+      <div class="footer-note">[PII protection: 1 email + 1 name redacted by L1/L2/L3/L4]</div>
+      <p class="footnote">NER picks up "Maria Schmidt" in the FormattedValue and tokenises it. <strong>Cross-query token consistency holds</strong>: <code style="font-family: var(--font-code);">[REDACTED:name:4dc861]</code> is the same token used for "Maria Schmidt" in Q1's description and Q3's annotation note within the same process — the agent can chain reasoning ("the account's primary contact is the same person mentioned in the customer-call note") without seeing the name.</p>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <p style="margin: 0; font-size: 14px;">The company name <strong>"Contoso Deutschland GmbH" is not redacted</strong> in any scenario. NER classifies it as ORG and the v1 default is to redact persons only — orgs and product names pass through. This is the right default; redacting company names breaks investigation context.</p>
+    </div>
+  </div>
+
+  <!-- ============= Query 5: Update Maria (write-path redaction) ============= -->
+  <div class="query-section">
+    <div class="query-header">
+      <h2>Query 5 · Update Maria — write-path redaction + audit footer (beta.4, F4 + F5)</h2>
+      <div class="query-detail">update-record contacts &lt;Maria's GUID&gt; {jobtitle: "Senior Consultant"}</div>
+    </div>
+
+    <p style="font-size: 14px; color: var(--text-dim); margin: 0 0 16px;">
+      Sets a single field. Because <code style="font-family: var(--font-code);">DataService.updateRecord</code> includes <code style="font-family: var(--font-code);">Prefer: return=representation</code>, Dataverse echoes the <strong>full updated entity</strong> back — ~140 fields including every classic PII attribute on Maria, plus the computed <code style="font-family: var(--font-code);">yomifullname</code>. The demoable case for beta.3's Finding 3 (write-path body redaction) and beta.4's F4 + F5 (Yomi family + audit footer). All three closed end-to-end here.
+    </p>
+
+    <div class="scenario-card no-protection">
+      <div class="scenario-row">
+        <div class="scenario-name">No protection — every PII field returned plaintext</div>
+        <div class="scenario-meta"><span class="pill red">PII_PROTECTION=false</span></div>
+      </div>
+      <pre class="code-block"><span class="field-key">"firstname"</span>: <span class="raw-pii">"Maria"</span>,
+<span class="field-key">"lastname"</span>: <span class="raw-pii">"Schmidt"</span>,
+<span class="field-key">"emailaddress1"</span>: <span class="raw-pii">"maria.schmidt@contoso.de"</span>,
+<span class="field-key">"yomifullname"</span>: <span class="raw-pii">"Maria Schmidt"</span>,
+<span class="field-key">"fullname"</span>: <span class="raw-pii">"Maria Schmidt"</span>,
+<span class="field-key">"birthdate"</span>: <span class="raw-pii">"1985-03-12"</span>,
+<span class="field-key">"mobilephone"</span>: <span class="raw-pii">"+49 30 12345678"</span>,
+<span class="field-key">"description"</span>: "Spoke with <span class="raw-pii">Maria Schmidt</span> about the Q1 issue. She mentioned <span class="raw-pii">john.smith@example.com</span> ...",
+<span class="field-key">"jobtitle"</span>: "Senior Consultant"</pre>
+      <div class="footer-note absent">no footer · in beta.1/.2 EVERY scenario looked like this · Finding 3 closed in beta.3</div>
+    </div>
+
+    <div class="scenario-card full-l1-l4">
+      <div class="scenario-row">
+        <div class="scenario-name">Full v1 — write-path redaction + Yomi family + audit footer all closed in beta.4</div>
+        <div class="scenario-meta"><span class="pill green">l1=on</span> <span class="pill green">l2=on</span> <span class="pill green">l3=on</span> <span class="pill green">l4=on</span></div>
+      </div>
+      <pre class="code-block"><span class="field-key">"firstname"</span>: <span class="redact">[REDACTED:name:e517e8]</span>,
+<span class="field-key">"lastname"</span>: <span class="redact">[REDACTED:name:678a13]</span>,
+<span class="field-key">"emailaddress1"</span>: <span class="redact">[REDACTED:email:45b53f]</span>,
+<span class="field-key">"yomifullname"</span>: <span class="redact">[REDACTED:name:4dc861]</span>,
+<span class="field-key">"fullname"</span>: <span class="redact">[REDACTED:name:4dc861]</span>,
+<span class="field-key">"birthdate"</span>: <span class="redact">[REDACTED:dob:14ac52]</span>,
+<span class="field-key">"mobilephone"</span>: <span class="redact">[REDACTED:phone:117e63]</span>,
+<span class="field-key">"description"</span>: "Spoke with <span class="redact">[REDACTED:name:4dc861]</span> about the Q1 issue. She mentioned <span class="redact">[REDACTED:email:a04cd1]</span> ...",
+<span class="field-key">"jobtitle"</span>: "Senior Consultant"</pre>
+      <div class="footer-note">[PII protection: 6 names + 3 emails + 3 dobs + 2 phones redacted by L2/L3/L4]</div>
+      <p class="footnote">Two beta.4 closures visible at once: <strong>F4</strong> — <code style="font-family: var(--font-code);">yomifullname</code> now tokenises as <code style="font-family: var(--font-code);">[REDACTED:name:4dc861]</code> (the same token as <code style="font-family: var(--font-code);">fullname</code> and the description's "Maria Schmidt" mention, because all three values are the literal string "Maria Schmidt" hashed under the same per-process salt). <strong>F5</strong> — the response now ends with the <code style="font-family: var(--font-code);">[PII protection: …]</code> footer carrying the per-call redaction count, so an operator validating "did the pipeline actually fire on this write?" can see at a glance whether redaction ran. The body is redacted <strong>identically to a read</strong>. Tokens match Q1 / Q3 / Q4 within the process — write-path tokens correlate with read-path tokens.</p>
+    </div>
+
+    <div class="card" style="margin-top: 16px; background: var(--green-dim); border-color: rgba(21, 128, 61, 0.3);">
+      <p style="margin: 0 0 8px; font-weight: 600; color: var(--green);">Both findings closed in beta.4</p>
+      <ol style="margin: 0; padding-left: 20px; font-size: 14px;">
+        <li style="margin-bottom: 6px;"><strong><code style="font-family: var(--font-code);">yomifullname</code> redacts (F4).</strong> Added the Yomi family (<code style="font-family: var(--font-code);">yomifirstname</code>, <code style="font-family: var(--font-code);">yomimiddlename</code>, <code style="font-family: var(--font-code);">yomilastname</code>, <code style="font-family: var(--font-code);">yomifullname</code>) plus <code style="font-family: var(--font-code);">middlename</code> to default L2 contact rules in <code style="font-family: var(--font-code);">packages/core/src/pii/config.ts</code>. Same yomi family also added to default <code style="font-family: var(--font-code);">lead</code> and <code style="font-family: var(--font-code);">systemuser</code> rules per F7.</li>
+        <li><strong><code style="font-family: var(--font-code);">[PII protection: …]</code> audit footer emits on writes (F5).</strong> Refactored <code style="font-family: var(--font-code);">DataService.{getRecord,createRecord,updateRecord,executeAction}</code> to embed <code style="font-family: var(--font-code);">piiReport</code> as a sibling key on the result object; the <code style="font-family: var(--font-code);">powerplatform-data</code> tool layer extracts it and appends <code style="font-family: var(--font-code);">formatSummaryFooter(piiReport)</code> to the response text. Same pattern applied to <code style="font-family: var(--font-code);">azure-devops</code> work-item-tools (6 tools).</li>
+      </ol>
+    </div>
+
+    <p class="footnote" style="margin-top: 12px;">
+      The same audit-footer extension is needed on <code style="font-family: var(--font-code);">azure-sql</code> (<code style="font-family: var(--font-code);">sql-execute-query</code>, <code style="font-family: var(--font-code);">sql-execute-sproc</code>, <code style="font-family: var(--font-code);">sql-execute-unrestricted</code>) and <code style="font-family: var(--font-code);">rest-api</code> (<code style="font-family: var(--font-code);">rest-request</code>) tool layers — services already wrap <code style="font-family: var(--font-code);">piiReport</code> since beta.3, only the tool layer discards. Carries to v1.6 because those surfaces aren't exercised by this demo. <code style="font-family: var(--font-code);">executeAction</code> on Dataverse is closed in beta.4 as part of the powerplatform-data fix.
+    </p>
+
+    <div class="card" style="margin-top: 16px; background: var(--surface2); border-color: rgba(13, 56, 117, 0.2);">
+      <p style="margin: 0 0 8px; font-weight: 600;">Override-replacement gotcha (visible in scenario 2 / l1-exclusion)</p>
+      <p style="margin: 0; font-size: 14px;">In the <code style="font-family: var(--font-code);">l1-exclusion</code> scenario specifically, <code style="font-family: var(--font-code);">yomifullname</code> still returns raw "Maria Schmidt" — because that scenario's <code style="font-family: var(--font-code);">PII_CONFIG_PATH</code> JSON explicitly overrides <code style="font-family: var(--font-code);">fieldRules.contact.redactInResponse</code> with a list authored before beta.4 (no Yomi family). <strong><code style="font-family: var(--font-code);">PII_CONFIG_PATH</code> overrides are not additive</strong>: when you set a contact field list in your config, defaults are replaced, not merged. Documented in <code style="font-family: var(--font-code);">docs/documentation/pii-protection.md</code>. Workaround: either remove the <code style="font-family: var(--font-code);">contact</code> entry from your override to inherit defaults, or carry the new yomi-family lines forward in your override.</p>
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <h2 class="heading-bright">Cross-cutting findings</h2>
+
+  <ol class="findings-list">
+    <li><strong>L1 is the strongest GDPR posture but has scope.</strong> Field-exclusion only works for fields that are well-typed PII <em>and</em> not needed for the agent's investigation. For <code style="font-family: var(--font-code);">description</code> / <code style="font-family: var(--font-code);">notetext</code>-style free text, L1 isn't an option — the field is needed for context, you just want the values inside it tokenised.</li>
+    <li><strong>L2 + L3 + L4 combine multiplicatively.</strong> L2 catches 100 % of configured fields cheaply. L3 picks up most free-text PII (anything email-shaped, phone-shaped, ISO-date-shaped). L4 catches the remaining cases (person names that don't fit any pattern). Each layer's job gets smaller as you add the next.</li>
+    <li><strong>Cross-call correlation works on read AND write.</strong> Same person → same token within one process, across query→update boundaries. Different processes → different tokens. The agent can reason about identity across multiple tool calls without the platform retaining any mapping.</li>
+    <li><strong>The annotation entity proves defense in depth.</strong> With L2 only, the annotation note leaks every PII shape it contains. With L2 + L3 + L4, every PII shape except locale-specific date formats is caught. <strong>No single layer is sufficient.</strong></li>
+    <li><strong>Observe-mode footer counts upper-bound the real work.</strong> Useful for "what would happen if we turned protection on" planning. Don't compare them directly to redaction-on counts — when redaction is active, L2 replaces a value first and L3/L4 see the synthetic token, so they don't double-count.</li>
+    <li><strong>Closed in beta.3:</strong> annotations are in scope (Finding 1 → Q4); custom regex extension is documented (Finding 2); write paths are redacted (Finding 3 → Q5). The pipeline now applies to <code style="font-family: var(--font-code);">query-records</code>, <code style="font-family: var(--font-code);">get-record</code>, <code style="font-family: var(--font-code);">create-record</code>, <code style="font-family: var(--font-code);">update-record</code>, and <code style="font-family: var(--font-code);">execute-action</code>.</li>
+    <li><strong>Closed in beta.4:</strong> Yomi family (<code style="font-family: var(--font-code);">yomifullname</code> et al.) redacts by default on <code style="font-family: var(--font-code);">contact</code> / <code style="font-family: var(--font-code);">lead</code> / <code style="font-family: var(--font-code);">systemuser</code> (F4 + F7); write-path responses now emit the <code style="font-family: var(--font-code);">[PII protection: …]</code> audit footer (F5) on <code style="font-family: var(--font-code);">powerplatform-data</code> and <code style="font-family: var(--font-code);">azure-devops</code> write tools; locale date formats kept as <code style="font-family: var(--font-code);">customPatterns</code>-only with copy-paste recipes added to the user doc (F6).</li>
+  </ol>
+
+  <h2 class="heading-bright">Known v1 limits surfaced by this run</h2>
+
+  <ul class="findings-list">
+    <li class="warn"><strong>Locale-specific date formats</strong> ("12 March 1985", "12.03.1985") not caught by built-in L3 → use <code style="font-family: var(--font-code);">customPatterns</code> in PII config to extend without forking. Beta.4 added a "Locale date formats — copy-paste recipes" subsection to <code style="font-family: var(--font-code);">docs/documentation/pii-protection.md</code> covering English long/short month, German <code style="font-family: var(--font-code);">DD.MM.YYYY</code>, UK <code style="font-family: var(--font-code);">DD/MM/YYYY</code>, US <code style="font-family: var(--font-code);">MM/DD/YYYY</code>. Built-in defaults for these formats remain rejected by design (false-positive risk on build numbers / version strings / timestamps).</li>
+    <li class="warn"><strong><code style="font-family: var(--font-code);">PII_CONFIG_PATH</code> overrides are not additive</strong> — observable in scenario 2 / l1-exclusion of Q5: <code style="font-family: var(--font-code);">yomifullname</code> returns raw because the custom config carries a pre-beta.4 contact field list (no Yomi family). The other protected scenarios (l2-only, l2-l3, full-l1-l4) inherit beta.4 defaults and redact correctly. Documented in <code style="font-family: var(--font-code);">pii-protection.md</code>; either omit <code style="font-family: var(--font-code);">contact</code> from your override or carry yomi entries forward.</li>
+    <li class="warn"><strong>Audit footer not yet emitted on <code style="font-family: var(--font-code);">azure-sql</code> or <code style="font-family: var(--font-code);">rest-api</code> tool layers.</strong> Services already wrap <code style="font-family: var(--font-code);">piiReport</code>, only the tool layer discards. Same mechanical fix as the beta.4 <code style="font-family: var(--font-code);">powerplatform-data</code> / <code style="font-family: var(--font-code);">azure-devops</code> extension — tracked for v1.6 once those surfaces are exercised by the demo.</li>
+  </ul>
+
+  <h2 class="heading-bright">Out of scope</h2>
+
+  <div class="out-of-scope">
+    <p style="margin: 0 0 8px;"><strong>Layer 5</strong> (local-LLM final sweep) — deferred to v2 once L1–L4 has at least one engagement of usage.</p>
+    <p style="margin: 0 0 8px;"><strong>Phase 6</strong> (audit &amp; compliance logging) — separate session. The footer text in every response is the redaction <em>correlation</em> signal; Phase 6 will persist these as tamper-evident audit records (metadata + counts only, never values).</p>
+    <p style="margin: 0;"><strong>Other surfaces with write-path body redaction wired in beta.3 but tool-layer footer not yet emitted (carries to v1.6)</strong>: <code style="font-family: var(--font-code);">azure-sql</code> (<code style="font-family: var(--font-code);">sql-execute-sproc</code>, <code style="font-family: var(--font-code);">sql-execute-unrestricted</code>, CRUD tools) and <code style="font-family: var(--font-code);">rest-api</code> (<code style="font-family: var(--font-code);">rest-request</code>). Same pipeline, same defaults — will be added to this demo when test fixtures are seeded.</p>
+  </div>
+
+  <h2 class="heading-bright">Reproducing this report</h2>
+
+  <div class="card">
+    <ol style="margin: 0; padding-left: 20px;">
+      <li>Re-seed fixtures into a Dataverse test tenant (<code style="font-family: var(--font-code);">tests/pii-demo/README.md</code> "Fixtures").</li>
+      <li>Configure 6 MCP servers in <code style="font-family: var(--font-code);">.mcp.json</code> (one per scenario). For Q5 (write-path), the demo MCPs need <code style="font-family: var(--font-code);">POWERPLATFORM_ENABLE_UPDATE=true</code>.</li>
+      <li>Restart Claude Code.</li>
+      <li>Fire the 30-call matrix (5 queries × 6 servers) from a single prompt against <code style="font-family: var(--font-code);">…__query-records</code> and <code style="font-family: var(--font-code);">…__update-record</code>.</li>
+      <li>Persist responses to <code style="font-family: var(--font-code);">tests/pii-demo/output/responses/</code>.</li>
+      <li>Run <code style="font-family: var(--font-code);">node tests/pii-demo/output/_build-manifest.mjs</code> to regenerate <code style="font-family: var(--font-code);">manifest.json</code>.</li>
+    </ol>
+  </div>
+
+  <p class="footnote" style="margin-top: 36px; text-align: center;">
+    Generated 2026-04-30 · @mcp-consultant-tools/powerplatform-data v31.0.0-beta.4 · acmedev.crm.dynamics.com fixtures
+  </p>
+</div>
+
+<script>
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#FFFFFF',
+      primaryTextColor: '#111111',
+      primaryBorderColor: '#0D3875',
+      lineColor: '#9A4D0C',
+      secondaryColor: '#F8F4ED',
+      secondaryTextColor: '#111111',
+      tertiaryColor: '#FFFFFF',
+      tertiaryTextColor: '#111111',
+      noteTextColor: '#111111',
+      fontFamily: "'Inter', sans-serif"
+    }
+  });
+</script>
+</body>
+</html>

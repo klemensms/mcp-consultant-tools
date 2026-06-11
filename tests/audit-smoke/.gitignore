@@ -1,0 +1,4 @@
+audit-out/
+
+# Committed test fixture (placeholders only) — override root .mcp*.json ignore
+!.mcp.json

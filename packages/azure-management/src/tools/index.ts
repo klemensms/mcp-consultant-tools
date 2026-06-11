@@ -1,0 +1,31 @@
+import type { ServiceContext } from '../types.js';
+import { registerResourceTools } from './resource-tools.js';
+import { registerFunctionAppTools } from './function-app-tools.js';
+import { registerAppServiceTools } from './app-service-tools.js';
+import { registerKeyVaultTools } from './key-vault-tools.js';
+import { registerStorageTools } from './storage-tools.js';
+import { registerSqlTools } from './sql-tools.js';
+import { registerMonitoringTools } from './monitoring-tools.js';
+import { registerNetworkingTools } from './networking-tools.js';
+
+export function registerAllTools(server: any, ctx: ServiceContext): void {
+  registerResourceTools(server, ctx);
+  registerFunctionAppTools(server, ctx);
+  registerAppServiceTools(server, ctx);
+  registerKeyVaultTools(server, ctx);
+  registerStorageTools(server, ctx);
+  registerSqlTools(server, ctx);
+  registerMonitoringTools(server, ctx);
+  registerNetworkingTools(server, ctx);
+}
+
+export {
+  registerResourceTools,
+  registerFunctionAppTools,
+  registerAppServiceTools,
+  registerKeyVaultTools,
+  registerStorageTools,
+  registerSqlTools,
+  registerMonitoringTools,
+  registerNetworkingTools,
+};

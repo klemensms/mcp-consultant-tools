@@ -1,0 +1,62 @@
+{
+  "name": "mcp-consultant-tools-monorepo",
+  "version": "17.0.0",
+  "private": true,
+  "description": "Monorepo for MCP Consultant Tools - modular MCP servers for Microsoft ecosystem",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "build:workspaces": "npm run build --workspaces --if-present",
+    "clean": "tsc --build --clean && npm run clean --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "publish:dry-run": "npm publish --dry-run --workspaces --access public"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "monorepo",
+    "powerplatform",
+    "azure",
+    "devops",
+    "figma",
+    "microsoft",
+    "rest-api",
+    "oauth2"
+  ],
+  "author": "Michal Sobieraj",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klemensms/mcp-consultant-tools.git"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "@mcp-consultant-tools/core": "workspace:*",
+    "@mcp-consultant-tools/powerplatform-core": "workspace:*",
+    "@mcp-consultant-tools/powerplatform": "workspace:*",
+    "@mcp-consultant-tools/powerplatform-customization": "workspace:*",
+    "@mcp-consultant-tools/powerplatform-data": "workspace:*",
+    "@mcp-consultant-tools/azure-devops": "workspace:*",
+    "@mcp-consultant-tools/fabric": "workspace:*",
+    "@mcp-consultant-tools/figma": "workspace:*",
+    "@mcp-consultant-tools/application-insights": "workspace:*",
+    "@mcp-consultant-tools/log-analytics": "workspace:*",
+    "@mcp-consultant-tools/azure-sql": "workspace:*",
+    "@mcp-consultant-tools/service-bus": "workspace:*",
+    "@mcp-consultant-tools/sharepoint": "workspace:*",
+    "@mcp-consultant-tools/github-enterprise": "workspace:*",
+    "@mcp-consultant-tools/rest-api": "workspace:*",
+    "@mcp-consultant-tools/azure-b2c": "workspace:*",
+    "@mcp-consultant-tools/azure-data-factory": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  }
+}

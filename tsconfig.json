@@ -1,0 +1,22 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/application-insights" },
+    { "path": "./packages/azure-data-factory" },
+    { "path": "./packages/azure-devops" },
+    { "path": "./packages/azure-devops-admin" },
+    { "path": "./packages/azure-sql" },
+    { "path": "./packages/fabric" },
+    { "path": "./packages/figma" },
+    { "path": "./packages/github-enterprise" },
+    { "path": "./packages/log-analytics" },
+    { "path": "./packages/powerplatform" },
+    { "path": "./packages/powerplatform-customization" },
+    { "path": "./packages/powerplatform-data" },
+    { "path": "./packages/service-bus" },
+    { "path": "./packages/sharepoint" },
+    { "path": "./packages/1password" },
+    { "path": "./packages/meta" }
+  ]
+}
