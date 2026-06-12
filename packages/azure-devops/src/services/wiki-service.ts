@@ -158,7 +158,7 @@ export class WikiService {
     };
   }
 
-  async getWikiPage(project: string, wikiId: string, pagePath: string, includeContent: boolean = true): Promise<any> {
+  async getWikiPage(project: string, wikiId: string, pagePath: string, includeContent: boolean = true, recursionLevel?: 'none' | 'oneLevel' | 'full'): Promise<any> {
     this.client.validateProject(project);
 
     const wikiPath = this.normalizePagePath(pagePath);
@@ -167,7 +167,9 @@ export class WikiService {
       console.error(`Normalized wiki path: ${pagePath} -> ${wikiPath}`);
     }
 
-    const url = `${project}/_apis/wiki/wikis/${wikiId}/pages?path=${encodeURIComponent(wikiPath)}&includeContent=${includeContent}&api-version=${this.client.apiVersion}`;
+    // The ADO Pages API only populates subPages when recursionLevel is requested
+    const recursionParam = recursionLevel && recursionLevel !== 'none' ? `&recursionLevel=${recursionLevel}` : '';
+    const url = `${project}/_apis/wiki/wikis/${wikiId}/pages?path=${encodeURIComponent(wikiPath)}&includeContent=${includeContent}${recursionParam}&api-version=${this.client.apiVersion}`;
 
     try {
       const axiosResponse = await this.client.requestRaw(url);
@@ -180,7 +182,9 @@ export class WikiService {
         path: response.path,
         content: response.content,
         gitItemPath: response.gitItemPath,
-        subPages: response.subPages || [],
+        ...(recursionParam
+          ? { subPages: response.subPages || [] }
+          : { subPagesNote: "subPages not requested — pass recursionLevel ('oneLevel' or 'full') to populate, or use get-wiki-tree for the full hierarchy" }),
         url: response.url,
         remoteUrl: response.remoteUrl,
         version: etag,
@@ -209,10 +213,11 @@ export class WikiService {
     }
   }
 
-  async getWikiPageById(project: string, wikiId: string, pageId: number, includeContent: boolean = true): Promise<any> {
+  async getWikiPageById(project: string, wikiId: string, pageId: number, includeContent: boolean = true, recursionLevel?: 'none' | 'oneLevel' | 'full'): Promise<any> {
     this.client.validateProject(project);
 
-    const url = `${project}/_apis/wiki/wikis/${wikiId}/pages/${pageId}?includeContent=${includeContent}&api-version=${this.client.apiVersion}`;
+    const recursionParam = recursionLevel && recursionLevel !== 'none' ? `&recursionLevel=${recursionLevel}` : '';
+    const url = `${project}/_apis/wiki/wikis/${wikiId}/pages/${pageId}?includeContent=${includeContent}${recursionParam}&api-version=${this.client.apiVersion}`;
 
     try {
       const axiosResponse = await this.client.requestRaw(url);
@@ -225,7 +230,9 @@ export class WikiService {
         path: response.path,
         content: response.content,
         gitItemPath: response.gitItemPath,
-        subPages: response.subPages || [],
+        ...(recursionParam
+          ? { subPages: response.subPages || [] }
+          : { subPagesNote: "subPages not requested — pass recursionLevel ('oneLevel' or 'full') to populate, or use get-wiki-tree for the full hierarchy" }),
         url: response.url,
         remoteUrl: response.remoteUrl,
         version: etag,
@@ -248,6 +255,54 @@ export class WikiService {
       }
       if (error.response?.status === 404) {
         throw new Error(`Wiki page not found by ID: ${pageId}`);
+      }
+
+      throw new Error(`Azure DevOps API request failed: ${error.message} - ${JSON.stringify(errorDetails)}`);
+    }
+  }
+
+  /**
+   * Get the page hierarchy under a path (paths + ids, no content) —
+   * tree enumeration without pulling every page body.
+   */
+  async getWikiPageTree(project: string, wikiId: string, pagePath: string = '/', depth: 'oneLevel' | 'full' = 'full'): Promise<any> {
+    this.client.validateProject(project);
+
+    const wikiPath = this.normalizePagePath(pagePath);
+    const url = `${project}/_apis/wiki/wikis/${wikiId}/pages?path=${encodeURIComponent(wikiPath)}&includeContent=false&recursionLevel=${depth}&api-version=${this.client.apiVersion}`;
+
+    try {
+      const axiosResponse = await this.client.requestRaw(url);
+      const response = axiosResponse.data;
+
+      let pageCount = 0;
+      const toTreeNode = (page: any): any => {
+        pageCount++;
+        return {
+          id: page.id,
+          path: page.path,
+          gitItemPath: page.gitItemPath,
+          url: page.remoteUrl || page.url,
+          subPages: (page.subPages || []).map(toTreeNode),
+        };
+      };
+
+      return {
+        tree: toTreeNode(response),
+        pageCount,
+        project,
+        wikiId,
+      };
+    } catch (error: any) {
+      const errorDetails = error.response?.data?.message || error.response?.data || error.message;
+      console.error('Azure DevOps API request failed:', {
+        url,
+        status: error.response?.status,
+        error: errorDetails
+      });
+
+      if (error.response?.status === 404) {
+        throw new Error(`Wiki page not found: ${wikiPath} (original input: ${pagePath})`);
       }
 
       throw new Error(`Azure DevOps API request failed: ${error.message} - ${JSON.stringify(errorDetails)}`);

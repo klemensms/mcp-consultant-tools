@@ -27,7 +27,7 @@ MCP Consultant Tools is a **modular monorepo** with **22 independently published
 | **powerplatform** | PowerPlatform/Dataverse (Read-Only) | 49 | `mcp-pp-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM.md) |
 | **powerplatform-customization** | PowerPlatform Schema Changes | 85 | `mcp-pp-custom-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_CUSTOMIZATION.md) |
 | **powerplatform-data** | PowerPlatform Data CRUD | 14 | `mcp-pp-data-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_DATA.md) |
-| **azure-devops** | Azure DevOps Wikis, Work Items, PRs, Builds, Test Runs | 64 | `mcp-ado-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS.md) |
+| **azure-devops** | Azure DevOps Wikis, Work Items, PRs, Builds, Test Runs | 65 | `mcp-ado-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS.md) |
 | **azure-devops-admin** | Azure DevOps Pipelines, Service Conns, Pools | 66 | `mcp-ado-admin-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS_ADMIN.md) |
 | **azure-management** | Azure ARM API (Functions, App Services, Key Vault, SQL, Monitoring) | 31 | `mcp-azure-mgmt-cli` | [Setup & Usage](docs/documentation/AZURE_MANAGEMENT.md) |
 | **sharepoint** | SharePoint Online | 16-22 | `mcp-spo-cli` | [Setup & Usage](docs/documentation/SHAREPOINT.md) |

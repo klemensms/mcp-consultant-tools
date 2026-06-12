@@ -119,13 +119,14 @@ Use `get-configuration` first when constructing URLs or when the project name is
 
 <tool-group name="wiki">
 
-### Wiki Tools (9 tools)
+### Wiki Tools (10 tools)
 
 | Tool | Requires flag | Description |
 |------|--------------|-------------|
 | `get-wikis` | — | List all wikis in a project |
 | `search-wiki-pages` | — | Full-text search across wiki pages with highlighting |
 | `get-wiki-page` | — | Retrieve page content; auto-converts git paths to wiki paths |
+| `get-wiki-tree` | — | Page hierarchy (paths + ids, no content) under a path — full-wiki enumeration |
 | `create-wiki-page` | `ENABLE_WIKI_WRITE` | Create a new wiki page |
 | `update-wiki-page` | `ENABLE_WIKI_WRITE` | Update page; auto-fetches version if not provided |
 | `ado-str-replace-wiki` | `ENABLE_WIKI_WRITE` | Replace specific string without rewriting entire page |
@@ -145,6 +146,12 @@ Azure DevOps wikis have two path formats that are incompatible:
 The service automatically handles conversion:
 - `search-wiki-pages` returns both `gitPath` (original) and `path` (converted wiki path)
 - `get-wiki-page` detects git paths (ending with `.md`) and auto-converts them
+
+#### Sub-page Enumeration (`recursionLevel` / `get-wiki-tree`)
+
+The ADO Pages API only populates child pages when `recursionLevel` is requested (its default is `none`). `get-wiki-page` accepts an optional `recursionLevel` parameter (`none` | `oneLevel` | `full`) passed through to the REST call; `subPages` is included in the response only when `oneLevel`/`full` is requested. When it isn't, the response carries a `subPagesNote` explaining how to populate it — a bare empty `subPages: []` no longer masquerades as "no children".
+
+For enumerating a wiki's structure, prefer `get-wiki-tree` (CLI: `wiki tree`): it wraps `pages?recursionLevel=full&includeContent=false` and returns a slim recursive tree (`id`, `path`, `gitItemPath`, `url`, `subPages`) plus a `pageCount` — the whole hierarchy without pulling any page bodies. Optional `pagePath` scopes the enumeration to a subtree; `depth: 'oneLevel'` limits it to direct children.
 
 ```typescript
 private convertGitPathToWikiPath(gitPath: string): string {
@@ -1196,7 +1203,7 @@ The CLI reuses the same services and ServiceContext as the MCP server. Binary: `
 
 | Group | Commands | Maps to Tools |
 |-------|----------|--------------|
-| `wiki` | list, search, get-page, create-page, update-page, str-replace | get-wikis, search-wiki-pages, get-wiki-page, create-wiki-page, update-wiki-page, ado-str-replace-wiki |
+| `wiki` | list, search, get, tree, create, update, str-replace | get-wikis, search-wiki-pages, get-wiki-page, get-wiki-tree, create-wiki-page, update-wiki-page, ado-str-replace-wiki |
 | `work-item` | get, query, run-saved-query, get-saved-query, comments, add-comment, update-comment, update, create, delete | All work item tools |
 | `pull-request` | list, get, files, comments, create, update, complete, vote, reply, add-thread | All PR tools |
 | `build` | status, timeline, logs | get-build-status, get-build-timeline, get-build-logs |

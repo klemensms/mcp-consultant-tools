@@ -52,19 +52,40 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
       pagePath: z.string().optional().describe("The path to the page (e.g., '/Setup/Authentication'). Either pagePath or pageId is required."),
       pageId: zCoerceNumber().optional().describe("The numeric page ID from a wiki URL (e.g., 3789 from ...wiki/wikis/Wiki.wiki/3789/Page-Name). Either pageId or pagePath is required."),
       includeContent: z.boolean().optional().describe("Include page content (default: true)"),
+      recursionLevel: z.enum(["none", "oneLevel", "full"]).optional().describe("Populate subPages with child pages: 'oneLevel' for direct children, 'full' for the whole subtree (default: none — subPages omitted). For tree enumeration without content, prefer get-wiki-tree."),
     },
-    async ({ project, wikiId, pagePath, pageId, includeContent }: any) => {
+    async ({ project, wikiId, pagePath, pageId, includeContent, recursionLevel }: any) => {
       try {
         if (!pagePath && pageId == null) {
           return { content: [{ type: "text", text: "Either pagePath or pageId must be provided." }], isError: true };
         }
         const result = pageId != null
-          ? await ctx.wiki.getWikiPageById(project, wikiId, pageId, includeContent ?? true)
-          : await ctx.wiki.getWikiPage(project, wikiId, pagePath, includeContent ?? true);
+          ? await ctx.wiki.getWikiPageById(project, wikiId, pageId, includeContent ?? true, recursionLevel)
+          : await ctx.wiki.getWikiPage(project, wikiId, pagePath, includeContent ?? true, recursionLevel);
         return { content: [{ type: "text", text: `Wiki page '${pagePath || `#${pageId}`}':\n\n${JSON.stringify(result, null, 2)}` }] };
       } catch (error: any) {
         console.error("Error getting wiki page:", error);
         return { content: [{ type: "text", text: `Failed to get wiki page: ${error.message}` }], isError: true };
+      }
+    }
+  );
+
+  server.tool(
+    "get-wiki-tree",
+    "Get the wiki page hierarchy (paths + ids, no content) under a path — enumerate a wiki's structure without pulling page bodies.",
+    {
+      project: z.string().describe("The project name"),
+      wikiId: z.string().describe("The wiki identifier (ID or name)"),
+      pagePath: z.string().optional().describe("Root path to enumerate from (default: '/' — the whole wiki)"),
+      depth: z.enum(["oneLevel", "full"]).optional().describe("How deep to enumerate (default: full)"),
+    },
+    async ({ project, wikiId, pagePath, depth }: any) => {
+      try {
+        const result = await ctx.wiki.getWikiPageTree(project, wikiId, pagePath ?? '/', depth ?? 'full');
+        return { content: [{ type: "text", text: `Wiki tree for '${pagePath ?? '/'}' (${result.pageCount} page(s)):\n\n${JSON.stringify(result, null, 2)}` }] };
+      } catch (error: any) {
+        console.error("Error getting wiki tree:", error);
+        return { content: [{ type: "text", text: `Failed to get wiki tree: ${error.message}` }], isError: true };
       }
     }
   );

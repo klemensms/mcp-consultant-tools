@@ -4,7 +4,7 @@
 
 Azure DevOps integration for wiki access, work item management, pull requests, build troubleshooting, and local work item sync.
 
-- **Tools:** 57 tools (64 with PR write enabled), 4 prompts
+- **Tools:** 58 tools (65 with PR write enabled), 4 prompts
 - **Authentication:** Personal Access Token (PAT) or Entra ID App Registration (client credentials)
 
 > **Admin Tools:** For pipelines, service connections, agent pools, and environments, see `@mcp-consultant-tools/azure-devops-admin`

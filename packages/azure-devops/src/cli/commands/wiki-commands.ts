@@ -48,20 +48,38 @@ export function registerWikiCommands(program: Command, ctx: ServiceContext): voi
     .argument('[pagePath]', 'Page path (e.g., /Setup/Authentication)')
     .option('--page-id <id>', 'Page ID from wiki URL (alternative to pagePath)')
     .option('--no-content', 'Exclude page content')
+    .option('--recursion-level <level>', "Populate subPages: 'oneLevel' or 'full' (default: none — subPages omitted)")
     .action(async (project: string, wikiId: string, pagePath: string | undefined, opts: any) => {
       try {
         if (!pagePath && !opts.pageId) {
           throw new Error('Either pagePath argument or --page-id option is required');
         }
         const result = opts.pageId
-          ? await ctx.wiki.getWikiPageById(project, wikiId, parseInt(opts.pageId), opts.content ?? true)
-          : await ctx.wiki.getWikiPage(project, wikiId, pagePath!, opts.content ?? true);
+          ? await ctx.wiki.getWikiPageById(project, wikiId, parseInt(opts.pageId), opts.content ?? true, opts.recursionLevel)
+          : await ctx.wiki.getWikiPage(project, wikiId, pagePath!, opts.content ?? true, opts.recursionLevel);
         const label = pagePath || `#${opts.pageId}`;
         outputResult(
           { fileName: `wiki-page-${label.replace(/\//g, '-')}`, data: result, summary: `Wiki page '${label}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'get wiki page'); }
+    });
+
+  wiki
+    .command('tree')
+    .description('Get the wiki page hierarchy (paths + ids, no content)')
+    .argument('<project>', 'Project name')
+    .argument('<wikiId>', 'Wiki identifier (ID or name)')
+    .argument('[pagePath]', "Root path to enumerate from (default: '/')")
+    .option('--depth <depth>', "How deep to enumerate: 'oneLevel' or 'full'", 'full')
+    .action(async (project: string, wikiId: string, pagePath: string | undefined, opts: any) => {
+      try {
+        const result = await ctx.wiki.getWikiPageTree(project, wikiId, pagePath ?? '/', opts.depth);
+        outputResult(
+          { fileName: `wiki-tree-${wikiId}`, data: result, summary: `Wiki tree for '${pagePath ?? '/'}' (${result.pageCount} page(s))` },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'get wiki tree'); }
     });
 
   wiki
