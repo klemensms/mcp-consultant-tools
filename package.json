@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "build": "tsc --build",
+    "build:release": "npm run clean && npm run build",
     "build:workspaces": "npm run build --workspaces --if-present",
     "clean": "tsc --build --clean && npm run clean --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",

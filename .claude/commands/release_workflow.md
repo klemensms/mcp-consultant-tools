@@ -64,8 +64,12 @@ If breaking changes were introduced during this release cycle, the master alread
 
 ## 3. PRE-PUBLISH VALIDATION
 
+### 3a. MANDATORY clean build (never an incremental build)
+
+A stale `tsconfig.tsbuildinfo` can make `tsc` skip declaration emit entirely — `powerplatform@33.0.0` shipped to npm with zero `.d.ts` files this way, and stale `build/` output has masked missing project references that only failed in clean CI. **Always build from clean before any pack or publish. Never substitute plain `npm run build`, never skip.**
+
 ```bash
-npm run build
+npm run build:release   # = npm run clean && npm run build (purges build/ + *.tsbuildinfo first)
 
 # Verify all builds exist
 for pkg in core powerplatform-core application-insights azure-b2c azure-data-factory \
@@ -95,13 +99,13 @@ git push origin release/X.Y
 
 ### 6a. MANDATORY tarball scan (before any publish)
 
-For EVERY package being published, scan the actual tarball contents (this is what catches internal identifiers compiled into `build/` output — pre-commit only sees source):
+For EVERY package being published, scan the actual tarball contents (this is what catches internal identifiers compiled into `build/` output — pre-commit only sees source). The scan also FAILS if the tarball contains zero `.d.ts` files (every published package ships types; zero means a stale incremental build):
 
 ```bash
 ./scripts/scan-tarball.sh packages/PACKAGE_NAME
 ```
 
-Any hit ABORTS the release — fix the source, rebuild, re-scan. Never skip, never publish a package whose scan failed.
+Any hit ABORTS the release — fix the source, rebuild clean (`npm run build:release`), re-scan. Never skip, never bypass, never publish a package whose scan failed.
 
 ### 6b. Authenticate without 2FA prompts (1Password automation token)
 
