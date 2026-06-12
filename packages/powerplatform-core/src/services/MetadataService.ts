@@ -149,26 +149,51 @@ export class MetadataService {
       'Microsoft.Dynamics.CRM.StateAttributeMetadata',
     ];
 
-    if (attribute?.['@odata.type'] && picklistTypes.includes(attribute['@odata.type'])) {
-      try {
-        const castType = attribute['@odata.type'].replace('#', '');
-        const expanded = await this.client.makeRequest(
-          `api/data/v9.2/EntityDefinitions(LogicalName='${entityName}')/Attributes(LogicalName='${attributeName}')/${castType}?$expand=OptionSet`
-        ) as any;
+    // Dataverse returns the annotation with a leading '#', e.g.
+    // "#Microsoft.Dynamics.CRM.PicklistAttributeMetadata" — strip it before comparing
+    const castType = ((attribute?.['@odata.type'] as string) || '').replace('#', '');
 
-        if (expanded?.OptionSet?.Options) {
-          attribute.OptionSet = {
-            Name: expanded.OptionSet.Name,
-            IsGlobal: expanded.OptionSet.IsGlobal,
-            Options: expanded.OptionSet.Options.map((opt: any) => ({
-              Value: opt.Value,
-              Label: opt.Label?.UserLocalizedLabel?.Label ?? opt.Label?.LocalizedLabels?.[0]?.Label ?? '',
-              Description: opt.Description?.UserLocalizedLabel?.Label ?? '',
-            })),
-          };
-        }
+    if (picklistTypes.includes(castType)) {
+      const castUrl = `api/data/v9.2/EntityDefinitions(LogicalName='${entityName}')/Attributes(LogicalName='${attributeName}')/${castType}`;
+
+      let optionSet: any;
+      try {
+        const expanded = await this.client.makeRequest(`${castUrl}?$expand=OptionSet`) as any;
+        optionSet = expanded?.OptionSet;
       } catch {
-        // If expansion fails, return the attribute without options — non-fatal
+        // fall through to the attribute-scoped fallback requests below
+      }
+
+      // $expand=OptionSet can fail (observed with local picklists) or come back
+      // empty (global picklists expose options via GlobalOptionSet). Fall back to
+      // reading the navigation properties directly — no option-set name needed.
+      if (!optionSet?.Options) {
+        for (const navProperty of ['OptionSet', 'GlobalOptionSet']) {
+          try {
+            const direct = await this.client.makeRequest(`${castUrl}/${navProperty}`) as any;
+            if (direct?.Options) {
+              optionSet = direct;
+              break;
+            }
+          } catch {
+            // try the next navigation property
+          }
+        }
+      }
+
+      if (optionSet?.Options) {
+        attribute.OptionSet = {
+          Name: optionSet.Name,
+          IsGlobal: optionSet.IsGlobal,
+          Options: optionSet.Options.map((opt: any) => ({
+            Value: opt.Value,
+            Label: opt.Label?.UserLocalizedLabel?.Label ?? opt.Label?.LocalizedLabels?.[0]?.Label ?? '',
+            Description: opt.Description?.UserLocalizedLabel?.Label ?? '',
+          })),
+        };
+      } else {
+        // Never drop the options silently — a picklist always has an option set.
+        attribute.optionSetWarning = `OptionSet lookup failed for '${attributeName}' — option values omitted. For local picklists, query the attribute-scoped option-set metadata; for global picklists, query the global option-set metadata (e.g. 'metadata option-set <name>').`;
       }
     }
 
