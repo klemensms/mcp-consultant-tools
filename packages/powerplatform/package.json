@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/powerplatform",
-  "version": "33.0.1",
+  "version": "34.0.0-beta.1",
   "description": "MCP server for Microsoft PowerPlatform/Dataverse - read-only access (production-safe)",
   "type": "module",
   "main": "./build/index.js",
@@ -45,7 +45,7 @@
   },
   "dependencies": {
     "@mcp-consultant-tools/core": "33.0.0",
-    "@mcp-consultant-tools/powerplatform-core": "33.0.0",
+    "@mcp-consultant-tools/powerplatform-core": "34.0.0-beta.1",
     "@modelcontextprotocol/sdk": "^1.24.3",
     "commander": "^14.0.3",
     "express": "^4.21.0",
