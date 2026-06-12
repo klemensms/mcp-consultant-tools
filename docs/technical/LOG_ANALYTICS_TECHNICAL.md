@@ -276,12 +276,12 @@ All query tools support column filtering (`columnPreset`, `columns`) and output 
 Parameters:
 - `resourceId` (required): Resource ID
 - `query` (required): KQL query string
-- `timespan` (optional): ISO 8601 duration (default: `PT1H`)
+- `timespan` (optional): ISO 8601 duration. The API treats this as the OUTER BOUND on the query — the effective window is the intersection of the timespan and any `ago()` filter in the KQL, so a timespan narrower than the query's `ago()` clips results. When omitted, the timespan is derived from the widest `ago()` in the KQL (e.g. `ago(30d)` → `P30D`); `PT1H` applies only when the KQL has no `ago()` at all. An explicitly-passed timespan is always sent verbatim; if it is narrower than the KQL's `ago()`, the response carries a `timespanWarning`.
 - `columnPreset` (optional): `"minimal" | "investigation" | "full"`
 - `columns` (optional): Custom column list (array of strings, overrides `columnPreset`)
 - `outputFormat` (optional): `"json" | "markdown"` (default: `"json"`)
 
-Returns: `QueryResult` with `tables[].columns` and `tables[].rows`.
+Returns: `QueryResult` with `tables[].columns` and `tables[].rows`, plus `effectiveTimespan` (the timespan actually sent to the API) and `timespanWarning` (present only when an explicit timespan clips a wider `ago()` window).
 
 **Example:**
 ```json

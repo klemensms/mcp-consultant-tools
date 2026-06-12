@@ -1,5 +1,6 @@
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import axios from 'axios';
+import { resolveEffectiveTimespan } from '../utils/timespan.js';
 
 export interface LogAnalyticsResourceConfig {
   id: string;
@@ -24,6 +25,10 @@ export interface QueryResult {
     columns: { name: string; type: string }[];
     rows: any[][];
   }[];
+  /** The timespan actually sent to the API (explicit, derived from ago(), or the PT1H default). */
+  effectiveTimespan?: string;
+  /** Set when an explicit timespan clips a wider ago() window declared in the KQL. */
+  timespanWarning?: string;
 }
 
 export interface MetadataResult {
@@ -127,17 +132,22 @@ export class LogAnalyticsService {
       const headers = await this.getAuthHeaders(resource);
       const url = `${this.baseUrl}/workspaces/${resource.workspaceId}/query`;
 
-      const requestBody: any = { query };
-      if (timespan) {
-        requestBody.timespan = timespan;
-      }
+      // The request timespan is the OUTER BOUND on the query: narrower than the
+      // KQL's own ago() means silent clipping. Derive it from the query when the
+      // caller doesn't pass one; warn when an explicit one clips.
+      const { effectiveTimespan, timespanWarning } = resolveEffectiveTimespan(query, timespan);
+      const requestBody: any = { query, timespan: effectiveTimespan };
 
       const response = await axios.post(url, requestBody, {
         headers,
         timeout: 30000, // 30-second timeout
       });
 
-      return response.data;
+      return {
+        ...response.data,
+        effectiveTimespan,
+        ...(timespanWarning && { timespanWarning }),
+      };
     } catch (error: any) {
       // Enhanced error handling
       let errorMessage = 'Unknown error';

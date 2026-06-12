@@ -20,7 +20,7 @@ export function registerQueryCommands(program: Command, ctx: ServiceContext): vo
     .description('Execute a custom KQL query against Log Analytics workspace')
     .argument('<resourceId>', 'Resource ID')
     .argument('<kql>', 'KQL query string')
-    .option('-t, --timespan <timespan>', 'Time range (e.g., PT1H, P1D)', 'PT1H')
+    .option('-t, --timespan <timespan>', 'Time range (e.g., PT1H, P1D) — outer bound on the query; narrower than the KQL\'s ago() clips results. Default: derived from the widest ago() in the KQL, else PT1H')
     .option('-p, --preset <preset>', 'Column preset: minimal, investigation, full')
     .option('-c, --columns <columns>', 'Custom columns (comma-separated)')
     .option('-f, --format <format>', 'Output format: json, markdown', 'json')
@@ -37,12 +37,20 @@ export function registerQueryCommands(program: Command, ctx: ServiceContext): vo
         // Format output
         let data: any = filteredResult;
         if (opts.format === 'markdown' && filteredTables.length > 0) {
-          data = filteredTables.map((t: any) => formatTableAsMarkdown(t)).join('\n\n');
+          let markdown = `**Effective timespan:** ${result.effectiveTimespan}\n\n`;
+          if (result.timespanWarning) {
+            markdown += `⚠️ ${result.timespanWarning}\n\n`;
+          }
+          data = markdown + filteredTables.map((t: any) => formatTableAsMarkdown(t)).join('\n\n');
         }
 
         const rowCount = filteredTables.reduce((acc: number, t: any) => acc + (t.rows?.length || 0), 0);
+        let summary = `Query returned ${rowCount} row(s) [timespan: ${result.effectiveTimespan}]`;
+        if (result.timespanWarning) {
+          summary += `\n⚠️ ${result.timespanWarning}`;
+        }
         outputResult(
-          { fileName: `query-${resourceId}`, data, summary: `Query returned ${rowCount} row(s)` },
+          { fileName: `query-${resourceId}`, data, summary },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'execute query'); }

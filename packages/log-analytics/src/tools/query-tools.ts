@@ -22,7 +22,7 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
     {
       resourceId: z.string().describe("Resource ID"),
       query: z.string().describe(descWithExamples("KQL query string", KQL_EXAMPLES)),
-      timespan: z.string().optional().describe(descWithExamples("Time range (default: PT1H)", TIMESPAN_EXAMPLES)),
+      timespan: z.string().optional().describe(descWithExamples("Time range — the OUTER BOUND on the query; narrower than the KQL's own ago() clips results. Default: derived from the widest ago() in the KQL, else PT1H", TIMESPAN_EXAMPLES)),
       columnPreset: z.enum(["minimal", "investigation", "full"]).optional()
         .describe(descWithExamples("Column preset for filtering results. 'minimal' reduces token count significantly", COLUMN_PRESET_EXAMPLES)),
       columns: z.array(z.string()).optional()
@@ -38,7 +38,11 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
         const filteredResult = { ...result, tables: filteredTables };
 
         if (outputFormat === 'markdown' && filteredTables.length > 0) {
-          const markdown = filteredTables.map((t: any) => formatTableAsMarkdown(t)).join('\n\n');
+          let markdown = `**Effective timespan:** ${result.effectiveTimespan}\n\n`;
+          if (result.timespanWarning) {
+            markdown += `⚠️ ${result.timespanWarning}\n\n`;
+          }
+          markdown += filteredTables.map((t: any) => formatTableAsMarkdown(t)).join('\n\n');
           return { content: [{ type: "text", text: markdown }] };
         }
 
@@ -75,7 +79,7 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
         const result = await ctx.logAnalytics.getRecentEvents(
           resourceId,
           tableName,
-          timespan || 'PT1H',
+          timespan,
           limit || 100
         );
         const columnsToInclude = resolveColumnPreset(columnPreset, columns);
@@ -122,7 +126,7 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
           resourceId,
           searchText,
           tableName,
-          timespan || 'PT1H',
+          timespan,
           limit || 100
         );
         const columnsToInclude = resolveColumnPreset(columnPreset, columns);
