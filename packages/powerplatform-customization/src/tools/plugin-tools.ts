@@ -6,6 +6,7 @@
  *        get-plugin-packages, deploy-plugin-pkg
  */
 import { z } from 'zod';
+import { assertNoTraversal } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../types.js';
 import { descWithExamples, ENTITY_NAME_EXAMPLES, PLUGIN_STAGE_EXAMPLES, SDK_MESSAGE_EXAMPLES } from '../tool-examples.js';
 
@@ -29,7 +30,7 @@ server.tool(
       const service = ctx.pp;
 
       const fs = await import('fs/promises');
-      const normalizedPath = assemblyPath.replace(/\\/g, '/');
+      const normalizedPath = assertNoTraversal(assemblyPath);
       const dllBuffer = await fs.readFile(normalizedPath);
       const dllBase64 = dllBuffer.toString('base64');
 
@@ -81,7 +82,7 @@ server.tool(
       const service = ctx.pp;
 
       const fs = await import('fs/promises');
-      const normalizedPath = assemblyPath.replace(/\\/g, '/');
+      const normalizedPath = assertNoTraversal(assemblyPath);
       const dllBuffer = await fs.readFile(normalizedPath);
       const dllBase64 = dllBuffer.toString('base64');
 

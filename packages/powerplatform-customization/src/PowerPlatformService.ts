@@ -58,7 +58,8 @@ import {
   createAuthProvider,
 } from '@mcp-consultant-tools/powerplatform-core';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { resolve, basename, extname, dirname, join } from 'node:path';
+import { basename, extname, dirname, join } from 'node:path';
+import { resolveSafePath, assertNoTraversal } from '@mcp-consultant-tools/core';
 
 // Re-export types for backward compatibility
 export type { PowerPlatformConfig, ApiCollectionResponse };
@@ -611,7 +612,8 @@ export class PowerPlatformService {
       formType?: FormTypeName;
     }
   ): Promise<DownloadFormResult> {
-    const resolvedPath = resolve(filePath.replace(/\\/g, '/'));
+    // Fresh write destination — confine it to the permitted root.
+    const resolvedPath = resolveSafePath(filePath);
 
     let form: Record<string, unknown>;
     if (options.formId) {
@@ -687,7 +689,9 @@ export class PowerPlatformService {
       solutionUniqueName?: string;
     }
   ): Promise<DeployFormResult> {
-    const resolvedPath = resolve(filePath.replace(/\\/g, '/'));
+    // Read source (+ adjacent history snapshot): allow absolute paths the user
+    // legitimately points at, but reject injected "../" traversal.
+    const resolvedPath = assertNoTraversal(filePath);
     const metaPath = `${resolvedPath}.meta.json`;
 
     // Read file bytes
@@ -793,7 +797,7 @@ export class PowerPlatformService {
     filePath: string,
     options: { formId?: string }
   ): Promise<DiffFormResult> {
-    const resolvedPath = resolve(filePath.replace(/\\/g, '/'));
+    const resolvedPath = assertNoTraversal(filePath);
     const metaPath = `${resolvedPath}.meta.json`;
 
     const localContent = await readFile(resolvedPath, { encoding: 'utf8' });
@@ -915,8 +919,7 @@ export class PowerPlatformService {
       solutionUniqueName?: string;
     }
   ): Promise<{ success: true; action: 'created' | 'updated'; webResourceId?: string; message: string }> {
-    const normalizedPath = filePath.replace(/\\/g, '/');
-    const resolvedPath = resolve(normalizedPath);
+    const resolvedPath = assertNoTraversal(filePath);
 
     // Validate extension
     const ext = extname(resolvedPath).toLowerCase();
