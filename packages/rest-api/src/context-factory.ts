@@ -44,6 +44,11 @@ function buildConfigFromEnv(): RestApiConfig {
       ? parseInt(process.env.REST_TIMEOUT, 10)
       : 30000,
     customHeaders: getCustomHeadersFromEnv(),
+    allowedHosts: process.env.REST_ALLOWED_HOSTS
+      ? process.env.REST_ALLOWED_HOSTS.split(",")
+          .map((h) => h.trim())
+          .filter(Boolean)
+      : undefined,
   };
 
   // OAuth2 client credentials (highest priority)

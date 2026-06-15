@@ -45,7 +45,7 @@ export function registerRestTools(server: any, ctx: ServiceContext): void {
         .string()
         .optional()
         .describe(
-          descWithExamples("Override base URL for this request only", HOST_OVERRIDE_EXAMPLES)
+          descWithExamples("Override base URL for this request only. Restricted: the host's origin must match the configured base URL or an origin listed in REST_ALLOWED_HOSTS, otherwise the request is rejected (prevents sending credentials to an unvetted host).", HOST_OVERRIDE_EXAMPLES)
         ),
     },
     async ({

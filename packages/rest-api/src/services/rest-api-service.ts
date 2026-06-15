@@ -34,6 +34,10 @@ export class RestApiService {
   private httpsAgent: https.Agent | undefined;
   private cachedOpenApi: CachedOpenApiSpec | null = null;
   private openApiFetchPromise: Promise<CachedOpenApiSpec> | null = null;
+  /** Origin of the configured base URL (e.g. "https://api.example.com"). */
+  private baseOrigin: string;
+  /** Origins the `host` override is permitted to target. */
+  private allowedOrigins: Set<string>;
 
   /** OpenAPI cache TTL in milliseconds (default: 5 minutes) */
   private static readonly OPENAPI_CACHE_TTL = 5 * 60 * 1000;
@@ -51,6 +55,26 @@ export class RestApiService {
 
     // Normalize base URL (remove trailing slashes)
     this.config.baseUrl = this.config.baseUrl.replace(/\/+$/, "");
+
+    // Compute the allowlist of origins the per-request `host` override may
+    // target. Defaults to ONLY the base URL's origin so the configured
+    // credentials can never be sent to an arbitrary host; REST_ALLOWED_HOSTS
+    // widens it explicitly.
+    try {
+      this.baseOrigin = new URL(this.config.baseUrl).origin;
+    } catch {
+      this.baseOrigin = this.config.baseUrl;
+    }
+    this.allowedOrigins = new Set([this.baseOrigin]);
+    for (const h of this.config.allowedHosts ?? []) {
+      try {
+        this.allowedOrigins.add(new URL(h).origin);
+      } catch {
+        console.error(
+          `Warning: REST_ALLOWED_HOSTS entry "${h}" is not a valid URL; ignored.`
+        );
+      }
+    }
 
     // Create HTTPS agent if SSL verification is disabled
     if (!this.config.enableSslVerify) {
@@ -259,7 +283,7 @@ export class RestApiService {
     const { method, endpoint, body, headers: requestHeaders, host } = options;
 
     const normalizedEndpoint = `/${endpoint.replace(/^\/+|\/+$/g, "")}`;
-    const baseUrl = host ? host.replace(/\/+$/, "") : this.config.baseUrl;
+    const baseUrl = this.resolveBaseUrl(host);
     const fullUrl = `${baseUrl}${normalizedEndpoint}`;
 
     const headers: Record<string, string> = {
@@ -279,6 +303,9 @@ export class RestApiService {
     const fetchOptions: RequestInit = {
       method,
       headers,
+      // Never auto-follow redirects: a 3xx from the target could otherwise
+      // bounce the request (and its auth headers) to an unvetted origin.
+      redirect: "error",
     };
 
     if (["POST", "PUT", "PATCH"].includes(method) && body) {
@@ -384,12 +411,51 @@ export class RestApiService {
   /**
    * Get configuration summary (safe to display)
    */
+  /**
+   * Resolve the base URL for a request, enforcing the host-override allowlist.
+   *
+   * Without a `host` override, the configured base URL is used. With one, the
+   * override's ORIGIN must match the base URL's origin or an entry in
+   * REST_ALLOWED_HOSTS — otherwise the request is rejected. This stops the
+   * configured credentials being exfiltrated to an attacker-chosen host (e.g.
+   * via prompt injection setting `host: "https://attacker.example"`).
+   */
+  private resolveBaseUrl(host?: string): string {
+    if (!host) {
+      return this.config.baseUrl;
+    }
+
+    const normalized = host.replace(/\/+$/, "");
+    let origin: string;
+    try {
+      origin = new URL(normalized).origin;
+    } catch {
+      throw new Error(
+        `Invalid 'host' override: "${host}" is not a valid absolute URL (expected e.g. "https://api.example.com").`
+      );
+    }
+
+    if (!this.allowedOrigins.has(origin)) {
+      throw new Error(
+        `Host override "${origin}" is not allowed. The 'host' parameter may only target ` +
+          `the configured base URL origin (${this.baseOrigin})` +
+          (this.allowedOrigins.size > 1
+            ? ` or an allowed host (${[...this.allowedOrigins].join(", ")})`
+            : "") +
+          `. To call additional hosts, add their origin to the REST_ALLOWED_HOSTS environment variable.`
+      );
+    }
+
+    return normalized;
+  }
+
   getConfigSummary(): {
     baseUrl: string;
     authMethod: string;
     sslVerification: boolean;
     responseSizeLimit: number;
     customHeaderCount: number;
+    allowedHosts: string[];
     oauth2TokenUrl?: string;
     openApiUrl?: string;
   } {
@@ -399,6 +465,7 @@ export class RestApiService {
       sslVerification: this.config.enableSslVerify !== false,
       responseSizeLimit: this.config.responseSizeLimit || 10000,
       customHeaderCount: Object.keys(this.config.customHeaders || {}).length,
+      allowedHosts: [...this.allowedOrigins],
       ...(this.config.oauth2 && { oauth2TokenUrl: this.config.oauth2.tokenUrl }),
       ...(this.config.openApiUrl && { openApiUrl: this.config.openApiUrl }),
     };
