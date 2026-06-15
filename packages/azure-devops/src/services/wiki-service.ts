@@ -4,6 +4,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { resolveSafePath, assertNoTraversal, safeBasename } from '@mcp-consultant-tools/core';
 import type { AzureDevOpsClient } from '../azure-devops-client.js';
 import type { AdoApiCollectionResponse } from '../models/index.js';
 
@@ -494,8 +495,11 @@ export class WikiService {
 
     const page = await this.getWikiPage(project, wikiId, pagePath, true);
 
+    // Confine a caller-supplied destination to the permitted root; the
+    // server-chosen default (relative docs/wiki-pages/...) is already safe.
     const resolvedPath = outputPath
-      || path.join('docs', 'wiki-pages', pagePath.replace(/^\//, '').replace(/\//g, '-') + '.md');
+      ? resolveSafePath(outputPath)
+      : path.join('docs', 'wiki-pages', pagePath.replace(/^\//, '').replace(/\//g, '-') + '.md');
 
     const dir = path.dirname(resolvedPath);
     fs.mkdirSync(dir, { recursive: true });
@@ -529,6 +533,7 @@ export class WikiService {
       throw new Error('Wiki write operations are disabled. Set AZUREDEVOPS_ENABLE_WIKI_WRITE=true to enable.');
     }
 
+    assertNoTraversal(filePath);
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not found: ${filePath}`);
     }
@@ -612,10 +617,13 @@ export class WikiService {
       'arraybuffer'
     );
 
-    const targetDir = outputDir || path.join(os.tmpdir(), 'ado-wiki-attachments');
+    // Confine a caller-supplied output dir; default to a server-chosen tmp dir.
+    const targetDir = outputDir
+      ? resolveSafePath(outputDir)
+      : path.join(os.tmpdir(), 'ado-wiki-attachments');
     fs.mkdirSync(targetDir, { recursive: true });
 
-    const fileName = path.basename(normalizedPath);
+    const fileName = safeBasename(normalizedPath);
     const filePath = path.join(targetDir, fileName);
 
     fs.writeFileSync(filePath, Buffer.from(response.data));

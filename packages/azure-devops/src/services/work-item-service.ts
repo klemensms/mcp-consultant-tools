@@ -4,6 +4,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { marked } from 'marked';
+import { resolveSafePath, assertNoTraversal, safeBasename } from '@mcp-consultant-tools/core';
 import type {
   PiiProtectionPipeline,
   PipelineReport,
@@ -426,9 +427,13 @@ export class WorkItemService {
       'arraybuffer'
     );
 
-    fs.mkdirSync(outputDir, { recursive: true });
-    const localName = outputFileName ?? urlFileName;
-    const filePath = path.join(outputDir, localName);
+    // Confine the destination directory and collapse the filename to a bare
+    // basename — `urlFileName` comes from the attachment's own (untrusted)
+    // name, so `path.join` alone would let a crafted "../../x" name escape.
+    const safeDir = resolveSafePath(outputDir);
+    fs.mkdirSync(safeDir, { recursive: true });
+    const localName = safeBasename(outputFileName ?? urlFileName);
+    const filePath = path.join(safeDir, localName);
     fs.writeFileSync(filePath, Buffer.from(response.data));
 
     return {
@@ -457,6 +462,7 @@ export class WorkItemService {
       throw new Error('Work item write operations are disabled. Set AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true to enable.');
     }
 
+    assertNoTraversal(filePath);
     if (!fs.existsSync(filePath)) {
       throw new Error(`Attachment file not found: ${filePath}`);
     }
