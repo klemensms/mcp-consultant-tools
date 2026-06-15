@@ -27,6 +27,9 @@ export * from './helpers/warm-secrets.js';
 // Export context-safe response helpers
 export * from './helpers/context-safe-response.js';
 
+// Export safe filesystem-path helpers
+export * from './helpers/safe-path.js';
+
 // Export PII protection pipeline
 export * from './pii/index.js';
 
