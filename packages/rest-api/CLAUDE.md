@@ -37,6 +37,12 @@ REST_RESPONSE_SIZE_LIMIT=10000  # 10KB
 REST_ENABLE_SSL_VERIFY=true
 REST_TIMEOUT=30000
 
+# Host-override allowlist (security). The per-request `host` parameter may only
+# target the REST_BASE_URL origin by default — this stops the configured
+# credentials being sent to an arbitrary host. List additional comma-separated
+# origins here to permit them. Leave unset to lock to the base URL only.
+# REST_ALLOWED_HOSTS=https://staging-api.example.com,https://other-api.example.com
+
 # Custom headers (prefix with HEADER_)
 HEADER_Accept=application/json
 

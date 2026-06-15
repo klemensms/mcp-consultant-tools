@@ -70,6 +70,26 @@ The audit subsystem provides Phase A PII audit logging:
 
 See [`docs/technical/AUDIT_LOGGING_TECHNICAL.md`](../../docs/technical/AUDIT_LOGGING_TECHNICAL.md).
 
+### Safe filesystem paths
+
+`helpers/safe-path.ts` gives every package one shared implementation of path
+confinement for tools that take a caller-supplied path (which prompt injection
+could steer into reading/writing outside the intended location):
+
+- `resolveSafePath(userPath, { root? })` — for WRITE destinations. Confines the
+  resolved path to a permitted root; rejects `..` traversal and absolute paths
+  that escape the root.
+- `assertNoTraversal(userPath)` — for READ sources. Rejects `..` traversal but
+  allows absolute paths (so "read a file from anywhere I point you" keeps
+  working).
+- `safeBasename(name)` — collapses an untrusted filename component (e.g. a
+  downloaded attachment's own name) to its basename.
+
+**`MCP_FILE_ROOT`** env var sets the permitted root for `resolveSafePath`
+(default: the process working directory). Set it when a tool legitimately needs
+to write outside the working directory and you hit a "path escapes the permitted
+root" error.
+
 ## MCP Protocol Requirements
 
 **NEVER use `console.log()` in service packages!**
