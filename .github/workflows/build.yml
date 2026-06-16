@@ -198,6 +198,29 @@ jobs:
 
           echo "✅ Dependency consistency verified"
 
+  audit:
+    name: Dependency Vulnerability Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit (fail on high/critical)
+        # Surfaces all advisories in the log; only high/critical fail the job so
+        # un-fixable low/moderate transitive noise doesn't block the build.
+        # Whether a failure blocks merges is governed by branch protection.
+        run: npm audit --audit-level=high
+
   summary:
     name: Build Summary
     runs-on: ubuntu-latest

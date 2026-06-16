@@ -1,0 +1,24 @@
+# Dependabot: automated dependency-vulnerability surfacing for this monorepo.
+# Opens PRs when a dependency (or a GitHub Action) has a published vulnerability
+# or update. Grouped to keep PR noise low. `npm audit` in build.yml is the
+# build-time gate; this is the "open a fix PR for me" half.
+version: 2
+updates:
+  # npm workspaces: a single root entry covers every packages/*/package.json.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+      development-dependencies:
+        dependency-type: "development"
+
+  # Keep the CI workflow's actions (checkout, setup-node, etc.) patched too.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
