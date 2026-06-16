@@ -61,6 +61,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
         .optional()
         .describe("Maximum number of records to retrieve (default: 50, max: 5000)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entityNamePlural, filter, select, maxRecords }: any) => {
       try {
         const service = ctx.pp;
@@ -155,6 +156,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
           COUNT_ENTITY_BATCH_EXAMPLES
         )),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entityNamePlural, filter, entities }: any) => {
       try {
         // Validate input before accessing service (which triggers config validation)
@@ -269,6 +271,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
         .string()
         .describe("The GUID of the record to retrieve"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entityNamePlural, recordId }: any) => {
       try {
         const service = ctx.pp;
@@ -332,6 +335,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
           ENTITY_NAME_SINGULAR_EXAMPLES
         )),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entityLogicalName }: any) => {
       try {
         const service = ctx.pp;
@@ -413,6 +417,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
         .string()
         .describe("The logical name of the lookup attribute (e.g., 'ste_categoryid', 'parentaccountid')"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entityLogicalName, lookupAttributeName }: any) => {
       try {
         const service = ctx.pp;
@@ -557,6 +562,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       startedBefore: z.string().optional().describe("Only return runs started before this date (ISO 8601 format)"),
       maxRecords: z.number().optional().describe("Maximum number of runs to return (default: 50, max: 250)")
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ flowId, status, startedAfter, startedBefore, maxRecords }: any) => {
       try {
         const service = ctx.pp;
@@ -636,6 +642,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       flowId: z.string().describe("GUID of the flow (workflowid)"),
       runId: z.string().describe("GUID of the flow run (from get-flow-runs results)")
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ flowId, runId }: any) => {
       try {
         const service = ctx.pp;

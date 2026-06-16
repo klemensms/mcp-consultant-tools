@@ -12,6 +12,7 @@ export function registerVariableGroupTools(server: any, ctx: ServiceContext): vo
     {
       project: z.string().describe("The project name"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project }: any) => {
       try {
         const result = await ctx.variableGroup.getVariableGroups(project);
@@ -30,6 +31,7 @@ export function registerVariableGroupTools(server: any, ctx: ServiceContext): vo
       project: z.string().describe("The project name"),
       groupId: zCoerceNumber().describe("The variable group ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, groupId }: any) => {
       try {
         const result = await ctx.variableGroup.getVariableGroup(project, groupId);

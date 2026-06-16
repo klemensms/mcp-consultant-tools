@@ -10,6 +10,8 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
     "ghe-list-repos",
     "List all configured GitHub Enterprise repositories (active and inactive)",
     {},
+    // Reads configured repos from local config only — no network call.
+    { readOnlyHint: true },
     async () => {
       try {
         const repos = ctx.repo.base.getAllRepos();
@@ -52,6 +54,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       repoId: z.string().describe("Repository ID from configuration (e.g., 'plugin-core')"),
       protectedOnly: z.boolean().optional().describe("Filter by protection status (true for protected branches only)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, protectedOnly }: any) => {
       try {
         const branches = await ctx.repo.listBranches(repoId, protectedOnly);
@@ -77,6 +80,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       repoId: z.string().describe("Repository ID from configuration"),
       userSpecified: z.string().optional().describe("User-specified branch name (overrides auto-detection)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, userSpecified }: any) => {
       try {
         const result = await ctx.repo.getDefaultBranch(repoId, userSpecified);
@@ -110,6 +114,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       path: z.string().describe("File path (e.g., 'src/Plugins/ContactPlugin.cs')"),
       branch: z.string().optional().describe("Branch name (default: auto-detected)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, path, branch }: any) => {
       try {
         const file = await ctx.repo.getFile(repoId, path, branch);
@@ -150,6 +155,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       path: z.string().optional().describe("Filter by file path pattern"),
       extension: z.string().optional().describe("Filter by file extension (e.g., 'cs', 'js')"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ query, repoId, path, extension }: any) => {
       try {
         const results = await ctx.repo.searchCode(query, repoId, path, extension);
@@ -176,6 +182,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       path: z.string().optional().describe("Directory path (default: root)"),
       branch: z.string().optional().describe("Branch name (default: auto-detected)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, path, branch }: any) => {
       try {
         const result = await ctx.repo.listFiles(repoId, path, branch);
@@ -202,6 +209,8 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       pattern: z.string().optional().describe("Clear only cache entries matching this pattern (e.g., 'ContactPlugin.cs')"),
       repoId: z.string().optional().describe("Clear cache for specific repository only"),
     },
+    // Clears local response cache only; regenerable, no remote data touched.
+    { readOnlyHint: false, destructiveHint: false },
     async ({ pattern, repoId }: any) => {
       try {
         const cleared = ctx.repo.base.clearCache(pattern, repoId);
@@ -232,6 +241,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       path: z.string().optional().describe("Filter by file path"),
       limit: z.number().optional().describe("Max commits (default: 50)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, branch, since, until, author, path, limit }: any) => {
       try {
         const commits = await ctx.repo.getCommits(repoId, branch, since, until, author, path, limit || 50);
@@ -258,6 +268,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       repoId: z.string().describe("Repository ID from configuration"),
       sha: z.string().describe("Commit SHA"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, sha }: any) => {
       try {
         const commit = await ctx.repo.getCommitDetails(repoId, sha);
@@ -279,6 +290,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       since: z.string().optional().describe("ISO 8601 date"),
       until: z.string().optional().describe("ISO 8601 date"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ query, repoId, author, since, until }: any) => {
       try {
         const results = await ctx.repo.searchCommits(query, repoId, author, since, until);
@@ -307,6 +319,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       sha: z.string().describe("Commit SHA"),
       format: z.enum(['diff', 'patch']).optional().describe("Format: 'diff' or 'patch' (default: 'diff')"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, sha, format }: any) => {
       try {
         const diff = await ctx.repo.getCommitDiff(repoId, sha, format || 'diff');
@@ -334,6 +347,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       base: z.string().describe("Base branch name"),
       head: z.string().describe("Head branch name"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, base, head }: any) => {
       try {
         const comparison = await ctx.repo.compareBranches(repoId, base, head);
@@ -363,6 +377,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       repoId: z.string().describe("Repository ID from configuration"),
       branch: z.string().describe("Branch name"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, branch }: any) => {
       try {
         const branchInfo = await ctx.repo.getBranchDetails(repoId, branch);
@@ -395,6 +410,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       branch: z.string().optional().describe("Branch name (default: auto-detected)"),
       depth: z.number().optional().describe("Recursion depth limit (default: 3)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, path, branch, depth }: any) => {
       try {
         const result = await ctx.repo.getDirectoryStructure(repoId, path, branch, depth || 3);
@@ -424,6 +440,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       branch: z.string().optional().describe("Branch name (default: auto-detected)"),
       limit: z.number().optional().describe("Max commits (default: 50)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, path, branch, limit }: any) => {
       try {
         const commits = await ctx.repo.getFileHistory(repoId, path, branch, limit || 50);
@@ -451,6 +468,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       branchName: z.string().describe("New branch name"),
       fromBranch: z.string().optional().describe("Source branch (default: auto-detected)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ repoId, branchName, fromBranch }: any) => {
       try {
         const result = await ctx.repo.createBranch(repoId, branchName, fromBranch);
@@ -484,6 +502,8 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       branch: z.string().describe("Branch name"),
       sha: z.string().describe("Current file SHA (for conflict detection)"),
     },
+    // Commits new file content (additive revision); not a destructive delete.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ repoId, path, content, message, branch, sha }: any) => {
       try {
         const result = await ctx.repo.updateFile(repoId, path, content, message, branch, sha);
@@ -519,6 +539,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       message: z.string().describe("Commit message"),
       branch: z.string().describe("Branch name"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ repoId, path, content, message, branch }: any) => {
       try {
         const result = await ctx.repo.createFile(repoId, path, content, message, branch);
@@ -551,6 +572,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
       query: z.string().describe("Search query"),
       owner: z.string().optional().describe("Filter by organization/owner"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ query, owner }: any) => {
       try {
         const results = await ctx.repo.searchRepositories(query, owner);

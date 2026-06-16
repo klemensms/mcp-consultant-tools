@@ -12,6 +12,7 @@ export function registerNetworkingTools(server: any, ctx: ServiceContext): void 
         .optional()
         .describe(descWithExamples('Filter by resource group', RESOURCE_GROUP_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.networking.listFrontDoors(args);
@@ -31,6 +32,7 @@ export function registerNetworkingTools(server: any, ctx: ServiceContext): void 
       name: z.string().describe('Front Door profile name'),
       resourceGroup: z.string().optional().describe('Resource group (uses default if not specified)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.networking.getFrontDoor(args);
@@ -56,6 +58,7 @@ export function registerNetworkingTools(server: any, ctx: ServiceContext): void 
         .optional()
         .describe('Include system topics with GUID names (default: false)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.networking.listEventGridTopics(args);

@@ -22,6 +22,7 @@ export function registerAgentPoolTools(server: any, ctx: ServiceContext): { read
         descWithExamples("Filter by pool type", POOL_TYPE_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ poolType }: any) => {
       try {
         const result = await ctx.agentPools.listAgentPools(poolType);
@@ -40,6 +41,7 @@ export function registerAgentPoolTools(server: any, ctx: ServiceContext): { read
     {
       poolId: zCoerceNumber().describe("The agent pool ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ poolId }: any) => {
       try {
         const result = await ctx.agentPools.getAgentPool(poolId);
@@ -59,6 +61,7 @@ export function registerAgentPoolTools(server: any, ctx: ServiceContext): { read
       poolId: zCoerceNumber().describe("The agent pool ID"),
       includeCapabilities: z.boolean().optional().describe("Include system and user capabilities (default: false)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ poolId, includeCapabilities }: any) => {
       try {
         const result = await ctx.agentPools.listAgents(poolId, includeCapabilities || false);
@@ -78,6 +81,7 @@ export function registerAgentPoolTools(server: any, ctx: ServiceContext): { read
       poolId: zCoerceNumber().describe("The agent pool ID"),
       agentId: zCoerceNumber().describe("The agent ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ poolId, agentId }: any) => {
       try {
         const result = await ctx.agentPools.getAgent(poolId, agentId);
@@ -104,6 +108,7 @@ export function registerAgentPoolTools(server: any, ctx: ServiceContext): { read
         autoSize: z.boolean().optional().describe("Auto-size pool based on demand"),
         targetSize: zCoerceNumber().optional().describe("Target pool size for auto-scaling"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ poolId, autoProvision, autoUpdate, autoSize, targetSize }: any) => {
         try {
           const updates: any = {};
@@ -128,6 +133,7 @@ export function registerAgentPoolTools(server: any, ctx: ServiceContext): { read
         poolId: zCoerceNumber().describe("The agent pool ID"),
         agentId: zCoerceNumber().describe("The agent ID"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ poolId, agentId }: any) => {
         try {
           const result = await ctx.agentPools.enableAgent(poolId, agentId);
@@ -152,6 +158,8 @@ export function registerAgentPoolTools(server: any, ctx: ServiceContext): { read
         poolId: zCoerceNumber().describe("The agent pool ID"),
         agentId: zCoerceNumber().describe("The agent ID to disable"),
       },
+      // Reversible via enable-agent, but disrupts CI capacity and sits in the Delete/Disable tier — treat as destructive. FLAG: borderline (reversible state toggle).
+      { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ poolId, agentId }: any) => {
         try {
           const result = await ctx.agentPools.disableAgent(poolId, agentId);

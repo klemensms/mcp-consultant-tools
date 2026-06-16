@@ -28,6 +28,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
     {
       project: z.string().describe("The project name"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project }: any) => {
       try {
         const result = await ctx.pipelines.listPipelineDefinitions(project);
@@ -47,6 +48,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
       project: z.string().describe("The project name"),
       definitionId: zCoerceNumber().describe("The pipeline definition ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, definitionId }: any) => {
       try {
         const result = await ctx.pipelines.getPipelineDefinition(project, definitionId);
@@ -66,6 +68,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
       project: z.string().describe("The project name"),
       definitionId: zCoerceNumber().describe("The pipeline definition ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, definitionId }: any) => {
       try {
         const result = await ctx.pipelines.getPipelineYaml(project, definitionId);
@@ -86,6 +89,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
       definitionId: zCoerceNumber().describe("The pipeline definition ID"),
       top: zCoerceNumber().optional().describe("Maximum number of results (default: 10)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, definitionId, top }: any) => {
       try {
         const result = await ctx.pipelines.listPipelineRuns(project, definitionId, top || 10);
@@ -115,6 +119,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
       ),
       maxIssues: zCoerceNumber().optional().describe("Maximum issues per record (default: 5, prioritizes errors over warnings)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, buildId, detail, timelineScope, maxIssues }: any) => {
       try {
         const result = await ctx.pipelines.getBuildStatus(project, buildId, detail || 'summary', timelineScope || 'problems', maxIssues || 5);
@@ -138,6 +143,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
       ),
       maxIssues: zCoerceNumber().optional().describe("Maximum issues per record (default: 5, prioritizes errors over warnings)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, buildId, scope, maxIssues }: any) => {
       try {
         const result = await ctx.pipelines.getBuildTimeline(project, buildId, scope || 'problems', maxIssues || 5);
@@ -161,6 +167,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
         descWithExamples("Filter mode for log output (default: 'summary')", LOG_MODE_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, buildId, logId, mode }: any) => {
       try {
         const result = await ctx.pipelines.getBuildLogs(project, buildId, logId, mode || 'summary');
@@ -180,6 +187,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
       project: z.string().describe("The project name"),
       buildId: zCoerceNumber().describe("The build ID to check for pending approvals"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, buildId }: any) => {
       try {
         const result = await ctx.pipelines.listPendingApprovals(project, buildId);
@@ -222,6 +230,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
           "Service connection ID (GUID) for GitHub authentication. Required for GitHub/GitHubEnterprise. Get from list-service-connections tool."
         ),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, name, repositoryId, yamlPath, folder, repositoryType, repositoryUrl, defaultBranch, serviceConnectionId }: any) => {
         try {
           const result = await ctx.pipelines.createPipelineDefinition(
@@ -251,6 +260,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
           allowOverride: z.boolean().optional()
         })).optional().describe("Pipeline variables to set"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, definitionId, name, path, queueStatus, variables }: any) => {
         try {
           const updates: any = {};
@@ -276,6 +286,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
         definitionId: zCoerceNumber().describe("The pipeline definition ID"),
         newName: z.string().describe("The new pipeline name"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, definitionId, newName }: any) => {
         try {
           const result = await ctx.pipelines.renamePipelineDefinition(project, definitionId, newName);
@@ -299,6 +310,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
         variables: z.record(z.string()).optional().describe("Runtime variables to pass"),
         parameters: z.record(z.any()).optional().describe("Template parameters for YAML pipelines"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, definitionId, sourceBranch, sourceVersion, variables, parameters }: any) => {
         try {
           const result = await ctx.pipelines.queueBuild(project, definitionId, sourceBranch, variables, parameters, sourceVersion);
@@ -318,6 +330,8 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
         project: z.string().describe("The project name"),
         buildId: zCoerceNumber().describe("The build ID to cancel"),
       },
+      // Aborts an in-progress build (loses run progress; only re-creatable via retry-build) — treat as destructive.
+      { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ project, buildId }: any) => {
         try {
           const result = await ctx.pipelines.cancelBuild(project, buildId);
@@ -337,6 +351,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
         project: z.string().describe("The project name"),
         buildId: zCoerceNumber().describe("The failed build ID to retry"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, buildId }: any) => {
         try {
           const result = await ctx.pipelines.retryBuild(project, buildId);
@@ -360,6 +375,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
         ),
         comment: z.string().optional().describe("Optional comment for the approval/rejection"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, approvalId, status, comment }: any) => {
         try {
           const result = await ctx.pipelines.approveStage(project, approvalId, status, comment);
@@ -384,6 +400,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
         project: z.string().describe("The project name"),
         definitionId: zCoerceNumber().describe("The pipeline definition ID to delete"),
       },
+      { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ project, definitionId }: any) => {
         try {
           const result = await ctx.pipelines.deletePipelineDefinition(project, definitionId);

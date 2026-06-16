@@ -18,6 +18,8 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): void {
     'adf-list-factories',
     'List all configured Azure Data Factory instances',
     {},
+    // Reads the locally-configured factory list; no remote call.
+    { readOnlyHint: true },
     async () => {
       try {
         const svc = ctx.adf;
@@ -70,6 +72,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): void {
         .optional()
         .describe(descWithExamples('Factory ID (use adf-list-factories to find IDs)', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ factoryId }: { factoryId?: string }) => {
       try {
         const svc = ctx.adf;
@@ -106,6 +109,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): void {
       pipelineName: z.string().describe('Name of the pipeline'),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({
       pipelineName,
       factoryId,
@@ -143,6 +147,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): void {
         .describe(descWithExamples('Pipeline parameters as key-value pairs', PIPELINE_PARAM_EXAMPLES)),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({
       pipelineName,
       parameters,
@@ -197,6 +202,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): void {
       runId: z.string().describe('The pipeline run ID (returned by adf-run-pipeline or adf-query-pipeline-runs)'),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ runId, factoryId }: { runId: string; factoryId?: string }) => {
       try {
         const svc = ctx.adf;
@@ -232,6 +238,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): void {
         .describe('Filter by specific activity name'),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({
       runId,
       status,
@@ -292,6 +299,8 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): void {
       runId: z.string().describe('The pipeline run ID to cancel'),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    // Stops an in-flight run; mutates run state but deletes no data.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ runId, factoryId }: { runId: string; factoryId?: string }) => {
       try {
         const svc = ctx.adf;
@@ -343,6 +352,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): void {
         .describe(descWithExamples('Filter by run status', RUN_STATUS_EXAMPLES)),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({
       lastDays,
       pipelineName,
@@ -423,6 +433,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): void {
         .describe('Optionally specify exact activity to start from'),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({
       failedRunId,
       startFromFailure,

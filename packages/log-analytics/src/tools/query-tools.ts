@@ -30,6 +30,8 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
       outputFormat: z.enum(["json", "markdown"]).optional()
         .describe(descWithExamples("Output format (default: json)", OUTPUT_FORMAT_EXAMPLES)),
     },
+    // KQL is read-only by design.
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, query, timespan, columnPreset, columns, outputFormat }: any) => {
       try {
         const result = await ctx.logAnalytics.executeQuery(resourceId, query, timespan);
@@ -74,6 +76,7 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
       outputFormat: z.enum(["json", "markdown"]).optional()
         .describe(descWithExamples("Output format (default: json)", OUTPUT_FORMAT_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, tableName, timespan, limit, columnPreset, columns, outputFormat }: any) => {
       try {
         const result = await ctx.logAnalytics.getRecentEvents(
@@ -120,6 +123,7 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
       outputFormat: z.enum(["json", "markdown"]).optional()
         .describe(descWithExamples("Output format (default: json)", OUTPUT_FORMAT_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, searchText, tableName, timespan, limit, columnPreset, columns, outputFormat }: any) => {
       try {
         const result = await ctx.logAnalytics.searchLogs(

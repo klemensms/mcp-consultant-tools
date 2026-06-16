@@ -10,6 +10,7 @@ export function registerSolutionTools(server: any, ctx: ServiceContext): void {
     "get-publishers",
     "Get all solution publishers (excluding system publishers)",
     {},
+    { readOnlyHint: true, openWorldHint: true },
     async () => {
       try {
         const service = ctx.pp;
@@ -42,6 +43,7 @@ export function registerSolutionTools(server: any, ctx: ServiceContext): void {
     "get-solutions",
     "Get all visible solutions in the environment",
     {},
+    { readOnlyHint: true, openWorldHint: true },
     async () => {
       try {
         const service = ctx.pp;
@@ -78,6 +80,7 @@ export function registerSolutionTools(server: any, ctx: ServiceContext): void {
         descWithExamples("The unique name of the solution to list components for", SOLUTION_NAME_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ solutionUniqueName }: any) => {
       try {
         const service = ctx.pp;
@@ -140,6 +143,7 @@ export function registerSolutionTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Component type code", COMPONENT_TYPE_EXAMPLES)
       )
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ componentId, componentType }: any) => {
       try {
         const service = ctx.pp;
@@ -193,6 +197,8 @@ export function registerSolutionTools(server: any, ctx: ServiceContext): void {
       schemaName: z.string().describe("Schema name to validate"),
       prefix: z.string().describe("Required customization prefix")
     },
+    // Local synchronous validation — no external/Dataverse call.
+    { readOnlyHint: true },
     async ({ schemaName, prefix }: any) => {
       try {
         const service = ctx.pp;
@@ -229,6 +235,7 @@ export function registerSolutionTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Component type code", COMPONENT_TYPE_EXAMPLES)
       )
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ componentId, componentType }: any) => {
       try {
         const service = ctx.pp;
@@ -294,6 +301,7 @@ export function registerSolutionTools(server: any, ctx: ServiceContext): void {
       maxEntities: z.number().optional().describe("Maximum number of entities to validate (safety limit). Default: 0 (unlimited)."),
       requiredColumns: z.array(z.string()).optional().describe("List of required column schema names to check for (without prefix). Use '{prefix}' placeholder which will be replaced with publisherPrefix at runtime. Default: ['{prefix}updatedbyprocess']. Example: ['{prefix}sqlcreatedon', '{prefix}sqlmodifiedon'] for SQL timestamp columns.")
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ solutionUniqueName, entityLogicalNames, publisherPrefix, recentDays, includeRefDataTables, rules, maxEntities, requiredColumns }: any) => {
       try {
         if (!solutionUniqueName && !entityLogicalNames) {
@@ -372,6 +380,7 @@ Ref: new_directdebit.new_accountid > account.accountid
       includePolymorphicLookups: z.boolean().optional()
         .describe('Include Customer/Owner/PartyList lookups (default: true)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (params: any) => {
       try {
         const service = ctx.pp;

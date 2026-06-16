@@ -29,6 +29,8 @@ export function registerConnectionTools(server: any, ctx: ServiceContext): void 
 \u26A0\uFE0F SKIP THIS for most queries. You DO NOT need to call this before querying - defaults are automatic.
 Only use this tool if: (1) you got an explicit error about server not found, OR (2) user specifically asks about available servers.`,
     {},
+    // Reads local server configuration only.
+    { readOnlyHint: true },
     async () => {
       try {
         const servers = await ctx.connection.listServers();
@@ -64,6 +66,7 @@ Only use this tool if: (1) you got an explicit error about database not found, O
         descWithExamples("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS", SERVER_ID_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ serverId }: { serverId?: string }) => {
       try {
         const resolvedServerId = ctx.connection.resolveServerId(serverId);
@@ -97,6 +100,8 @@ Only use this tool if: (1) you got an explicit error about database not found, O
 \u26A0\uFE0F SKIP THIS - you do NOT need to call this before querying. Just call sql-execute-query with only the query parameter.
 Only use this if: user specifically asks what server/database is configured, or you need to confirm defaults after an error.`,
     {},
+    // Reads local default configuration only.
+    { readOnlyHint: true },
     async () => {
       try {
         const defaults = ctx.connection.getDefaultConfiguration();
@@ -131,6 +136,7 @@ Only use this if: user specifically asks what server/database is configured, or 
       ),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
         const resolvedServerId = ctx.connection.resolveServerId(serverId);

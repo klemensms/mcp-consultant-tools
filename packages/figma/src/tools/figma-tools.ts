@@ -41,6 +41,8 @@ export function registerFigmaTools(server: any, ctx: ServiceContext): void {
       simplifyComponentInstances: z.boolean().optional().describe("Keep componentId and componentProperties on INSTANCE nodes but remove visual styling. Ideal for ADO User Story components. Default: true. Set to false for full instance data."),
       extractors: z.array(z.enum(["layout", "text", "visuals", "component"])).optional().describe(descWithExamples("Override which extractors to use. Default uses all.", EXTRACTOR_EXAMPLES)),
     }),
+    // Pure read: fetches design data from the Figma API.
+    { readOnlyHint: true, openWorldHint: true },
     async ({
       fileKey,
       nodeId,
@@ -104,6 +106,8 @@ export function registerFigmaTools(server: any, ctx: ServiceContext): void {
         "When true and nodeId is set, returns a 2x PNG screenshot of the node as an image content block alongside the semantic data."
       ),
     }),
+    // Pure read: extracts semantic data from the Figma API.
+    { readOnlyHint: true, openWorldHint: true },
     async ({
       fileKey,
       nodeId,
@@ -198,6 +202,8 @@ export function registerFigmaTools(server: any, ctx: ServiceContext): void {
       adoProject: z.string().optional().describe(descWithExamples("Azure DevOps project name for constructing work item links", ADO_PROJECT_EXAMPLES)),
       includePlaceholders: z.boolean().optional().describe("Include ADO components with placeholder IDs (e.g. 'ADO xxxxx'). Default: false (placeholders are filtered out)."),
     }),
+    // Pure read: extracts ADO story data from the Figma API.
+    { readOnlyHint: true, openWorldHint: true },
     async ({
       fileKey,
       nodeId,
@@ -261,6 +267,8 @@ export function registerFigmaTools(server: any, ctx: ServiceContext): void {
       format: z.enum(["png", "svg", "jpg", "pdf"]).optional().describe("Image format. Default: png"),
       scale: z.number().optional().describe("Scale factor 0.01-4. Default: 2 (for retina)"),
     },
+    // Read from Figma API; writes rendered images to local disk only (no remote mutation).
+    { readOnlyHint: true, openWorldHint: true },
     async ({ fileKey, nodeIds, localPath, format, scale }: {
       fileKey: string;
       nodeIds: string;

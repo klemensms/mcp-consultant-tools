@@ -13,6 +13,7 @@ export function registerMonitoringTools(server: any, ctx: ServiceContext): void 
         .describe(descWithExamples('Filter by resource group', RESOURCE_GROUP_EXAMPLES)),
       targetResourceId: z.string().optional().describe('Filter alerts for a specific resource ID'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.monitoring.listAlertRules(args);
@@ -34,6 +35,7 @@ export function registerMonitoringTools(server: any, ctx: ServiceContext): void 
         .optional()
         .describe(descWithExamples('Filter by resource group', RESOURCE_GROUP_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.monitoring.listActionGroups(args);
@@ -55,6 +57,7 @@ export function registerMonitoringTools(server: any, ctx: ServiceContext): void 
         .optional()
         .describe(descWithExamples('Filter by resource group', RESOURCE_GROUP_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.monitoring.listSmartDetectorAlerts(args);

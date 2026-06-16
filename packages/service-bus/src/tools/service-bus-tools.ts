@@ -16,6 +16,8 @@ export function registerServiceBusTools(server: any, ctx: ServiceContext): void 
     "sb-list-namespaces",
     "List all configured Service Bus namespaces (active and inactive)",
     {},
+    // Reads local namespace config only (no network call).
+    { readOnlyHint: true },
     async () => {
       try {
         const resources = ctx.serviceBus.getAllResources();
@@ -44,6 +46,7 @@ export function registerServiceBusTools(server: any, ctx: ServiceContext): void 
     {
       resourceId: z.string().describe("Service Bus resource ID (use sb-list-namespaces to find IDs)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId }: any) => {
       try {
         const result = await ctx.serviceBus.testConnection(resourceId);
@@ -72,6 +75,7 @@ export function registerServiceBusTools(server: any, ctx: ServiceContext): void 
     {
       resourceId: z.string().describe("Service Bus resource ID (use sb-list-namespaces to find IDs)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId }: any) => {
       try {
         const queues = await ctx.serviceBus.listQueues(resourceId);
@@ -103,6 +107,8 @@ export function registerServiceBusTools(server: any, ctx: ServiceContext): void 
       maxMessages: z.number().optional().describe(descWithExamples("Maximum messages to peek (default: 10, max: 100)", MESSAGE_COUNT_EXAMPLES)),
       sessionId: z.string().optional().describe("Session ID for session-enabled queues"),
     },
+    // Peek does not consume/remove messages → read-only.
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, queueName, maxMessages, sessionId }: any) => {
       try {
         const messages = await ctx.serviceBus.peekMessages(resourceId, queueName, maxMessages || 10, sessionId);
@@ -134,6 +140,8 @@ export function registerServiceBusTools(server: any, ctx: ServiceContext): void 
       maxMessages: z.number().optional().describe(descWithExamples("Maximum messages to peek (default: 10, max: 100)", MESSAGE_COUNT_EXAMPLES)),
       sessionId: z.string().optional().describe("Session ID for session-enabled queues"),
     },
+    // Peeks the DLQ without removing messages → read-only.
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, queueName, maxMessages, sessionId }: any) => {
       try {
         const messages = await ctx.serviceBus.peekDeadLetterMessages(resourceId, queueName, maxMessages || 10, sessionId);
@@ -163,6 +171,7 @@ export function registerServiceBusTools(server: any, ctx: ServiceContext): void 
       resourceId: z.string().describe("Service Bus resource ID"),
       queueName: z.string().describe(descWithExamples("Queue name", QUEUE_NAME_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, queueName }: any) => {
       try {
         const properties = await ctx.serviceBus.getQueueProperties(resourceId, queueName);
@@ -199,6 +208,8 @@ export function registerServiceBusTools(server: any, ctx: ServiceContext): void 
       sessionId: z.string().optional().describe("Session ID for session-enabled queues"),
       maxMessages: z.number().optional().describe(descWithExamples("Maximum messages to search (default: 50, max: 500)", MESSAGE_COUNT_EXAMPLES)),
     },
+    // Peek-based search; messages are not consumed/removed → read-only.
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, queueName, bodyContains, correlationId, messageId, propertyKey, propertyValue, sessionId, maxMessages }: any) => {
       try {
         const result = await ctx.serviceBus.searchMessages(
@@ -232,6 +243,7 @@ export function registerServiceBusTools(server: any, ctx: ServiceContext): void 
     {
       resourceId: z.string().describe("Service Bus resource ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId }: any) => {
       try {
         const properties = await ctx.serviceBus.getNamespaceProperties(resourceId);

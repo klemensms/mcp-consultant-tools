@@ -59,6 +59,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         .optional()
         .describe('Publish the entity after the change (default: true)'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (params: any) => {
       try {
         const result = await ctx.pp.setColumnSecured(
@@ -99,6 +100,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         .optional()
         .describe('Publish the entity after the changes (default: true)'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (params: any) => {
       try {
         const results = await ctx.pp.setColumnsSecured(
@@ -146,6 +148,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
           )
         ),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (params: any) => {
       try {
         const r = await ctx.pp.createFieldSecurityProfile(
@@ -173,6 +176,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
       name: z.string().optional().describe('New display name'),
       description: z.string().optional().describe('New description'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (params: any) => {
       try {
         await ctx.pp.updateFieldSecurityProfile(params.fieldSecurityProfileId, {
@@ -195,6 +199,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         .string()
         .describe('GUID of the field security profile to delete'),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async (params: any) => {
       try {
         await ctx.pp.deleteFieldSecurityProfile(params.fieldSecurityProfileId);
@@ -215,6 +220,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         .optional()
         .describe('Case-insensitive substring filter on FSP name'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (params: any) => {
       try {
         const results = await ctx.pp.listFieldSecurityProfiles(params.namePattern);
@@ -239,6 +245,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         .string()
         .describe('GUID of the field security profile'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (params: any) => {
       try {
         const r = await ctx.pp.getFieldSecurityProfile(params.fieldSecurityProfileId);
@@ -299,6 +306,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
           'If true (default), update an existing permission for this column rather than creating a duplicate'
         ),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (params: any) => {
       try {
         const r = await ctx.pp.addFieldPermission({
@@ -344,6 +352,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         .optional()
         .describe('If true (default), update existing permissions rather than duplicating'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (params: any) => {
       try {
         const r = await ctx.pp.addFieldPermissions(
@@ -371,6 +380,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         .string()
         .describe('GUID of the fieldpermission record to delete'),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async (params: any) => {
       try {
         await ctx.pp.removeFieldPermission(params.fieldPermissionId);
@@ -393,6 +403,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         .describe('GUID of the field security profile'),
       teamId: z.string().describe('GUID of the team'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (params: any) => {
       try {
         const r = await ctx.pp.assignFspToTeam(
@@ -420,6 +431,8 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         .describe('GUID of the field security profile'),
       teamId: z.string().describe('GUID of the team'),
     },
+    // Revokes the FSP from the team.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async (params: any) => {
       try {
         await ctx.pp.unassignFspFromTeam(
@@ -445,6 +458,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         .describe('GUID of the field security profile'),
       systemUserId: z.string().describe('GUID of the system user'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (params: any) => {
       try {
         const r = await ctx.pp.assignFspToUser(
@@ -472,6 +486,8 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         .describe('GUID of the field security profile'),
       systemUserId: z.string().describe('GUID of the system user'),
     },
+    // Revokes the FSP from the user.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async (params: any) => {
       try {
         await ctx.pp.unassignFspFromUser(

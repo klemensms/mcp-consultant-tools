@@ -17,6 +17,7 @@ export function registerAppTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Filter apps by solution unique name", SOLUTION_NAME_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ activeOnly, maxRecords, includeUnpublished, solutionUniqueName }: any) => {
       try {
         const service = ctx.pp;
@@ -57,6 +58,7 @@ export function registerAppTools(server: any, ctx: ServiceContext): void {
     {
       appId: z.string().describe("The GUID of the app (appmoduleid)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ appId }: any) => {
       try {
         const service = ctx.pp;
@@ -92,6 +94,7 @@ export function registerAppTools(server: any, ctx: ServiceContext): void {
     {
       appId: z.string().describe("The GUID of the app (appmoduleid)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ appId }: any) => {
       try {
         const service = ctx.pp;
@@ -127,6 +130,7 @@ export function registerAppTools(server: any, ctx: ServiceContext): void {
     {
       appId: z.string().describe("The GUID of the app (appmoduleid)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ appId }: any) => {
       try {
         const service = ctx.pp;

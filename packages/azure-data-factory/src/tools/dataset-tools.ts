@@ -9,6 +9,7 @@ export function registerDatasetTools(server: any, ctx: ServiceContext): void {
     {
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ factoryId }: { factoryId?: string }) => {
       try {
         const svc = ctx.adf;
@@ -57,6 +58,7 @@ export function registerDatasetTools(server: any, ctx: ServiceContext): void {
       datasetName: z.string().describe('Name of the dataset'),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({
       datasetName,
       factoryId,

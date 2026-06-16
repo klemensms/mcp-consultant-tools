@@ -15,6 +15,7 @@ export function registerTelemetryTools(server: any, ctx: ServiceContext): void {
       ),
       limit: z.number().optional().describe("Maximum number of results (default: 50)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, timespan, limit }: any) => {
       try {
         const result = await ctx.appInsights.getRecentExceptions(
@@ -59,6 +60,7 @@ export function registerTelemetryTools(server: any, ctx: ServiceContext): void {
       ),
       limit: z.number().optional().describe("Maximum number of results (default: 50)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, durationThresholdMs, timespan, limit }: any) => {
       try {
         const result = await ctx.appInsights.getSlowRequests(
@@ -102,6 +104,7 @@ export function registerTelemetryTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Time range (default: PT1H)", TIMESPAN_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, timespan }: any) => {
       try {
         const result = await ctx.appInsights.getOperationPerformance(
@@ -144,6 +147,7 @@ export function registerTelemetryTools(server: any, ctx: ServiceContext): void {
       ),
       limit: z.number().optional().describe("Maximum number of results (default: 50)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, timespan, limit }: any) => {
       try {
         const result = await ctx.appInsights.getFailedDependencies(
@@ -188,6 +192,7 @@ export function registerTelemetryTools(server: any, ctx: ServiceContext): void {
       ),
       limit: z.number().optional().describe("Maximum number of results (default: 100)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, severityLevel, timespan, limit }: any) => {
       try {
         const result = await ctx.appInsights.getTracesBySeverity(
@@ -231,6 +236,7 @@ export function registerTelemetryTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Time range (default: PT24H)", TIMESPAN_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, timespan }: any) => {
       try {
         const result = await ctx.appInsights.getAvailabilityResults(
@@ -274,6 +280,7 @@ export function registerTelemetryTools(server: any, ctx: ServiceContext): void {
       ),
       limit: z.number().optional().describe("Maximum number of results (default: 100)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, eventName, timespan, limit }: any) => {
       try {
         const result = await ctx.appInsights.getCustomEvents(

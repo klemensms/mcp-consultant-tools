@@ -32,6 +32,7 @@ export function registerFunctionTools(server: any, ctx: ServiceContext): void {
       outputFormat: z.enum(["json", "markdown"]).optional()
         .describe(descWithExamples("Output format (default: json)", OUTPUT_FORMAT_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, functionName, timespan, severityLevel, limit, columnPreset, columns, outputFormat }: any) => {
       try {
         const result = await ctx.logAnalytics.getFunctionLogs(
@@ -78,6 +79,7 @@ export function registerFunctionTools(server: any, ctx: ServiceContext): void {
       outputFormat: z.enum(["json", "markdown"]).optional()
         .describe(descWithExamples("Output format (default: json)", OUTPUT_FORMAT_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, functionName, timespan, limit, columnPreset, columns, outputFormat }: any) => {
       try {
         const result = await ctx.logAnalytics.getFunctionErrors(
@@ -118,6 +120,7 @@ export function registerFunctionTools(server: any, ctx: ServiceContext): void {
       outputFormat: z.enum(["json", "markdown"]).optional()
         .describe(descWithExamples("Output format (default: json)", OUTPUT_FORMAT_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, functionName, timespan, outputFormat }: any) => {
       try {
         const result = await ctx.logAnalytics.getFunctionStats(
@@ -159,6 +162,7 @@ export function registerFunctionTools(server: any, ctx: ServiceContext): void {
       outputFormat: z.enum(["json", "markdown"]).optional()
         .describe(descWithExamples("Output format (default: json)", OUTPUT_FORMAT_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, functionName, timespan, limit, columnPreset, columns, outputFormat }: any) => {
       try {
         const result = await ctx.logAnalytics.getFunctionInvocations(
@@ -203,6 +207,7 @@ export function registerFunctionTools(server: any, ctx: ServiceContext): void {
       outputFormat: z.enum(["json", "markdown"]).optional()
         .describe(descWithExamples("Output format (default: markdown for readability)", OUTPUT_FORMAT_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, timespan, tableName, minCount, deduplicateRetries, outputFormat }: any) => {
       try {
         const table = tableName || 'AppExceptions';
@@ -351,6 +356,7 @@ export function registerFunctionTools(server: any, ctx: ServiceContext): void {
       deduplicateRetries: z.boolean().optional()
         .describe("Group by OperationId to deduplicate retry attempts (default: true)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, appNamePattern, timespan, includeDetails, detailsLimit, deduplicateRetries }: any) => {
       try {
         const timespanValue = timespan || 'PT1H';
@@ -478,6 +484,7 @@ export function registerFunctionTools(server: any, ctx: ServiceContext): void {
       includeDetails: z.boolean().optional().describe("Include recent error details (default: true)"),
       detailsLimit: z.number().optional().describe("Max recent errors to include (default: 10)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, timespan, includeDetails, detailsLimit }: any) => {
       try {
         const timespanValue = timespan || 'PT8H';

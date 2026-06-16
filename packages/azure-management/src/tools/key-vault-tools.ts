@@ -12,6 +12,7 @@ export function registerKeyVaultTools(server: any, ctx: ServiceContext): void {
         .optional()
         .describe(descWithExamples('Filter by resource group', RESOURCE_GROUP_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.keyVaults.listKeyVaults(args);
@@ -32,6 +33,7 @@ export function registerKeyVaultTools(server: any, ctx: ServiceContext): void {
       resourceGroup: z.string().optional().describe('Resource group (uses default if not specified)'),
       includeAccessPolicies: z.boolean().optional().describe('Include access policies (default: true)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.keyVaults.getKeyVault(args);
@@ -50,6 +52,7 @@ export function registerKeyVaultTools(server: any, ctx: ServiceContext): void {
     {
       vaultName: z.string().describe(descWithExamples('Key Vault name', KEY_VAULT_NAME_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.keyVaults.listKeyVaultSecrets(args);

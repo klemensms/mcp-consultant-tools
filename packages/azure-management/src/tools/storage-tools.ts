@@ -12,6 +12,7 @@ export function registerStorageTools(server: any, ctx: ServiceContext): void {
         .optional()
         .describe(descWithExamples('Filter by resource group', RESOURCE_GROUP_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.storage.listStorageAccounts(args);
@@ -37,6 +38,7 @@ export function registerStorageTools(server: any, ctx: ServiceContext): void {
         .optional()
         .describe('Include storage keys - requires elevated permissions (default: false)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.storage.getStorageAccount(args);

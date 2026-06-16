@@ -28,6 +28,7 @@ export function registerListChannelsTool(
     "list-channels",
     "List all channels in a Microsoft Teams team. Use this to find channel IDs for sending messages.",
     listChannelsSchema,
+    { readOnlyHint: true, openWorldHint: true },
     async ({ teamId }: { teamId: string }) => {
       try {
         const service = ctx.teams;
@@ -89,6 +90,7 @@ export function registerListTeamsTool(
     "list-teams",
     "List Microsoft Teams that the app has access to. Use this to find team IDs.",
     listTeamsSchema,
+    { readOnlyHint: true, openWorldHint: true },
     async () => {
       try {
         const service = ctx.teams;

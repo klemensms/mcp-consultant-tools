@@ -21,6 +21,7 @@ server.tool(
       descWithExamples("Solution to add to (optional, uses POWERPLATFORM_DEFAULT_SOLUTION if not provided)", SOLUTION_NAME_EXAMPLES)
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ metadataId, displayName, description, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;
@@ -73,6 +74,7 @@ server.tool(
       descWithExamples("Solution to add to", SOLUTION_NAME_EXAMPLES)
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ optionSetName, value, label, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;
@@ -111,6 +113,7 @@ server.tool(
     label: z.string().describe("The new display label"),
     solutionUniqueName: z.string().optional().describe("Solution to add to")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ optionSetName, value, label, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;
@@ -147,6 +150,7 @@ server.tool(
     optionSetName: z.string().describe("The name of the option set (e.g., 'new_applicationstatus')"),
     value: z.number().describe("The numeric value to delete (e.g., 157430002)")
   },
+  { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ optionSetName, value }: any) => {
     try {
       const service = ctx.pp;
@@ -180,6 +184,7 @@ server.tool(
     values: z.array(z.number()).describe("Array of values in the desired order"),
     solutionUniqueName: z.string().optional().describe("Solution to add to")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ optionSetName, values, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;
@@ -211,6 +216,8 @@ server.tool(
   "publish-customizations",
   "Publish all pending customizations in Dynamics 365. This makes all unpublished changes active.",
   {},
+  // Publishes pending changes (makes them active) — mutates the env, not destructive.
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async () => {
     try {
       const service = ctx.pp;

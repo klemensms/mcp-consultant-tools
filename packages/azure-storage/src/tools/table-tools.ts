@@ -32,6 +32,7 @@ export function registerTableTools(server: any, ctx: ServiceContext): void {
       accountId: z.string().describe(descWithExamples("Storage account ID", ACCOUNT_ID_EXAMPLES)),
       maxResults: z.number().optional().describe("Maximum results (default: 1000)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, maxResults }: any) => {
       try {
         const tableSvc = ctx.storage.getTableService(accountId);
@@ -53,6 +54,7 @@ export function registerTableTools(server: any, ctx: ServiceContext): void {
       accountId: z.string().describe(descWithExamples("Storage account ID", ACCOUNT_ID_EXAMPLES)),
       tableName: z.string().describe(descWithExamples("Table name", TABLE_NAME_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, tableName }: any) => {
       try {
         checkWriteEnabled();
@@ -75,6 +77,7 @@ export function registerTableTools(server: any, ctx: ServiceContext): void {
       accountId: z.string().describe(descWithExamples("Storage account ID", ACCOUNT_ID_EXAMPLES)),
       tableName: z.string().describe(descWithExamples("Table name", TABLE_NAME_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ accountId, tableName }: any) => {
       try {
         checkDeleteEnabled();
@@ -99,6 +102,7 @@ export function registerTableTools(server: any, ctx: ServiceContext): void {
       partitionKey: z.string().describe(descWithExamples("Partition key", PARTITION_KEY_EXAMPLES)),
       rowKey: z.string().describe(descWithExamples("Row key", ROW_KEY_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, tableName, partitionKey, rowKey }: any) => {
       try {
         const tableSvc = ctx.storage.getTableService(accountId);
@@ -123,6 +127,7 @@ export function registerTableTools(server: any, ctx: ServiceContext): void {
       select: z.string().optional().describe(descWithExamples("Columns to return (comma-separated)", SELECT_COLUMNS_EXAMPLES)),
       top: z.number().optional().describe("Maximum results (default: 1000)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, tableName, filter, select, top }: any) => {
       try {
         const tableSvc = ctx.storage.getTableService(accountId);
@@ -149,6 +154,7 @@ export function registerTableTools(server: any, ctx: ServiceContext): void {
       tableName: z.string().describe(descWithExamples("Table name", TABLE_NAME_EXAMPLES)),
       entity: z.string().describe(descWithExamples("Entity JSON with partitionKey, rowKey, and properties", ENTITY_JSON_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, tableName, entity }: any) => {
       try {
         checkWriteEnabled();
@@ -174,6 +180,7 @@ export function registerTableTools(server: any, ctx: ServiceContext): void {
       entity: z.string().describe(descWithExamples("Entity JSON with partitionKey, rowKey, and properties", ENTITY_JSON_EXAMPLES)),
       mode: z.enum(['merge', 'replace']).optional().describe("Update mode (default: merge)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, tableName, entity, mode }: any) => {
       try {
         checkWriteEnabled();
@@ -199,6 +206,7 @@ export function registerTableTools(server: any, ctx: ServiceContext): void {
       entity: z.string().describe(descWithExamples("Entity JSON with partitionKey, rowKey, and properties", ENTITY_JSON_EXAMPLES)),
       mode: z.enum(['merge', 'replace']).optional().describe("Upsert mode (default: merge)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, tableName, entity, mode }: any) => {
       try {
         checkWriteEnabled();
@@ -224,6 +232,7 @@ export function registerTableTools(server: any, ctx: ServiceContext): void {
       partitionKey: z.string().describe(descWithExamples("Partition key", PARTITION_KEY_EXAMPLES)),
       rowKey: z.string().describe(descWithExamples("Row key", ROW_KEY_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ accountId, tableName, partitionKey, rowKey }: any) => {
       try {
         checkDeleteEnabled();
@@ -247,6 +256,8 @@ export function registerTableTools(server: any, ctx: ServiceContext): void {
       tableName: z.string().describe(descWithExamples("Table name", TABLE_NAME_EXAMPLES)),
       operations: z.string().describe(descWithExamples("Operations JSON array", BATCH_OPERATIONS_EXAMPLES)),
     },
+    // Batch may include delete operations → treat as destructive.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ accountId, tableName, operations }: any) => {
       try {
         const ops = JSON.parse(operations);

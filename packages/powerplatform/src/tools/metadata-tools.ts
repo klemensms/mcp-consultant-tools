@@ -14,6 +14,7 @@ export function registerMetadataTools(server: any, ctx: ServiceContext): void {
         descWithExamples("The logical name of the entity", ENTITY_NAME_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entityName }: any) => {
       try {
         const service = ctx.pp;
@@ -55,6 +56,7 @@ export function registerMetadataTools(server: any, ctx: ServiceContext): void {
       ),
       maxAttributes: z.number().optional().describe("Maximum number of attributes to return (omit for all)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entityName, prefix, attributeType, maxAttributes }: any) => {
       try {
         const service = ctx.pp;
@@ -108,6 +110,7 @@ export function registerMetadataTools(server: any, ctx: ServiceContext): void {
       ),
       attributeName: z.string().describe("The logical name of the attribute (e.g., 'emailaddress1', 'new_customfield')")
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entityName, attributeName }: any) => {
       try {
         const service = ctx.pp;
@@ -144,6 +147,7 @@ export function registerMetadataTools(server: any, ctx: ServiceContext): void {
         descWithExamples("The logical name of the entity", ENTITY_NAME_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entityName }: any) => {
       try {
         const service = ctx.pp;
@@ -178,6 +182,7 @@ export function registerMetadataTools(server: any, ctx: ServiceContext): void {
     {
       optionSetName: z.string().describe("The name of the global option set (e.g., 'new_applicationstatus', 'budgetamount')"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ optionSetName }: any) => {
       try {
         const service = ctx.pp;

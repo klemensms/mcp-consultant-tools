@@ -16,6 +16,7 @@ server.tool(
     workflowId: z.string().describe("GUID of the workflow"),
     description: z.string().describe("New description content")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ workflowId, description }: any) => {
     try {
       const service = ctx.pp;
@@ -38,6 +39,7 @@ server.tool(
     flowId: z.string().describe("GUID of the flow (workflowid)"),
     description: z.string().describe("New description content")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ flowId, description }: any) => {
     try {
       const service = ctx.pp;
@@ -60,6 +62,8 @@ server.tool(
     automationId: z.string().describe("GUID of the flow or workflow"),
     type: z.enum(['flow', 'workflow']).optional().describe("Type of automation (auto-detected if not provided)")
   },
+  // Name reads like a query but it WRITES a YAML description back to the automation.
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ automationId, type }: any) => {
     try {
       const service = ctx.pp;
@@ -101,6 +105,8 @@ server.tool(
   {
     workflowId: z.string().describe("GUID of the workflow to deactivate")
   },
+  // Deactivating stops the workflow — treat as destructive.
+  { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ workflowId }: any) => {
     try {
       const service = ctx.pp;
@@ -130,6 +136,7 @@ server.tool(
   {
     workflowId: z.string().describe("GUID of the workflow to activate")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ workflowId }: any) => {
     try {
       const service = ctx.pp;
@@ -160,6 +167,8 @@ server.tool(
     workflowId: z.string().describe("GUID of the workflow to document"),
     type: z.enum(['flow', 'workflow']).optional().describe("Type of automation (auto-detected if not provided)")
   },
+  // Writes a description (deactivate→document→reactivate) — net mutating.
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ workflowId, type }: any) => {
     try {
       const service = ctx.pp;

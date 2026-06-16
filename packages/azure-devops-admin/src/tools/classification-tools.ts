@@ -20,6 +20,7 @@ export function registerClassificationTools(server: any, ctx: ServiceContext): {
       project: z.string().describe("The project name"),
       depth: zCoerceNumber().optional().describe("How deep to traverse the hierarchy (default: 10)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, depth }: any) => {
       try {
         const result = await ctx.classification.listClassificationNodes(project, 'iterations', depth || 10);
@@ -39,6 +40,7 @@ export function registerClassificationTools(server: any, ctx: ServiceContext): {
       project: z.string().describe("The project name"),
       path: z.string().describe("Iteration path (e.g., 'Sprint 1' or 'Release 1\\Sprint 1'). Use backslash for hierarchy."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, path }: any) => {
       try {
         const result = await ctx.classification.getClassificationNode(project, 'iterations', path);
@@ -58,6 +60,7 @@ export function registerClassificationTools(server: any, ctx: ServiceContext): {
       project: z.string().describe("The project name"),
       depth: zCoerceNumber().optional().describe("How deep to traverse the hierarchy (default: 10)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, depth }: any) => {
       try {
         const result = await ctx.classification.listClassificationNodes(project, 'areas', depth || 10);
@@ -77,6 +80,7 @@ export function registerClassificationTools(server: any, ctx: ServiceContext): {
       project: z.string().describe("The project name"),
       path: z.string().describe("Area path (e.g., 'Backend' or 'Product\\Backend'). Use backslash for hierarchy."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, path }: any) => {
       try {
         const result = await ctx.classification.getClassificationNode(project, 'areas', path);
@@ -104,6 +108,7 @@ export function registerClassificationTools(server: any, ctx: ServiceContext): {
         finishDate: z.string().optional().describe("Finish date in ISO format (e.g., '2024-01-14')"),
         team: z.string().optional().describe("Team name to subscribe the iteration to (e.g., 'My Team'). If provided, the iteration will be automatically added to the team's sprint view."),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, name, parentPath, startDate, finishDate, team }: any) => {
         try {
           const attributes = (startDate || finishDate) ? { startDate, finishDate } : undefined;
@@ -133,6 +138,7 @@ export function registerClassificationTools(server: any, ctx: ServiceContext): {
         startDate: z.string().optional().describe("New start date in ISO format (e.g., '2024-01-01')"),
         finishDate: z.string().optional().describe("New finish date in ISO format (e.g., '2024-01-14')"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, path, name, startDate, finishDate }: any) => {
         try {
           const updates: any = {};
@@ -157,6 +163,7 @@ export function registerClassificationTools(server: any, ctx: ServiceContext): {
         name: z.string().describe("Area name (e.g., 'Backend')"),
         parentPath: z.string().optional().describe("Parent area path to create under (e.g., 'Product'). If not specified, creates at root."),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, name, parentPath }: any) => {
         try {
           const result = await ctx.classification.createClassificationNode(project, 'areas', name, parentPath);
@@ -177,6 +184,7 @@ export function registerClassificationTools(server: any, ctx: ServiceContext): {
         path: z.string().describe("Area path to update (e.g., 'Backend' or 'Product\\Backend')"),
         name: z.string().describe("New area name"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, path, name }: any) => {
         try {
           const result = await ctx.classification.updateClassificationNode(project, 'areas', path, { name });
@@ -197,6 +205,7 @@ export function registerClassificationTools(server: any, ctx: ServiceContext): {
         team: z.string().describe("The team name (e.g., 'My Team')"),
         iterationId: z.string().describe("The iteration identifier GUID (returned by create-iteration or get-iteration as 'identifier')"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, team, iterationId }: any) => {
         try {
           const result = await ctx.classification.addIterationToTeam(project, team, iterationId);
@@ -222,6 +231,7 @@ export function registerClassificationTools(server: any, ctx: ServiceContext): {
         path: z.string().describe("Iteration path to delete (e.g., 'Sprint 1' or 'Release 1\\Sprint 1')"),
         reclassifyId: zCoerceNumber().describe("ID of the iteration to move work items to. Get IDs from list-iterations."),
       },
+      { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ project, path, reclassifyId }: any) => {
         try {
           const result = await ctx.classification.deleteClassificationNode(project, 'iterations', path, reclassifyId);
@@ -242,6 +252,7 @@ export function registerClassificationTools(server: any, ctx: ServiceContext): {
         path: z.string().describe("Area path to delete (e.g., 'Backend' or 'Product\\Backend')"),
         reclassifyId: zCoerceNumber().describe("ID of the area to move work items to. Get IDs from list-areas."),
       },
+      { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ project, path, reclassifyId }: any) => {
         try {
           const result = await ctx.classification.deleteClassificationNode(project, 'areas', path, reclassifyId);

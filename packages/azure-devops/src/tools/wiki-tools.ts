@@ -13,6 +13,7 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
     {
       project: z.string().describe("The project name"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project }: any) => {
       try {
         const result = await ctx.wiki.getWikis(project);
@@ -32,6 +33,7 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
       project: z.string().optional().describe("Optional project filter"),
       maxResults: zCoerceNumber().optional().describe("Maximum number of results (default: 25)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ searchText, project, maxResults }: any) => {
       try {
         const result = await ctx.wiki.searchWikiPages(searchText, project, maxResults);
@@ -54,6 +56,7 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
       includeContent: z.boolean().optional().describe("Include page content (default: true)"),
       recursionLevel: z.enum(["none", "oneLevel", "full"]).optional().describe("Populate subPages with child pages: 'oneLevel' for direct children, 'full' for the whole subtree (default: none — subPages omitted). For tree enumeration without content, prefer get-wiki-tree."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, wikiId, pagePath, pageId, includeContent, recursionLevel }: any) => {
       try {
         if (!pagePath && pageId == null) {
@@ -79,6 +82,7 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
       pagePath: z.string().optional().describe("Root path to enumerate from (default: '/' — the whole wiki)"),
       depth: z.enum(["oneLevel", "full"]).optional().describe("How deep to enumerate (default: full)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, wikiId, pagePath, depth }: any) => {
       try {
         const result = await ctx.wiki.getWikiPageTree(project, wikiId, pagePath ?? '/', depth ?? 'full');
@@ -99,6 +103,7 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
       pagePath: z.string().describe("The path for the new page (e.g., '/Setup/NewGuide')"),
       content: z.string().describe("The markdown content for the page"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, wikiId, pagePath, content }: any) => {
       try {
         const result = await ctx.wiki.createWikiPage(project, wikiId, pagePath, content);
@@ -120,6 +125,7 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
       content: z.string().describe("The updated markdown content"),
       version: z.string().optional().describe("The ETag/version for optimistic concurrency. If not provided, will be auto-fetched from the current page."),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, wikiId, pagePath, content, version }: any) => {
       try {
         const result = await ctx.wiki.updateWikiPage(project, wikiId, pagePath, content, version);
@@ -143,6 +149,7 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
       replace_all: z.boolean().optional().describe("If true, replace all occurrences. If false (default), old_str must be unique in the page."),
       description: z.string().optional().describe("Optional description of the change (for audit logging)")
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, wikiId, pagePath, old_str, new_str, replace_all, description }: any) => {
       try {
         const result = await ctx.wiki.strReplaceWikiPage(project, wikiId, pagePath, old_str, new_str, replace_all ?? false, description);
@@ -164,6 +171,7 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
       wikiId: z.string().describe("The wiki identifier"),
       pagePath: z.string().describe("Page path (e.g., '/Setup/Old-Page')"),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ project, wikiId, pagePath }: any) => {
       try {
         const result = await ctx.wiki.deleteWikiPage(project, wikiId, pagePath);
@@ -189,6 +197,7 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
       ),
       outputDir: z.string().optional().describe("Directory to save the file. Default: OS temp dir"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, wikiId, attachmentPath, outputDir }: any) => {
       try {
         const result = await ctx.wiki.downloadWikiAttachment(project, wikiId, attachmentPath, outputDir);
@@ -211,6 +220,7 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
       pagePath: z.string().describe("The wiki page path (e.g., '/Setup/Authentication')"),
       outputDir: z.string().optional().describe("Directory to save files. Default: OS temp dir"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, wikiId, pagePath, outputDir }: any) => {
       try {
         const result = await ctx.wiki.downloadWikiPageAttachments(project, wikiId, pagePath, outputDir);
@@ -242,6 +252,8 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
       pageId: zCoerceNumber().optional().describe("The numeric page ID from a wiki URL (e.g., 3789 from ...wiki/wikis/Wiki.wiki/3789/Page-Name). Either pageId or pagePath is required."),
       outputPath: z.string().optional().describe("Local file path to save to. Default: docs/wiki-pages/{flattened-path}.md"),
     },
+    // Downloads ADO→local file only; ADO is never modified → read.
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, wikiId, pagePath, pageId, outputPath }: any) => {
       try {
         if (!pagePath && pageId == null) {
@@ -276,6 +288,7 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
     {
       filePath: z.string().describe("Path to the local markdown file with frontmatter (created by save-wiki-page-to-file)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ filePath }: any) => {
       try {
         const result = await ctx.wiki.uploadWikiPageFromFile(filePath);

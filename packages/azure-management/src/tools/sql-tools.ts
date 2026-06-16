@@ -12,6 +12,7 @@ export function registerSqlTools(server: any, ctx: ServiceContext): void {
         .optional()
         .describe(descWithExamples('Filter by resource group', RESOURCE_GROUP_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.sql.listSqlServers(args);
@@ -33,6 +34,7 @@ export function registerSqlTools(server: any, ctx: ServiceContext): void {
         .describe(descWithExamples('SQL Server name', SQL_SERVER_EXAMPLES)),
       resourceGroup: z.string().optional().describe('Resource group (uses default if not specified)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.sql.listSqlDatabases(args);

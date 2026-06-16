@@ -26,6 +26,7 @@ server.tool(
       descWithExamples("Solution to add to", SOLUTION_NAME_EXAMPLES)
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;
@@ -75,6 +76,7 @@ server.tool(
       descWithExamples("Solution to add to", SOLUTION_NAME_EXAMPLES)
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;
@@ -107,6 +109,7 @@ server.tool(
   {
     metadataId: z.string().describe("Relationship MetadataId (GUID). Get from get-entity-relationships in the read-only package.")
   },
+  { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ metadataId }: any) => {
     try {
       const service = ctx.pp;
@@ -131,6 +134,7 @@ server.tool(
     referencedEntityNavigationPropertyName: z.string().optional().describe("Navigation property name"),
     referencingEntityNavigationPropertyName: z.string().optional().describe("Navigation property name")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;

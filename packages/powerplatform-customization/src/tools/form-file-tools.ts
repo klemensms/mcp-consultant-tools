@@ -28,6 +28,8 @@ server.tool(
     formName: z.string().optional().describe("Form display name (e.g., 'Contact', 'Information'). Combined with entityLogicalName and optional formType."),
     formType: z.enum(["Main", "QuickCreate", "QuickView", "Card"]).optional().describe("Form type filter. Useful when the same name exists across types, or to pick the only form of a given type on the entity."),
   },
+  // Reads remote form, writes a local file only — no env mutation.
+  { readOnlyHint: true, openWorldHint: true },
   async ({ filePath, formId, entityLogicalName, formName, formType }: any) => {
     try {
       const service = ctx.pp;
@@ -70,6 +72,8 @@ server.tool(
       descWithExamples("Solution to add the form to (MSCRM.SolutionUniqueName header).", SOLUTION_NAME_EXAMPLES)
     ),
   },
+  // PATCHes the remote form XML.
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ filePath, formId, expectedVersionNumber, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;
@@ -108,6 +112,8 @@ server.tool(
     ),
     formId: z.string().optional().describe("Override the target form ID (defaults to the value in the sidecar .meta.json)."),
   },
+  // Read-only compare — writes nothing.
+  { readOnlyHint: true, openWorldHint: true },
   async ({ filePath, formId }: any) => {
     try {
       const service = ctx.pp;

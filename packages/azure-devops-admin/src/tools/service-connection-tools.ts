@@ -19,6 +19,7 @@ export function registerServiceConnectionTools(server: any, ctx: ServiceContext)
     {
       project: z.string().describe("The project name"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project }: any) => {
       try {
         const result = await ctx.serviceConnections.listServiceConnections(project);
@@ -38,6 +39,7 @@ export function registerServiceConnectionTools(server: any, ctx: ServiceContext)
       project: z.string().describe("The project name"),
       connectionId: z.string().describe("The service connection ID (GUID)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, connectionId }: any) => {
       try {
         const result = await ctx.serviceConnections.getServiceConnection(project, connectionId);
@@ -54,6 +56,7 @@ export function registerServiceConnectionTools(server: any, ctx: ServiceContext)
     "get-svc-conn-types",
     "Get all available service connection types (Azure, AWS, Docker, GitHub, etc.) with their authentication schemes and configuration options.",
     {},
+    { readOnlyHint: true, openWorldHint: true },
     async () => {
       try {
         const result = await ctx.serviceConnections.getServiceConnectionTypes();
@@ -87,6 +90,7 @@ export function registerServiceConnectionTools(server: any, ctx: ServiceContext)
         }).optional().describe("Authorization configuration"),
         data: z.record(z.string()).optional().describe("Type-specific configuration data"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, name, type, url, description, authorization, data }: any) => {
         try {
           const result = await ctx.serviceConnections.createServiceConnection(project, name, type, { url, description, authorization, data });
@@ -110,6 +114,7 @@ export function registerServiceConnectionTools(server: any, ctx: ServiceContext)
         url: z.string().optional().describe("New service URL"),
         data: z.record(z.string()).optional().describe("Updated data fields"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, connectionId, name, description, url, data }: any) => {
         try {
           const updates: any = {};
@@ -134,6 +139,7 @@ export function registerServiceConnectionTools(server: any, ctx: ServiceContext)
         connectionId: z.string().describe("The service connection ID (GUID)"),
         projectIds: z.array(z.string()).describe("Array of project IDs to share with"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ connectionId, projectIds }: any) => {
         try {
           const result = await ctx.serviceConnections.shareServiceConnection(connectionId, projectIds);
@@ -158,6 +164,7 @@ export function registerServiceConnectionTools(server: any, ctx: ServiceContext)
         project: z.string().describe("The project name"),
         connectionId: z.string().describe("The service connection ID (GUID) to delete"),
       },
+      { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ project, connectionId }: any) => {
         try {
           const result = await ctx.serviceConnections.deleteServiceConnection(project, connectionId);

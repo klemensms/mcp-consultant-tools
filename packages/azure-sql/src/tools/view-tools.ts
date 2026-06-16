@@ -36,6 +36,8 @@ export function registerViewTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    // CREATE OR ALTER VIEW; defines/updates an object, additive.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ schemaName, viewName, selectBody, serverId, database }: { schemaName: string; viewName: string; selectBody: string; serverId?: string; database?: string }) => {
       try {
         ctx.checkViewManageEnabled();
@@ -81,6 +83,8 @@ export function registerViewTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    // Deploys CREATE OR ALTER VIEW from file; additive.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ filePath, serverId, database }: { filePath: string; serverId?: string; database?: string }) => {
       try {
         ctx.checkViewManageEnabled();
@@ -121,6 +125,8 @@ export function registerViewTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    // DROP VIEW; destructive.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ schemaName, viewName, serverId, database }: { schemaName: string; viewName: string; serverId?: string; database?: string }) => {
       try {
         ctx.checkViewDropEnabled();

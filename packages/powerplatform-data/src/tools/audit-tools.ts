@@ -25,6 +25,8 @@ export function registerAuditTools(server: any, ctx: ServiceContext): void {
         .optional()
         .describe('Optional free-text reason for this engagement context. Max 2000 chars.'),
     },
+    // Sets local/session audit-engagement state only; no external API call → no openWorldHint.
+    { readOnlyHint: false, destructiveHint: false },
     async ({ workItemIds, reason }: { workItemIds: string[]; reason?: string }) => {
       if (!ctx.audit) {
         return {

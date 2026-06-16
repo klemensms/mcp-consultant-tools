@@ -47,6 +47,7 @@ server.tool(
       )
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;
@@ -181,6 +182,7 @@ server.tool(
     ),
     solutionUniqueName: z.string().optional().describe("Solution context")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;
@@ -240,6 +242,7 @@ server.tool(
     iconFileName: z.string().describe("Fluent UI icon file name (e.g., 'people_community_24_filled.svg'). Browse icons at: https://github.com/microsoft/fluentui-system-icons"),
     solutionUniqueName: z.string().optional().describe("Solution to add the web resource to (optional, uses POWERPLATFORM_DEFAULT_SOLUTION if not specified)")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;
@@ -284,6 +287,7 @@ server.tool(
   {
     metadataId: z.string().describe("The MetadataId of the entity to delete (GUID). Get from get-entity-metadata.")
   },
+  { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ metadataId }: any) => {
     try {
       const service = ctx.pp;

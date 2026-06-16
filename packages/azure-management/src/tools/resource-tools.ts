@@ -27,6 +27,7 @@ export function registerResourceTools(server: any, ctx: ServiceContext): void {
       nameContains: z.string().optional().describe('Filter resources by name substring'),
       maxResults: z.number().optional().describe('Maximum results to return (default: 100)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.resources.listResources(args);
@@ -60,6 +61,7 @@ export function registerResourceTools(server: any, ctx: ServiceContext): void {
         .optional()
         .describe('Include all properties including nulls (default: false - filters out null/empty values)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const options = { includeAllProperties: args.includeAllProperties };
@@ -94,6 +96,7 @@ export function registerResourceTools(server: any, ctx: ServiceContext): void {
       tagFilter: z.string().optional().describe('OData filter for tags'),
       nameContains: z.string().optional().describe('Filter by name substring'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.resources.listResourceGroups(args);
@@ -116,6 +119,7 @@ export function registerResourceTools(server: any, ctx: ServiceContext): void {
         .optional()
         .describe('Subscription IDs to query (defaults to current subscription)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.resources.queryResourceGraph(args.query, args.subscriptions);
@@ -134,6 +138,7 @@ export function registerResourceTools(server: any, ctx: ServiceContext): void {
     {
       resourceId: z.string().describe('Full ARM resource ID'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.resources.getResourceTags(args.resourceId);
@@ -163,6 +168,7 @@ export function registerResourceTools(server: any, ctx: ServiceContext): void {
         .optional()
         .describe('Include full metadata with coordinates and paired regions (default: false)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.resources.listLocations(args);

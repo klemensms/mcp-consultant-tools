@@ -18,6 +18,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       workspaceId: z.string().describe(descWithExamples('Workspace ID (GUID)', WORKSPACE_ID_EXAMPLES)),
       type: z.string().optional().describe(descWithExamples('Optional item type filter', ITEM_TYPE_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ workspaceId, type }: any) => {
       try {
         const result = await ctx.items.listItems(workspaceId, type);
@@ -36,6 +37,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       workspaceId: z.string().describe('Workspace ID (GUID)'),
       itemId: z.string().describe(descWithExamples('Item ID (GUID)', ITEM_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ workspaceId, itemId }: any) => {
       try {
         const result = await ctx.items.getItem(workspaceId, itemId);
@@ -57,6 +59,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       description: z.string().optional().describe('Optional item description'),
       definition: z.any().optional().describe('Optional item definition payload (type-specific)'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ workspaceId, displayName, type, description, definition }: any) => {
       try {
         const result = await ctx.items.createItem(workspaceId, { displayName, type, description, definition });
@@ -77,6 +80,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       displayName: z.string().optional().describe('New display name'),
       description: z.string().optional().describe('New description'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ workspaceId, itemId, displayName, description }: any) => {
       try {
         const result = await ctx.items.updateItem(workspaceId, itemId, { displayName, description });
@@ -95,6 +99,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       workspaceId: z.string().describe('Workspace ID (GUID)'),
       itemId: z.string().describe('Item ID (GUID) to delete'),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ workspaceId, itemId }: any) => {
       try {
         const result = await ctx.items.deleteItem(workspaceId, itemId);
@@ -114,6 +119,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       displayName: z.string().describe('Display name for the new lakehouse'),
       description: z.string().optional().describe('Optional description'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ workspaceId, displayName, description }: any) => {
       try {
         const result = await ctx.items.createLakehouse(workspaceId, { displayName, description });
@@ -133,6 +139,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       displayName: z.string().describe('Display name for the new warehouse'),
       description: z.string().optional().describe('Optional description'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ workspaceId, displayName, description }: any) => {
       try {
         const result = await ctx.items.createWarehouse(workspaceId, { displayName, description });
@@ -152,6 +159,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       displayName: z.string().describe('Display name for the new notebook'),
       description: z.string().optional().describe('Optional description'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ workspaceId, displayName, description }: any) => {
       try {
         const result = await ctx.items.createNotebook(workspaceId, { displayName, description });

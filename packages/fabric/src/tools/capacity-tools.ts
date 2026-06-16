@@ -10,6 +10,7 @@ export function registerCapacityTools(server: any, ctx: ServiceContext): void {
     'fabric-list-capacities',
     'List all Microsoft Fabric capacities the service principal can access.',
     {},
+    { readOnlyHint: true, openWorldHint: true },
     async () => {
       try {
         const result = await ctx.capacities.listCapacities();
@@ -27,6 +28,7 @@ export function registerCapacityTools(server: any, ctx: ServiceContext): void {
     {
       capacityId: z.string().describe(descWithExamples('Capacity ID (GUID)', CAPACITY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ capacityId }: any) => {
       try {
         const result = await ctx.capacities.getCapacity(capacityId);
@@ -45,6 +47,8 @@ export function registerCapacityTools(server: any, ctx: ServiceContext): void {
       workspaceId: z.string().describe(descWithExamples('Workspace ID (GUID)', WORKSPACE_ID_EXAMPLES)),
       capacityId: z.string().describe(descWithExamples('Capacity ID (GUID) to assign the workspace to', CAPACITY_ID_EXAMPLES)),
     },
+    // Additive association (binds workspace to a capacity); reversible, no data destroyed.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ workspaceId, capacityId }: any) => {
       try {
         const result = await ctx.capacities.assignWorkspaceToCapacity(workspaceId, capacityId);
@@ -62,6 +66,8 @@ export function registerCapacityTools(server: any, ctx: ServiceContext): void {
     {
       workspaceId: z.string().describe(descWithExamples('Workspace ID (GUID) to unassign', WORKSPACE_ID_EXAMPLES)),
     },
+    // Revokes the workspace's compute association (workspace may stop functioning) → destructive.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ workspaceId }: any) => {
       try {
         const result = await ctx.capacities.unassignWorkspaceFromCapacity(workspaceId);

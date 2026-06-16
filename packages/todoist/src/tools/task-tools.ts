@@ -24,6 +24,7 @@ export function registerTaskTools(server: any, ctx: ServiceContext): void {
       filter: z.string().optional().describe('Todoist filter query, e.g. "today", "overdue", "@work & !p4"'),
       lang: z.string().optional().describe('Filter language (e.g. "en")'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const tasks = await ctx.todoist.listTasks(args);
@@ -39,6 +40,7 @@ export function registerTaskTools(server: any, ctx: ServiceContext): void {
     'todoist-get-task',
     'Get a single Todoist task by ID.',
     { id: z.string().describe('Task ID') },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ id }: { id: string }) => {
       try {
         const task = await ctx.todoist.getTask(id);
@@ -65,6 +67,7 @@ export function registerTaskTools(server: any, ctx: ServiceContext): void {
       due_datetime: z.string().optional().describe('Due datetime in RFC3339 UTC'),
       due_lang: z.string().optional().describe('Language of due_string (default "en")'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (args: any) => {
       try {
         const task = await ctx.todoist.createTask(args);
@@ -89,6 +92,7 @@ export function registerTaskTools(server: any, ctx: ServiceContext): void {
       due_datetime: z.string().optional().describe('Due datetime in RFC3339 UTC'),
       due_lang: z.string().optional().describe('Language of due_string'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ id, ...input }: any) => {
       try {
         const task = await ctx.todoist.updateTask(id, input);
@@ -103,6 +107,8 @@ export function registerTaskTools(server: any, ctx: ServiceContext): void {
     'todoist-complete-task',
     'Mark a Todoist task as complete (close it).',
     { id: z.string().describe('Task ID') },
+    // State change (close), not data destruction → mutating non-destructive.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ id }: { id: string }) => {
       try {
         await ctx.todoist.closeTask(id);
@@ -117,6 +123,7 @@ export function registerTaskTools(server: any, ctx: ServiceContext): void {
     'todoist-reopen-task',
     'Reopen a previously completed Todoist task.',
     { id: z.string().describe('Task ID') },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ id }: { id: string }) => {
       try {
         await ctx.todoist.reopenTask(id);
@@ -131,6 +138,7 @@ export function registerTaskTools(server: any, ctx: ServiceContext): void {
     'todoist-delete-task',
     'Delete a Todoist task by ID. This is irreversible.',
     { id: z.string().describe('Task ID') },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ id }: { id: string }) => {
       try {
         await ctx.todoist.deleteTask(id);

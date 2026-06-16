@@ -32,6 +32,7 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
         const resolvedServerId = ctx.connection.resolveServerId(serverId);
@@ -67,6 +68,7 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
         const resolvedServerId = ctx.connection.resolveServerId(serverId);
@@ -102,6 +104,7 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
         const resolvedServerId = ctx.connection.resolveServerId(serverId);
@@ -137,6 +140,7 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
         const resolvedServerId = ctx.connection.resolveServerId(serverId);
@@ -172,6 +176,7 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ serverId, database }: { serverId?: string; database?: string }) => {
       try {
         const resolvedServerId = ctx.connection.resolveServerId(serverId);
@@ -213,6 +218,7 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Table name", TABLE_NAME_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ serverId, database, schemaName, tableName }: { serverId?: string; database?: string; schemaName: string; tableName: string }) => {
       try {
         const resolvedServerId = ctx.connection.resolveServerId(serverId);
@@ -255,6 +261,7 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Type of database object", OBJECT_TYPE_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ serverId, database, schemaName, objectName, objectType }: { serverId?: string; database?: string; schemaName: string; objectName: string; objectType: 'VIEW' | 'PROCEDURE' | 'FUNCTION' | 'TRIGGER' }) => {
       try {
         const resolvedServerId = ctx.connection.resolveServerId(serverId);
@@ -296,6 +303,8 @@ Example: sql-execute-query(query: "SELECT * FROM dbo.Users") - serverId and data
         descWithExamples("SELECT query to execute", SQL_QUERY_EXAMPLES)
       ),
     },
+    // Service validates SELECT-only (executeSelectQuery); read-only.
+    { readOnlyHint: true, openWorldHint: true },
     async ({ serverId, database, query }: { serverId?: string; database?: string; query: string }) => {
       try {
         const resolvedServerId = ctx.connection.resolveServerId(serverId);

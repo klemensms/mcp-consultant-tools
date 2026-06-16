@@ -18,6 +18,7 @@ export function registerFunctionAppTools(server: any, ctx: ServiceContext): void
       includeConfiguration: z.boolean().optional().describe('Include app settings (default: false)'),
       includeSlots: z.boolean().optional().describe('Include deployment slots (default: false)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.functionApps.listFunctionApps(args);
@@ -42,6 +43,7 @@ export function registerFunctionAppTools(server: any, ctx: ServiceContext): void
       includeFunctions: z.boolean().optional().describe('List all functions (default: true)'),
       includeDeployments: z.boolean().optional().describe('Include recent deployments (default: false)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.functionApps.getFunctionApp(args);
@@ -63,6 +65,7 @@ export function registerFunctionAppTools(server: any, ctx: ServiceContext): void
         .describe(descWithExamples('Function App name', FUNCTION_APP_NAME_EXAMPLES)),
       resourceGroup: z.string().optional().describe('Resource group (uses default if not specified)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.functionApps.listFunctions(args);
@@ -85,6 +88,7 @@ export function registerFunctionAppTools(server: any, ctx: ServiceContext): void
       resourceGroup: z.string().optional().describe('Resource group (uses default if not specified)'),
       functionName: z.string().optional().describe('Specific function name (omit for host keys only)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.functionApps.getFunctionKeys(args);

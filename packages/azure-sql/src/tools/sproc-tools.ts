@@ -36,6 +36,8 @@ export function registerSprocTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    // CREATE OR ALTER PROCEDURE; defines/updates an object, additive.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ schemaName, sprocName, definition, serverId, database }: { schemaName: string; sprocName: string; definition: string; serverId?: string; database?: string }) => {
       try {
         ctx.checkSprocManageEnabled();
@@ -81,6 +83,8 @@ export function registerSprocTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    // Deploys CREATE OR ALTER PROCEDURE from file; additive.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ filePath, serverId, database }: { filePath: string; serverId?: string; database?: string }) => {
       try {
         ctx.checkSprocManageEnabled();
@@ -121,6 +125,8 @@ export function registerSprocTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    // DROP PROCEDURE; destructive.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ schemaName, sprocName, serverId, database }: { schemaName: string; sprocName: string; serverId?: string; database?: string }) => {
       try {
         ctx.checkSprocDropEnabled();
@@ -164,6 +170,8 @@ export function registerSprocTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    // A stored procedure can run arbitrary DML/DDL (incl. DELETE/DROP); treat as destructive.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ schemaName, sprocName, parameters, serverId, database }: { schemaName: string; sprocName: string; parameters?: string; serverId?: string; database?: string }) => {
       try {
         ctx.checkSprocExecuteEnabled();

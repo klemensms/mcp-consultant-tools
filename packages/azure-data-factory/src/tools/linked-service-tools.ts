@@ -9,6 +9,7 @@ export function registerLinkedServiceTools(server: any, ctx: ServiceContext): vo
     {
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ factoryId }: { factoryId?: string }) => {
       try {
         const svc = ctx.adf;
@@ -60,6 +61,7 @@ export function registerLinkedServiceTools(server: any, ctx: ServiceContext): vo
     {
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ factoryId }: { factoryId?: string }) => {
       try {
         const svc = ctx.adf;
@@ -108,6 +110,7 @@ export function registerLinkedServiceTools(server: any, ctx: ServiceContext): vo
       dataFlowName: z.string().describe('Name of the data flow'),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({
       dataFlowName,
       factoryId,

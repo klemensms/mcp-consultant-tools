@@ -22,6 +22,7 @@ server.tool(
       descWithExamples("Array of entity logical names to add", ENTITY_NAME_EXAMPLES)
     ),
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ appId, entityNames }: any) => {
     try {
       const service = ctx.pp;
@@ -44,6 +45,8 @@ server.tool(
   {
     appId: z.string().describe("The GUID of the app (appmoduleid)"),
   },
+  // Validation is read-only (no changes).
+  { readOnlyHint: true, openWorldHint: true },
   async ({ appId }: any) => {
     try {
       const service = ctx.pp;
@@ -66,6 +69,7 @@ server.tool(
   {
     appId: z.string().describe("The GUID of the app (appmoduleid)"),
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ appId }: any) => {
     try {
       const service = ctx.pp;
@@ -104,6 +108,7 @@ server.tool(
     saskey: z.string().optional().describe("Service Bus SAS key value"),
     solutionUniqueName: z.string().optional(),
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;
@@ -161,6 +166,7 @@ server.tool(
       .describe("Service Bus SAS key name / policy name (e.g., 'DataverseAccess'). Maps to the dedicated saskeyname field."),
     solutionUniqueName: z.string().optional(),
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;
@@ -200,6 +206,7 @@ server.tool(
     serviceEndpointId: z.string().describe("GUID of the service endpoint to delete. Get from get-service-endpoints in the read-only package."),
     confirm: z.boolean().describe("Must be true to proceed (safety check). Set to true only after confirming with user."),
   },
+  { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ serviceEndpointId, confirm }: any) => {
     try {
       if (!confirm) {
@@ -249,6 +256,7 @@ server.tool(
     description: z.string().optional().describe("Description of the webhook"),
     solutionUniqueName: z.string().optional(),
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;

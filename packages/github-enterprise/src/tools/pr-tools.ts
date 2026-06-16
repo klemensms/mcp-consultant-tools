@@ -36,6 +36,7 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
       sort: z.enum(['created', 'updated', 'popularity']).optional().describe("Sort order (default: 'created')"),
       limit: z.number().optional().describe("Max results (default: 30)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, state, base, head, sort, limit }: any) => {
       try {
         const prs = await ctx.pr.listPullRequests(repoId, state || 'open', base, head, sort || 'created', limit || 30);
@@ -63,6 +64,7 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
       repoId: z.string().describe("Repository ID from configuration"),
       prNumber: z.number().describe("Pull request number"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, prNumber }: any) => {
       try {
         const pr = await ctx.pr.getPullRequest(repoId, prNumber);
@@ -81,6 +83,7 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
       repoId: z.string().describe("Repository ID from configuration"),
       prNumber: z.number().describe("Pull request number"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, prNumber }: any) => {
       try {
         const files = await ctx.pr.getPullRequestFiles(repoId, prNumber);
@@ -116,6 +119,7 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
       repoId: z.string().describe("Repository ID from configuration"),
       prNumber: z.number().describe(descWithExamples("Pull request number", PR_NUMBER_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, prNumber }: any) => {
       try {
         const reviews = await ctx.pr.listPrReviews(repoId, prNumber);
@@ -142,6 +146,7 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
       repoId: z.string().describe("Repository ID from configuration"),
       prNumber: z.number().describe(descWithExamples("Pull request number", PR_NUMBER_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, prNumber }: any) => {
       try {
         const comments = await ctx.pr.listPrComments(repoId, prNumber);
@@ -168,6 +173,7 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
       repoId: z.string().describe("Repository ID from configuration"),
       prNumber: z.number().describe(descWithExamples("Pull request number", PR_NUMBER_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ repoId, prNumber }: any) => {
       try {
         const diff = await ctx.pr.getPrDiff(repoId, prNumber);
@@ -208,6 +214,7 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
         ),
         commitId: z.string().optional().describe("Specific commit SHA to review (default: latest)"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ repoId, prNumber, event, body, commitId }: any) => {
         try {
           const result = await ctx.pr.submitPrReview(repoId, prNumber, { event, body, commitId });
@@ -227,6 +234,7 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
         prNumber: z.number().describe(descWithExamples("Pull request number", PR_NUMBER_EXAMPLES)),
         body: z.string().describe("Comment body (supports markdown)"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ repoId, prNumber, body }: any) => {
         try {
           const result = await ctx.pr.addPrComment(repoId, prNumber, body);
@@ -252,6 +260,7 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
         startLine: z.number().optional().describe("Start line for multi-line comment"),
         startSide: z.enum(['LEFT', 'RIGHT']).optional().describe("Start side for multi-line comment"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ repoId, prNumber, body, commitId, path, line, side, startLine, startSide }: any) => {
         try {
           const result = await ctx.pr.addReviewComment(repoId, prNumber, {
@@ -278,6 +287,8 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
         commitMessage: z.string().optional().describe("Message for the merge commit"),
         sha: z.string().optional().describe("HEAD SHA to ensure PR hasn't changed"),
       },
+      // Merge = state change (no branch delete here), not data deletion.
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ repoId, prNumber, mergeMethod, commitTitle, commitMessage, sha }: any) => {
         try {
           const result = await ctx.pr.mergePullRequest(repoId, prNumber, {
@@ -300,6 +311,7 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
         commentId: z.number().describe("ID of the comment to reply to"),
         body: z.string().describe("Reply body (supports markdown)"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ repoId, prNumber, commentId, body }: any) => {
         try {
           const result = await ctx.pr.replyToReviewComment(repoId, prNumber, commentId, body);
@@ -322,6 +334,7 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
         state: z.enum(['open', 'closed']).optional().describe("Change PR state"),
         base: z.string().optional().describe(descWithExamples("Change target branch", BRANCH_EXAMPLES)),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ repoId, prNumber, title, body, state, base }: any) => {
         try {
           const result = await ctx.pr.updatePullRequest(repoId, prNumber, { title, body, state, base });
@@ -346,6 +359,7 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
           descWithExamples("Team slugs to request review from", TEAM_REVIEWER_EXAMPLES)
         ),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ repoId, prNumber, reviewers, teamReviewers }: any) => {
         try {
           const result = await ctx.pr.requestPrReviewers(repoId, prNumber, reviewers, teamReviewers);
@@ -366,6 +380,8 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
         reviewers: z.array(z.string()).optional().describe("GitHub usernames to remove"),
         teamReviewers: z.array(z.string()).optional().describe("Team slugs to remove"),
       },
+      // remove-* → destructive hint; detaches a reviewer request (reversible).
+      { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ repoId, prNumber, reviewers, teamReviewers }: any) => {
         try {
           await ctx.pr.removePrReviewers(repoId, prNumber, reviewers, teamReviewers);
@@ -392,6 +408,7 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
         prNumber: z.number().describe(descWithExamples("Pull request number", PR_NUMBER_EXAMPLES)),
         labels: z.array(z.string()).describe(descWithExamples("Labels to add", LABEL_EXAMPLES)),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ repoId, prNumber, labels }: any) => {
         try {
           const result = await ctx.pr.addPrLabels(repoId, prNumber, labels);
@@ -411,6 +428,8 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
         prNumber: z.number().describe(descWithExamples("Pull request number", PR_NUMBER_EXAMPLES)),
         label: z.string().describe(descWithExamples("Label name to remove", LABEL_EXAMPLES)),
       },
+      // remove-* → destructive hint; detaches a label (reversible).
+      { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ repoId, prNumber, label }: any) => {
         try {
           await ctx.pr.removePrLabel(repoId, prNumber, label);
@@ -429,6 +448,8 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
         repoId: z.string().describe("Repository ID from configuration"),
         prNumber: z.number().describe(descWithExamples("Pull request number", PR_NUMBER_EXAMPLES)),
       },
+      // Close without merge = reversible state change, not data deletion.
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ repoId, prNumber }: any) => {
         try {
           const result = await ctx.pr.closePullRequest(repoId, prNumber);
@@ -459,6 +480,7 @@ export function registerPrTools(server: any, ctx: ServiceContext): void {
         body: z.string().optional().describe(descWithExamples("PR description (supports markdown)", PR_DESCRIPTION_EXAMPLES)),
         draft: z.boolean().optional().describe("Create as draft PR (default: false)"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ repoId, title, head, base, body, draft }: any) => {
         try {
           const result = await ctx.pr.createPullRequest(repoId, { title, head, base, body, draft });

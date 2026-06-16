@@ -38,6 +38,7 @@ export function registerTestTools(server: any, ctx: ServiceContext): void {
       ),
       buildId: zCoerceNumber().optional().describe("Build ID if run is tied to a pipeline"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, name, comment, testCaseIds, buildId }: any) => {
       try {
         const result = await ctx.test.createTestRun(project, name, { comment, testCaseIds, buildId });
@@ -74,6 +75,7 @@ export function registerTestTools(server: any, ctx: ServiceContext): void {
         ),
       })).describe("Array of test results to add"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, runId, results }: any) => {
       try {
         const result = await ctx.test.addTestResults(project, runId, results);
@@ -101,6 +103,7 @@ export function registerTestTools(server: any, ctx: ServiceContext): void {
       runId: zCoerceNumber().describe("Test run ID"),
       comment: z.string().optional().describe("Completion summary"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, runId, comment }: any) => {
       try {
         const result = await ctx.test.completeTestRun(project, runId, comment);
@@ -132,6 +135,7 @@ export function registerTestTools(server: any, ctx: ServiceContext): void {
       maxRuns: zCoerceNumber().optional().describe("Maximum runs to return (default: 25)"),
       fromDate: z.string().optional().describe("Filter runs updated after this date (ISO format, e.g., '2026-04-01')"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, state, maxRuns, fromDate }: any) => {
       try {
         const runs = await ctx.test.getTestRuns(project, { state, maxRuns, fromDate });
@@ -163,6 +167,7 @@ export function registerTestTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Filter by outcome", TEST_OUTCOME_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, runId, outcome }: any) => {
       try {
         const results = await ctx.test.getTestRunResults(project, runId, outcome);
@@ -192,6 +197,7 @@ export function registerTestTools(server: any, ctx: ServiceContext): void {
       project: z.string().describe("Project name"),
       testCaseId: zCoerceNumber().describe("Test Case work item ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, testCaseId }: any) => {
       try {
         const history = await ctx.test.getTestCaseHistory(project, testCaseId);
@@ -227,6 +233,7 @@ export function registerTestTools(server: any, ctx: ServiceContext): void {
       runId: zCoerceNumber().optional().describe("Test Run ID to link via hyperlink"),
       runSummary: z.string().optional().describe("Comment for the run hyperlink (e.g., '8/8 Passed')"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, testCaseId, storyId, runId, runSummary }: any) => {
       try {
         if (!storyId && !runId) {

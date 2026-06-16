@@ -25,6 +25,7 @@ server.tool(
       descWithExamples("Solution to add to", SOLUTION_NAME_EXAMPLES)
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ name, entityLogicalName, formType, formXml, description, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;
@@ -60,6 +61,7 @@ server.tool(
     description: z.string().optional().describe("New description"),
     solutionUniqueName: z.string().optional().describe("Solution to add to")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ formId, name, formXml, description, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;
@@ -93,6 +95,7 @@ server.tool(
   {
     formId: z.string().describe("Form ID (GUID). Get from get-forms in the read-only package.")
   },
+  { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ formId }: any) => {
     try {
       const service = ctx.pp;
@@ -117,6 +120,7 @@ server.tool(
   {
     formId: z.string().describe("Form ID (GUID)")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ formId }: any) => {
     try {
       const service = ctx.pp;
@@ -141,6 +145,8 @@ server.tool(
   {
     formId: z.string().describe("Form ID (GUID)")
   },
+  // Deactivating takes the form out of service — treat as destructive.
+  { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ formId }: any) => {
     try {
       const service = ctx.pp;
@@ -176,6 +182,7 @@ server.tool(
       descWithExamples("Solution to add to", SOLUTION_NAME_EXAMPLES)
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ name, entityLogicalName, fetchXml, layoutXml, queryType, isDefault, description, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;
@@ -218,6 +225,7 @@ server.tool(
     description: z.string().optional().describe("New description"),
     solutionUniqueName: z.string().optional().describe("Solution to add to")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ viewId, name, fetchXml, layoutXml, isDefault, description, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;
@@ -252,6 +260,7 @@ server.tool(
   {
     viewId: z.string().describe("View ID (GUID). Get from get-views in the read-only package.")
   },
+  { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ viewId }: any) => {
     try {
       const service = ctx.pp;
@@ -276,6 +285,7 @@ server.tool(
   {
     viewId: z.string().describe("View ID (GUID)")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ viewId }: any) => {
     try {
       const service = ctx.pp;

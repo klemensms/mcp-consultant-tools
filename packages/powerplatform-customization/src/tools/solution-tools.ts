@@ -22,6 +22,7 @@ server.tool(
     customizationOptionValuePrefix: z.number().describe("Option value prefix, 5-digit number (e.g., 10000, 15743). All option set values start with this prefix."),
     description: z.string().optional().describe("Publisher description")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ uniqueName, friendlyName, customizationPrefix, customizationOptionValuePrefix, description }: any) => {
     try {
       const service = ctx.pp;
@@ -58,6 +59,7 @@ server.tool(
     publisherId: z.string().describe("Publisher ID (GUID). Get from get-publishers in the read-only package."),
     description: z.string().optional().describe("Solution description")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ uniqueName, friendlyName, version, publisherId, description }: any) => {
     try {
       const service = ctx.pp;
@@ -89,6 +91,7 @@ server.tool(
       descWithExamples("The unique name of the solution to list components for", SOLUTION_NAME_EXAMPLES)
     ),
   },
+  { readOnlyHint: true, openWorldHint: true },
   async ({ solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;
@@ -153,6 +156,7 @@ server.tool(
     addRequiredComponents: z.boolean().optional().describe("Add required components (default: true)"),
     includedComponentSettingsValues: z.string().optional().describe("Component settings values")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ solutionUniqueName, componentId, componentType, addRequiredComponents }: any) => {
     try {
       const service = ctx.pp;
@@ -186,6 +190,7 @@ server.tool(
       descWithExamples("Component type number. WARNING: type 29 (Workflow) is broken in the API", SOLUTION_COMPONENT_TYPE_EXAMPLES)
     )
   },
+  { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ solutionUniqueName, componentId, componentType }: any) => {
     try {
       const service = ctx.pp;
@@ -214,6 +219,8 @@ server.tool(
     ),
     managed: z.boolean().optional().describe("Export as managed solution (default: false). Managed=locked for production, Unmanaged=editable for development.")
   },
+  // Read-only export (returns base64; no env change).
+  { readOnlyHint: true, openWorldHint: true },
   async ({ solutionName, managed }: any) => {
     try {
       const service = ctx.pp;
@@ -242,6 +249,8 @@ server.tool(
     publishWorkflows: z.boolean().optional().describe("Publish workflows after import (default: true)"),
     overwriteUnmanagedCustomizations: z.boolean().optional().describe("Overwrite unmanaged customizations (default: false). Use true to force update existing customizations.")
   },
+  // Imports/overwrites customizations — mutating, not flagged destructive.
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ customizationFile, publishWorkflows, overwriteUnmanagedCustomizations }: any) => {
     try {
       const service = ctx.pp;
@@ -278,6 +287,7 @@ server.tool(
       ])
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ entityLogicalName }: any) => {
     try {
       const service = ctx.pp;

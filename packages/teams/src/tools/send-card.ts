@@ -64,6 +64,7 @@ export function registerSendCardTool(
     "send-adaptive-card",
     `Send an Adaptive Card to a Microsoft Teams channel. Use pre-built templates (${AVAILABLE_TEMPLATES.join(", ")}) for release announcements, or provide a raw card JSON.`,
     sendCardSchema,
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({
       teamId,
       channelId,

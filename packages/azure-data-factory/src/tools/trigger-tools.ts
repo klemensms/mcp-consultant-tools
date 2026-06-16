@@ -10,6 +10,7 @@ export function registerTriggerTools(server: any, ctx: ServiceContext): void {
     {
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ factoryId }: { factoryId?: string }) => {
       try {
         const svc = ctx.adf;
@@ -46,6 +47,7 @@ export function registerTriggerTools(server: any, ctx: ServiceContext): void {
       triggerName: z.string().describe('Name of the trigger'),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({
       triggerName,
       factoryId,
@@ -79,6 +81,7 @@ export function registerTriggerTools(server: any, ctx: ServiceContext): void {
       triggerName: z.string().describe('Name of the trigger to start'),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({
       triggerName,
       factoryId,
@@ -124,6 +127,8 @@ export function registerTriggerTools(server: any, ctx: ServiceContext): void {
       triggerName: z.string().describe('Name of the trigger to stop'),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    // Deactivates a trigger; mutates trigger state but deletes nothing.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({
       triggerName,
       factoryId,
@@ -178,6 +183,7 @@ export function registerTriggerTools(server: any, ctx: ServiceContext): void {
         .describe(descWithExamples('Filter by run status', TRIGGER_RUN_STATUS_EXAMPLES)),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({
       lastDays,
       triggerName,

@@ -7,6 +7,8 @@ export function registerWorkspaceTools(server: any, ctx: ServiceContext): void {
     "la-list-workspaces",
     "List all configured Log Analytics workspaces (active and inactive)",
     {},
+    // Reads local in-memory config only (no Azure call).
+    { readOnlyHint: true },
     async () => {
       try {
         const resources = ctx.logAnalytics.getAllResources();
@@ -29,6 +31,7 @@ export function registerWorkspaceTools(server: any, ctx: ServiceContext): void {
     {
       resourceId: z.string().describe("Resource ID (use la-list-workspaces to find IDs)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId }: any) => {
       try {
         const metadata = await ctx.logAnalytics.getMetadata(resourceId);
@@ -51,6 +54,8 @@ export function registerWorkspaceTools(server: any, ctx: ServiceContext): void {
     {
       resourceId: z.string().describe("Resource ID"),
     },
+    // Read-only access probe (runs a trivial KQL query).
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId }: any) => {
       try {
         const result = await ctx.logAnalytics.testWorkspaceAccess(resourceId);

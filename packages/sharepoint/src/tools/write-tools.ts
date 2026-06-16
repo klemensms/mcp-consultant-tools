@@ -28,6 +28,8 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
       encoding: z.enum(['utf-8', 'base64']).optional().describe("Content encoding: 'utf-8' for text (default), 'base64' for binary"),
       overwrite: z.boolean().optional().describe("Overwrite if file exists (default: false, will fail if file exists)"),
     },
+    // overwrite=true can replace an existing file, but the primary intent is to add content → mutating, non-destructive.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ siteId, driveId, path, content, encoding, overwrite }: any) => {
       try {
         ctx.checkWriteEnabled();
@@ -56,6 +58,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Name for the new folder", FOLDER_NAME_EXAMPLES)
       ),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ siteId, driveId, parentPath, folderName }: any) => {
       try {
         ctx.checkWriteEnabled();
@@ -77,6 +80,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
       itemId: z.string().describe("ID of the file or folder to delete"),
       confirm: z.boolean().describe("Must be set to true to confirm deletion. Safety mechanism to prevent accidental deletions."),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ siteId, driveId, itemId, confirm }: any) => {
       try {
         ctx.checkDeleteEnabled();
@@ -112,6 +116,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
         ])
       ),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ siteId, driveId, itemId, targetDriveId, targetParentPath }: any) => {
       try {
         ctx.checkWriteEnabled();
@@ -140,6 +145,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
       ),
       newName: z.string().optional().describe("Optional new name for the copy (defaults to original name)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ siteId, driveId, itemId, targetDriveId, targetParentPath, newName }: any) => {
       try {
         ctx.checkWriteEnabled();
@@ -161,6 +167,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
       itemId: z.string().describe("ID of the file or folder to rename"),
       newName: z.string().describe("New name for the file or folder (include file extension for files)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ siteId, driveId, itemId, newName }: any) => {
       try {
         ctx.checkWriteEnabled();

@@ -22,6 +22,8 @@ export function registerAuthenticateTool(
     {
       // No parameters needed
     },
+    // Initiates sign-in against Microsoft Graph/Entra and establishes a token (additive, destroys no data).
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async () => {
       try {
         const result = await ctx.teams.startAuthentication();
@@ -96,6 +98,8 @@ export function registerAuthStatusTool(
     {
       // No parameters needed
     },
+    // Reads local cached auth state only; no external calls.
+    { readOnlyHint: true },
     async () => {
       try {
         const status = ctx.teams.getAuthStatus();
@@ -150,6 +154,8 @@ export function registerLogoutTool(
     {
       // No parameters needed
     },
+    // Clears the local token cache (reversible via re-auth, no user/remote data destroyed); local-only.
+    { readOnlyHint: false, destructiveHint: false },
     async () => {
       try {
         ctx.teams.logout();

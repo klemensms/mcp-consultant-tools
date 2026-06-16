@@ -7,6 +7,8 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
     "ai-list-resources",
     "List all configured Application Insights resources with their IDs, names, and active status",
     {},
+    // Reads locally-configured resources only (no remote call) → local-only read.
+    { readOnlyHint: true },
     async () => {
       try {
         const resources = ctx.appInsights.getAllResources();
@@ -42,6 +44,7 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Resource ID (use ai-list-resources to find IDs)", RESOURCE_ID_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId }: any) => {
       try {
         const metadata = await ctx.appInsights.getMetadata(resourceId);
@@ -83,6 +86,8 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Time range in ISO 8601 duration format (default: none, queries all data)", TIMESPAN_EXAMPLES)
       ),
     },
+    // KQL against App Insights is a read-only query language (no mutation/DDL).
+    { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, query, timespan }: any) => {
       try {
         const result = await ctx.appInsights.executeQuery(resourceId, query, timespan);

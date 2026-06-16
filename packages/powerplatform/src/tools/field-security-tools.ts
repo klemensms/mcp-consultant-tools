@@ -28,6 +28,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         .optional()
         .describe('Case-insensitive substring filter on FSP name'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (params: any) => {
       try {
         const results = await ctx.pp.listFieldSecurityProfiles(params.namePattern);
@@ -52,6 +53,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         .string()
         .describe('GUID of the field security profile'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (params: any) => {
       try {
         const r = await ctx.pp.getFieldSecurityProfile(params.fieldSecurityProfileId);
@@ -89,6 +91,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
           descWithExamples('Entity logical name', ENTITY_NAME_EXAMPLES)
         ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (params: any) => {
       try {
         const cols = await ctx.pp.getSecuredColumns(params.entityLogicalName);

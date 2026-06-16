@@ -16,6 +16,7 @@ export function registerProjectTools(server: any, ctx: ServiceContext): void {
     'todoist-list-projects',
     'List all Todoist projects for the authenticated user.',
     {},
+    { readOnlyHint: true, openWorldHint: true },
     async () => {
       try {
         const projects = await ctx.todoist.listProjects();
@@ -33,6 +34,7 @@ export function registerProjectTools(server: any, ctx: ServiceContext): void {
     {
       id: z.string().describe('Todoist project ID'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ id }: { id: string }) => {
       try {
         const project = await ctx.todoist.getProject(id);
@@ -53,6 +55,7 @@ export function registerProjectTools(server: any, ctx: ServiceContext): void {
       is_favorite: z.boolean().optional().describe('Mark as favorite'),
       view_style: z.enum(['list', 'board']).optional().describe('Project view style'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (args: any) => {
       try {
         const project = await ctx.todoist.createProject(args);
@@ -73,6 +76,7 @@ export function registerProjectTools(server: any, ctx: ServiceContext): void {
       is_favorite: z.boolean().optional().describe('Favorite flag'),
       view_style: z.enum(['list', 'board']).optional().describe('Project view style'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ id, ...input }: any) => {
       try {
         const project = await ctx.todoist.updateProject(id, input);
@@ -89,6 +93,7 @@ export function registerProjectTools(server: any, ctx: ServiceContext): void {
     {
       id: z.string().describe('Todoist project ID'),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ id }: { id: string }) => {
       try {
         await ctx.todoist.deleteProject(id);

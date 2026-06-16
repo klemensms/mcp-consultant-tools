@@ -41,6 +41,7 @@ export function registerWorkItemTools(server: any, ctx: ServiceContext): void {
         workItemId: zCoerceNumber().describe("The work item ID"),
       },
       _meta: { ui: { resourceUri: workItemsResourceUri } },
+      annotations: { readOnlyHint: true, openWorldHint: true },
     },
     async ({ project, workItemId }: any) => {
       try {
@@ -74,6 +75,7 @@ export function registerWorkItemTools(server: any, ctx: ServiceContext): void {
         maxResults: zCoerceNumber().optional().describe("Maximum number of results (default: 200)"),
       },
       _meta: { ui: { resourceUri: workItemsResourceUri } },
+      annotations: { readOnlyHint: true, openWorldHint: true },
     },
     async ({ project, wiql, maxResults }: any) => {
       try {
@@ -127,6 +129,7 @@ export function registerWorkItemTools(server: any, ctx: ServiceContext): void {
         ),
       },
       _meta: { ui: { resourceUri: workItemsResourceUri } },
+      annotations: { readOnlyHint: true, openWorldHint: true },
     },
     async ({ project, queryId, maxResults, detail, fields, groupBy }: any) => {
       try {
@@ -150,6 +153,7 @@ export function registerWorkItemTools(server: any, ctx: ServiceContext): void {
       project: z.string().describe("The project name"),
       queryId: z.string().describe("The saved query GUID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, queryId }: any) => {
       try {
         const result = await ctx.workItem.getSavedQuery(project, queryId);
@@ -168,6 +172,7 @@ export function registerWorkItemTools(server: any, ctx: ServiceContext): void {
       project: z.string().describe("The project name"),
       workItemId: zCoerceNumber().describe("The work item ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, workItemId }: any) => {
       try {
         const result = await ctx.workItem.getWorkItemComments(project, workItemId);
@@ -187,6 +192,7 @@ export function registerWorkItemTools(server: any, ctx: ServiceContext): void {
       workItemId: zCoerceNumber().describe("The work item ID"),
       commentText: z.string().describe("The comment text in Markdown format. Use standard Markdown syntax: **bold**, *italic*, `code`, - lists, [links](url), etc. Will be auto-converted to HTML if AZUREDEVOPS_COMMENT_FORMAT=html is set."),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, workItemId, commentText }: any) => {
       try {
         const result = await ctx.workItem.addWorkItemComment(project, workItemId, commentText);
@@ -208,6 +214,7 @@ export function registerWorkItemTools(server: any, ctx: ServiceContext): void {
       commentId: zCoerceNumber().describe("The comment ID to update. Get comment IDs from get-work-item-comments."),
       commentText: z.string().describe("The updated comment text in Markdown format. Use standard Markdown syntax: **bold**, *italic*, `code`, - lists, [links](url), etc. Will be auto-converted to HTML if AZUREDEVOPS_COMMENT_FORMAT=html is set."),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, workItemId, commentId, commentText }: any) => {
       try {
         const result = await ctx.workItem.updateWorkItemComment(project, workItemId, commentId, commentText);
@@ -238,6 +245,7 @@ export function registerWorkItemTools(server: any, ctx: ServiceContext): void {
       ),
       skipAutoConvert: z.boolean().optional().describe("Skip automatic markdown format injection for large text fields. Only use when explicitly requested. Default: false"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, workItemId, patchOperations, skipAutoConvert }: any) => {
       try {
         let finalOperations = [...patchOperations];
@@ -301,6 +309,7 @@ export function registerWorkItemTools(server: any, ctx: ServiceContext): void {
         attributes: z.record(z.any()).optional().describe("Optional relation attributes")
       })).optional().describe("Optional array of work item relationships. Use parentId for simple parent-child relationships.")
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, workItemType, fields, parentId, relations }: any) => {
       try {
         const result = await ctx.workItem.createWorkItem(project, workItemType, fields, parentId, relations);
@@ -327,6 +336,7 @@ export function registerWorkItemTools(server: any, ctx: ServiceContext): void {
       workItemId: zCoerceNumber().optional().describe("Optional work item ID to associate the upload with. When provided, the attachment is recorded in that work item's local manifest so subsequent sync push operations recognise it as already on ADO."),
       fileName: z.string().optional().describe("Optional override for the filename ADO will store. Defaults to the basename of filePath."),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, filePath, workItemId, fileName }: any) => {
       try {
         const result = await ctx.workItem.uploadAttachment(project, filePath, fileName);
@@ -360,6 +370,7 @@ export function registerWorkItemTools(server: any, ctx: ServiceContext): void {
       project: z.string().describe("The project name"),
       workItemId: zCoerceNumber().describe("The work item ID"),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ project, workItemId }: any) => {
       try {
         const result = await ctx.workItem.deleteWorkItem(project, workItemId);

@@ -13,6 +13,7 @@ export function registerWorkspaceTools(server: any, ctx: ServiceContext): void {
     'fabric-list-workspaces',
     'List all Microsoft Fabric workspaces the service principal can access.',
     {},
+    { readOnlyHint: true, openWorldHint: true },
     async () => {
       try {
         const result = await ctx.workspaces.listWorkspaces();
@@ -30,6 +31,7 @@ export function registerWorkspaceTools(server: any, ctx: ServiceContext): void {
     {
       workspaceId: z.string().describe(descWithExamples('Workspace ID (GUID)', WORKSPACE_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ workspaceId }: any) => {
       try {
         const result = await ctx.workspaces.getWorkspace(workspaceId);
@@ -49,6 +51,7 @@ export function registerWorkspaceTools(server: any, ctx: ServiceContext): void {
       description: z.string().optional().describe('Optional workspace description'),
       capacityId: z.string().optional().describe(descWithExamples('Optional capacity ID to assign the workspace to', CAPACITY_ID_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ displayName, description, capacityId }: any) => {
       try {
         const result = await ctx.workspaces.createWorkspace({ displayName, description, capacityId });
@@ -68,6 +71,7 @@ export function registerWorkspaceTools(server: any, ctx: ServiceContext): void {
       displayName: z.string().optional().describe('New display name'),
       description: z.string().optional().describe('New description'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ workspaceId, displayName, description }: any) => {
       try {
         const result = await ctx.workspaces.updateWorkspace(workspaceId, { displayName, description });
@@ -85,6 +89,7 @@ export function registerWorkspaceTools(server: any, ctx: ServiceContext): void {
     {
       workspaceId: z.string().describe('Workspace ID (GUID) to delete'),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ workspaceId }: any) => {
       try {
         const result = await ctx.workspaces.deleteWorkspace(workspaceId);
@@ -102,6 +107,7 @@ export function registerWorkspaceTools(server: any, ctx: ServiceContext): void {
     {
       workspaceId: z.string().describe('Workspace ID (GUID)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ workspaceId }: any) => {
       try {
         const result = await ctx.workspaces.listRoleAssignments(workspaceId);
@@ -122,6 +128,7 @@ export function registerWorkspaceTools(server: any, ctx: ServiceContext): void {
       principalType: z.enum(PRINCIPAL_TYPES).describe('Type of the principal'),
       role: z.enum(WORKSPACE_ROLES).describe('Role to grant'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ workspaceId, principalId, principalType, role }: any) => {
       try {
         const result = await ctx.workspaces.addRoleAssignment(workspaceId, { principalId, principalType, role });
@@ -140,6 +147,8 @@ export function registerWorkspaceTools(server: any, ctx: ServiceContext): void {
       workspaceId: z.string().describe('Workspace ID (GUID)'),
       principalId: z.string().describe('Principal ID (GUID) whose role assignment should be removed'),
     },
+    // Revokes a principal's access grant → destructive (reversible re-add).
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ workspaceId, principalId }: any) => {
       try {
         const result = await ctx.workspaces.removeRoleAssignment(workspaceId, principalId);

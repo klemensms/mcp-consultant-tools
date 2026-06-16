@@ -12,6 +12,7 @@ export function registerFormViewTools(server: any, ctx: ServiceContext): void {
     {
       webResourceId: z.string().describe("Web resource ID (GUID)")
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ webResourceId }: any) => {
       try {
         const service = ctx.pp;
@@ -31,6 +32,7 @@ export function registerFormViewTools(server: any, ctx: ServiceContext): void {
     "preview-unpublished",
     "Preview all components with unpublished customizations",
     {},
+    { readOnlyHint: true, openWorldHint: true },
     async () => {
       try {
         const service = ctx.pp;
@@ -54,6 +56,7 @@ export function registerFormViewTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Entity logical name", ENTITY_NAME_EXAMPLES)
       )
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entityLogicalName }: any) => {
       try {
         const service = ctx.pp;
@@ -91,6 +94,7 @@ export function registerFormViewTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Entity logical name", ENTITY_NAME_EXAMPLES)
       )
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entityLogicalName }: any) => {
       try {
         const service = ctx.pp;
@@ -125,6 +129,7 @@ export function registerFormViewTools(server: any, ctx: ServiceContext): void {
     {
       viewId: z.string().describe("View ID (GUID)")
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ viewId }: any) => {
       try {
         const service = ctx.pp;
@@ -154,6 +159,7 @@ export function registerFormViewTools(server: any, ctx: ServiceContext): void {
     {
       webResourceId: z.string().describe("Web resource ID (GUID)")
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ webResourceId }: any) => {
       try {
         const service = ctx.pp;
@@ -187,6 +193,7 @@ export function registerFormViewTools(server: any, ctx: ServiceContext): void {
     {
       nameFilter: z.string().optional().describe("Name filter (contains)")
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ nameFilter }: any) => {
       try {
         const service = ctx.pp;

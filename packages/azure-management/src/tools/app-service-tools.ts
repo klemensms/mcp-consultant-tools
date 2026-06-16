@@ -23,6 +23,7 @@ export function registerAppServiceTools(server: any, ctx: ServiceContext): void 
         .describe(descWithExamples('Filter by resource group', RESOURCE_GROUP_EXAMPLES)),
       includeConfiguration: z.boolean().optional().describe('Include app settings (default: false)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.appServices.listAppServices(args);
@@ -47,6 +48,7 @@ export function registerAppServiceTools(server: any, ctx: ServiceContext): void 
       includeDeployments: z.boolean().optional().describe('Include recent deployments (default: false)'),
       showValues: z.boolean().optional().describe('Show unredacted config values for this request (default: false). Overrides AZURE_REDACT_SECRETS for this call only.'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.appServices.getAppService(args);
@@ -68,6 +70,7 @@ export function registerAppServiceTools(server: any, ctx: ServiceContext): void 
         .optional()
         .describe(descWithExamples('Filter by resource group', RESOURCE_GROUP_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.appServices.listAppServicePlans(args);
@@ -93,6 +96,7 @@ export function registerAppServiceTools(server: any, ctx: ServiceContext): void 
       ),
       maxLines: z.number().optional().describe('Maximum lines to return per log source (default: 200)'),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.appServices.getAppServiceLogs(args);
@@ -118,6 +122,8 @@ export function registerAppServiceTools(server: any, ctx: ServiceContext): void 
       ),
       resourceGroup: z.string().optional().describe('Resource group (uses default if not specified)'),
     },
+    // Restart re-cycles the running app; no data/content loss.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.appServices.restartAppService(args);
@@ -139,6 +145,8 @@ export function registerAppServiceTools(server: any, ctx: ServiceContext): void 
       ),
       resourceGroup: z.string().optional().describe('Resource group (uses default if not specified)'),
     },
+    // Stop deallocates compute but preserves the app, its config and content; reversible via start → non-destructive.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.appServices.stopAppService(args);
@@ -160,6 +168,7 @@ export function registerAppServiceTools(server: any, ctx: ServiceContext): void 
       ),
       resourceGroup: z.string().optional().describe('Resource group (uses default if not specified)'),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.appServices.startAppService(args);
@@ -194,6 +203,8 @@ export function registerAppServiceTools(server: any, ctx: ServiceContext): void 
       ).optional().describe('Connection strings to add or update. Merged with existing.'),
       removeSettings: z.array(z.string()).optional().describe('App setting keys to remove'),
     },
+    // Merges/updates app settings (removeSettings drops keys) — config change, not data destruction.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (args: any) => {
       try {
         const result = await ctx.management.appServices.setAppServiceConfig(args);

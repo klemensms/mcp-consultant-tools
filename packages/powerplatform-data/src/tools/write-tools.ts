@@ -52,6 +52,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
           [...RECORD_DATA_EXAMPLES, ...ODATA_BIND_EXAMPLES]
         )),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ entityNamePlural, data }: any) => {
       try {
         ctx.checkCreateEnabled();
@@ -137,6 +138,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
           [...RECORD_DATA_EXAMPLES, ...ODATA_BIND_EXAMPLES]
         )),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ entityNamePlural, recordId, data }: any) => {
       try {
         ctx.checkUpdateEnabled();
@@ -209,6 +211,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
         .optional()
         .describe("Confirmation flag - must be true to proceed with deletion (safety check)"),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ entityNamePlural, recordId, confirm }: any) => {
       try {
         ctx.checkDeleteEnabled();
@@ -313,6 +316,8 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
           "Leave empty for unbound actions. Example: { entityNamePlural: 'opportunities', recordId: '12345678-...' }"
         ),
     },
+    // Generic: executes an arbitrary Custom API / Action that may mutate or delete data → treat as destructive.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ actionName, parameters, boundTo }: any) => {
       try {
         ctx.checkActionsEnabled();
@@ -415,6 +420,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
         .string()
         .describe("The GUID of the target record to associate"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ entityNamePlural, recordId, navigationProperty, targetEntityNamePlural, targetRecordId }: any) => {
       try {
         ctx.checkCreateEnabled();
@@ -497,6 +503,8 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
         .string()
         .describe("The GUID of the target record to disassociate"),
     },
+    // Removes a relationship link (does not delete records) but is not reversible by re-running → destructive.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ entityNamePlural, recordId, navigationProperty, targetRecordId }: any) => {
       try {
         ctx.checkDeleteEnabled();

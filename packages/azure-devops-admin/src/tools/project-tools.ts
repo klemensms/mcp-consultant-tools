@@ -31,6 +31,7 @@ export function registerProjectTools(server: any, ctx: ServiceContext): { readon
       top: zCoerceNumber().optional().describe("Maximum number of projects to return"),
       skip: zCoerceNumber().optional().describe("Number of projects to skip (for pagination)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ stateFilter, top, skip }: any) => {
       try {
         const result = await ctx.projects.listProjects(stateFilter, top, skip);
@@ -49,6 +50,7 @@ export function registerProjectTools(server: any, ctx: ServiceContext): { readon
     {
       projectId: z.string().describe("Project name or ID (GUID)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ projectId }: any) => {
       try {
         const result = await ctx.projects.getProject(projectId);
@@ -67,6 +69,7 @@ export function registerProjectTools(server: any, ctx: ServiceContext): { readon
     {
       projectId: z.string().describe("Project name or ID (GUID)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ projectId }: any) => {
       try {
         const result = await ctx.projects.getProjectProperties(projectId);
@@ -99,6 +102,7 @@ export function registerProjectTools(server: any, ctx: ServiceContext): { readon
           descWithExamples("Version control type (default: Git)", PROJECT_VERSION_CONTROL_EXAMPLES)
         ),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ name, description, visibility, processTemplate, versionControl }: any) => {
         try {
           const result = await ctx.projects.createProject(name, description, visibility, processTemplate, versionControl);
@@ -119,6 +123,7 @@ export function registerProjectTools(server: any, ctx: ServiceContext): { readon
         name: z.string().optional().describe("New project name"),
         description: z.string().optional().describe("New project description"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ projectId, name, description }: any) => {
         try {
           const updates: any = {};
@@ -145,6 +150,7 @@ export function registerProjectTools(server: any, ctx: ServiceContext): { readon
       {
         projectId: z.string().describe("Project name or ID (GUID) to delete"),
       },
+      { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ projectId }: any) => {
         try {
           const result = await ctx.projects.deleteProject(projectId);

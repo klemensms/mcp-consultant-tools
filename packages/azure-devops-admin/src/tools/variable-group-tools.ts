@@ -20,6 +20,7 @@ export function registerVariableGroupTools(server: any, ctx: ServiceContext): { 
     {
       project: z.string().describe("The project name"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project }: any) => {
       try {
         const result = await ctx.variableGroups.getVariableGroups(project);
@@ -39,6 +40,7 @@ export function registerVariableGroupTools(server: any, ctx: ServiceContext): { 
       project: z.string().describe("The project name"),
       groupId: zCoerceNumber().describe("The variable group ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, groupId }: any) => {
       try {
         const result = await ctx.variableGroups.getVariableGroup(project, groupId);
@@ -67,6 +69,7 @@ export function registerVariableGroupTools(server: any, ctx: ServiceContext): { 
           isSecret: z.boolean().optional()
         })).optional().describe("Initial variables to set"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, name, description, variables }: any) => {
         try {
           const result = await ctx.variableGroups.createVariableGroup(project, name, description, variables);
@@ -88,6 +91,7 @@ export function registerVariableGroupTools(server: any, ctx: ServiceContext): { 
         name: z.string().optional().describe("New name"),
         description: z.string().optional().describe("New description"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, groupId, name, description }: any) => {
         try {
           const updates: any = {};
@@ -115,6 +119,7 @@ export function registerVariableGroupTools(server: any, ctx: ServiceContext): { 
         ),
         isSecret: z.boolean().optional().describe("Mark as secret (default: false)"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, groupId, variableName, value, isSecret }: any) => {
         try {
           const result = await ctx.variableGroups.setVariable(project, groupId, variableName, value, isSecret || false);
@@ -140,6 +145,7 @@ export function registerVariableGroupTools(server: any, ctx: ServiceContext): { 
         groupId: zCoerceNumber().describe("The variable group ID"),
         variableName: z.string().describe("Variable name to remove"),
       },
+      { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ project, groupId, variableName }: any) => {
         try {
           const result = await ctx.variableGroups.removeVariable(project, groupId, variableName);
@@ -159,6 +165,7 @@ export function registerVariableGroupTools(server: any, ctx: ServiceContext): { 
         project: z.string().describe("The project name"),
         groupId: zCoerceNumber().describe("The variable group ID to delete"),
       },
+      { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ project, groupId }: any) => {
         try {
           const result = await ctx.variableGroups.deleteVariableGroup(project, groupId);

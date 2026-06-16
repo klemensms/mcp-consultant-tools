@@ -13,6 +13,7 @@ export function registerShortcutTools(server: any, ctx: ServiceContext): void {
       workspaceId: z.string().describe('Workspace ID (GUID)'),
       itemId: z.string().describe(descWithExamples('Item ID (GUID) that owns the shortcuts', ITEM_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ workspaceId, itemId }: any) => {
       try {
         const result = await ctx.shortcuts.listShortcuts(workspaceId, itemId);
@@ -39,6 +40,7 @@ export function registerShortcutTools(server: any, ctx: ServiceContext): void {
         ),
       ),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ workspaceId, itemId, path, name, target }: any) => {
       try {
         const result = await ctx.shortcuts.createShortcut(workspaceId, itemId, { path, name, target });
@@ -59,6 +61,7 @@ export function registerShortcutTools(server: any, ctx: ServiceContext): void {
       shortcutPath: z.string().describe('Path of the shortcut within the item (e.g. "Tables")'),
       shortcutName: z.string().describe('Name of the shortcut to delete'),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ workspaceId, itemId, shortcutPath, shortcutName }: any) => {
       try {
         const result = await ctx.shortcuts.deleteShortcut(workspaceId, itemId, shortcutPath, shortcutName);

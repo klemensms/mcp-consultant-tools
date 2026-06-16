@@ -20,6 +20,7 @@ export function registerEnvironmentTools(server: any, ctx: ServiceContext): { re
     {
       project: z.string().describe("The project name"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project }: any) => {
       try {
         const result = await ctx.environments.listEnvironments(project);
@@ -39,6 +40,7 @@ export function registerEnvironmentTools(server: any, ctx: ServiceContext): { re
       project: z.string().describe("The project name"),
       environmentId: zCoerceNumber().describe("The environment ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, environmentId }: any) => {
       try {
         const result = await ctx.environments.getEnvironment(project, environmentId);
@@ -59,6 +61,7 @@ export function registerEnvironmentTools(server: any, ctx: ServiceContext): { re
       environmentId: zCoerceNumber().describe("The environment ID"),
       top: zCoerceNumber().optional().describe("Maximum number of results (default: 10)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, environmentId, top }: any) => {
       try {
         const result = await ctx.environments.getEnvironmentDeployments(project, environmentId, top || 10);
@@ -78,6 +81,7 @@ export function registerEnvironmentTools(server: any, ctx: ServiceContext): { re
       project: z.string().describe("The project name"),
       environmentId: zCoerceNumber().describe("The environment ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, environmentId }: any) => {
       try {
         const result = await ctx.environments.getEnvironmentChecks(project, environmentId);
@@ -104,6 +108,7 @@ export function registerEnvironmentTools(server: any, ctx: ServiceContext): { re
         ),
         description: z.string().optional().describe("Environment description"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, name, description }: any) => {
         try {
           const result = await ctx.environments.createEnvironment(project, name, description);
@@ -125,6 +130,7 @@ export function registerEnvironmentTools(server: any, ctx: ServiceContext): { re
         name: z.string().optional().describe("New name"),
         description: z.string().optional().describe("New description"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, environmentId, name, description }: any) => {
         try {
           const updates: any = {};
@@ -160,6 +166,7 @@ export function registerEnvironmentTools(server: any, ctx: ServiceContext): { re
         settings: z.any().describe("Check-specific settings. For Approval: {approvers: [{id: 'user-guid'}], minRequiredApprovers: 1, instructions: '...'}. For BusinessHours: {businessHours: {startTime: '09:00', endTime: '17:00', timeZoneId: 'UTC'}}. For BranchControl: {allowedBranches: ['refs/heads/main']}"),
         timeout: zCoerceNumber().optional().describe("Timeout in minutes (default: 43200 = 30 days)"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, environmentId, checkType, settings, timeout }: any) => {
         try {
           const configuration = { ...settings };
@@ -183,6 +190,7 @@ export function registerEnvironmentTools(server: any, ctx: ServiceContext): { re
         settings: z.any().optional().describe("Updated check-specific settings"),
         timeout: zCoerceNumber().optional().describe("Updated timeout in minutes"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, checkId, settings, timeout }: any) => {
         try {
           const updates: any = {};
@@ -210,6 +218,7 @@ export function registerEnvironmentTools(server: any, ctx: ServiceContext): { re
         project: z.string().describe("The project name"),
         environmentId: zCoerceNumber().describe("The environment ID to delete"),
       },
+      { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ project, environmentId }: any) => {
         try {
           const result = await ctx.environments.deleteEnvironment(project, environmentId);
@@ -229,6 +238,7 @@ export function registerEnvironmentTools(server: any, ctx: ServiceContext): { re
         project: z.string().describe("The project name"),
         checkId: zCoerceNumber().describe("The check configuration ID to delete (get from get-env-checks)"),
       },
+      { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ project, checkId }: any) => {
         try {
           const result = await ctx.environments.removeEnvironmentCheck(project, checkId);

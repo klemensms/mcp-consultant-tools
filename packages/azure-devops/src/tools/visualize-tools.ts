@@ -45,6 +45,8 @@ export function registerVisualizeTools(server: any, ctx: ServiceContext): void {
       theme: z.enum(["light", "dark"]).optional().describe("Color theme (default: light)"),
       maxResults: zCoerceNumber().optional().describe("Maximum work items to fetch (default: 20 for visualization)"),
     },
+    // Fetches work item data and returns a design prompt; reads ADO, never writes → read.
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, wiql, queryId, intent, theme, maxResults }: any) => {
       try {
         if (!wiql && !queryId) {
@@ -129,6 +131,8 @@ export function registerVisualizeTools(server: any, ctx: ServiceContext): void {
         html: z.string().describe("The complete HTML snippet to render. Must be self-contained with inline CSS and scripts."),
         title: z.string().optional().describe("Short title for the visualization (e.g. 'Sprint Status Dashboard')"),
       },
+      // Sanitizes + renders HTML in an iframe locally; no ADO access → read, closed-world.
+      annotations: { readOnlyHint: true, openWorldHint: false },
       _meta: { ui: { resourceUri: workItemsResourceUri } },
     },
     async ({ html, title }: any) => {

@@ -8,6 +8,8 @@ export function registerConfigurationTools(server: any, ctx: ServiceContext): vo
     "get-configuration",
     "Get the configured Azure DevOps organization and projects. Use this to construct correct URLs.",
     {},
+    // local-only: reads env-derived config, no ADO call.
+    { readOnlyHint: true },
     async () => {
       try {
         const config = ctx.configuration.getConfiguration();

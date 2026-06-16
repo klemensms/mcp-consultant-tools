@@ -28,6 +28,8 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
     "blob-list-accounts",
     "List all configured storage accounts",
     {},
+    // Local-only: reads configured account list, no remote call.
+    { readOnlyHint: true },
     async () => {
       try {
         const accounts = ctx.storage.getAllAccounts();
@@ -47,6 +49,7 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
     {
       accountId: z.string().describe(descWithExamples("Storage account ID", ACCOUNT_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId }: any) => {
       try {
         const result = await ctx.storage.testConnection(accountId);
@@ -68,6 +71,7 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
       prefix: z.string().optional().describe("Filter by container name prefix"),
       maxResults: z.number().optional().describe("Maximum results (default: 1000)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, prefix, maxResults }: any) => {
       try {
         const blobSvc = ctx.storage.getBlobService(accountId);
@@ -89,6 +93,7 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
       accountId: z.string().describe(descWithExamples("Storage account ID", ACCOUNT_ID_EXAMPLES)),
       containerName: z.string().describe(descWithExamples("Container name", CONTAINER_NAME_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, containerName }: any) => {
       try {
         const blobSvc = ctx.storage.getBlobService(accountId);
@@ -112,6 +117,7 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
       publicAccess: z.enum(['blob', 'container']).optional().describe("Public access level (default: none/private)"),
       metadata: z.string().optional().describe(descWithExamples("Metadata JSON", METADATA_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, containerName, publicAccess, metadata }: any) => {
       try {
         checkWriteEnabled();
@@ -135,6 +141,7 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
       accountId: z.string().describe(descWithExamples("Storage account ID", ACCOUNT_ID_EXAMPLES)),
       containerName: z.string().describe(descWithExamples("Container name", CONTAINER_NAME_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ accountId, containerName }: any) => {
       try {
         checkDeleteEnabled();
@@ -161,6 +168,7 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
       includeMetadata: z.boolean().optional().describe("Include blob metadata (default: false)"),
       includeTags: z.boolean().optional().describe("Include blob tags (default: false)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, containerName, prefix, maxResults, includeMetadata, includeTags }: any) => {
       try {
         const blobSvc = ctx.storage.getBlobService(accountId);
@@ -188,6 +196,7 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
       containerName: z.string().describe(descWithExamples("Container name", CONTAINER_NAME_EXAMPLES)),
       blobName: z.string().describe(descWithExamples("Blob name (path)", BLOB_NAME_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, containerName, blobName }: any) => {
       try {
         const blobSvc = ctx.storage.getBlobService(accountId);
@@ -210,6 +219,7 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
       containerName: z.string().describe(descWithExamples("Container name", CONTAINER_NAME_EXAMPLES)),
       blobName: z.string().describe(descWithExamples("Blob name (path)", BLOB_NAME_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, containerName, blobName }: any) => {
       try {
         const blobSvc = ctx.storage.getBlobService(accountId);
@@ -237,6 +247,7 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
       tags: z.string().optional().describe("Tags JSON (e.g., {\"key\": \"value\"})"),
       overwrite: z.boolean().optional().describe("Overwrite if exists (default: false)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, containerName, blobName, content, contentType, metadata, tags, overwrite }: any) => {
       try {
         checkWriteEnabled();
@@ -265,6 +276,7 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
       containerName: z.string().describe(descWithExamples("Container name", CONTAINER_NAME_EXAMPLES)),
       blobName: z.string().describe(descWithExamples("Blob name (path)", BLOB_NAME_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ accountId, containerName, blobName }: any) => {
       try {
         checkDeleteEnabled();
@@ -291,6 +303,7 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
       destBlob: z.string().describe("Destination blob name"),
       overwrite: z.boolean().optional().describe("Overwrite if exists (default: false)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, sourceContainer, sourceBlob, destContainer, destBlob, overwrite }: any) => {
       try {
         checkWriteEnabled();
@@ -319,6 +332,7 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
       blobName: z.string().describe(descWithExamples("Blob name (path)", BLOB_NAME_EXAMPLES)),
       metadata: z.string().describe(descWithExamples("Metadata JSON", METADATA_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, containerName, blobName, metadata }: any) => {
       try {
         checkWriteEnabled();
@@ -343,6 +357,7 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
       blobName: z.string().describe(descWithExamples("Blob name (path)", BLOB_NAME_EXAMPLES)),
       tags: z.string().describe("Tags JSON (e.g., {\"Department\": \"Finance\", \"Year\": \"2024\"})"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, containerName, blobName, tags }: any) => {
       try {
         checkWriteEnabled();
@@ -366,6 +381,7 @@ export function registerBlobTools(server: any, ctx: ServiceContext): void {
       tagFilter: z.string().describe(descWithExamples("Tag filter expression", BLOB_TAG_FILTER_EXAMPLES)),
       maxResults: z.number().optional().describe("Maximum results (default: 1000)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, tagFilter, maxResults }: any) => {
       try {
         const blobSvc = ctx.storage.getBlobService(accountId);

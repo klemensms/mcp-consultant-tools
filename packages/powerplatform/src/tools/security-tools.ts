@@ -17,6 +17,7 @@ Returns a summary with counts by connector type, plus the full list of connectio
       managedOnly: z.boolean().optional().describe("Filter to managed connection references only (default: false)"),
       hasConnection: z.boolean().optional().describe("Filter: true = only with connections set, false = only without connections"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ maxRecords, managedOnly, hasConnection }: any) => {
       try {
         const service = ctx.pp;
@@ -76,6 +77,7 @@ Useful for security audits and understanding what custom roles exist in the envi
       excludeSystemRoles: z.boolean().optional().describe("Exclude System Administrator, System Customizer, and other built-in roles (default: true)"),
       maxRecords: z.number().optional().describe("Maximum records to return (default: 100)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ solutionUniqueName, excludeSystemRoles, maxRecords }: any) => {
       try {
         const service = ctx.pp;
@@ -129,6 +131,7 @@ Results are grouped by entity, showing the access depth (User/Business Unit/Pare
       entityFilter: z.string().optional().describe("Filter privileges to a specific entity name (partial match)"),
       accessRightFilter: z.string().optional().describe("Filter by access right: Create, Read, Write, Delete, Append, AppendTo, Assign, Share"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ roleId, entityFilter, accessRightFilter }: any) => {
       try {
         const service = ctx.pp;
@@ -189,6 +192,7 @@ Optionally includes a privilege summary for each role (slower due to additional 
       ),
       includePrivileges: z.boolean().optional().describe("Include privilege count summary per role (default: false, slower)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ solutionUniqueName, includePrivileges }: any) => {
       try {
         const service = ctx.pp;

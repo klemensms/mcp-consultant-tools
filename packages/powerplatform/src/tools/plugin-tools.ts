@@ -13,6 +13,7 @@ export function registerPluginTools(server: any, ctx: ServiceContext): void {
       includeManaged: z.boolean().optional().describe("Include managed assemblies (default: false)"),
       maxRecords: z.number().optional().describe("Maximum number of assemblies to return (default: 100)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ includeManaged, maxRecords }: any) => {
       try {
         const service = ctx.pp;
@@ -48,6 +49,7 @@ export function registerPluginTools(server: any, ctx: ServiceContext): void {
       assemblyName: z.string().describe("The name of the plugin assembly"),
       includeDisabled: z.boolean().optional().describe("Include disabled steps (default: false)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ assemblyName, includeDisabled }: any) => {
       try {
         const service = ctx.pp;
@@ -88,6 +90,7 @@ export function registerPluginTools(server: any, ctx: ServiceContext): void {
       ),
       includeDisabled: z.boolean().optional().describe("Include disabled steps (default: false)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entityName, messageFilter, includeDisabled }: any) => {
       try {
         const service = ctx.pp;
@@ -134,6 +137,7 @@ export function registerPluginTools(server: any, ctx: ServiceContext): void {
       ),
       maxRecords: z.number().optional().describe("Maximum number of logs to return (default: 50)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entityName, messageName, correlationId, pluginStepId, exceptionOnly, hoursBack, maxRecords }: any) => {
       try {
         const service = ctx.pp;

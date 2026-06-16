@@ -15,6 +15,7 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
     "list-repositories",
     "List all Git repositories in an Azure DevOps project. Returns repository ID, name, default branch, and URLs.",
     { project: z.string().describe("The project name") },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project }: any) => {
       try {
         const result = await ctx.pullRequest.listRepositories(project);
@@ -35,6 +36,7 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
       status: z.enum(["active", "completed", "abandoned", "all"]).optional().describe("Filter by PR status (default: active)"),
       top: zCoerceNumber().optional().describe("Maximum results (default: 25)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, repositoryId, status, top }: any) => {
       try {
         const result = await ctx.pullRequest.listPullRequests(project, repositoryId, status || 'active', top || 25);
@@ -54,6 +56,7 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
       repositoryId: z.string().describe("Repository ID (GUID) or name"),
       pullRequestId: zCoerceNumber().describe("The pull request ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, repositoryId, pullRequestId }: any) => {
       try {
         const result = await ctx.pullRequest.getPullRequest(project, repositoryId, pullRequestId);
@@ -73,6 +76,7 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
       repositoryId: z.string().describe("Repository ID (GUID) or name"),
       pullRequestId: zCoerceNumber().describe("The pull request ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, repositoryId, pullRequestId }: any) => {
       try {
         const result = await ctx.pullRequest.getPullRequestThreads(project, repositoryId, pullRequestId);
@@ -92,6 +96,7 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
       repositoryId: z.string().describe("Repository ID (GUID) or name"),
       pullRequestId: zCoerceNumber().describe("The pull request ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, repositoryId, pullRequestId }: any) => {
       try {
         const result = await ctx.pullRequest.getPullRequestCommits(project, repositoryId, pullRequestId);
@@ -112,6 +117,7 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
       pullRequestId: zCoerceNumber().describe("The pull request ID"),
       iterationId: zCoerceNumber().optional().describe("Iteration ID (default: latest)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, repositoryId, pullRequestId, iterationId }: any) => {
       try {
         const result = await ctx.pullRequest.getPullRequestChanges(project, repositoryId, pullRequestId, iterationId);
@@ -142,6 +148,7 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
         lineNumber: zCoerceNumber().optional().describe("Line number for inline comment (right side of diff)"),
         status: z.enum(["active", "fixed", "wontFix", "closed", "byDesign", "pending"]).optional().describe("Thread status (default: active)"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, repositoryId, pullRequestId, content, filePath, lineNumber, status }: any) => {
         try {
           const result = await ctx.pullRequest.addPullRequestThread(project, repositoryId, pullRequestId, content, filePath, lineNumber, status || 'active');
@@ -166,6 +173,7 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
         reviewerIds: z.array(z.string()).optional().describe("Reviewer GUIDs or unique names"),
         isDraft: z.boolean().optional().describe("Create as draft PR (default: false)"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, repositoryId, sourceRefName, targetRefName, title, description, reviewerIds, isDraft }: any) => {
         try {
           const result = await ctx.pullRequest.createPullRequest(project, repositoryId, sourceRefName, targetRefName, title, description, reviewerIds, isDraft);
@@ -189,6 +197,8 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
         status: z.enum(["abandoned", "active"]).optional().describe("Set PR status (abandoned or active)"),
         isDraft: z.boolean().optional().describe("Set draft state"),
       },
+      // Updates title/description/status (incl. abandon) — reversible, no data loss.
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, repositoryId, pullRequestId, title, description, status, isDraft }: any) => {
         try {
           const result = await ctx.pullRequest.updatePullRequest(project, repositoryId, pullRequestId, { title, description, status, isDraft });
@@ -212,6 +222,8 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
         transitionWorkItems: z.boolean().optional().describe("Transition linked work items (default: true)"),
         mergeCommitMessage: z.string().optional().describe("Custom merge commit message"),
       },
+      // Merges the PR and (by default) deletes the source branch → destructive/irreversible.
+      { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ project, repositoryId, pullRequestId, mergeStrategy, deleteSourceBranch, transitionWorkItems, mergeCommitMessage }: any) => {
         try {
           const result = await ctx.pullRequest.completePullRequest(
@@ -240,6 +252,7 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
         isRequired: z.boolean().optional().describe("Whether the reviewer is required (default: false)"),
         remove: z.boolean().optional().describe("Set to true to remove the reviewer instead of adding"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, repositoryId, pullRequestId, reviewerId, isRequired, remove }: any) => {
         try {
           const result = await ctx.pullRequest.addOrRemovePrReviewer(project, repositoryId, pullRequestId, reviewerId, isRequired, remove);
@@ -261,6 +274,7 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
         vote: z.enum(["approve", "approveWithSuggestions", "noResponse", "waitForAuthor", "reject"]).describe(descWithExamples("Vote to submit", PR_VOTE_EXAMPLES)),
         reviewerId: z.string().optional().describe("Reviewer GUID (defaults to authenticated user)"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, repositoryId, pullRequestId, vote, reviewerId }: any) => {
         try {
           const result = await ctx.pullRequest.votePullRequest(project, repositoryId, pullRequestId, vote, reviewerId);
@@ -283,6 +297,7 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
         content: z.string().optional().describe("Reply text (markdown supported)"),
         status: z.enum(["active", "fixed", "wontFix", "closed", "byDesign", "pending"]).optional().describe("Update thread status (e.g., 'fixed' to resolve)"),
       },
+      { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, repositoryId, pullRequestId, threadId, content, status }: any) => {
         try {
           const result = await ctx.pullRequest.replyToPrThread(project, repositoryId, pullRequestId, threadId, content, status);

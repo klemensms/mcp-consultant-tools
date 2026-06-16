@@ -99,6 +99,7 @@ export function registerSendMessageTool(
     "send-channel-message",
     "Send a message to a Microsoft Teams channel. Supports plain text and markdown formatting.",
     sendMessageSchema,
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({
       teamId,
       channelId,

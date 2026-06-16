@@ -31,6 +31,7 @@ export function registerFileTools(server: any, ctx: ServiceContext): void {
       prefix: z.string().optional().describe("Filter by share name prefix"),
       maxResults: z.number().optional().describe("Maximum results (default: 1000)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, prefix, maxResults }: any) => {
       try {
         const fileSvc = ctx.storage.getFileService(accountId);
@@ -52,6 +53,7 @@ export function registerFileTools(server: any, ctx: ServiceContext): void {
       accountId: z.string().describe(descWithExamples("Storage account ID", ACCOUNT_ID_EXAMPLES)),
       shareName: z.string().describe(descWithExamples("Share name", SHARE_NAME_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, shareName }: any) => {
       try {
         const fileSvc = ctx.storage.getFileService(accountId);
@@ -75,6 +77,7 @@ export function registerFileTools(server: any, ctx: ServiceContext): void {
       quota: z.number().optional().describe("Quota in GB"),
       metadata: z.string().optional().describe(descWithExamples("Metadata JSON", METADATA_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, shareName, quota, metadata }: any) => {
       try {
         checkWriteEnabled();
@@ -101,6 +104,7 @@ export function registerFileTools(server: any, ctx: ServiceContext): void {
       accountId: z.string().describe(descWithExamples("Storage account ID", ACCOUNT_ID_EXAMPLES)),
       shareName: z.string().describe(descWithExamples("Share name", SHARE_NAME_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ accountId, shareName }: any) => {
       try {
         checkDeleteEnabled();
@@ -125,6 +129,7 @@ export function registerFileTools(server: any, ctx: ServiceContext): void {
       path: z.string().optional().describe(descWithExamples("Directory path (empty for root)", FILE_PATH_EXAMPLES)),
       maxResults: z.number().optional().describe("Maximum results (default: 1000)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, shareName, path, maxResults }: any) => {
       try {
         const fileSvc = ctx.storage.getFileService(accountId);
@@ -148,6 +153,7 @@ export function registerFileTools(server: any, ctx: ServiceContext): void {
       directoryPath: z.string().describe(descWithExamples("Directory path", FILE_PATH_EXAMPLES)),
       metadata: z.string().optional().describe(descWithExamples("Metadata JSON", METADATA_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, shareName, directoryPath, metadata }: any) => {
       try {
         checkWriteEnabled();
@@ -175,6 +181,7 @@ export function registerFileTools(server: any, ctx: ServiceContext): void {
       shareName: z.string().describe(descWithExamples("Share name", SHARE_NAME_EXAMPLES)),
       directoryPath: z.string().describe(descWithExamples("Directory path", FILE_PATH_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ accountId, shareName, directoryPath }: any) => {
       try {
         checkDeleteEnabled();
@@ -198,6 +205,7 @@ export function registerFileTools(server: any, ctx: ServiceContext): void {
       shareName: z.string().describe(descWithExamples("Share name", SHARE_NAME_EXAMPLES)),
       filePath: z.string().describe(descWithExamples("File path", FILE_NAME_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, shareName, filePath }: any) => {
       try {
         const fileSvc = ctx.storage.getFileService(accountId);
@@ -220,6 +228,7 @@ export function registerFileTools(server: any, ctx: ServiceContext): void {
       shareName: z.string().describe(descWithExamples("Share name", SHARE_NAME_EXAMPLES)),
       filePath: z.string().describe(descWithExamples("File path", FILE_NAME_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, shareName, filePath }: any) => {
       try {
         const fileSvc = ctx.storage.getFileService(accountId);
@@ -246,6 +255,7 @@ export function registerFileTools(server: any, ctx: ServiceContext): void {
       metadata: z.string().optional().describe(descWithExamples("Metadata JSON", METADATA_EXAMPLES)),
       overwrite: z.boolean().optional().describe("Overwrite if exists (default: false)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, shareName, filePath, content, contentType, metadata, overwrite }: any) => {
       try {
         checkWriteEnabled();
@@ -273,6 +283,7 @@ export function registerFileTools(server: any, ctx: ServiceContext): void {
       shareName: z.string().describe(descWithExamples("Share name", SHARE_NAME_EXAMPLES)),
       filePath: z.string().describe(descWithExamples("File path", FILE_NAME_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ accountId, shareName, filePath }: any) => {
       try {
         checkDeleteEnabled();
@@ -299,6 +310,7 @@ export function registerFileTools(server: any, ctx: ServiceContext): void {
       destFile: z.string().describe("Destination file path"),
       overwrite: z.boolean().optional().describe("Overwrite if exists (default: false)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, sourceShare, sourceFile, destShare, destFile, overwrite }: any) => {
       try {
         checkWriteEnabled();

@@ -23,6 +23,7 @@ export function registerArtifactFeedTools(server: any, ctx: ServiceContext): { r
       ),
       top: zCoerceNumber().optional().describe("Maximum number of packages to return (default: 50)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ feedName, project, namePrefix, packageType, top }: any) => {
       try {
         const result = await ctx.artifactFeeds.listFeedPackages(feedName, { project, namePrefix, packageType, top: top || 50 });
@@ -48,6 +49,7 @@ export function registerArtifactFeedTools(server: any, ctx: ServiceContext): { r
       top: zCoerceNumber().optional().describe("Maximum number of versions to return (default: 10)"),
       includeDelisted: z.boolean().optional().describe("Include delisted/deprecated versions (default: false)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ feedName, packageName, project, packageType, top, includeDelisted }: any) => {
       try {
         const result = await ctx.artifactFeeds.getPackageVersions(feedName, packageName, {

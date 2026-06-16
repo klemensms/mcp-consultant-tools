@@ -25,6 +25,7 @@ server.tool(
     description: z.string().optional().describe("Assembly description"),
     solutionUniqueName: z.string().optional().describe("Solution to add assembly to"),
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ assemblyPath, assemblyName, version, isolationMode, description, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;
@@ -77,6 +78,7 @@ server.tool(
     version: z.string().optional().describe("Version string (auto-extracted if omitted)"),
     solutionUniqueName: z.string().optional().describe("Solution context"),
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ assemblyId, assemblyPath, version, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;
@@ -132,6 +134,7 @@ server.tool(
     configuration: z.string().optional().describe("Secure/unsecure config JSON"),
     solutionUniqueName: z.string().optional(),
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;
@@ -187,6 +190,7 @@ server.tool(
     attributes: z.array(z.string()).optional().describe("Attributes to include (empty = all)"),
     messagePropertyName: z.string().optional().describe("Message property (default: 'Target')"),
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;
@@ -248,6 +252,8 @@ server.tool(
     solutionUniqueName: z.string().optional(),
     replaceExisting: z.boolean().optional().describe("Update existing assembly vs. create new"),
   },
+  // Deploys (create/update) + publishes; rolls back on failure.
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     const service = ctx.pp;
 
@@ -413,6 +419,7 @@ server.tool(
     assemblyName: z.string().describe("Name of the plugin assembly to check"),
     includeDisabled: z.boolean().optional().describe("Include disabled steps (default: false)"),
   },
+  { readOnlyHint: true, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;
@@ -515,6 +522,7 @@ server.tool(
     includeManaged: z.boolean().optional().describe("Include managed packages (default: false)"),
     maxRecords: z.number().optional().describe("Maximum records to return (default: 100)"),
   },
+  { readOnlyHint: true, openWorldHint: true },
   async ({ includeManaged, maxRecords }: any) => {
     try {
       const service = ctx.pp;
@@ -550,6 +558,7 @@ server.tool(
     version: z.string().optional().describe("Package version (default: '1.0.0.0')"),
     solutionUniqueName: z.string().optional().describe("Solution to add the package to"),
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ packagePath, uniqueName, version, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;

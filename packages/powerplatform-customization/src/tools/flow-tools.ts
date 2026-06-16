@@ -23,6 +23,7 @@ server.tool(
       "Map of connection reference names to new connection IDs. Format: {'connectionRefName': 'newConnectionId'}"
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ name, templateFlowId, description, state, connectionReferenceMappings }: any) => {
     try {
       const service = ctx.pp;
@@ -55,6 +56,7 @@ server.tool(
     flowId: z.string().describe("GUID of the flow to delete"),
     confirm: z.boolean().describe("Must be true to proceed (safety check). Set to true only after confirming with user.")
   },
+  { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ flowId, confirm }: any) => {
     try {
       if (!confirm) {
@@ -95,6 +97,7 @@ server.tool(
       "Map of connection reference names to new connection IDs (only used if updateConnectionReferences=true)"
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ sourceFlowId, newName, description, updateConnectionReferences, connectionReferenceMappings }: any) => {
     try {
       const service = ctx.pp;
@@ -126,6 +129,7 @@ server.tool(
   {
     flowId: z.string().describe("GUID of the flow to activate")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ flowId }: any) => {
     try {
       const service = ctx.pp;
@@ -153,6 +157,8 @@ server.tool(
   {
     flowId: z.string().describe("GUID of the flow to deactivate")
   },
+  // Deactivating stops the flow — treat as destructive.
+  { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ flowId }: any) => {
     try {
       const service = ctx.pp;
@@ -189,6 +195,7 @@ server.tool(
     primaryEntity: z.string().optional().describe("Primary entity logical name (default: 'none')"),
     state: z.enum(['draft', 'activated']).optional().describe("Initial state (default: draft)")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ name, clientData, description, primaryEntity, state }: any) => {
     try {
       const service = ctx.pp;
@@ -231,6 +238,8 @@ server.tool(
       descWithExamples("Type of flow template to retrieve", FLOW_TEMPLATE_EXAMPLES)
     )
   },
+  // Returns a static local template — no external call.
+  { readOnlyHint: true },
   async ({ templateType }: any) => {
     try {
       const service = ctx.pp;
@@ -293,6 +302,7 @@ server.tool(
       "Set to false to skip validation (use with caution)."
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ flowId, clientData, reactivate, validateDefinition }: any) => {
     try {
       const service = ctx.pp;
@@ -335,6 +345,7 @@ server.tool(
     startedBefore: z.string().optional().describe("Only return runs started before this date (ISO 8601 format)"),
     maxRecords: z.number().optional().describe("Maximum number of runs to return (default: 50, max: 250)")
   },
+  { readOnlyHint: true, openWorldHint: true },
   async ({ flowId, status, startedAfter, startedBefore, maxRecords }: any) => {
     try {
       const service = ctx.pp;
@@ -383,6 +394,8 @@ server.tool(
     flowId: z.string().describe("GUID of the flow"),
     runId: z.string().describe("GUID of the flow run to cancel (from get-flow-runs)")
   },
+  // Cancels an in-flight run.
+  { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ flowId, runId }: any) => {
     try {
       const service = ctx.pp;
@@ -412,6 +425,8 @@ server.tool(
     flowId: z.string().describe("GUID of the flow"),
     runId: z.string().describe("GUID of the failed flow run to retry (from get-flow-runs)")
   },
+  // Creates a new run from the original inputs — mutating.
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ flowId, runId }: any) => {
     try {
       const service = ctx.pp;

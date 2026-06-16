@@ -67,6 +67,7 @@ server.tool(
       descWithExamples("Solution to add attribute to", SOLUTION_NAME_EXAMPLES)
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;
@@ -538,6 +539,7 @@ server.tool(
     ),
     solutionUniqueName: z.string().optional().describe("Solution context")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;
@@ -701,6 +703,7 @@ server.tool(
     ),
     attributeMetadataId: z.string().describe("Attribute MetadataId (GUID). Get from get-entity-attributes in the read-only package.")
   },
+  { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ entityLogicalName, attributeMetadataId }: any) => {
     try {
       const service = ctx.pp;
@@ -733,6 +736,7 @@ server.tool(
       descWithExamples("Solution to add to", SOLUTION_NAME_EXAMPLES)
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async (params: any) => {
     try {
       const service = ctx.pp;

@@ -23,6 +23,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       tag: z.string().optional().describe("Filter by tag (exact match, case-insensitive)"),
       state: z.enum(["active", "archived"]).optional().describe("Filter by item state (default: all)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ vaultId, title, tag, state }: any) => {
       try {
         const resolvedVaultId = await ctx.client.resolveVaultId(vaultId);
@@ -46,6 +47,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       vaultId: z.string().describe(descWithExamples("Vault name or ID", VAULT_NAME_EXAMPLES)),
       itemId: z.string().describe("Item UUID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ vaultId, itemId }: any) => {
       try {
         const resolvedVaultId = await ctx.client.resolveVaultId(vaultId);
@@ -69,6 +71,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       vaultId: z.string().describe(descWithExamples("Vault name or ID", VAULT_NAME_EXAMPLES)),
       itemIds: z.array(z.string()).describe("Array of item UUIDs (max 50)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ vaultId, itemIds }: any) => {
       try {
         const resolvedVaultId = await ctx.client.resolveVaultId(vaultId);
@@ -92,6 +95,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       title: z.string().optional().describe("Filter by title (substring match, case-insensitive)"),
       tag: z.string().optional().describe("Filter by tag (exact match, case-insensitive)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ title, tag }: any) => {
       try {
         const items = await ctx.items.searchItems({ title, tag });
@@ -121,6 +125,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       tags: z.array(z.string()).optional().describe("Item tags for categorization"),
       websites: z.array(z.any()).optional().describe("Websites for autofill (Login/Password items)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ vaultId, category, title, fields, notes, tags, websites }: any) => {
       try {
         ctx.checkWriteEnabled();
@@ -150,6 +155,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       notes: z.string().optional().describe("New notes"),
       tags: z.array(z.string()).optional().describe("New tags (replaces existing)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ vaultId, itemId, ...changes }: any) => {
       try {
         ctx.checkWriteEnabled();
@@ -174,6 +180,8 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       vaultId: z.string().describe(descWithExamples("Vault name or ID", VAULT_NAME_EXAMPLES)),
       itemId: z.string().describe("Item UUID to archive"),
     },
+    // Soft removal (reversible), but removes the item from active use → rule-classified destructive.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ vaultId, itemId }: any) => {
       try {
         ctx.checkWriteEnabled();
@@ -198,6 +206,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       vaultId: z.string().describe(descWithExamples("Vault name or ID", VAULT_NAME_EXAMPLES)),
       items: z.array(z.any()).describe("Array of item objects to create (max 100)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ vaultId, items }: any) => {
       try {
         ctx.checkWriteEnabled();
@@ -224,6 +233,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       vaultId: z.string().describe(descWithExamples("Vault name or ID", VAULT_NAME_EXAMPLES)),
       itemId: z.string().describe("Item UUID to delete"),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ vaultId, itemId }: any) => {
       try {
         ctx.checkDeleteEnabled();
@@ -248,6 +258,7 @@ export function registerItemTools(server: any, ctx: ServiceContext): void {
       vaultId: z.string().describe(descWithExamples("Vault name or ID", VAULT_NAME_EXAMPLES)),
       itemIds: z.array(z.string()).describe("Array of item UUIDs to delete"),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ vaultId, itemIds }: any) => {
       try {
         ctx.checkDeleteEnabled();

@@ -19,6 +19,7 @@ export function registerSecretTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Secret reference in op:// format", SECRET_REFERENCE_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ reference }: { reference: string }) => {
       try {
         const value = await ctx.secrets.resolveSecret(reference);
@@ -42,6 +43,7 @@ export function registerSecretTools(server: any, ctx: ServiceContext): void {
         descWithExamples("Array of secret references in op:// format", SECRET_REFERENCE_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ references }: { references: string[] }) => {
       try {
         const results = await ctx.secrets.resolveSecrets(references);
@@ -71,6 +73,8 @@ export function registerSecretTools(server: any, ctx: ServiceContext): void {
       separator: z.string().optional().describe("Word separator type (memorable only: digits/symbols/spaces/none)"),
       capitalize: z.boolean().optional().describe("Capitalize words (memorable only, default true)"),
     },
+    // Generates a value locally; reads or writes no vault data.
+    { readOnlyHint: true },
     async (args: any) => {
       try {
         const recipe = { type: args.type, ...args };

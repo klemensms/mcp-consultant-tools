@@ -15,6 +15,7 @@ export function registerGroupTools(server: any, ctx: ServiceContext): void {
     {
       top: z.number().optional().describe("Maximum number of groups to return (default: 50)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ top }: { top?: number }) => {
       try {
         const groups = await ctx.groups.listGroups(top || 50);
@@ -49,6 +50,7 @@ export function registerGroupTools(server: any, ctx: ServiceContext): void {
         descWithExamples("User ID (GUID) or email address", USER_ID_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ userId }: { userId: string }) => {
       try {
         const groups = await ctx.groups.getUserGroups(userId);
@@ -85,6 +87,7 @@ export function registerGroupTools(server: any, ctx: ServiceContext): void {
       top: z.number().optional().describe("Maximum members to return (default: 50)"),
       includeAllFields: z.boolean().optional().describe("Return all fields including extension_* attributes like CrmContactId, MemberId (default: false)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ groupId, top, includeAllFields }: { groupId: string; top?: number; includeAllFields?: boolean }) => {
       try {
         const members = await ctx.groups.getGroupMembers(groupId, top || 50, includeAllFields || false);

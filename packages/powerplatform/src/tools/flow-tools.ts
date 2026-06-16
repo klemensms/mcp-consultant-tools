@@ -17,6 +17,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
       excludeCopilotSales: z.boolean().optional().describe("Exclude Copilot for Sales flows (default: true)"),
       nameContains: z.string().optional().describe("Filter flows by name (case-insensitive contains)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ activeOnly, maxRecords, excludeCustomerInsights, excludeSystem, excludeCopilotSales, nameContains }: any) => {
       try {
         const service = ctx.pp;
@@ -92,6 +93,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
       includeDescription: z.boolean().optional().describe("Include full description field in results (default: true)"),
       maxResults: z.number().optional().describe("Maximum number of workflows to return (default: 50, max: 1000)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ name, primaryEntity, description, category, statecode, includeDescription, maxResults }: any) => {
       try {
         const service = ctx.pp;
@@ -156,6 +158,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
       flowId: z.string().describe("The GUID of the flow (workflowid)"),
       summary: z.boolean().optional().describe("Return parsed summary instead of full definition (default: false). Recommended for initial analysis to reduce response size."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ flowId, summary }: any) => {
       try {
         const service = ctx.pp;
@@ -201,6 +204,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
       startedBefore: z.string().optional().describe("Only return runs started before this date (ISO 8601 format)"),
       maxRecords: z.number().optional().describe("Maximum number of runs to return (default: 50, max: 250)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ flowId, status, startedAfter, startedBefore, maxRecords }: any) => {
       try {
         const service = ctx.pp;
@@ -259,6 +263,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
       flowId: z.string().describe("The GUID of the flow (workflowid)"),
       runId: z.string().describe("The GUID of the flow run (flowrunid) - get this from get-flow-runs tool"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ flowId, runId }: any) => {
       try {
         const service = ctx.pp;
@@ -302,6 +307,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
       activeOnly: z.boolean().optional().describe("Only return activated workflows (default: false)"),
       maxRecords: z.number().optional().describe("Maximum number of workflows to return (default: 25)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ activeOnly, maxRecords }: any) => {
       try {
         const service = ctx.pp;
@@ -342,6 +348,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
       workflowId: z.string().describe("The GUID of the workflow (workflowid)"),
       summary: z.boolean().optional().describe("Return parsed summary instead of full XAML (default: false). Recommended for initial analysis to reduce response size."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ workflowId, summary }: any) => {
       try {
         const service = ctx.pp;
@@ -382,6 +389,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
       activeOnly: z.boolean().optional().describe("Only return activated business rules (default: false)"),
       maxRecords: z.number().optional().describe("Maximum number of business rules to return (default: 100)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ activeOnly, maxRecords }: any) => {
       try {
         const service = ctx.pp;
@@ -416,6 +424,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
     {
       workflowId: z.string().describe("The GUID of the business rule (workflowid)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ workflowId }: any) => {
       try {
         const service = ctx.pp;

@@ -32,6 +32,8 @@ export function registerCrudTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    // INSERT adds rows; additive, not destructive.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ query, serverId, database }: { query: string; serverId?: string; database?: string }) => {
       try {
         ctx.checkInsertEnabled();
@@ -71,6 +73,7 @@ export function registerCrudTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ query, serverId, database }: { query: string; serverId?: string; database?: string }) => {
       try {
         ctx.checkUpdateEnabled();
@@ -110,6 +113,8 @@ export function registerCrudTools(server: any, ctx: ServiceContext): void {
       serverId: z.string().optional().describe("\u26A0\uFE0F OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("\u26A0\uFE0F OMIT to use default database. DO NOT GUESS."),
     },
+    // DELETE removes rows; destructive.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ query, serverId, database }: { query: string; serverId?: string; database?: string }) => {
       try {
         ctx.checkDeleteEnabled();

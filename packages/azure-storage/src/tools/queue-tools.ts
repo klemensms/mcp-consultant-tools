@@ -30,6 +30,7 @@ export function registerQueueTools(server: any, ctx: ServiceContext): void {
       prefix: z.string().optional().describe("Filter by queue name prefix"),
       maxResults: z.number().optional().describe("Maximum results (default: 1000)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, prefix, maxResults }: any) => {
       try {
         const queueSvc = ctx.storage.getQueueService(accountId);
@@ -51,6 +52,7 @@ export function registerQueueTools(server: any, ctx: ServiceContext): void {
       accountId: z.string().describe(descWithExamples("Storage account ID", ACCOUNT_ID_EXAMPLES)),
       queueName: z.string().describe(descWithExamples("Queue name", QUEUE_NAME_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, queueName }: any) => {
       try {
         const queueSvc = ctx.storage.getQueueService(accountId);
@@ -73,6 +75,7 @@ export function registerQueueTools(server: any, ctx: ServiceContext): void {
       queueName: z.string().describe(descWithExamples("Queue name", QUEUE_NAME_EXAMPLES)),
       metadata: z.string().optional().describe(descWithExamples("Metadata JSON", METADATA_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, queueName, metadata }: any) => {
       try {
         checkWriteEnabled();
@@ -98,6 +101,7 @@ export function registerQueueTools(server: any, ctx: ServiceContext): void {
       accountId: z.string().describe(descWithExamples("Storage account ID", ACCOUNT_ID_EXAMPLES)),
       queueName: z.string().describe(descWithExamples("Queue name", QUEUE_NAME_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ accountId, queueName }: any) => {
       try {
         checkDeleteEnabled();
@@ -123,6 +127,7 @@ export function registerQueueTools(server: any, ctx: ServiceContext): void {
       visibilityTimeout: z.number().optional().describe(descWithExamples("Seconds before visible", VISIBILITY_TIMEOUT_EXAMPLES)),
       timeToLive: z.number().optional().describe("Seconds until expiration (default: 7 days)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, queueName, messageText, visibilityTimeout, timeToLive }: any) => {
       try {
         checkWriteEnabled();
@@ -149,6 +154,7 @@ export function registerQueueTools(server: any, ctx: ServiceContext): void {
       queueName: z.string().describe(descWithExamples("Queue name", QUEUE_NAME_EXAMPLES)),
       maxMessages: z.number().optional().describe("Number of messages (default: 1, max: 32)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ accountId, queueName, maxMessages }: any) => {
       try {
         const queueSvc = ctx.storage.getQueueService(accountId);
@@ -172,6 +178,8 @@ export function registerQueueTools(server: any, ctx: ServiceContext): void {
       maxMessages: z.number().optional().describe("Number of messages (default: 1, max: 32)"),
       visibilityTimeout: z.number().optional().describe(descWithExamples("Seconds to hide", VISIBILITY_TIMEOUT_EXAMPLES)),
     },
+    // Mutates message visibility state (hides for processing); not destructive.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, queueName, maxMessages, visibilityTimeout }: any) => {
       try {
         checkWriteEnabled();
@@ -199,6 +207,7 @@ export function registerQueueTools(server: any, ctx: ServiceContext): void {
       messageId: z.string().describe("Message ID from receive"),
       popReceipt: z.string().describe("Pop receipt from receive"),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ accountId, queueName, messageId, popReceipt }: any) => {
       try {
         checkDeleteEnabled();
@@ -225,6 +234,7 @@ export function registerQueueTools(server: any, ctx: ServiceContext): void {
       messageText: z.string().describe("New message content"),
       visibilityTimeout: z.number().optional().describe("New visibility timeout in seconds"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ accountId, queueName, messageId, popReceipt, messageText, visibilityTimeout }: any) => {
       try {
         checkWriteEnabled();
@@ -253,6 +263,8 @@ export function registerQueueTools(server: any, ctx: ServiceContext): void {
       accountId: z.string().describe(descWithExamples("Storage account ID", ACCOUNT_ID_EXAMPLES)),
       queueName: z.string().describe(descWithExamples("Queue name", QUEUE_NAME_EXAMPLES)),
     },
+    // Empties the queue contents → destructive.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ accountId, queueName }: any) => {
       try {
         checkDeleteEnabled();

@@ -25,6 +25,7 @@ export function registerUserTools(server: any, ctx: ServiceContext): void {
       ),
       includeAllFields: z.boolean().optional().describe("Return all fields including extension_* attributes like CrmContactId, MemberId (default: false)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ top, filter, includeAllFields }: { top?: number; filter?: string; includeAllFields?: boolean }) => {
       try {
         const users = await ctx.users.listUsers(top || 50, filter, false, includeAllFields || false);
@@ -60,6 +61,7 @@ export function registerUserTools(server: any, ctx: ServiceContext): void {
       ),
       includeAllFields: z.boolean().optional().describe("Return all fields including extension_* attributes like CrmContactId, MemberId (default: false)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ userId, includeAllFields }: { userId: string; includeAllFields?: boolean }) => {
       try {
         const user = await ctx.users.getUser(userId, includeAllFields || false);
@@ -97,6 +99,7 @@ export function registerUserTools(server: any, ctx: ServiceContext): void {
       top: z.number().optional().describe("Maximum results to return (default: 25)"),
       includeAllFields: z.boolean().optional().describe("Return all fields including extension_* attributes like CrmContactId, MemberId (default: false)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ searchTerm, searchFields, top, includeAllFields }: { searchTerm: string; searchFields?: ('displayName' | 'mail' | 'userPrincipalName' | 'givenName' | 'surname')[]; top?: number; includeAllFields?: boolean }) => {
       try {
         const users = await ctx.users.searchUsers(
@@ -142,6 +145,8 @@ export function registerUserTools(server: any, ctx: ServiceContext): void {
       newPassword: z.string().describe("New password (must meet B2C complexity requirements: 8-256 chars, 3 of: lowercase, uppercase, digit, symbol)"),
       forceChangeOnNextLogin: z.boolean().optional().describe("Force user to change password on next login (default: false)"),
     },
+    // reset-password mutates credential state but destroys no data → mutating non-destructive.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ userId, newPassword, forceChangeOnNextLogin }: { userId: string; newPassword: string; forceChangeOnNextLogin?: boolean }) => {
       try {
         await ctx.users.resetUserPassword(userId, newPassword, forceChangeOnNextLogin || false);
@@ -180,6 +185,7 @@ export function registerUserTools(server: any, ctx: ServiceContext): void {
         descWithExamples("User ID (GUID) or email address", USER_ID_EXAMPLES)
       ),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ userId }: { userId: string }) => {
       try {
         await ctx.users.forcePasswordChange(userId);
@@ -229,6 +235,7 @@ export function registerUserTools(server: any, ctx: ServiceContext): void {
       city: z.string().optional().describe("City"),
       country: z.string().optional().describe("Country"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (params: {
       displayName: string;
       email: string;
@@ -314,6 +321,7 @@ export function registerUserTools(server: any, ctx: ServiceContext): void {
       country: z.string().optional().describe("Country"),
       accountEnabled: z.boolean().optional().describe("Enable or disable the account"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (params: {
       userId: string;
       displayName?: string;
@@ -392,6 +400,7 @@ export function registerUserTools(server: any, ctx: ServiceContext): void {
       ),
       confirmDeletion: z.boolean().describe("Must be true to confirm deletion"),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ userId, confirmDeletion }: { userId: string; confirmDeletion: boolean }) => {
       try {
         if (!confirmDeletion) {

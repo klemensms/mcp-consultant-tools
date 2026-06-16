@@ -35,6 +35,7 @@ export function registerChecklistTools(server: any, ctx: ServiceContext): void {
       project: z.string().describe("The project name"),
       workItemId: zCoerceNumber().describe("The work item ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, workItemId }: any) => {
       try {
         const result = await ctx.checklist.getChecklist(project, workItemId);
@@ -63,6 +64,7 @@ export function registerChecklistTools(server: any, ctx: ServiceContext): void {
         descWithExamples("The work item type name", CHECKLIST_WIT_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, workItemType }: any) => {
       try {
         const result = await ctx.checklist.getTemplate(project, workItemType);
@@ -91,6 +93,7 @@ export function registerChecklistTools(server: any, ctx: ServiceContext): void {
     {
       project: z.string().describe("The project name"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project }: any) => {
       try {
         const result = await ctx.checklist.listTemplates(project);
@@ -126,6 +129,7 @@ export function registerChecklistTools(server: any, ctx: ServiceContext): void {
       ),
       maxResults: zCoerceNumber().optional().describe("Maximum work items to include (default: 200)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, workItemType, workItemState, maxResults }: any) => {
       try {
         const result = await ctx.checklist.getReport(project, workItemType, workItemState, maxResults || 200);
@@ -169,6 +173,7 @@ export function registerChecklistTools(server: any, ctx: ServiceContext): void {
       ),
       completedByDisplayName: z.string().optional().describe("Display name for completedBy (defaults to 'MCP Automation'). Only used when state is 'Completed'."),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, workItemId, itemId, state, completedByDisplayName }: any) => {
       try {
         const result = await ctx.checklist.updateItemState(project, workItemId, itemId, state, completedByDisplayName);
@@ -194,6 +199,7 @@ export function registerChecklistTools(server: any, ctx: ServiceContext): void {
       text: z.string().describe("The checklist item text (max 128 characters)"),
       required: z.boolean().optional().describe("Whether the item is required (default: false)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, workItemId, text, required }: any) => {
       try {
         const result = await ctx.checklist.addItem(project, workItemId, text, required);
@@ -218,6 +224,7 @@ export function registerChecklistTools(server: any, ctx: ServiceContext): void {
       workItemId: zCoerceNumber().describe("The work item ID"),
       itemId: z.string().describe("The checklist item ID to remove (from get-checklist response, must be a custom item)"),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ project, workItemId, itemId }: any) => {
       try {
         const result = await ctx.checklist.removeItem(project, workItemId, itemId);
@@ -249,6 +256,8 @@ export function registerChecklistTools(server: any, ctx: ServiceContext): void {
         )
       ),
     },
+    // update-* config replace: overwrites template items but not user data → non-destructive.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, workItemType, items }: any) => {
       try {
         const parsedItems = JSON.parse(items);

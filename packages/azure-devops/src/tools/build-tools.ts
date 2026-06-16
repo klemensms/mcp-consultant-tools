@@ -19,6 +19,7 @@ export function registerBuildTools(server: any, ctx: ServiceContext): void {
       timelineScope: z.enum(["stages", "jobs", "all", "problems"]).optional().describe("Timeline scope: 'problems' (default, only errors/warnings/failures), 'stages' (minimal), 'jobs' (moderate), 'all' (everything - may be large)"),
       maxIssues: zCoerceNumber().optional().describe("Maximum issues per record (default: 5, prioritizes errors over warnings)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, buildId, detail, timelineScope, maxIssues }: any) => {
       try {
         const result = await ctx.build.getBuildStatus(project, buildId, detail || 'summary', timelineScope || 'problems', maxIssues || 5);
@@ -39,6 +40,7 @@ export function registerBuildTools(server: any, ctx: ServiceContext): void {
       scope: z.enum(["stages", "jobs", "all", "problems"]).optional().describe("Filter scope: 'problems' (default, only errors/warnings/failures), 'stages' (minimal), 'jobs' (moderate), 'all' (everything - may be large)"),
       maxIssues: zCoerceNumber().optional().describe("Maximum issues per record (default: 5, prioritizes errors over warnings)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, buildId, scope, maxIssues }: any) => {
       try {
         const result = await ctx.build.getBuildTimeline(project, buildId, scope || 'problems', maxIssues || 5);
@@ -61,6 +63,7 @@ export function registerBuildTools(server: any, ctx: ServiceContext): void {
         "Filter mode: 'summary' (default) removes progress indicators like 'Receiving objects: 1%', 'full' returns everything, 'errors' shows only errors/warnings"
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, buildId, logId, mode }: any) => {
       try {
         const result = await ctx.build.getBuildLogs(project, buildId, logId, mode || 'summary');

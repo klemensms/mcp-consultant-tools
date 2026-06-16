@@ -17,6 +17,7 @@ export function registerVaultTools(server: any, ctx: ServiceContext): void {
     "list-vaults",
     "List accessible 1Password vaults (filtered by OP_ALLOWED_VAULTS). Always enabled.",
     {},
+    { readOnlyHint: true, openWorldHint: true },
     async () => {
       try {
         const vaults = await ctx.vaults.listVaults();
@@ -39,6 +40,7 @@ export function registerVaultTools(server: any, ctx: ServiceContext): void {
       vaultId: z.string().describe(descWithExamples("Vault name or UUID", VAULT_NAME_EXAMPLES)),
       includeAccessors: z.boolean().optional().describe("Include accessor details (groups with access)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ vaultId, includeAccessors }: any) => {
       try {
         const vault = await ctx.vaults.getVault(vaultId, includeAccessors);
@@ -63,6 +65,7 @@ export function registerVaultTools(server: any, ctx: ServiceContext): void {
       name: z.string().describe("Vault name"),
       description: z.string().optional().describe("Vault description"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ name, description }: any) => {
       try {
         ctx.checkWriteEnabled();
@@ -87,6 +90,7 @@ export function registerVaultTools(server: any, ctx: ServiceContext): void {
       name: z.string().optional().describe("New vault name"),
       description: z.string().optional().describe("New vault description"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ vaultId, name, description }: any) => {
       try {
         ctx.checkWriteEnabled();
@@ -111,6 +115,7 @@ export function registerVaultTools(server: any, ctx: ServiceContext): void {
     {
       vaultId: z.string().describe(descWithExamples("Vault name or UUID", VAULT_NAME_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ vaultId }: any) => {
       try {
         ctx.checkDeleteEnabled();
@@ -141,6 +146,7 @@ export function registerVaultTools(server: any, ctx: ServiceContext): void {
         ),
       })).describe("Array of group permission grants"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ vaultId, groupPermissions }: any) => {
       try {
         ctx.checkVaultAdminEnabled();
@@ -169,6 +175,8 @@ export function registerVaultTools(server: any, ctx: ServiceContext): void {
         ),
       })).describe("Array of group vault permission updates"),
     },
+    // Replaces a group's permission set; can reduce access but destroys no data.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ groupPermissions }: any) => {
       try {
         ctx.checkVaultAdminEnabled();
@@ -192,6 +200,8 @@ export function registerVaultTools(server: any, ctx: ServiceContext): void {
       vaultId: z.string().describe(descWithExamples("Vault name or UUID", VAULT_NAME_EXAMPLES)),
       groupIds: z.array(z.string()).describe("Array of group UUIDs to revoke access for"),
     },
+    // Removes group access (non-additive) → destructive; reversible via grant.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ vaultId, groupIds }: any) => {
       try {
         ctx.checkVaultAdminEnabled();

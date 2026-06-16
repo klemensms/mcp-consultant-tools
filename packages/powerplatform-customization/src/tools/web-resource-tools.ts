@@ -24,6 +24,7 @@ server.tool(
       descWithExamples("Solution to add to", SOLUTION_NAME_EXAMPLES)
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ name, displayName, webResourceType, content, description, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;
@@ -59,6 +60,7 @@ server.tool(
     description: z.string().optional().describe("Description"),
     solutionUniqueName: z.string().optional().describe("Solution context")
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ webResourceId, displayName, content, description, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;
@@ -92,6 +94,7 @@ server.tool(
   {
     webResourceId: z.string().describe("Web resource ID (GUID). Get from get-web-resources in the read-only package.")
   },
+  { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ webResourceId }: any) => {
     try {
       const service = ctx.pp;
@@ -136,6 +139,7 @@ server.tool(
       descWithExamples("Solution to add to", SOLUTION_NAME_EXAMPLES)
     )
   },
+  { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ filePath, webResourceId, name, displayName, webResourceType, description, solutionUniqueName }: any) => {
     try {
       const service = ctx.pp;

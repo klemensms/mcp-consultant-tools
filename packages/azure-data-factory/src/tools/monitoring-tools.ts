@@ -10,6 +10,7 @@ export function registerMonitoringTools(server: any, ctx: ServiceContext): void 
     {
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ factoryId }: { factoryId?: string }) => {
       try {
         const svc = ctx.adf;
@@ -61,6 +62,7 @@ export function registerMonitoringTools(server: any, ctx: ServiceContext): void 
       irName: z.string().describe('Name of the integration runtime'),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ irName, factoryId }: { irName: string; factoryId?: string }) => {
       try {
         const svc = ctx.adf;
@@ -91,6 +93,7 @@ export function registerMonitoringTools(server: any, ctx: ServiceContext): void 
       irName: z.string().describe('Name of the integration runtime to start'),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ irName, factoryId }: { irName: string; factoryId?: string }) => {
       try {
         const svc = ctx.adf;
@@ -133,6 +136,8 @@ export function registerMonitoringTools(server: any, ctx: ServiceContext): void 
       irName: z.string().describe('Name of the integration runtime to stop'),
       factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
     },
+    // Stops a managed IR; mutates compute state but deletes no data.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ irName, factoryId }: { irName: string; factoryId?: string }) => {
       try {
         const svc = ctx.adf;

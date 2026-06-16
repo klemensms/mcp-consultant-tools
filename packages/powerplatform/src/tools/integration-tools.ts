@@ -32,6 +32,7 @@ Returns:
       ),
       excludeOotb: z.boolean().optional().describe("Exclude Microsoft out-of-the-box (OOTB) components from results (default: true). Set to false to include all items."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ maxRecords, requiredUrlStrings, outputFormat, excludeOotb }: any) => {
       try {
         const service = ctx.pp;
@@ -110,6 +111,7 @@ Returns:
       maxRecords: z.number().optional().describe("Maximum webhooks to return (default: 100)"),
       excludeOotb: z.boolean().optional().describe("Exclude Microsoft out-of-the-box (OOTB) components from results (default: true). Set to false to include all items."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ maxRecords, excludeOotb }: any) => {
       try {
         const service = ctx.pp;
@@ -165,6 +167,7 @@ Use flowId to analyze a single flow, or omit to analyze all flows.`,
       ),
       excludeOotb: z.boolean().optional().describe("Exclude Microsoft out-of-the-box (OOTB/managed) flows from analysis (default: true). Set to false to include all flows."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ flowId, maxFlows, outputFormat, excludeOotb }: any) => {
       try {
         const service = ctx.pp;
@@ -258,6 +261,7 @@ Returns a pre-formatted Markdown report. Use outputFormat="summary" for a compac
       ),
       excludeOotb: z.boolean().optional().describe("Exclude Microsoft out-of-the-box (OOTB) components from results (default: true). Set to false to include all items."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ maxFlows, maxRecords, requiredUrlStrings, outputFormat, excludeOotb }: any) => {
       try {
         const service = ctx.pp;
@@ -333,6 +337,7 @@ Returns:
       ),
       excludeOotb: z.boolean().optional().describe("Exclude Microsoft out-of-the-box (OOTB) components from results (default: true). Set to false to include all items."),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ maxRecords, requiredUrlStrings, outputFormat, excludeOotb }: any) => {
       try {
         const service = ctx.pp;

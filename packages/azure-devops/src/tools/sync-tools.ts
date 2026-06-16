@@ -29,6 +29,8 @@ export function registerSyncTools(server: any, ctx: ServiceContext): void {
       includeComments: z.boolean().optional().describe("Also save comments to {id}-comments.md (default: false)"),
       skipAutoConvert: z.boolean().optional().describe("Skip automatic HTML-to-markdown conversion. Only use when explicitly requested. Default: false (auto-convert enabled)"),
     },
+    // Pulls ADO→local file only; ADO is never modified (description says READ-ONLY) → read.
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, workItemIds, parentId, childType, folder, includeComments, skipAutoConvert }: any) => {
       try {
         const result = await ctx.sync.syncWorkItemsToFile(project, workItemIds || [], parentId, childType, folder, includeComments, skipAutoConvert);
@@ -68,6 +70,7 @@ export function registerSyncTools(server: any, ctx: ServiceContext): void {
       folder: z.string().optional().describe("Override folder path (default: docs/user-stories or AZUREDEVOPS_SYNC_FOLDER)"),
       skipAutoConvert: z.boolean().optional().describe("Skip automatic HTML-to-markdown conversion. Only use when explicitly requested. Default: false (auto-convert enabled)"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, workItemIds, folder, skipAutoConvert }: any) => {
       try {
         const result = await ctx.sync.syncWorkItemsFromFile(project, workItemIds || [], folder, skipAutoConvert);
@@ -95,6 +98,7 @@ export function registerSyncTools(server: any, ctx: ServiceContext): void {
       project: z.string().describe("The project name"),
       workItemIds: zCoerceNumberArray().describe("Work item IDs to check"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, workItemIds }: any) => {
       try {
         const result = await ctx.sync.checkWorkItemMarkdown(project, workItemIds);
@@ -112,6 +116,8 @@ export function registerSyncTools(server: any, ctx: ServiceContext): void {
     {
       folder: z.string().optional().describe("Override folder path (default: docs/user-stories or AZUREDEVOPS_SYNC_FOLDER)"),
     },
+    // local-only: lists synced files on disk, no ADO call.
+    { readOnlyHint: true },
     async ({ folder }: any) => {
       try {
         const result = await ctx.sync.listSyncedWorkItems(folder);
@@ -135,6 +141,8 @@ export function registerSyncTools(server: any, ctx: ServiceContext): void {
       workItemType: z.string().default("User Story").describe("Work item type: 'User Story', 'Bug', 'Feature', 'Epic', 'Task', etc."),
       folder: z.string().optional().describe("Override folder path (default: docs/user-stories or AZUREDEVOPS_SYNC_FOLDER)"),
     },
+    // Writes a local template file only; no ADO work item is created → read w.r.t. ADO.
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, parentId, workItemType, folder }: any) => {
       try {
         const result = await ctx.sync.createWorkItemFile(project, parentId, workItemType || 'User Story', folder);
@@ -155,6 +163,8 @@ export function registerSyncTools(server: any, ctx: ServiceContext): void {
       parentId: zCoerceNumber().describe("Parent Feature ID - the new user story will be created under this feature"),
       folder: z.string().optional().describe("Override folder path (default: docs/user-stories or AZUREDEVOPS_SYNC_FOLDER)"),
     },
+    // Writes a local template file only; no ADO work item is created → read w.r.t. ADO.
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, parentId, folder }: any) => {
       try {
         const result = await ctx.sync.createWorkItemFile(project, parentId, 'User Story', folder);
@@ -178,6 +188,8 @@ export function registerSyncTools(server: any, ctx: ServiceContext): void {
       folder: z.string().optional().describe("Override folder path (default: docs/user-stories or AZUREDEVOPS_SYNC_FOLDER)"),
       skipAutoConvert: z.boolean().optional().describe("Skip automatic HTML-to-markdown conversion for task descriptions. Only use when explicitly requested. Default: false"),
     },
+    // Pulls ADO→local file only; ADO is never modified → read.
+    { readOnlyHint: true, openWorldHint: true },
     async ({ project, parentIds, folder, skipAutoConvert }: any) => {
       try {
         const result = await ctx.sync.syncTasksToFile(project, parentIds, folder, skipAutoConvert);
@@ -203,6 +215,7 @@ export function registerSyncTools(server: any, ctx: ServiceContext): void {
       folder: z.string().optional().describe("Override folder path (default: docs/user-stories or AZUREDEVOPS_SYNC_FOLDER)"),
       skipAutoConvert: z.boolean().optional().describe("Skip automatic HTML-to-markdown conversion for task descriptions. Only use when explicitly requested. Default: false"),
     },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ project, parentIds, folder, skipAutoConvert }: any) => {
       try {
         const result = await ctx.sync.syncTasksFromFile(project, parentIds, folder, skipAutoConvert);

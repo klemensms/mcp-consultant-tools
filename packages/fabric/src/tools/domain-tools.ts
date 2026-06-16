@@ -12,6 +12,7 @@ export function registerDomainTools(server: any, ctx: ServiceContext): void {
     'fabric-list-domains',
     'List all Microsoft Fabric domains in the tenant. Uses the Fabric admin API - requires Fabric admin rights.',
     {},
+    { readOnlyHint: true, openWorldHint: true },
     async () => {
       try {
         const result = await ctx.domains.listDomains();
@@ -29,6 +30,7 @@ export function registerDomainTools(server: any, ctx: ServiceContext): void {
     {
       domainId: z.string().describe(descWithExamples('Domain ID (GUID)', DOMAIN_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ domainId }: any) => {
       try {
         const result = await ctx.domains.getDomain(domainId);
@@ -47,6 +49,8 @@ export function registerDomainTools(server: any, ctx: ServiceContext): void {
       domainId: z.string().describe('Domain ID (GUID)'),
       workspaceIds: z.array(z.string()).describe('Array of workspace IDs (GUIDs) to assign to the domain'),
     },
+    // Additive governance association; reversible, no data destroyed.
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async ({ domainId, workspaceIds }: any) => {
       try {
         const result = await ctx.domains.assignWorkspaces(domainId, workspaceIds);
@@ -65,6 +69,8 @@ export function registerDomainTools(server: any, ctx: ServiceContext): void {
       domainId: z.string().describe('Domain ID (GUID)'),
       workspaceIds: z.array(z.string()).describe('Array of workspace IDs (GUIDs) to unassign from the domain'),
     },
+    // Removes a governance association → treated as destructive (reversible re-assign).
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ domainId, workspaceIds }: any) => {
       try {
         const result = await ctx.domains.unassignWorkspaces(domainId, workspaceIds);

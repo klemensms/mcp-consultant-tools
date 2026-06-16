@@ -48,6 +48,8 @@ export function registerRestTools(server: any, ctx: ServiceContext): void {
           descWithExamples("Override base URL for this request only. Restricted: the host's origin must match the configured base URL or an origin listed in REST_ALLOWED_HOSTS, otherwise the request is rejected (prevents sending credentials to an unvetted host).", HOST_OVERRIDE_EXAMPLES)
         ),
     },
+    // Can issue POST/PUT/PATCH/DELETE against an arbitrary endpoint → treat as destructive.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({
       method,
       endpoint,
@@ -94,6 +96,7 @@ export function registerRestTools(server: any, ctx: ServiceContext): void {
     "rest-config",
     "Get the current REST API service configuration summary, including base URL, authentication method, SSL settings, and custom headers count.",
     {},
+    { readOnlyHint: true },
     async () => {
       try {
         const summary = ctx.restApi.getConfigSummary();
@@ -109,6 +112,8 @@ export function registerRestTools(server: any, ctx: ServiceContext): void {
     "rest-refresh-token",
     "Force refresh the OAuth2 access token. Clears the token cache and acquires a new token on the next request. Only relevant when using OAuth2 authentication.",
     {},
+    // Mutates auth/token state but destroys no user data.
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     async () => {
       try {
         const authMethod = ctx.restApi.getAuthMethod();
@@ -151,6 +156,8 @@ export function registerRestTools(server: any, ctx: ServiceContext): void {
         .optional()
         .describe("Stop executing remaining requests if one fails (default: false)"),
     },
+    // Batch of arbitrary requests → can mutate/delete; treat as destructive.
+    { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({
       requests,
       stopOnError = false,
@@ -222,6 +229,7 @@ export function registerRestTools(server: any, ctx: ServiceContext): void {
           descWithExamples("Optional filter to match endpoint paths (case-insensitive contains match)", ENDPOINT_FILTER_EXAMPLES)
         ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ filter }: { filter?: string }) => {
       try {
         const result = await ctx.restApi.listEndpointsAsync(filter);
@@ -243,6 +251,7 @@ export function registerRestTools(server: any, ctx: ServiceContext): void {
           descWithExamples("Entity name (singular or plural)", ENTITY_EXAMPLES)
         ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entity }: { entity: string }) => {
       try {
         if (!ctx.restApi.hasOpenApiConfig()) {

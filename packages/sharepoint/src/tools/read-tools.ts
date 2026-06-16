@@ -17,6 +17,8 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "spo-list-sites",
     "List all configured SharePoint sites (active and inactive)",
     {},
+    // Reads from local configuration only — no network call.
+    { readOnlyHint: true },
     async () => {
       try {
         const sites = ctx.sharepoint.getAllSites();
@@ -34,6 +36,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     {
       siteId: z.string().describe(descWithExamples("Site ID from configuration (use spo-list-sites to find IDs)", SITE_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ siteId }: any) => {
       try {
         const siteInfo = await ctx.sharepoint.getSiteInfo(siteId);
@@ -51,6 +54,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     {
       siteId: z.string().describe("Site ID from configuration"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ siteId }: any) => {
       try {
         const result = await ctx.sharepoint.testConnection(siteId);
@@ -68,6 +72,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     {
       siteId: z.string().describe("Site ID from configuration"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ siteId }: any) => {
       try {
         const drives = await ctx.sharepoint.listDrives(siteId);
@@ -86,6 +91,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       siteId: z.string().describe("Site ID from configuration"),
       driveId: z.string().describe(descWithExamples("Drive ID (use spo-list-drives to find IDs)", DRIVE_ID_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ siteId, driveId }: any) => {
       try {
         const driveInfo = await ctx.sharepoint.getDriveInfo(siteId, driveId);
@@ -104,6 +110,8 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       siteId: z.string().optional().describe("Clear cache for specific site only (optional)"),
       pattern: z.string().optional().describe("Clear only cache entries matching this pattern (optional)"),
     },
+    // Clears local response cache only — mutates local state, destroys no remote data; idempotent.
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     async ({ siteId, pattern }: any) => {
       try {
         const clearedCount = ctx.sharepoint.clearCache(pattern, siteId);
@@ -123,6 +131,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       driveId: z.string().describe("Drive ID"),
       folderId: z.string().optional().describe("Folder ID (optional, defaults to root)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ siteId, driveId, folderId }: any) => {
       try {
         const items = await ctx.lists.listItems(siteId, driveId, folderId);
@@ -142,6 +151,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       driveId: z.string().describe("Drive ID"),
       itemId: z.string().describe("Item ID"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ siteId, driveId, itemId }: any) => {
       try {
         const item = await ctx.lists.getItem(siteId, driveId, itemId);
@@ -161,6 +171,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       driveId: z.string().describe("Drive ID"),
       path: z.string().describe(descWithExamples("Item path relative to drive root", FILE_PATH_EXAMPLES)),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ siteId, driveId, path }: any) => {
       try {
         const item = await ctx.lists.getItemByPath(siteId, driveId, path);
@@ -181,6 +192,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       driveId: z.string().optional().describe("Limit search to specific drive (optional)"),
       limit: z.number().optional().describe("Maximum results (default: 100, max configured in SHAREPOINT_MAX_SEARCH_RESULTS)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ siteId, query, driveId, limit }: any) => {
       try {
         const result = await ctx.lists.searchItems(siteId, query, driveId, limit);
@@ -201,6 +213,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       limit: z.number().optional().describe("Maximum results (default: 20, max: 100)"),
       days: z.number().optional().describe("Days back to search (default: 30)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ siteId, driveId, limit, days }: any) => {
       try {
         const items = await ctx.lists.getRecentItems(siteId, driveId, limit, days);
@@ -221,6 +234,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       folderId: z.string().optional().describe("Root folder ID (optional, defaults to drive root)"),
       depth: z.number().optional().describe("Recursion depth (default: 3, max: 10)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ siteId, driveId, folderId, depth }: any) => {
       try {
         const tree = await ctx.lists.getFolderStructure(siteId, driveId, folderId, depth);
@@ -239,6 +253,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       entityName: z.string().optional().describe("Filter by entity logical name (e.g., 'account', 'contact')"),
       recordId: z.string().optional().describe("Filter by specific record ID (GUID)"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ entityName, recordId }: any) => {
       try {
         const ppService = ctx.getPowerPlatformService();
@@ -257,6 +272,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     {
       documentLocationId: z.string().describe("GUID of the sharepointdocumentlocation record in PowerPlatform"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ documentLocationId }: any) => {
       try {
         const ppService = ctx.getPowerPlatformService();
@@ -278,6 +294,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       targetSiteId: z.string().describe("Target SharePoint site ID"),
       targetPath: z.string().describe("Target folder path (e.g., '/NewLibrary/Archive')"),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ sourceSiteId, sourcePath, targetSiteId, targetPath }: any) => {
       try {
         const ppService = ctx.getPowerPlatformService();
@@ -305,6 +322,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
         descWithExamples("File path relative to drive root (use this OR itemId, not both)", FILE_PATH_EXAMPLES)
       ),
     },
+    { readOnlyHint: true, openWorldHint: true },
     async ({ siteId, driveId, itemId, path }: any) => {
       try {
         if (!itemId && !path) {
