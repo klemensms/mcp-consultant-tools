@@ -17,6 +17,7 @@
     { "path": "./packages/service-bus" },
     { "path": "./packages/sharepoint" },
     { "path": "./packages/1password" },
+    { "path": "./packages/todoist" },
     { "path": "./packages/meta" }
   ]
 }
