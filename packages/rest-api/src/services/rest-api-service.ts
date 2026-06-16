@@ -8,7 +8,6 @@
  * - OAuth2 Client Credentials Flow (JWT generation)
  */
 
-import https from "https";
 import type {
   PiiProtectionPipeline,
   PipelineReport,
@@ -31,7 +30,6 @@ interface CachedToken {
 export class RestApiService {
   private config: RestApiConfig;
   private cachedToken: CachedToken | null = null;
-  private httpsAgent: https.Agent | undefined;
   private cachedOpenApi: CachedOpenApiSpec | null = null;
   private openApiFetchPromise: Promise<CachedOpenApiSpec> | null = null;
   /** Origin of the configured base URL (e.g. "https://api.example.com"). */
@@ -41,6 +39,9 @@ export class RestApiService {
 
   /** OpenAPI cache TTL in milliseconds (default: 5 minutes) */
   private static readonly OPENAPI_CACHE_TTL = 5 * 60 * 1000;
+
+  /** Max bytes accepted for a fetched OpenAPI spec (memory-exhaustion guard). */
+  private static readonly OPENAPI_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
   constructor(
     config: RestApiConfig,
@@ -76,9 +77,22 @@ export class RestApiService {
       }
     }
 
-    // Create HTTPS agent if SSL verification is disabled
+    // SSL verification defaults ON and this server never disables it on the
+    // operator's behalf: native fetch ignores https.Agent, and mutating
+    // process.env.NODE_TLS_REJECT_UNAUTHORIZED would silently weaken TLS for the
+    // WHOLE process. If REST_ENABLE_SSL_VERIFY=false is set we warn loudly and
+    // tell the operator to opt out explicitly in the environment themselves, so
+    // the insecure scope is visible at deploy time rather than hidden in code.
     if (!this.config.enableSslVerify) {
-      this.httpsAgent = new https.Agent({ rejectUnauthorized: false });
+      console.error(
+        "⚠️  SECURITY WARNING: REST_ENABLE_SSL_VERIFY=false was set, but this " +
+          "server will NOT disable TLS certificate verification on your behalf — " +
+          "doing so silently is unsafe. Requests STILL verify certificates. If " +
+          "you genuinely must hit a self-signed/dev endpoint, set " +
+          "NODE_TLS_REJECT_UNAUTHORIZED=0 in the server's own environment — that " +
+          "makes the insecure scope explicit. Never do this against production " +
+          "or over an untrusted network."
+      );
     }
 
     // Validate mutually exclusive auth methods
@@ -514,13 +528,33 @@ export class RestApiService {
    */
   private async doFetchOpenApiSpec(): Promise<CachedOpenApiSpec> {
     const url = this.config.openApiUrl!;
-    console.error(`Fetching OpenAPI spec from ${url}...`);
 
-    const fetchOptions: RequestInit = {};
+    // Validate scheme up front: only http(s). Blocks file:/data:/etc. so a
+    // misconfigured or injected REST_OPENAPI_URL can't reach local resources.
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      throw new Error(
+        `Invalid REST_OPENAPI_URL: "${url}" is not a valid absolute URL.`
+      );
+    }
+    if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
+      throw new Error(
+        `Invalid REST_OPENAPI_URL scheme "${parsedUrl.protocol}": only http and https are allowed.`
+      );
+    }
+
+    console.error(`Fetching OpenAPI spec from ${url}...`);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
-    fetchOptions.signal = controller.signal;
+    const fetchOptions: RequestInit = {
+      signal: controller.signal,
+      // Never auto-follow redirects: a 3xx could bounce the fetch to an unvetted
+      // host (mirrors the main request path's hardening).
+      redirect: "error",
+    };
 
     try {
       const response = await fetch(url, fetchOptions);
@@ -532,7 +566,31 @@ export class RestApiService {
         );
       }
 
-      const spec = (await response.json()) as OpenApiSpec;
+      // Bound response size to guard against memory exhaustion from a huge or
+      // hostile spec. Reject early on a declared-oversize Content-Length, then
+      // re-check the actual bytes (chunked responses omit Content-Length).
+      const max = RestApiService.OPENAPI_MAX_BYTES;
+      const declared = Number(response.headers.get("content-length"));
+      if (Number.isFinite(declared) && declared > max) {
+        throw new Error(
+          `OpenAPI spec too large: ${declared} bytes exceeds the ${max}-byte limit.`
+        );
+      }
+
+      const text = await response.text();
+      if (Buffer.byteLength(text) > max) {
+        throw new Error(
+          `OpenAPI spec too large: response exceeds the ${max}-byte limit.`
+        );
+      }
+
+      let spec: OpenApiSpec;
+      try {
+        spec = JSON.parse(text) as OpenApiSpec;
+      } catch {
+        throw new Error("OpenAPI spec is not valid JSON.");
+      }
+
       const parsed = parseOpenApiSpec(spec);
 
       this.cachedOpenApi = {
