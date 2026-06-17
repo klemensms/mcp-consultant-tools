@@ -8,6 +8,7 @@ import { VariableGroupService } from './services/variable-group-service.js';
 import { AgentPoolService } from './services/agent-pool-service.js';
 import { EnvironmentService } from './services/environment-service.js';
 import { ClassificationService } from './services/classification-service.js';
+import { IterationCapacityService } from './services/iteration-capacity-service.js';
 import { ArtifactFeedService } from './services/artifact-feed-service.js';
 import { ProjectService } from './services/project-service.js';
 import type { ServiceContext, AzureDevOpsAdminConfig, TierFlags } from './types.js';
@@ -51,6 +52,7 @@ export function createServiceContext(): ServiceContext {
         enableEnvironmentDelete: process.env.AZUREDEVOPS_ENABLE_ENVIRONMENT_DELETE === 'true',
         enableClassificationNodeUpsert: process.env.AZUREDEVOPS_ENABLE_CLASSIFICATION_NODE_UPSERT === 'true',
         enableClassificationNodeDelete: process.env.AZUREDEVOPS_ENABLE_CLASSIFICATION_NODE_DELETE === 'true',
+        enableIterationCapacityUpsert: process.env.AZUREDEVOPS_ENABLE_ITERATION_CAPACITY_UPSERT === 'true',
         enableProjectUpsert: process.env.AZUREDEVOPS_ENABLE_PROJECT_UPSERT === 'true',
         enableProjectDelete: process.env.AZUREDEVOPS_ENABLE_PROJECT_DELETE === 'true',
         feeds: process.env.AZUREDEVOPS_FEEDS
@@ -77,6 +79,7 @@ export function createServiceContext(): ServiceContext {
     enableEnvironmentDelete: process.env.AZUREDEVOPS_ENABLE_ENVIRONMENT_DELETE === 'true',
     enableClassificationNodeUpsert: process.env.AZUREDEVOPS_ENABLE_CLASSIFICATION_NODE_UPSERT === 'true',
     enableClassificationNodeDelete: process.env.AZUREDEVOPS_ENABLE_CLASSIFICATION_NODE_DELETE === 'true',
+    enableIterationCapacityUpsert: process.env.AZUREDEVOPS_ENABLE_ITERATION_CAPACITY_UPSERT === 'true',
     enableProjectUpsert: process.env.AZUREDEVOPS_ENABLE_PROJECT_UPSERT === 'true',
     enableProjectDelete: process.env.AZUREDEVOPS_ENABLE_PROJECT_DELETE === 'true',
   };
@@ -89,6 +92,7 @@ export function createServiceContext(): ServiceContext {
     get agentPools() { return new AgentPoolService(getClient()); },
     get environments() { return new EnvironmentService(getClient()); },
     get classification() { return new ClassificationService(getClient()); },
+    get iterationCapacity() { return new IterationCapacityService(getClient()); },
     get artifactFeeds() { return new ArtifactFeedService(getClient()); },
     get projects() { return new ProjectService(getClient()); },
     tierFlags,

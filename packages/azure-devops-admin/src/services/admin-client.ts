@@ -29,6 +29,7 @@ export class AdminClient {
       enableEnvironmentDelete: config.enableEnvironmentDelete ?? false,
       enableClassificationNodeUpsert: config.enableClassificationNodeUpsert ?? false,
       enableClassificationNodeDelete: config.enableClassificationNodeDelete ?? false,
+      enableIterationCapacityUpsert: config.enableIterationCapacityUpsert ?? false,
       enableProjectUpsert: config.enableProjectUpsert ?? false,
       enableProjectDelete: config.enableProjectDelete ?? false,
     };

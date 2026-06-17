@@ -9,6 +9,7 @@ import type { VariableGroupService } from './services/variable-group-service.js'
 import type { AgentPoolService } from './services/agent-pool-service.js';
 import type { EnvironmentService } from './services/environment-service.js';
 import type { ClassificationService } from './services/classification-service.js';
+import type { IterationCapacityService } from './services/iteration-capacity-service.js';
 import type { ArtifactFeedService } from './services/artifact-feed-service.js';
 import type { ProjectService } from './services/project-service.js';
 
@@ -43,6 +44,9 @@ export interface AzureDevOpsAdminConfig {
   enableClassificationNodeUpsert?: boolean;
   enableClassificationNodeDelete?: boolean;
 
+  // Iteration capacity operations
+  enableIterationCapacityUpsert?: boolean;
+
   // Project operations
   enableProjectUpsert?: boolean;
   enableProjectDelete?: boolean;
@@ -59,6 +63,7 @@ export interface TierFlags {
   enableAgentPoolUpsert: boolean;
   enableEnvironmentUpsert: boolean;
   enableClassificationNodeUpsert: boolean;
+  enableIterationCapacityUpsert: boolean;
 
   // Tier 3: Delete/Disable flags
   enablePipelineDelete: boolean;
@@ -79,6 +84,7 @@ export interface ServiceContext {
   readonly agentPools: AgentPoolService;
   readonly environments: EnvironmentService;
   readonly classification: ClassificationService;
+  readonly iterationCapacity: IterationCapacityService;
   readonly artifactFeeds: ArtifactFeedService;
   readonly projects: ProjectService;
   readonly tierFlags: TierFlags;

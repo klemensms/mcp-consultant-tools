@@ -4,7 +4,7 @@
 
 Azure DevOps admin operations for DevOps engineers managing pipelines, service connections, agent pools, environments, iterations, areas, and projects.
 
-- **Tools:** 66 tools (30 read-only + 26 upsert + 10 delete), 2 prompts
+- **Tools:** 71 tools (32 read-only + 29 upsert + 10 delete), 2 prompts
 - **Authentication:** Personal Access Token (PAT) or Entra ID App Registration (client credentials)
 
 > **Developer Tools:** For wikis, work items, and pull requests, see `@mcp-consultant-tools/azure-devops`
@@ -35,6 +35,7 @@ AZUREDEVOPS_ENABLE_VARIABLE_GROUP_UPSERT=false
 AZUREDEVOPS_ENABLE_AGENT_POOL_UPSERT=false
 AZUREDEVOPS_ENABLE_ENVIRONMENT_UPSERT=false
 AZUREDEVOPS_ENABLE_CLASSIFICATION_NODE_UPSERT=false
+AZUREDEVOPS_ENABLE_ITERATION_CAPACITY_UPSERT=false
 AZUREDEVOPS_ENABLE_PROJECT_UPSERT=false
 
 # Tier 3: Delete/Disable operations (default: false)
@@ -58,8 +59,8 @@ AZUREDEVOPS_FEEDS=
 
 | Tier | Purpose | Tools |
 |------|---------|-------|
-| Tier 1 | Read-only (always available) | 30 tools |
-| Tier 2 | Create/Update | 26 tools (requires `_UPSERT` flags) |
+| Tier 1 | Read-only (always available) | 32 tools |
+| Tier 2 | Create/Update | 29 tools (requires `_UPSERT` flags) |
 | Tier 3 | Delete/Disable | 10 tools (requires `_DELETE` flags) |
 
 ## Tool Categories
@@ -94,6 +95,12 @@ AZUREDEVOPS_FEEDS=
 - Read-only: `list-iterations`, `get-iteration`, `list-areas`, `get-area`
 - Upsert: `create-iteration`, `update-iteration`, `create-area`, `update-area`, `add-iteration-to-team`
 - Delete: `delete-iteration`, `delete-area`
+
+### Iteration Capacity Tools (5) - Team sprint capacity & days-off
+- Read-only: `get-iteration-capacities`, `get-team-days-off`
+- Upsert: `set-team-member-capacity`, `set-team-capacities-batch`, `set-team-days-off` (requires `AZUREDEVOPS_ENABLE_ITERATION_CAPACITY_UPSERT`)
+
+> `member` accepts an identity GUID, email, or display name (resolved against the team). Writes are FULL REPLACE. `iterationId` is the iteration `identifier` GUID (from `list-iterations`). Batch = one PATCH per member (members not listed are untouched). PAT needs `vso.work_write`.
 
 ### Artifact Feed Tools (2)
 - Read-only: `list-feed-packages`, `get-package-versions`

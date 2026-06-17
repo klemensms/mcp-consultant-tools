@@ -41,6 +41,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
         "AZUREDEVOPS_ENABLE_ENVIRONMENT_DELETE": "false",
         "AZUREDEVOPS_ENABLE_CLASSIFICATION_NODE_UPSERT": "false",
         "AZUREDEVOPS_ENABLE_CLASSIFICATION_NODE_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_ITERATION_CAPACITY_UPSERT": "false",
         "AZUREDEVOPS_ENABLE_PROJECT_UPSERT": "false",
         "AZUREDEVOPS_ENABLE_PROJECT_DELETE": "false",
         "AZUREDEVOPS_FEEDS": ""
@@ -80,6 +81,7 @@ Authentication: use `AZUREDEVOPS_PAT` (simple) or `AZUREDEVOPS_TENANT_ID` + `AZU
         "AZUREDEVOPS_ENABLE_ENVIRONMENT_DELETE": "false",
         "AZUREDEVOPS_ENABLE_CLASSIFICATION_NODE_UPSERT": "false",
         "AZUREDEVOPS_ENABLE_CLASSIFICATION_NODE_DELETE": "false",
+        "AZUREDEVOPS_ENABLE_ITERATION_CAPACITY_UPSERT": "false",
         "AZUREDEVOPS_ENABLE_PROJECT_UPSERT": "false",
         "AZUREDEVOPS_ENABLE_PROJECT_DELETE": "false",
         "AZUREDEVOPS_FEEDS": ""
@@ -100,7 +102,8 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 ## Notable Behavior
 
 - **Authentication modes:** Two options are supported. PAT: set `AZUREDEVOPS_PAT`. Entra ID: set `AZUREDEVOPS_TENANT_ID`, `AZUREDEVOPS_CLIENT_ID`, and `AZUREDEVOPS_CLIENT_SECRET` together. Entra ID takes priority if both are configured. Setting only 1 or 2 of the 3 Entra ID variables throws a clear configuration error.
-- **Three-tier permission model:** 30 tools are always available (read-only). Upsert tools (26) require the relevant `_UPSERT` flag. Delete/disable tools (10) require the relevant `_DELETE` or `_DISABLE` flag. Each resource category has its own independent flag pair.
+- **Three-tier permission model:** 32 tools are always available (read-only). Upsert tools (29) require the relevant `_UPSERT` flag. Delete/disable tools (10) require the relevant `_DELETE` or `_DISABLE` flag. Each resource category has its own independent flag pair.
+- **Team iteration capacity:** `get-iteration-capacities` and `get-team-days-off` are read-only. Setting capacity (`set-team-member-capacity`, `set-team-capacities-batch`, `set-team-days-off`) requires `AZUREDEVOPS_ENABLE_ITERATION_CAPACITY_UPSERT=true` and a PAT with `vso.work_write`. The `member` argument accepts an identity GUID, email, or display name (resolved against the team). Writes are a full replace of that member's / the team's capacity and days-off.
 - **Project allowlist:** Set `AZUREDEVOPS_PROJECTS=*` to allow all projects. Project admin tools (`list-projects`, `create-project`, etc.) always operate at the organization scope and ignore this allowlist.
 - **Feed allowlist:** Set `AZUREDEVOPS_FEEDS` to a comma-separated list of feed names to restrict artifact feed access. Leave empty to allow all feeds.
 - **GitHub pipeline sources:** `create-pipeline` supports Azure Repos (`TfsGit`), GitHub, and GitHub Enterprise repository types. GitHub types require `repositoryUrl` and `serviceConnectionId`. Use `list-svc-conns` to find the service connection ID.

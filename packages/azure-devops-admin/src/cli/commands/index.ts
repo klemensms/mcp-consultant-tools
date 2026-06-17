@@ -10,6 +10,7 @@ import { registerServiceConnectionCommands } from './service-connection-commands
 import { registerVariableGroupCommands } from './variable-group-commands.js';
 import { registerAgentPoolCommands } from './agent-pool-commands.js';
 import { registerClassificationCommands } from './classification-commands.js';
+import { registerIterationCapacityCommands } from './iteration-capacity-commands.js';
 import { registerArtifactFeedCommands } from './artifact-feed-commands.js';
 import { registerProjectCommands } from './project-commands.js';
 
@@ -20,6 +21,7 @@ export function registerAllCommands(program: Command, ctx: ServiceContext): void
   registerVariableGroupCommands(program, ctx);
   registerAgentPoolCommands(program, ctx);
   registerClassificationCommands(program, ctx);
+  registerIterationCapacityCommands(program, ctx);
   registerArtifactFeedCommands(program, ctx);
   registerProjectCommands(program, ctx);
 }
@@ -30,5 +32,6 @@ export { registerServiceConnectionCommands } from './service-connection-commands
 export { registerVariableGroupCommands } from './variable-group-commands.js';
 export { registerAgentPoolCommands } from './agent-pool-commands.js';
 export { registerClassificationCommands } from './classification-commands.js';
+export { registerIterationCapacityCommands } from './iteration-capacity-commands.js';
 export { registerArtifactFeedCommands } from './artifact-feed-commands.js';
 export { registerProjectCommands } from './project-commands.js';

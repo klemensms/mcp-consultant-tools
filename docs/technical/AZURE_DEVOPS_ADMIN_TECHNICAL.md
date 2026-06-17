@@ -12,7 +12,7 @@
 **Prompts:** None
 **Related package:** `@mcp-consultant-tools/azure-devops` (wikis, work items, pull requests)
 
-This package provides Azure DevOps admin operations across eight domains: pipelines, service connections, variable groups, agent pools, environments, classification nodes (iterations and areas), artifact feeds, and projects.
+This package provides Azure DevOps admin operations across nine domains: pipelines, service connections, variable groups, agent pools, environments, classification nodes (iterations and areas), team iteration capacity, artifact feeds, and projects.
 
 </overview>
 
@@ -40,6 +40,7 @@ export interface ServiceContext {
   readonly agentPools: AgentPoolService;
   readonly environments: EnvironmentService;
   readonly classification: ClassificationService;
+  readonly iterationCapacity: IterationCapacityService;
   readonly artifactFeeds: ArtifactFeedService;
   readonly projects: ProjectService;
   readonly tierFlags: TierFlags;
@@ -56,8 +57,8 @@ The three-tier permission model is enforced at tool registration time, not at re
 
 | Tier | Count | Condition | Purpose |
 |------|-------|-----------|---------|
-| Tier 1 — Read-Only | 30 | Always registered | View resources |
-| Tier 2 — Upsert | 26 | Requires `_UPSERT=true` flag | Create and update |
+| Tier 1 — Read-Only | 32 | Always registered | View resources |
+| Tier 2 — Upsert | 29 | Requires `_UPSERT=true` flag | Create and update |
 | Tier 3 — Delete/Disable | 10 | Requires `_DELETE=true` or `_DISABLE=true` flag | Destructive operations |
 
 Each resource category has its own independent flag pair. Enabling pipelines upsert does not enable environments upsert.
@@ -81,6 +82,7 @@ packages/azure-devops-admin/src/
     agent-pool-service.ts             # Agent pool + agent operations
     environment-service.ts            # Environment + check operations
     classification-service.ts         # Iteration + area operations
+    iteration-capacity-service.ts     # Team sprint capacity + days-off
     artifact-feed-service.ts          # Artifact feed operations
     project-service.ts                # Project CRUD (org-scoped)
     index.ts                          # Barrel export
@@ -91,6 +93,7 @@ packages/azure-devops-admin/src/
     agent-pool-tools.ts               # 4 readonly + 2 upsert + 1 delete = 7 tools
     environment-tools.ts              # 4 readonly + 4 upsert + 2 delete = 10 tools
     classification-tools.ts           # 4 readonly + 5 upsert + 2 delete = 11 tools
+    iteration-capacity-tools.ts       # 2 readonly + 3 upsert = 5 tools
     artifact-feed-tools.ts            # 2 readonly only = 2 tools
     project-tools.ts                  # 3 readonly + 2 upsert + 1 delete = 6 tools
     index.ts                          # registerAllTools() aggregator
@@ -103,6 +106,7 @@ packages/azure-devops-admin/src/
       variable-group-commands.ts      # alias: vg
       agent-pool-commands.ts          # alias: pool
       classification-commands.ts      # alias: it (iterations), ar (areas)
+      iteration-capacity-commands.ts  # alias: cap (capacity)
       artifact-feed-commands.ts       # alias: feed
       project-commands.ts             # alias: p
       index.ts                        # registerAllCommands()
@@ -166,6 +170,7 @@ All flags default to `false`. Set to the string `"true"` to enable.
 | `AZUREDEVOPS_ENABLE_ENVIRONMENT_DELETE` | `delete-environment`, `delete-env-check` |
 | `AZUREDEVOPS_ENABLE_CLASSIFICATION_NODE_UPSERT` | `create-iteration`, `update-iteration`, `create-area`, `update-area`, `add-iteration-to-team` |
 | `AZUREDEVOPS_ENABLE_CLASSIFICATION_NODE_DELETE` | `delete-iteration`, `delete-area` |
+| `AZUREDEVOPS_ENABLE_ITERATION_CAPACITY_UPSERT` | `set-team-member-capacity`, `set-team-capacities-batch`, `set-team-days-off` |
 | `AZUREDEVOPS_ENABLE_PROJECT_UPSERT` | `create-project`, `update-project` |
 | `AZUREDEVOPS_ENABLE_PROJECT_DELETE` | `delete-project` |
 
@@ -993,6 +998,87 @@ Deletes an area path. Work items in this area are reclassified to the target are
 
 </domain>
 
+<domain name="iteration-capacity">
+
+**5 tools total: 2 read-only + 3 upsert**
+
+Team sprint capacity — each member's capacity-per-day + days-off, and the team-wide days-off — via the team-scoped work API (`{project}/{team}/_apis/work/teamsettings/iterations/{iterationId}/...`). `iterationId` is the iteration **identifier GUID** (the `identifier` field from `list-iterations`), not the integer id. Writes are **full replace** of the targeted member's / team's activities + days-off.
+
+Identity resolution: the `member` parameter accepts an identity GUID, email, or display name. Non-GUID values are resolved against the team's membership (`_apis/projects/{project}/teams/{team}/members`) — email match first, then display name. Ambiguous or unmatched values raise an error listing the team's members.
+
+Days-off are `{start,end}` arrays. A single day is `start == end`. ADO counts only the team's working days inside a range; enumerating single days is the most predictable. Dates accept `YYYY-MM-DD` or full ISO (auto-converted to `...T00:00:00Z`).
+
+<tool-group name="read-only">
+
+<tool name="get-iteration-capacities">
+
+Returns every team member's capacity for a sprint: identity GUID, display name, email (`uniqueName`), `activities` (capacity-per-day by activity), and `daysOff`. Use the returned GUID/email/name with the set tools.
+
+**Parameters:**
+- `project` (string, required)
+- `team` (string, required)
+- `iterationId` (string, required) — Iteration identifier GUID
+
+</tool>
+
+<tool name="get-team-days-off">
+
+Returns the team-wide days-off for a sprint (shared non-working days, e.g. public holidays / office closures) — separate from per-member days-off.
+
+**Parameters:**
+- `project` (string, required)
+- `team` (string, required)
+- `iterationId` (string, required) — Iteration identifier GUID
+
+</tool>
+
+</tool-group>
+
+<tool-group name="upsert" requires="AZUREDEVOPS_ENABLE_ITERATION_CAPACITY_UPSERT=true">
+
+<tool name="set-team-member-capacity">
+
+Sets one member's capacity-per-day + days-off. **Full replace** — the supplied values overwrite that member's existing capacity (omit `daysOff` to clear them).
+
+**Parameters:**
+- `project` (string, required)
+- `team` (string, required)
+- `iterationId` (string, required) — Iteration identifier GUID
+- `member` (string, required) — Identity GUID, email, or display name
+- `capacityPerDay` (number, required) — e.g., `6`
+- `activityName` (string, optional) — Activity name; defaults to `""` (Unassigned)
+- `daysOff` (array, optional) — `[{start,end}]`; single day = `start==end`; omit to clear
+
+</tool>
+
+<tool name="set-team-capacities-batch">
+
+Sets capacity + days-off for many members in one call — **one PATCH per member**, so members not listed are left untouched (never wiped). Each entry is a full replace for that member. The team roster is fetched once and reused for resolution. Returns per-member `{status, teamMemberId, daysOffEntries}` plus succeeded/failed counts.
+
+**Parameters:**
+- `project` (string, required)
+- `team` (string, required)
+- `iterationId` (string, required) — Iteration identifier GUID
+- `members` (array, required) — `[{ member, capacityPerDay, activityName?, daysOff? }]`
+
+</tool>
+
+<tool name="set-team-days-off">
+
+Sets the team-wide days-off for a sprint. **Full replace** — the supplied list overwrites the team's existing days-off (pass `[]` to clear).
+
+**Parameters:**
+- `project` (string, required)
+- `team` (string, required)
+- `iterationId` (string, required) — Iteration identifier GUID
+- `daysOff` (array, required) — `[{start,end}]`; `[]` clears all team days-off
+
+</tool>
+
+</tool-group>
+
+</domain>
+
 <domain name="artifact-feeds">
 
 **2 tools total: 2 read-only only**
@@ -1228,6 +1314,12 @@ mcp-ado-admin-cli iteration delete MyProject "Sprint 1" 42
 # Areas
 mcp-ado-admin-cli area create MyProject "Backend" --parent-path "Platform"
 
+# Capacity (iterationId = the 'identifier' GUID from `iteration list`)
+mcp-ado-admin-cli capacity list MyProject "My Team" aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+mcp-ado-admin-cli capacity set MyProject "My Team" aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee jdoe@example.com -c 6 --day 2026-06-22 --day 2026-07-10
+mcp-ado-admin-cli capacity set-batch MyProject "My Team" aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee --file ./sprint-capacity.json
+mcp-ado-admin-cli capacity days-off-set MyProject "My Team" aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee --day 2026-12-25
+
 # Artifact feeds
 mcp-ado-admin-cli feed list-packages Acme --name-prefix "pp-solution-"
 
@@ -1283,6 +1375,19 @@ mcp-ado-admin-cli project create "New Project" --process Scrum --description "My
    OR
 2a. create-iteration (without team)
 2b. add-iteration-to-team (subscribe separately)
+```
+
+</pattern>
+
+<pattern name="sprint-capacity-refresh-workflow">
+
+```
+1. list-iterations (get the sprint's 'identifier' GUID)
+2. get-iteration-capacities (current capacity + team roster: GUID, name, email)
+3. (read each resource's bookings from the source system)
+4. set-team-capacities-batch (one call; pass member as email/name, daysOff as {start,end})
+   - requires AZUREDEVOPS_ENABLE_ITERATION_CAPACITY_UPSERT=true
+   - full replace per member; members not listed are untouched
 ```
 
 </pattern>

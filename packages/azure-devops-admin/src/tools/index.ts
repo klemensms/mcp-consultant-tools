@@ -8,6 +8,7 @@ import { registerVariableGroupTools } from './variable-group-tools.js';
 import { registerAgentPoolTools } from './agent-pool-tools.js';
 import { registerEnvironmentTools } from './environment-tools.js';
 import { registerClassificationTools } from './classification-tools.js';
+import { registerIterationCapacityTools } from './iteration-capacity-tools.js';
 import { registerArtifactFeedTools } from './artifact-feed-tools.js';
 import { registerProjectTools } from './project-tools.js';
 
@@ -23,6 +24,7 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
     registerAgentPoolTools(server, ctx),
     registerEnvironmentTools(server, ctx),
     registerClassificationTools(server, ctx),
+    registerIterationCapacityTools(server, ctx),
     registerArtifactFeedTools(server, ctx),
     registerProjectTools(server, ctx),
   ];
@@ -43,5 +45,6 @@ export { registerVariableGroupTools } from './variable-group-tools.js';
 export { registerAgentPoolTools } from './agent-pool-tools.js';
 export { registerEnvironmentTools } from './environment-tools.js';
 export { registerClassificationTools } from './classification-tools.js';
+export { registerIterationCapacityTools } from './iteration-capacity-tools.js';
 export { registerArtifactFeedTools } from './artifact-feed-tools.js';
 export { registerProjectTools } from './project-tools.js';
