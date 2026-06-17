@@ -1,6 +1,6 @@
 {
   "name": "mcp-consultant-tools",
-  "version": "35.0.0-beta.1",
+  "version": "35.0.0-beta.2",
   "description": "Complete MCP Consultant Tools package with all integrations: PowerPlatform, Azure DevOps, Azure Management, Figma, Application Insights, Log Analytics, Azure SQL, Service Bus, SharePoint, GitHub Enterprise, and Azure AD B2C",
   "type": "module",
   "main": "./build/index.js",
@@ -62,7 +62,7 @@
     "@mcp-consultant-tools/azure-b2c": "35.0.0-beta.1",
     "@mcp-consultant-tools/azure-data-factory": "35.0.0-beta.1",
     "@mcp-consultant-tools/azure-devops": "35.0.0-beta.1",
-    "@mcp-consultant-tools/azure-devops-admin": "35.0.0-beta.1",
+    "@mcp-consultant-tools/azure-devops-admin": "35.0.0-beta.2",
     "@mcp-consultant-tools/azure-management": "35.0.0-beta.1",
     "@mcp-consultant-tools/azure-sql": "35.0.0-beta.1",
     "@mcp-consultant-tools/azure-storage": "35.0.0-beta.1",
