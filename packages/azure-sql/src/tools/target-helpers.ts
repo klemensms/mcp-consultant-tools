@@ -35,14 +35,21 @@ function buildDefaultsUsedMessage(
   return '';
 }
 
-/** Resolve target, run the operation, and render the result with a defaults note. */
+/**
+ * Resolve target, run the operation, and render the result with a defaults note.
+ *
+ * `before` runs ahead of target resolution, so a feature-flag guard reports "disabled"
+ * rather than whichever configuration error resolution would have hit first.
+ */
 export function createWithTarget(ctx: ServiceContext) {
   return async (
     { serverId, database }: Target,
     action: string,
-    run: (resolvedServerId: string, resolvedDatabase: string) => Promise<unknown>
+    run: (resolvedServerId: string, resolvedDatabase: string) => Promise<unknown>,
+    before?: () => void
   ) => {
     try {
+      before?.();
       const resolvedServerId = ctx.connection.resolveServerId(serverId);
       const resolvedDatabase = ctx.connection.resolveDatabase(resolvedServerId, database);
       const result = await run(resolvedServerId, resolvedDatabase);

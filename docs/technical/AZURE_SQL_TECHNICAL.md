@@ -9,7 +9,7 @@ The Azure SQL Database integration provides access to Azure SQL Database and SQL
 
 **Package:** `@mcp-consultant-tools/azure-sql`
 **Binaries:** `mcp-sql` (MCP server), `mcp-sql-cli` (CLI)
-**Total tools:** 36 always registered (26 read-only + 10 write operations), plus `sql-execute-unrestricted` when `SQL_ENABLE_UNRESTRICTED=true` → 37
+**Total tools:** 40 always registered (29 read-only + 11 write operations), plus `sql-execute-unrestricted` when `SQL_ENABLE_UNRESTRICTED=true` → 41
 **Prompts:** 3
 
 </overview>
@@ -174,6 +174,7 @@ AZURE_SQL_PASSWORD=SecurePassword123!
 | `SQL_ENABLE_INSERT` | `INSERT` statement | `sql-insert-records` |
 | `SQL_ENABLE_UPDATE` | `UPDATE` statement | `sql-update-records` |
 | `SQL_ENABLE_DELETE` | `DELETE` statement (WHERE required) | `sql-delete-records` |
+| `SQL_ENABLE_INDEX_CREATE` | `CREATE NONCLUSTERED INDEX` on unindexed FK columns | `sql-create-fk-indexes` |
 | `SQL_ENABLE_UNRESTRICTED` | Any T-SQL without restrictions (break glass) | `sql-execute-unrestricted` (tool hidden when `false`) |
 
 </environment-variables>
@@ -577,6 +578,60 @@ Returns: `sessions[]` (`sessionId`, `loginName`, `hostName`, `programName`, `use
 
 </tool>
 
+### Index Health (DMV + Catalog Views)
+
+The three read tools below are read-only (`readOnlyHint: true`), take no feature flag, and accept the standard `serverId` / `database` pair. They read `sys.indexes`, `sys.foreign_key_columns`, `sys.dm_db_index_usage_stats` and `sys.dm_db_partition_stats` — never Query Store, so they do **not** gate on it. `sys.dm_db_partition_stats` and `sys.dm_db_index_usage_stats` additionally need `VIEW DEFINITION`.
+
+The fourth tool in the group, `sql-create-fk-indexes`, is a write and is documented under Write Operations below.
+
+**Generated DDL is quoted, not concatenated.** Both `buildDisabledIndexesQuery()` and `buildCreateFkIndexesQuery()` assemble identifiers with `QUOTENAME()`. A catalog name may legally contain `]`; naked bracket concatenation (`'[' + i.name + ']'`, as the ported source used) would let a table named `foo]bar` terminate the identifier early and inject into the generated statement. The names come from catalog views rather than from the caller, so this is defence in depth, not a live injection path.
+
+**PII redaction reaches generated DDL.** These services compose over `QueryService.executeQuery()`, so when `PII_PROTECTION=true` the schema/table/column names embedded in `rebuildStatement` are subject to the redaction pipeline and may be rewritten. The DDL string may therefore not be executable verbatim under redaction. This is expected, not a bug.
+
+<tool name="sql-get-disabled-indexes">
+
+**`sql-get-disabled-indexes`** — Disabled indexes from `sys.indexes` (`is_disabled = 1`), with key columns aggregated via `STRING_AGG(... ) WITHIN GROUP (ORDER BY ic.key_ordinal)` (SQL Server 2017+). No parameters beyond the target pair.
+
+Returns: `indexes[]` (`schema`, `table`, `indexName`, `indexType`, `indexColumns`, `tableRowCount`, `backsForeignKey`, `rebuildStatement`) and `summary` (`total`, `byTable` keyed `schema.table`, `backingForeignKeys`).
+
+`rebuildStatement` is a ready-to-run `ALTER INDEX … REBUILD;` **returned as text**. The service never executes it: the tool stays `readOnlyHint: true`, and rebuilding takes a schema lock that can hold for a long time on a large table. `backsForeignKey` marks the indexes whose disablement is breaking FK enforcement — rebuild those first.
+
+</tool>
+
+<tool name="sql-get-missing-fk-indexes">
+
+**`sql-get-missing-fk-indexes`** — Every row of `sys.foreign_key_columns`, flagged with whether a rowstore index (`i.type IN (1, 2)`) has that column at `key_ordinal = 1`. No parameters beyond the target pair.
+
+Returns: `foreignKeys[]` (`schema`, `table`, `column`, `referencedTable`, `referencedColumn`, `isIndexed`) and `summary` (`total`, `indexed`, `missing`).
+
+Two semantics worth stating plainly. **Leading key, not mere membership:** an FK column at position 2 of a composite index cannot serve the FK lookup, so it counts as missing. **Per column, not per constraint:** a composite foreign key reports each of its columns separately, and `sql-create-fk-indexes` would accordingly build one single-column index per column rather than one composite index. This mirrors the tool's source semantics; if you want a composite index, write it yourself.
+
+This tool is the dry run for `sql-create-fk-indexes` — the rows with `isIndexed: false` are exactly what that tool would create.
+
+</tool>
+
+<tool name="sql-get-index-usage-stats">
+
+**`sql-get-index-usage-stats`** — Read/write counters per index from `sys.dm_db_index_usage_stats`, ordered least-read first (`seeks + scans + lookups` ascending, then `updates` descending), so the strongest drop candidates surface at the top.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `topN` | integer | No | Max indexes returned, least-read first (default 100) |
+
+Returns: `indexes[]` (`schema`, `table`, `indexName`, `indexType`, `hasUsageData`, `userSeeks`, `userScans`, `userLookups`, `userUpdates`, `lastUserSeek`, `lastUserScan`, `lastUserLookup`, `lastUserUpdate`, `rowCount`, `isUnused`, `isHeavilyScanned`) and `summary` (`total`, `unusedCount`, `heavilyScannedCount`, `withoutUsageData`, `unusedIndexes[]` as `schema.table.index`, `statsSince`, `statsWindowHours`).
+
+Three documented properties of the DMV shape this query, and each maps to a field in the output:
+
+1. **A never-used index has no row at all**, not a row of zeros — *"When an index is used, a row is added to sys.dm_db_index_usage_stats if a row does not already exist for the index."* Hence the `LEFT JOIN` and the `hasUsageData` flag. `isUnused` therefore requires `hasUsageData && userSeeks === 0 && userScans === 0 && userLookups === 0 && userUpdates > 0` — the engine maintains the index on every write and nothing reads it. An index with **no** row has seen no activity of any kind, which is an absence of evidence rather than evidence of disuse, and is never flagged.
+2. **The counters reset** — *"The counters are initialized to empty whenever the database engine is started … whenever a database is detached or is shut down (for example, because AUTO_CLOSE is set to ON), all rows associated with the database are removed."* `statsSince` (`sys.dm_os_sys_info.sqlserver_start_time`) and `statsWindowHours` (`DATEDIFF(HOUR, …, GETDATE())`) report the accumulation window. `DATEDIFF` runs server-side on purpose: computing the delta client-side would skew by the server's UTC offset. On Azure SQL Database treat the window as approximate — a database can be relocated to a host whose start time predates its own arrival. Note that `ALTER INDEX … REBUILD` reset the counters on SQL Server 2012/2014 but **not** on 2016+, Managed Instance, or Azure SQL Database.
+3. **Memory-optimized and spatial indexes are not covered** — *"The DMV sys.dm_db_index_usage_stats does not return information about memory-optimized indexes or spatial indexes."* Both are excluded (`i.type <> 4`, `t.is_memory_optimized = 0`) rather than reported as having no usage data, which would read as "unused".
+
+`sys.dm_os_sys_info` is `CROSS JOIN`ed rather than fetched separately. It carries the same permission requirement as the usage DMV on every platform, so the join adds no grant the caller does not already need.
+
+`isHeavilyScanned` is `userScans > userSeeks * 10 && userScans > 1000` — a scan-to-seek ratio that lopsided, at that volume, suggests a missing or misordered key.
+
+</tool>
+
 ### Write Operations (Feature-Flag Gated)
 
 All write tools call a guard function before executing. If the corresponding env var is not `"true"`, the tool throws an error listing the exact variable name to set.
@@ -738,6 +793,24 @@ DML validation applied. Audit-logged as `UPDATE` operation. Returns `success`, `
 | `query` | string | Yes | DELETE statement (must include WHERE clause) |
 
 DML validation applied plus a mandatory WHERE clause check. If no WHERE clause is detected after comment stripping, throws: `"DELETE queries must include a WHERE clause to prevent accidental full-table deletion. If you truly need to delete all rows, use DELETE FROM table WHERE 1=1."`. Audit-logged as `DELETE` operation.
+
+</tool>
+
+<tool name="sql-create-fk-indexes">
+
+**`sql-create-fk-indexes`** — Create a single-column nonclustered index named `IX_<table>_<column>` on every foreign-key column that lacks a leading-key index. Requires `SQL_ENABLE_INDEX_CREATE=true`. No parameters beyond the target pair.
+
+Annotations: `{ readOnlyHint: false, destructiveHint: false, openWorldHint: true }`. Creating an index is additive — it adds an object, it does not remove or alter data — so it carries the same annotation shape as `sql-manage-view`, not `sql-drop-view`. Like the other write tools it stays **visible** when its flag is off and fails with an explicit message; `sql-execute-unrestricted` is the deliberate exception that hides.
+
+Returns: `results[]` (`indexName`, `schema`, `table`, `column`, `status`, `errorMessage`) with `status` one of `created` / `skipped` / `failed`; `summary` (`created`, `skipped`, `failed`); and `truncated`.
+
+Implementation notes:
+
+- **`checkIndexCreateEnabled()` runs before target resolution.** `createWithTarget()` takes an optional `before` callback for exactly this: the flag guard must report "Index creation is disabled" rather than whichever configuration error server/database resolution would have raised first.
+- **Per-attempt reporting.** The T-SQL cursor writes one row per attempted index into a table variable — `created`, `skipped` (an index of that name already exists), or `failed` with `ERROR_MESSAGE()` — and selects it as the single result set (`SET NOCOUNT ON` guarantees it is the only one). The source this was ported from returned only three counters and labelled every row `created` regardless of outcome, swallowing the error text entirely.
+- **`truncated`.** The report is a normal result set and is subject to `AZURE_SQL_MAX_RESULT_ROWS`. When `truncated` is `true` the summary counts are a lower bound on what the server actually did.
+- **`@IndexName` is `NVARCHAR(300)`, not `sysname`.** A generated name longer than 128 characters must fail loudly inside `CREATE INDEX` — and be reported as `failed` — rather than be silently truncated into a collision with another index.
+- **Blast radius.** Every `CREATE INDEX` takes a schema lock on its table and can run for minutes on a large one. Run `sql-get-missing-fk-indexes` first; it is the dry run and lists exactly what this will create. Composite foreign keys yield one single-column index per column, not one composite index.
 
 </tool>
 
@@ -1128,6 +1201,9 @@ The CLI reuses the same `ServiceContext` as the MCP server via `context-factory.
 | `crud` | `insert`, `update`, `delete` | `sql-insert-records`, `sql-update-records`, `sql-delete-records` |
 | `unrestricted` | `execute` | `sql-execute-unrestricted` (requires `SQL_ENABLE_UNRESTRICTED=true`) |
 | `perf` | `get-top-waits`, `find-query-in-store`, `get-query-wait-stats`, `get-cpu-intensive-queries`, `get-failed-queries`, `get-query-plan` | The six `sql-*` Query Store tools, 1:1 (command name = tool name minus the `sql-` prefix) |
+| `session` | `get-blocking-chains`, `get-executing-requests`, `get-deadlock-graphs`, `get-long-running-transactions` | The four `sql-*` session tools, 1:1 |
+| `space` | `get-database-space`, `get-table-space`, `get-tempdb-space`, `get-tempdb-session-usage` | The four `sql-*` space tools, 1:1 |
+| `index` | `get-disabled-indexes`, `get-missing-fk-indexes`, `get-index-usage-stats`, `create-fk-indexes` | The four `sql-*` index tools, 1:1. `create-fk-indexes` requires `SQL_ENABLE_INDEX_CREATE=true` |
 
 ### Parameter Mapping
 
@@ -1182,6 +1258,14 @@ mcp-sql-cli perf get-cpu-intensive-queries --hours 6 --limit 5
 mcp-sql-cli perf get-failed-queries --limit 20
 mcp-sql-cli perf get-failed-queries --include-plan     # large output
 mcp-sql-cli perf get-query-plan 1234
+
+# Index health (read-only; VIEW DATABASE STATE + VIEW DEFINITION)
+mcp-sql-cli index get-disabled-indexes --server-id prod-sql --database AppDB
+mcp-sql-cli index get-missing-fk-indexes               # dry run for create-fk-indexes
+mcp-sql-cli index get-index-usage-stats --top-n 25     # least-read first
+
+# Create the missing FK indexes (requires SQL_ENABLE_INDEX_CREATE=true)
+mcp-sql-cli index create-fk-indexes --server-id prod-sql --database AppDB
 
 # Global flags
 mcp-sql-cli --json query tables prod-sql AppDB       # Raw JSON output

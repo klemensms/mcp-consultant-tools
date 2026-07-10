@@ -8,6 +8,7 @@ import type { WriteService } from './services/write-service.js';
 import type { PerformanceService } from './services/performance-service.js';
 import type { SessionService } from './services/session-service.js';
 import type { SpaceService } from './services/space-service.js';
+import type { IndexService } from './services/index-service.js';
 
 export interface ServiceContext {
   readonly connection: ConnectionService;
@@ -16,6 +17,7 @@ export interface ServiceContext {
   readonly performance: PerformanceService;
   readonly session: SessionService;
   readonly space: SpaceService;
+  readonly index: IndexService;
   checkViewManageEnabled(): void;
   checkViewDropEnabled(): void;
   checkSprocManageEnabled(): void;
@@ -24,4 +26,5 @@ export interface ServiceContext {
   checkInsertEnabled(): void;
   checkUpdateEnabled(): void;
   checkDeleteEnabled(): void;
+  checkIndexCreateEnabled(): void;
 }

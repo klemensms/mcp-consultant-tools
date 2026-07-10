@@ -4,6 +4,7 @@ export { WriteService } from './write-service.js';
 export { PerformanceService } from './performance-service.js';
 export { SessionService } from './session-service.js';
 export { SpaceService } from './space-service.js';
+export { IndexService } from './index-service.js';
 export type {
   AzureSqlConfig,
   AzureSqlServerResource,
@@ -50,3 +51,9 @@ export type {
   TempDbSpaceInfo,
   TempDbSessionUsage,
 } from './space-service.js';
+export type {
+  DisabledIndex,
+  FkIndexStatus,
+  FkIndexCreationResult,
+  IndexUsageStat,
+} from './index-service.js';

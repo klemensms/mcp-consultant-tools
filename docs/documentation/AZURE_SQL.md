@@ -44,6 +44,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
         "SQL_ENABLE_INSERT": "false",
         "SQL_ENABLE_UPDATE": "false",
         "SQL_ENABLE_DELETE": "false",
+        "SQL_ENABLE_INDEX_CREATE": "false",
         "SQL_ENABLE_UNRESTRICTED": "false"
       }
     }
@@ -82,6 +83,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
         "SQL_ENABLE_INSERT": "false",
         "SQL_ENABLE_UPDATE": "false",
         "SQL_ENABLE_DELETE": "false",
+        "SQL_ENABLE_INDEX_CREATE": "false",
         "SQL_ENABLE_UNRESTRICTED": "false"
       }
     }
@@ -128,7 +130,11 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 - **`sql-get-deadlock-graphs` is not supported on Azure SQL Database.** It reads the `system_health` Extended Events ring buffer, which Azure SQL Database does not run (and its server-scoped `sys.dm_xe_sessions` views do not exist there). The tool detects the engine edition first and **fails with instructions** — including the `CREATE EVENT SESSION … ADD EVENT sqlserver.database_xml_deadlock_report` you'd need to start capturing deadlocks — rather than emitting a bare "Invalid object name". It works on SQL Server and Azure SQL Managed Instance.
 - **The two TempDB tools target the connection, not the named database.** `sql-get-tempdb-space` and `sql-get-tempdb-session-usage` always describe the TempDB of whichever connection `serverId`/`database` resolve to. TempDB is reached by three-part name (`tempdb.sys.*`), the one documented exception to Azure SQL Database's ban on cross-database references, so the same query works on both platforms.
 - **On Azure SQL Database, the session tools are scoped to the connected database,** and Basic/S0/S1 tiers plus elastic pools need a server admin, a Microsoft Entra admin, or `##MS_ServerStateReader##` membership rather than a plain `VIEW DATABASE STATE` grant. `sql-get-executing-requests` with `includePlan=true` additionally needs a Premium tier or admin login to read `sys.dm_exec_query_statistics_xml`.
-- **XML output is redacted when `PII_PROTECTION=true`.** Deadlock graphs and execution plans embed literal parameter values, so the redaction pipeline can alter `deadlockXml` and `queryPlan` content. This is deliberate, but means the XML may not parse identically to what the server emitted.
+- **`sql-get-index-usage-stats` reports the counter window, and you must read it.** `sys.dm_db_index_usage_stats` resets whenever the database engine restarts, and whenever the database is detached, taken offline or AUTO_CLOSEd. `summary.statsWindowHours` says how long the counters have been accumulating — after a restart an hour ago, *every* index looks dormant. Two further traps the tool's output makes visible: an index that has never been used has **no row** in the DMV rather than a row of zeros, so `hasUsageData: false` means "no evidence either way", not "unused"; and the DMV covers neither memory-optimized nor spatial indexes, which are therefore excluded rather than reported as unused. Only `isUnused: true` — the engine maintains the index on every write and nothing has read it — is a genuine drop candidate, and even then, weigh it against the window.
+- **`sql-get-disabled-indexes` returns rebuild DDL as text and never runs it.** The `rebuildStatement` field is a ready-to-run `ALTER INDEX … REBUILD`. Rebuilding takes a schema lock and can run for a long time on a large table, so executing it is your decision and your maintenance window.
+- **`sql-create-fk-indexes` is the only write in the diagnostics suite.** It creates an `IX_<table>_<column>` nonclustered index on every foreign-key column lacking a leading-key index, and needs `SQL_ENABLE_INDEX_CREATE=true`. Run `sql-get-missing-fk-indexes` first — it is the dry run and lists exactly what would be created. Each `CREATE INDEX` takes a schema lock on its table. The result reports one row per attempt (`created` / `skipped` / `failed` with its SQL error), so a partial run tells you precisely what landed.
+- **"Missing" FK index means missing a *leading* key.** `sql-get-missing-fk-indexes` evaluates each foreign-key column separately, so a composite foreign key reports its columns one at a time. A column sitting at position 2 of a composite index counts as missing, because it cannot serve the foreign-key lookup.
+- **XML output is redacted when `PII_PROTECTION=true`.** Deadlock graphs and execution plans embed literal parameter values, so the redaction pipeline can alter `deadlockXml` and `queryPlan` content. This is deliberate, but means the XML may not parse identically to what the server emitted. The same applies to generated DDL: the schema, table and column names inside `rebuildStatement` pass through the pipeline and can be rewritten, so take DDL from an unredacted run before executing it.
 - **PII protection is opt-in:** off by default; set `PII_PROTECTION=true` to redact. There is no environment-type gate — the server starts without it. When protection is off, a stderr warning fires if the configured `AZURE_SQL_SERVER` doesn't look like a non-prod environment.
 
 ## PII Protection (v31+)

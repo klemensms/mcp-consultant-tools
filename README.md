@@ -36,7 +36,7 @@ MCP Consultant Tools is a **modular monorepo** with **22 independently published
 | **application-insights** | Application Insights | 10 | `mcp-appins-cli` | [Setup & Usage](docs/documentation/APPLICATION_INSIGHTS.md) |
 | **log-analytics** | Log Analytics | 13 | `mcp-loganalytics-cli` | [Setup & Usage](docs/documentation/LOG_ANALYTICS.md) |
 | **1password** | 1Password Vault & Item Management | 21 | `mcp-op-cli` | [Setup & Usage](docs/documentation/ONEPASSWORD.md) |
-| **azure-sql** | Azure SQL Database | 36 | `mcp-sql-cli` | [Setup & Usage](docs/documentation/AZURE_SQL.md) |
+| **azure-sql** | Azure SQL Database | 40 | `mcp-sql-cli` | [Setup & Usage](docs/documentation/AZURE_SQL.md) |
 | **service-bus** | Azure Service Bus | 8 | `mcp-sb-cli` | [Setup & Usage](docs/documentation/SERVICE_BUS.md) |
 | **azure-b2c** | Azure AD B2C | 11 | `mcp-azure-b2c-cli` | [Setup & Usage](docs/documentation/AZURE_B2C.md) |
 | **azure-storage** | Azure Blob, Files, Queue, Table Storage | 47 | `mcp-storage-cli` | [Setup & Usage](docs/documentation/AZURE_STORAGE.md) |

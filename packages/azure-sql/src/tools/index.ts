@@ -8,6 +8,7 @@ import { registerUnrestrictedTools } from './unrestricted-tools.js';
 import { registerPerformanceTools } from './performance-tools.js';
 import { registerSessionTools } from './session-tools.js';
 import { registerSpaceTools } from './space-tools.js';
+import { registerIndexTools } from './index-tools.js';
 
 export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerConnectionTools(server, ctx);
@@ -19,6 +20,7 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerPerformanceTools(server, ctx);
   registerSessionTools(server, ctx);
   registerSpaceTools(server, ctx);
+  registerIndexTools(server, ctx);
 }
 
 export { registerConnectionTools } from './connection-tools.js';
@@ -30,3 +32,4 @@ export { registerUnrestrictedTools } from './unrestricted-tools.js';
 export { registerPerformanceTools } from './performance-tools.js';
 export { registerSessionTools } from './session-tools.js';
 export { registerSpaceTools } from './space-tools.js';
+export { registerIndexTools } from './index-tools.js';

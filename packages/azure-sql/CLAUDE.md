@@ -4,7 +4,7 @@
 
 Azure SQL Database integration with read-only queries and optional write operations behind feature flags.
 
-- **Tools:** 36 tools (26 read-only + 10 write), 3 prompts. `sql-execute-unrestricted` is conditionally registered on top (37 with `SQL_ENABLE_UNRESTRICTED=true`).
+- **Tools:** 40 tools (29 read-only + 11 write), 3 prompts. `sql-execute-unrestricted` is conditionally registered on top (41 with `SQL_ENABLE_UNRESTRICTED=true`).
 - **Authentication:** SQL Auth or Azure AD
 - **Read-Only by default:** Write operations available behind per-operation feature flags
 
@@ -75,6 +75,9 @@ SQL_ENABLE_INSERT=true         # INSERT statements
 SQL_ENABLE_UPDATE=true         # UPDATE statements
 SQL_ENABLE_DELETE=true         # DELETE statements (requires WHERE clause)
 
+# Index creation
+SQL_ENABLE_INDEX_CREATE=true   # CREATE NONCLUSTERED INDEX on unindexed FK columns
+
 # Unrestricted execution (break glass — tool hidden when off)
 SQL_ENABLE_UNRESTRICTED=true  # Any T-SQL: DDL, DML, EXEC, multi-batch with GO
 ```
@@ -117,6 +120,18 @@ These eight read DMVs, **not** Query Store — do not reuse `assertQueryStoreEna
 
 The two TempDB tools always describe the resolved **connection's** TempDB; `database` selects the pool, not the inspected database. They reach TempDB via three-part name (`tempdb.sys.*`), which works on both platforms.
 
+**Index Health (read-only, no feature flag; DMV grant as above plus `VIEW DEFINITION`):**
+- `sql-get-disabled-indexes` - Disabled indexes, their key columns, and rebuild DDL **as text** (never executed)
+- `sql-get-missing-fk-indexes` - Foreign-key columns with no index leading on them; the dry run for `sql-create-fk-indexes`
+- `sql-get-index-usage-stats` - Seeks/scans/lookups/updates per index, least-read first (default top 100)
+
+`sql-get-index-usage-stats` guards three traps in `sys.dm_db_index_usage_stats`, and its result shape exists to make them visible:
+- The counters **reset** on engine restart, and on database detach / offline / AUTO_CLOSE. `summary.statsWindowHours` (computed server-side via `DATEDIFF`, so no timezone skew) reports how long they have accumulated. A restart an hour ago makes every index look dormant.
+- A never-used index has **no row** in the DMV, not a row of zeros. Hence the LEFT JOIN and `hasUsageData`. `isUnused` deliberately requires `hasUsageData` **and** `userUpdates > 0` — the engine maintains the index on every write and nothing reads it. An index with no row has seen no activity of any kind: absence of evidence, not evidence of disuse.
+- The DMV covers neither memory-optimized nor spatial indexes, so both are excluded rather than reported as unused.
+
+`sql-get-missing-fk-indexes` evaluates each FK column separately, so a composite foreign key reports its columns one by one. "Missing" means no index has that column as its **leading** key — an FK column at position 2 of a composite index cannot serve the lookup.
+
 **Write Operations (feature-flag gated):**
 - `sql-manage-view` - Create or update a view
 - `sql-deploy-view-file` - Deploy a view from a local .sql file
@@ -128,7 +143,10 @@ The two TempDB tools always describe the resolved **connection's** TempDB; `data
 - `sql-insert-records` - Execute INSERT
 - `sql-update-records` - Execute UPDATE
 - `sql-delete-records` - Execute DELETE (WHERE required)
+- `sql-create-fk-indexes` - Create `IX_<table>_<column>` on every FK column lacking a leading-key index; returns one row per attempt (created / skipped / failed with its error)
 - `sql-execute-unrestricted` - Execute any T-SQL without restrictions (conditionally registered, hidden when flag is off)
+
+`sql-create-fk-indexes` is additive (`destructiveHint: false`, like `sql-manage-view`) and stays visible when its flag is off, failing with an explicit message. `sql-execute-unrestricted` is the deliberate exception that hides. Each `CREATE INDEX` takes a schema lock and can run for minutes on a large table. Generated DDL is assembled with `QUOTENAME()` — catalog names may legally contain `]`, and bracket concatenation would let one break out of the identifier.
 
 ## Security
 
@@ -206,4 +224,12 @@ mcp-sql-cli space get-database-space
 mcp-sql-cli space get-table-space --top-n 10
 mcp-sql-cli space get-tempdb-space
 mcp-sql-cli space get-tempdb-session-usage --top-n 10
+
+# Index health (read-only)
+mcp-sql-cli index get-disabled-indexes
+mcp-sql-cli index get-missing-fk-indexes
+mcp-sql-cli index get-index-usage-stats --top-n 25
+
+# Create the missing FK indexes (requires SQL_ENABLE_INDEX_CREATE=true)
+mcp-sql-cli index create-fk-indexes
 ```
