@@ -13,6 +13,7 @@ import {
   WorkItemService,
   PullRequestService,
   BuildService,
+  GitService,
   VariableGroupService,
   SyncService,
   ConfigurationService,
@@ -70,6 +71,7 @@ export function createServiceContext(): ServiceContext {
   let workItem: WorkItemService | null = null;
   let pullRequest: PullRequestService | null = null;
   let build: BuildService | null = null;
+  let git: GitService | null = null;
   let variableGroup: VariableGroupService | null = null;
   let sync: SyncService | null = null;
   let configuration: ConfigurationService | null = null;
@@ -82,6 +84,7 @@ export function createServiceContext(): ServiceContext {
     get workItem() { return workItem ??= new WorkItemService(getClient(), piiPipeline); },
     get pullRequest() { return pullRequest ??= new PullRequestService(getClient()); },
     get build() { return build ??= new BuildService(getClient()); },
+    get git() { return git ??= new GitService(getClient()); },
     get variableGroup() { return variableGroup ??= new VariableGroupService(getClient()); },
     get sync() { return sync ??= new SyncService(workItem ??= new WorkItemService(getClient(), piiPipeline)); },
     get configuration() { return configuration ??= new ConfigurationService(); },

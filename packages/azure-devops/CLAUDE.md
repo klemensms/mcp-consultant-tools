@@ -2,9 +2,9 @@
 
 ## Overview
 
-Azure DevOps integration for wiki access, work item management, pull requests, build troubleshooting, and local work item sync.
+Azure DevOps integration for wiki access, work item management, pull requests, build troubleshooting, Git branches, and local work item sync.
 
-- **Tools:** 58 tools (65 with PR write enabled), 4 prompts
+- **Tools:** 66 tools (73 with PR write enabled), 4 prompts
 - **Authentication:** Personal Access Token (PAT) or Entra ID App Registration (client credentials)
 
 > **Admin Tools:** For pipelines, service connections, agent pools, and environments, see `@mcp-consultant-tools/azure-devops-admin`
@@ -413,6 +413,24 @@ Requires `AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true`.
 
 `Microsoft.VSTS.TCM.ReproSteps` (used primarily by Bug work items) now syncs alongside Description and Acceptance Criteria. A new `# Repro Steps` section appears between Description and AC in pulled markdown when the field is non-empty. HTML ReproSteps gets the same read-only, local auto-convert-to-markdown treatment on pull as Description (the ADO field keeps its HTML until edited and pushed). `ParsedWorkItemFile.reproSteps: string` is the new property.
 
+## Things that will bite you
+
+**`issue.type` on a build timeline is lowercase only — `error` / `warning`.** Matching `"Error"` finds nothing and reports a clean build. `build-issues` compares case-insensitively.
+
+**A timeline record's `type` (`Stage` / `Job` / `Task`) is NOT a documented enum.** Microsoft types it as a bare string. Never filter on it without a case-insensitive compare, and never assume a missing `Stage` record means "no stages".
+
+**`errorCount` / `warningCount` on a timeline record are independent of its `issues[]`.** A record can report a count with no message attached. `build-issues` returns both and sets `countersExceedListedIssues` when they disagree — summing counters while listing only records with issues silently under-reports.
+
+**Never diff the output of `get-variable-group`.** It masks secrets to the literal `***SECRET***`, so two *different* secrets compare equal. The comparison tools read the raw payload and branch on `isSecret`, never on the value. Azure DevOps returns a secret as `{isSecret: true, value: null}` and **omits `isSecret` entirely** for a normal variable.
+
+**`compare-environments` suffixes are caller-overridable for a reason.** A hardcoded list matched zero groups forever for a team naming things `-prd`. It returns `unmatchedGroups` and `incompleteSets` so an empty result is explainable rather than a false all-clear.
+
+**Git refs carry `objectId` but no date.** You cannot order branches by time from the refs API. `latest-release-branch` therefore sorts by version name, digit-aware (`release/10` > `release/9`), and *excludes* branches with no digit (`release/next`) rather than letting one win arbitrarily — reporting them in `ignoredNonVersionBranches`.
+
+**Refs paging uses the `x-ms-continuationtoken` RESPONSE header**, not a body field, and `$top` caps at 1000. `list-branches` follows it and sets `truncated` honestly.
+
+**Validate CLI arguments before touching `ctx.<service>`.** The service getters build a client and throw on missing config, so a parse evaluated inside the service-call argument list never runs and an arg typo surfaces as a credentials error.
+
 ## Build Troubleshooting Tools
 
 Read-only tools for investigating build/pipeline failures:
@@ -420,6 +438,30 @@ Read-only tools for investigating build/pipeline failures:
 - `get-build-status` - Get build status with optional timeline/logs
 - `get-build-timeline` - Step-by-step breakdown with filtering
 - `get-build-logs` - List logs or get specific log content
+- `build-issues` - Every warning/error from the timeline's `issues[]`, with messages
+
+## Git Tools
+
+- `list-branches` - Branches in a repo (short name, full ref, tip SHA)
+- `latest-release-branch` - Newest `release/*` by version, not by commit date
+
+## Variable Group Tools
+
+- `get-variable-groups` / `get-variable-group` - List / fetch (secrets masked)
+- `compare-variable-groups` - Diff two groups; secret values never read
+- `compare-environments` - Diff `<base>-<env>` families
+- `variable-group-summary` - Variable and secret **counts**
+
+## Testing
+
+```bash
+npm run build --workspace=packages/azure-devops
+npm test --workspace=packages/azure-devops   # 46 tests, no live API
+```
+
+Services take an injected client, so the suite uses plain stub objects and needs no `vi.mock`. Comparison and sort rules are exported as pure functions and tested without an organisation.
+
+**Not verified against a live Azure DevOps organisation.** Every REST path and api-version is checked against Microsoft Learn and unit-tested against stubbed clients, but no call in `GitService`, `build-issues`, or the variable-group comparison tools has run against a real org.
 
 **Usage:**
 ```bash
@@ -613,6 +655,14 @@ mcp-ado-cli test list-runs MyProject --state Completed
 mcp-ado-cli test run-results MyProject 175
 mcp-ado-cli test case-history MyProject 1930
 mcp-ado-cli test link-case MyProject 1930 --story-id 1928 --run-id 175
+
+# Build issues, branches, variable-group diffs
+mcp-ado-cli build issues MyProject 1234
+mcp-ado-cli git branches MyProject MyRepo
+mcp-ado-cli git latest-release MyProject MyRepo
+mcp-ado-cli variable-group compare MyProject 12 34
+mcp-ado-cli variable-group compare-environments MyProject
+mcp-ado-cli variable-group summary MyProject
 
 # JSON output
 mcp-ado-cli --json wiki list MyProject

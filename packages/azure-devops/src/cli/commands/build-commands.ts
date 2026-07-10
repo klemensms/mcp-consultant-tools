@@ -62,4 +62,32 @@ export function registerBuildCommands(program: Command, ctx: ServiceContext): vo
         );
       } catch (error) { handleCliError(error, 'get build logs'); }
     });
+
+  build
+    .command('issues')
+    .description("Extract warnings and errors from a build's timeline")
+    .argument('<project>', 'Project name')
+    .argument('<buildId>', 'Build ID')
+    .option('-s, --severity <severity>', 'Which issues to list: all, errors, warnings', 'all')
+    .action(async (project: string, buildId: string, opts: any) => {
+      try {
+        const severity = opts.severity ?? 'all';
+        if (!['all', 'errors', 'warnings'].includes(severity)) {
+          throw new Error(`--severity must be one of: all, errors, warnings (got '${severity}')`);
+        }
+        const id = Number(buildId);
+        if (!Number.isInteger(id) || id <= 0) {
+          throw new Error(`buildId must be a positive integer, got '${buildId}'`);
+        }
+        const result = await ctx.build.getBuildIssues(project, id, severity);
+        outputResult(
+          {
+            fileName: `build-${buildId}-issues`,
+            data: result,
+            summary: `Build #${buildId}: ${result.totalErrors} error(s), ${result.totalWarnings} warning(s)`,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'get build issues'); }
+    });
 }

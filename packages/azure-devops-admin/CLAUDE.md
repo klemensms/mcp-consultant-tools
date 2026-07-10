@@ -4,7 +4,7 @@
 
 Azure DevOps admin operations for DevOps engineers managing pipelines, service connections, agent pools, environments, iterations, areas, and projects.
 
-- **Tools:** 71 tools (32 read-only + 29 upsert + 10 delete), 2 prompts
+- **Tools:** 75 tools (36 read-only + 29 upsert + 10 delete), 2 prompts
 - **Authentication:** Personal Access Token (PAT) or Entra ID App Registration (client credentials)
 
 > **Developer Tools:** For wikis, work items, and pull requests, see `@mcp-consultant-tools/azure-devops`
@@ -59,14 +59,45 @@ AZUREDEVOPS_FEEDS=
 
 | Tier | Purpose | Tools |
 |------|---------|-------|
-| Tier 1 | Read-only (always available) | 32 tools |
+| Tier 1 | Read-only (always available) | 36 tools |
 | Tier 2 | Create/Update | 29 tools (requires `_UPSERT` flags) |
 | Tier 3 | Delete/Disable | 10 tools (requires `_DELETE` flags) |
 
+## Things that will bite you
+
+**Stage-level status does not exist on the Build object.** `last-deploys` walks build timelines. `vsrm.dev.azure.com` (`_apis/release/deployments`) is **Classic Release only** and returns nothing useful for a YAML pipeline; `environmentdeploymentrecords` only sees stages that use the `environment:` keyword. The timeline is the only universal source.
+
+**Timeline record `type` is an untyped string with no published enum.** `last-deploys` compares it case-insensitively against `stage`, and reports `noStageRecordsFound` rather than pretending a stage never deployed.
+
+**Stage names must match case-insensitively, and `succeededWithIssues` is a success.** Strict `===` on the name, or accepting only `succeeded`, makes a deployed stage report as never deployed — and that reads identically to a genuine miss. `availableStageNames` and `searchWindowFull` exist so a miss is diagnosable.
+
+**Build and Pipelines are different REST surfaces with different enums.** `Build.result` has `partiallySucceeded`; the Pipelines API's `RunResult` does not. `BuildStatus` spells it `cancelling`; `RunState` spells it `canceling`. Do not share a constant across the two.
+
+**The packages endpoint returns no total and no continuation token.** `feed-summary` pages with `$top`/`$skip` and sets `packageCountTruncated`. A single unpaged call caps silently and reports the cap as a total.
+
+**A feed that 403s is not an empty feed.** `AdminClient` errors carry `.status` (`getAdoErrorStatus()`); `feed-summary` lists such feeds under `unreadableFeeds` and marks `totalPackagesIsLowerBound`. Any new fan-out across resources must do the same.
+
+**Package provenance is preview-only (`7.1-preview.1`) and exposes no documented build/branch field.** `buildId` and `branch` are best-effort reads of an untyped `data` bag and are `null` when absent — never the string `"unknown"`. Check `structuredProvenanceAvailable`.
+
+**Feeds live on `feeds.dev.azure.com`**, not `pkgs.dev.azure.com` (protocol-specific routes only).
+
+**Pre-existing, deliberately not fixed inside a port commit:** `src/index.ts` carries a duplicate private `createServiceContext()` alongside `context-factory.ts` (same anti-pattern as `azure-sql` and `azure-management`) — a new context field must be added to **both** or the build fails. The tool-category tables below still use the old `admin-` prefixed names for some tools; the registered names are unprefixed.
+
+## Testing
+
+```bash
+npm run build --workspace=packages/azure-devops-admin
+npm test --workspace=packages/azure-devops-admin   # 42 tests, no live API
+```
+
+Services take an injected client, so the suite uses plain stub objects and needs no `vi.mock`.
+
+**Not verified against a live Azure DevOps organisation.** Every REST path and api-version is checked against Microsoft Learn and unit-tested against stubbed clients, but no call in `getLastDeploys`, `getPipelineSummaries`, `getFeedSummaries`, or `getPackageProvenance` has run against a real org. The provenance `data` keys in particular are undocumented and untested against a real feed.
+
 ## Tool Categories
 
-### Pipeline Tools (16)
-- Read-only: `list-pipelines`, `get-pipeline-definition`, `get-pipeline-yaml`, `list-pipeline-runs`, `get-build-status`*, `get-build-timeline`*, `get-build-logs`*, `list-pending-approvals`
+### Pipeline Tools (18)
+- Read-only: `list-pipelines`, `get-pipeline-definition`, `get-pipeline-yaml`, `list-pipeline-runs`, `get-build-status`*, `get-build-timeline`*, `get-build-logs`*, `list-pending-approvals`, `pipeline-summary`, `last-deploys`
 - Upsert: `admin-create-pipeline`, `admin-update-pipeline`, `admin-rename-pipeline`, `admin-queue-build`, `admin-cancel-build`, `admin-retry-build`, `approve-stage`
 - Delete: `admin-delete-pipeline`
 
@@ -102,8 +133,8 @@ AZUREDEVOPS_FEEDS=
 
 > `member` accepts an identity GUID, email, or display name (resolved against the team). Writes are FULL REPLACE. `iterationId` is the iteration `identifier` GUID (from `list-iterations`). Batch = one PATCH per member (members not listed are untouched). PAT needs `vso.work_write`.
 
-### Artifact Feed Tools (2)
-- Read-only: `list-feed-packages`, `get-package-versions`
+### Artifact Feed Tools (4)
+- Read-only: `list-feed-packages`, `get-package-versions`, `feed-summary`, `package-provenance`
 
 ### Project Tools (6) - Org-scoped
 - Read-only: `list-projects`, `get-project`, `get-project-properties`
@@ -131,6 +162,14 @@ mcp-ado-admin-cli pipeline list MyProject
 
 # List agent pools
 mcp-ado-admin-cli pipeline get MyProject 123
+
+# Pipeline overview and per-stage deploys
+mcp-ado-admin-cli pipeline summary MyProject
+mcp-ado-admin-cli pipeline last-deploys MyProject --pipeline-id 1234 --param TemplateBranch
+
+# Artifact feeds
+mcp-ado-admin-cli feed summary
+mcp-ado-admin-cli feed provenance Acme pp-solution-core 1.2.3
 
 # List all projects
 mcp-ado-admin-cli project list
