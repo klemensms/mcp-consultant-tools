@@ -4,7 +4,7 @@
 
 Azure SQL Database integration with read-only queries and optional write operations behind feature flags.
 
-- **Tools:** 28 tools (18 read-only + 10 write), 3 prompts. `sql-execute-unrestricted` is conditionally registered on top (29 with `SQL_ENABLE_UNRESTRICTED=true`).
+- **Tools:** 36 tools (26 read-only + 10 write), 3 prompts. `sql-execute-unrestricted` is conditionally registered on top (37 with `SQL_ENABLE_UNRESTRICTED=true`).
 - **Authentication:** SQL Auth or Azure AD
 - **Read-Only by default:** Write operations available behind per-operation feature flags
 
@@ -101,6 +101,22 @@ SQL_ENABLE_UNRESTRICTED=true  # Any T-SQL: DDL, DML, EXEC, multi-batch with GO
 
 When Query Store is off these tools fail with an actionable message rather than returning an empty result — the `sys.query_store_*` views return zero rows when disabled, which would otherwise read as a healthy database.
 
+**Session Diagnostics (read-only, no feature flag; require `VIEW SERVER STATE` / `VIEW DATABASE STATE`):**
+- `sql-get-blocking-chains` - Live blocking hierarchy, head blockers and blocked sessions
+- `sql-get-executing-requests` - Currently running queries with live CPU/read stats; `includePlan` attaches plans
+- `sql-get-deadlock-graphs` - Recent deadlocks from `system_health` XEvents — **not supported on Azure SQL Database**
+- `sql-get-long-running-transactions` - Open user transactions past a threshold (default 30s)
+
+**Space Diagnostics (read-only, no feature flag):**
+- `sql-get-database-space` - File sizes, used/free, growth settings
+- `sql-get-table-space` - Largest user tables by reserved space (default top 50)
+- `sql-get-tempdb-space` - TempDB file breakdown (version store / user / internal objects)
+- `sql-get-tempdb-session-usage` - Sessions consuming TempDB, ranked by net allocation
+
+These eight read DMVs, **not** Query Store — do not reuse `assertQueryStoreEnabled()` for them. They need no proactive gate at all: an unauthorised DMV read raises a SQL error rather than returning zero rows, so an empty result genuinely means "nothing to report". The one exception is `sql-get-deadlock-graphs`, which probes `SERVERPROPERTY('EngineEdition')` and refuses on Azure SQL Database (edition `5`), where the `system_health` session does not exist.
+
+The two TempDB tools always describe the resolved **connection's** TempDB; `database` selects the pool, not the inspected database. They reach TempDB via three-part name (`tempdb.sys.*`), which works on both platforms.
+
 **Write Operations (feature-flag gated):**
 - `sql-manage-view` - Create or update a view
 - `sql-deploy-view-file` - Deploy a view from a local .sql file
@@ -178,4 +194,16 @@ mcp-sql-cli perf get-query-wait-stats 1234
 mcp-sql-cli perf get-cpu-intensive-queries --hours 6 --limit 5
 mcp-sql-cli perf get-failed-queries --limit 20
 mcp-sql-cli perf get-query-plan 1234
+
+# Session diagnostics (read-only; requires VIEW SERVER STATE / VIEW DATABASE STATE)
+mcp-sql-cli session get-blocking-chains
+mcp-sql-cli session get-executing-requests --include-plan
+mcp-sql-cli session get-deadlock-graphs --limit 5
+mcp-sql-cli session get-long-running-transactions --threshold-seconds 300
+
+# Space diagnostics (read-only)
+mcp-sql-cli space get-database-space
+mcp-sql-cli space get-table-space --top-n 10
+mcp-sql-cli space get-tempdb-space
+mcp-sql-cli space get-tempdb-session-usage --top-n 10
 ```

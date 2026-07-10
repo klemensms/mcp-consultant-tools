@@ -6,24 +6,12 @@ import type { Command } from 'commander';
 import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../types.js';
 import { outputResult } from '../output.js';
-
-/** Commander gives us strings; Query Store expects positive integers. */
-function parsePositiveInt(value: string, flag: string): number {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`${flag} must be a positive integer, got '${value}'`);
-  }
-  return parsed;
-}
+import { parsePositiveInt, createResolveTarget } from './target-helpers.js';
 
 export function registerPerformanceCommands(program: Command, ctx: ServiceContext): void {
   const perf = program.command('perf').description('Query Store performance diagnostics');
 
-  const resolveTarget = (opts: any) => {
-    const serverId = ctx.connection.resolveServerId(opts.serverId);
-    const database = ctx.connection.resolveDatabase(serverId, opts.database);
-    return { serverId, database };
-  };
+  const resolveTarget = createResolveTarget(ctx);
 
   perf
     .command('get-top-waits')

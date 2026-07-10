@@ -1,58 +1,10 @@
 import { z } from 'zod';
 import type { ServiceContext } from '../types.js';
 import { descWithExamples, QUERY_PATTERN_EXAMPLES } from '../tool-examples.js';
-
-/**
- * Helper to build "defaults used" message for tool responses.
- */
-function buildDefaultsUsedMessage(
-  providedServerId: string | undefined,
-  resolvedServerId: string,
-  providedDatabase: string | undefined,
-  resolvedDatabase: string
-): string {
-  const defaultsUsed: string[] = [];
-  if (!providedServerId) defaultsUsed.push(`server='${resolvedServerId}'`);
-  if (!providedDatabase) defaultsUsed.push(`database='${resolvedDatabase}'`);
-
-  if (defaultsUsed.length > 0) {
-    return `\n\nℹ️ Used defaults: ${defaultsUsed.join(', ')}`;
-  }
-  return '';
-}
-
-const TARGET_SCHEMA = {
-  serverId: z.string().optional().describe("⚠️ OMIT to use default server. DO NOT GUESS."),
-  database: z.string().optional().describe("⚠️ OMIT to use default database. DO NOT GUESS."),
-};
-
-interface Target {
-  serverId?: string;
-  database?: string;
-}
+import { TARGET_SCHEMA, createWithTarget, type Target } from './target-helpers.js';
 
 export function registerPerformanceTools(server: any, ctx: ServiceContext): void {
-  /** Resolve target, run the operation, and render the result with a defaults note. */
-  const withTarget = async (
-    { serverId, database }: Target,
-    action: string,
-    run: (resolvedServerId: string, resolvedDatabase: string) => Promise<unknown>
-  ) => {
-    try {
-      const resolvedServerId = ctx.connection.resolveServerId(serverId);
-      const resolvedDatabase = ctx.connection.resolveDatabase(resolvedServerId, database);
-      const result = await run(resolvedServerId, resolvedDatabase);
-      const defaultsMsg = buildDefaultsUsedMessage(serverId, resolvedServerId, database, resolvedDatabase);
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) + defaultsMsg }],
-      };
-    } catch (error: any) {
-      return {
-        content: [{ type: "text", text: `Error ${action}: ${error.message}` }],
-        isError: true,
-      };
-    }
-  };
+  const withTarget = createWithTarget(ctx);
 
   server.tool(
     "sql-get-top-waits",

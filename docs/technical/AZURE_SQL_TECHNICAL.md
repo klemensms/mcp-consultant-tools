@@ -9,7 +9,7 @@ The Azure SQL Database integration provides access to Azure SQL Database and SQL
 
 **Package:** `@mcp-consultant-tools/azure-sql`
 **Binaries:** `mcp-sql` (MCP server), `mcp-sql-cli` (CLI)
-**Total tools:** 28 always registered (18 read-only + 10 write operations), plus `sql-execute-unrestricted` when `SQL_ENABLE_UNRESTRICTED=true` → 29
+**Total tools:** 36 always registered (26 read-only + 10 write operations), plus `sql-execute-unrestricted` when `SQL_ENABLE_UNRESTRICTED=true` → 37
 **Prompts:** 3
 
 </overview>
@@ -197,6 +197,18 @@ Query Store itself must be enabled on the target database. It is on by default f
 ```sql
 ALTER DATABASE [YourDatabase] SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = AUTO);
 ```
+
+For the session and space diagnostic tools, which read `sys.dm_exec_*`, `sys.dm_tran_*` and `sys.dm_db_*` DMVs, the required permission **differs by platform**:
+
+| Platform | Permission | Notes |
+|---|---|---|
+| SQL Server (on-prem/IaaS), Managed Instance | `GRANT VIEW SERVER STATE TO [mcp_readonly];` | Server scope. SQL Server 2022+ also accepts the narrower `VIEW SERVER PERFORMANCE STATE`. |
+| Azure SQL Database | `GRANT VIEW DATABASE STATE TO [mcp_readonly];` | `VIEW SERVER STATE` cannot be granted. Results are scoped to the connected database. |
+| Azure SQL Database — Basic / S0 / S1 / elastic pools | server admin, Microsoft Entra admin, or `##MS_ServerStateReader##` | `VIEW DATABASE STATE` alone is not sufficient on these tiers. |
+
+`sql-get-table-space` additionally needs `VIEW DEFINITION` (already granted above) for `sys.dm_db_partition_stats`. `sql-get-database-space` reads `sys.database_files`, a catalog view requiring only `public`.
+
+`sql-get-executing-requests` with `includePlan=true` reads `sys.dm_exec_query_statistics_xml`, which on Azure SQL Database requires a **Premium tier** (`VIEW DATABASE STATE`) or a server/Entra admin login on Standard and Basic tiers.
 
 For write operations, grant additional permissions as needed for the specific operations enabled.
 
@@ -464,6 +476,104 @@ Returns: `queries[]` (`queryHash`, `querySqlText`, `executionType`, `executionTy
 | `queryId` | integer | Yes | Query Store `query_id`, from `sql-find-query-in-store` |
 
 Returns: `plans[]` (`queryId`, `planId`, `querySqlText`, `queryPlanXml`, `engineVersion`) and `summary` (`total`).
+
+</tool>
+
+### Session Diagnostics (DMV)
+
+All four tools are read-only (`readOnlyHint: true`), take no feature flag, and accept the standard `serverId` / `database` pair (both optional). They read `sys.dm_exec_*` and `sys.dm_tran_*` DMVs.
+
+**No Query Store gate.** `SessionService` deliberately does **not** call `assertQueryStoreEnabled()`. These DMVs are unrelated to Query Store, and gating on it would make the tools fail on a perfectly healthy database. Nor is a gate needed for its usual purpose: unlike the `sys.query_store_*` views, an unauthorised DMV read raises a SQL error rather than silently returning zero rows. An empty result therefore genuinely means "nothing is blocking / running / long-lived".
+
+**Engine-edition gate (deadlocks only).** `sql-get-deadlock-graphs` first reads `SERVERPROPERTY('EngineEdition')`. Value `5` is Azure SQL Database, which does not run the `system_health` session and has no server-scoped `sys.dm_xe_sessions`. The tool throws a message naming the `CREATE EVENT SESSION … ADD EVENT sqlserver.database_xml_deadlock_report` setup required to capture deadlocks there, rather than surfacing a bare `Invalid object name`. Managed Instance (`8`) and SQL Server pass the gate.
+
+<tool name="sql-get-blocking-chains">
+
+**`sql-get-blocking-chains`** — Recursive blocking hierarchy built from `sys.dm_exec_sessions` + `sys.dm_exec_requests` + `sys.dm_exec_connections`. `EXCHANGE`/`CXPACKET` waits are excluded from the recursion so intra-query parallelism doesn't masquerade as blocking. No parameters beyond the target pair.
+
+Returns: `chains[]` (`headBlockerSessionId`, `sessionId`, `blockingSessionId`, `waitType`, `waitDurationMs`, `waitResource`, `level`, `blockerQuery`) and `summary` (`totalBlocked`, `headBlockers`). `level` is `0` for a head blocker; blocked sessions count up from `1`.
+
+</tool>
+
+<tool name="sql-get-executing-requests">
+
+**`sql-get-executing-requests`** — Currently executing requests, ordered by CPU descending.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `includePlan` | boolean | No | Attach execution plans (default `false`). Adds `OUTER APPLY sys.dm_exec_query_plan` and `sys.dm_exec_query_statistics_xml`; output grows substantially and Azure SQL Database needs a Premium tier or admin login. |
+
+Returns: `requests[]` (`sessionId`, `status`, `startTime`, `cpuTimeMs`, `logicalReads`, `dop`, `loginName`, `hostName`, `programName`, `objectName`, `statementText`, optional `queryPlan`) and `summary` (`total`, `totalCpuMs`). When `includePlan` is set, `queryPlan` prefers the compiled plan and falls back to the in-flight statistics plan when `sys.dm_exec_query_plan` returns NULL.
+
+</tool>
+
+<tool name="sql-get-deadlock-graphs">
+
+**`sql-get-deadlock-graphs`** — Recent deadlock graphs from the `system_health` ring buffer, newest first. **Not supported on Azure SQL Database** (see the engine-edition gate above).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `limit` | integer | No | Max deadlock events returned (default 20) |
+
+Returns: `deadlocks[]` (`eventTimestamp`, `deadlockXml`, `victimProcess`, `deadlockResources`, `waitTypes`, `objectNames`, `processCount`) and `summary` (`total`, `earliestTimestamp`, `latestTimestamp`). The scalar fields are regex-extracted from `deadlockXml`; when `PII_PROTECTION=true` the XML passes through redaction first and may be altered.
+
+</tool>
+
+<tool name="sql-get-long-running-transactions">
+
+**`sql-get-long-running-transactions`** — Open user transactions past a duration threshold, from `sys.dm_tran_active_transactions` joined to the session and database transaction DMVs. Use to find transactions pinning the log or holding locks.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `thresholdSeconds` | integer | No | Only report transactions open longer than this (default 30) |
+
+Returns: `transactions[]` (`transactionId`, `sessionId`, `transactionBeginTime`, `durationSeconds`, `transactionType`, `transactionState`, `loginName`, `hostName`, `programName`, `isolationLevel`, `logUsedBytes`, `currentStatementText`, `openResultSets`) and `summary` (`total`, `maxDurationSeconds`, `totalLogUsedBytes`).
+
+</tool>
+
+### Space Diagnostics (DMV + Catalog Views)
+
+All four tools are read-only (`readOnlyHint: true`), take no feature flag, and accept the standard `serverId` / `database` pair. Like the session tools they do **not** gate on Query Store.
+
+**TempDB targeting.** `sql-get-tempdb-space` and `sql-get-tempdb-session-usage` always describe the TempDB of the resolved connection — `database` selects which connection pool is used, not which database is inspected. `buildTempDbSpaceQuery()` reaches TempDB by three-part name (`tempdb.sys.dm_db_file_space_usage`, `tempdb.sys.database_files`); TempDB is the one documented exception to Azure SQL Database's ban on cross-database references, and Azure SQL Database has no `USE` statement. `buildTempDbSessionUsageQuery()` reads `sys.dm_db_session_space_usage` **unprefixed**, because that DMV is documented as applicable only to TempDB regardless of database context. Neither query needs an engine-edition branch.
+
+<tool name="sql-get-database-space">
+
+**`sql-get-database-space`** — Data and log file sizes from `sys.database_files`. No parameters beyond the target pair.
+
+Returns: `files[]` (`fileId`, `fileName`, `fileType`, `sizeMb`, `usedMb`, `freeMb`, `freePercent`, `maxSizeMb`, `growthSetting`, `physicalName`) and `summary` (`totalSizeMb`, `totalUsedMb`, `totalFreeMb`, `fileCount`). `maxSizeMb` is `null` when the file is set to unlimited growth (`max_size = -1`).
+
+</tool>
+
+<tool name="sql-get-table-space">
+
+**`sql-get-table-space`** — Largest user tables by reserved space, from `sys.dm_db_partition_stats`. System-shipped tables are excluded.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `topN` | integer | No | Max tables returned, largest first (default 50) |
+
+Returns: `tables[]` (`schema`, `table`, `rowCount`, `reservedKb`, `dataKb`, `indexKb`, `unusedKb`, `totalMb`) and `summary` (`totalTables`, `totalReservedMb`, `largestTable` as `schema.table`, or `null`).
+
+</tool>
+
+<tool name="sql-get-tempdb-space">
+
+**`sql-get-tempdb-space`** — TempDB file breakdown with the allocation split that identifies what is consuming it. No parameters beyond the target pair.
+
+Returns: `files[]` (`fileId`, `sizeMb`, `usedMb`, `freeMb`, `freePercent`, `versionStoreMb`, `userObjectMb`, `internalObjectMb`, `mixedExtentMb`) and `summary` (`totalSizeMb`, `totalVersionStoreMb`, `totalUserObjectMb`, `totalInternalObjectMb`). A large `versionStoreMb` points at long-running snapshot-isolation readers; a large `internalObjectMb` at spills (sorts, hashes).
+
+</tool>
+
+<tool name="sql-get-tempdb-session-usage">
+
+**`sql-get-tempdb-session-usage`** — User sessions consuming TempDB, ranked by net allocation. Pairs with `sql-get-tempdb-space` to attribute growth to a session. Only user sessions that have allocated pages are returned.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `topN` | integer | No | Max sessions returned, largest consumer first (default 50) |
+
+Returns: `sessions[]` (`sessionId`, `loginName`, `hostName`, `programName`, `userObjectsAllocKb`, `userObjectsDeallocKb`, `internalObjectsAllocKb`, `internalObjectsDeallocKb`, `netUserObjectsKb`, `netInternalObjectsKb`, `totalNetKb`) and `summary` (`totalSessions`, `totalNetKb`, `topSession`).
 
 </tool>
 
