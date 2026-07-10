@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { pathToFileURL } from "node:url";
 import { realpathSync } from "node:fs";
 import { createMcpServer, createEnvLoader, resolveSecrets } from "@mcp-consultant-tools/core";
+import { duplicateSafeServer, formatDuplicates, type SkippedRegistration } from "./duplicate-safe-server.js";
 import { registerPowerPlatformTools } from "@mcp-consultant-tools/powerplatform";
 import { registerPowerplatformCustomizationTools } from "@mcp-consultant-tools/powerplatform-customization";
 import { registerPowerplatformDataTools } from "@mcp-consultant-tools/powerplatform-data";
@@ -54,102 +55,110 @@ import { registerFabricTools } from "@mcp-consultant-tools/fabric";
 export function registerAllTools(server: any) {
   console.error("Registering all MCP Consultant Tools...");
 
+  // Meta merges every package into one namespace, so two packages can claim the
+  // same tool name. `safe()` makes a collision skip that one name instead of
+  // aborting the rest of the package — first registration below wins the name.
+  const duplicates: SkippedRegistration[] = [];
+  const safe = (packageName: string) => duplicateSafeServer(server, packageName, duplicates);
+
   // Register all service tools
-  registerPowerPlatformTools(server);
+  registerPowerPlatformTools(safe("PowerPlatform"));
 
   // PowerPlatform Customization (optional - install @mcp-consultant-tools/powerplatform-customization separately if needed)
   try {
-    registerPowerplatformCustomizationTools(server);
+    registerPowerplatformCustomizationTools(safe("PowerPlatform Customization"));
   } catch (error) {
     console.error("⚠️  PowerPlatform Customization skipped:", (error as Error).message);
   }
 
   // PowerPlatform Data (optional - install @mcp-consultant-tools/powerplatform-data separately if needed)
   try {
-    registerPowerplatformDataTools(server);
+    registerPowerplatformDataTools(safe("PowerPlatform Data"));
   } catch (error) {
     console.error("⚠️  PowerPlatform Data skipped:", (error as Error).message);
   }
 
-  registerAzureDevOpsTools(server);
-  registerFigmaTools(server);
-  registerApplicationInsightsTools(server);
-  registerLogAnalyticsTools(server);
-  registerAzureSqlTools(server);
-  registerServiceBusTools(server);
-  registerSharePointTools(server);
-  registerGitHubEnterpriseTools(server);
-  registerAzureB2CTools(server);
+  registerAzureDevOpsTools(safe("Azure DevOps"));
+  registerFigmaTools(safe("Figma"));
+  registerApplicationInsightsTools(safe("Application Insights"));
+  registerLogAnalyticsTools(safe("Log Analytics"));
+  registerAzureSqlTools(safe("Azure SQL"));
+  registerServiceBusTools(safe("Service Bus"));
+  registerSharePointTools(safe("SharePoint"));
+  registerGitHubEnterpriseTools(safe("GitHub Enterprise"));
+  registerAzureB2CTools(safe("Azure B2C"));
 
   // Azure Data Factory (optional - for pipeline execution and monitoring)
   try {
-    registerAzureDataFactoryTools(server);
+    registerAzureDataFactoryTools(safe("Azure Data Factory"));
   } catch (error) {
     console.error("⚠️  Azure Data Factory skipped:", (error as Error).message);
   }
 
   // Azure Management (optional - for ARM API resource discovery)
   try {
-    registerAzureManagementTools(server);
+    registerAzureManagementTools(safe("Azure Management"));
   } catch (error) {
     console.error("⚠️  Azure Management skipped:", (error as Error).message);
   }
 
   // Azure Defender for Cloud (optional - secure score, assessments, compliance, attack paths)
   try {
-    registerAzureDefenderTools(server);
+    registerAzureDefenderTools(safe("Azure Defender"));
   } catch (error) {
     console.error("⚠️  Azure Defender skipped:", (error as Error).message);
   }
 
   // Entra ID (optional - app registration audit, secret and certificate expiry)
   try {
-    registerEntraIdTools(server);
+    registerEntraIdTools(safe("Entra ID"));
   } catch (error) {
     console.error("⚠️  Entra ID skipped:", (error as Error).message);
   }
 
   // Teams (optional - for release announcements)
   try {
-    registerTeamsTools(server);
+    registerTeamsTools(safe("Teams"));
   } catch (error) {
     console.error("⚠️  Teams skipped:", (error as Error).message);
   }
 
   // Azure DevOps Admin (optional - pipeline management, environments, service connections)
   try {
-    registerAzureDevOpsAdminTools(server);
+    registerAzureDevOpsAdminTools(safe("Azure DevOps Admin"));
   } catch (error) {
     console.error("⚠️  Azure DevOps Admin skipped:", (error as Error).message);
   }
 
   // Azure Storage (optional - blobs, queues, tables, file shares)
   try {
-    registerAzureStorageTools(server);
+    registerAzureStorageTools(safe("Azure Storage"));
   } catch (error) {
     console.error("⚠️  Azure Storage skipped:", (error as Error).message);
   }
 
   // REST API (optional - generic HTTP requests with auth)
   try {
-    registerRestApiTools(server);
+    registerRestApiTools(safe("REST API"));
   } catch (error) {
     console.error("⚠️  REST API skipped:", (error as Error).message);
   }
 
   // 1Password (optional - vault and item management)
   try {
-    registerOnePasswordTools(server);
+    registerOnePasswordTools(safe("1Password"));
   } catch (error) {
     console.error("⚠️  1Password skipped:", (error as Error).message);
   }
 
   // Microsoft Fabric (optional - workspaces, capacities, items, shortcuts, domains)
   try {
-    registerFabricTools(server);
+    registerFabricTools(safe("Microsoft Fabric"));
   } catch (error) {
     console.error("⚠️  Microsoft Fabric skipped:", (error as Error).message);
   }
+
+  for (const line of formatDuplicates(duplicates)) console.error(line);
 
   console.error("All tools registered successfully!");
   console.error("Total integrations: 20 services");
