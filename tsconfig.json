@@ -8,6 +8,7 @@
     { "path": "./packages/azure-devops" },
     { "path": "./packages/azure-devops-admin" },
     { "path": "./packages/azure-sql" },
+    { "path": "./packages/entra-id" },
     { "path": "./packages/fabric" },
     { "path": "./packages/figma" },
     { "path": "./packages/github-enterprise" },

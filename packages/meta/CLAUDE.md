@@ -39,6 +39,7 @@ npm install @mcp-consultant-tools/meta
 - `@mcp-consultant-tools/azure-b2c`
 - `@mcp-consultant-tools/azure-data-factory`
 - `@mcp-consultant-tools/azure-defender`
+- `@mcp-consultant-tools/entra-id`
 - `@mcp-consultant-tools/fabric`
 - `@mcp-consultant-tools/rest-api`
 

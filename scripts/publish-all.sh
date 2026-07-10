@@ -78,6 +78,7 @@ PACKAGES=(
   "azure-management"
   "azure-sql"
   "azure-storage"
+  "entra-id"
   "figma"
   "github-enterprise"
   "log-analytics"
