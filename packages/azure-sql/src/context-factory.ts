@@ -7,6 +7,7 @@ import { createPiiPipelineFromEnv } from '@mcp-consultant-tools/core';
 import { ConnectionService } from './services/connection-service.js';
 import { QueryService } from './services/query-service.js';
 import { WriteService } from './services/write-service.js';
+import { PerformanceService } from './services/performance-service.js';
 import type { AzureSqlConfig } from './services/connection-service.js';
 import type { ServiceContext } from './types.js';
 
@@ -35,6 +36,7 @@ export function createServiceContext(): ServiceContext {
   let connection: ConnectionService | null = null;
   let query: QueryService | null = null;
   let write: WriteService | null = null;
+  let performance: PerformanceService | null = null;
 
   function getConnection(): ConnectionService {
     if (!connection) {
@@ -82,10 +84,15 @@ export function createServiceContext(): ServiceContext {
     return connection;
   }
 
+  function getQuery(): QueryService {
+    return query ??= new QueryService(getConnection(), piiPipeline);
+  }
+
   return {
     get connection() { return getConnection(); },
-    get query() { return query ??= new QueryService(getConnection(), piiPipeline); },
+    get query() { return getQuery(); },
     get write() { return write ??= new WriteService(getConnection(), piiPipeline); },
+    get performance() { return performance ??= new PerformanceService(getQuery()); },
     checkViewManageEnabled() {
       if (process.env.SQL_ENABLE_VIEW_MANAGE !== 'true') {
         throw new Error('View management is disabled. Set SQL_ENABLE_VIEW_MANAGE=true to enable CREATE OR ALTER VIEW.');

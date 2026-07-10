@@ -1,6 +1,7 @@
 export { ConnectionService } from './connection-service.js';
 export { QueryService } from './query-service.js';
 export { WriteService } from './write-service.js';
+export { PerformanceService } from './performance-service.js';
 export type {
   AzureSqlConfig,
   AzureSqlServerResource,
@@ -26,3 +27,12 @@ export type {
 export type {
   WriteResult,
 } from './write-service.js';
+export type {
+  BuiltQuery,
+  QueryWaitStat,
+  QueryStoreEntry,
+  QueryWaitDetail,
+  CpuIntensiveQuery,
+  FailedQuery,
+  QueryPlanResult,
+} from './performance-service.js';

@@ -9,7 +9,7 @@ The Azure SQL Database integration provides access to Azure SQL Database and SQL
 
 **Package:** `@mcp-consultant-tools/azure-sql`
 **Binaries:** `mcp-sql` (MCP server), `mcp-sql-cli` (CLI)
-**Total tools:** 22 (11 read-only + 10 write operations + 1 conditionally registered)
+**Total tools:** 28 always registered (18 read-only + 10 write operations), plus `sql-execute-unrestricted` when `SQL_ENABLE_UNRESTRICTED=true` → 29
 **Prompts:** 3
 
 </overview>
@@ -22,8 +22,9 @@ The Azure SQL Database integration provides access to Azure SQL Database and SQL
 - `ConnectionService` — manages connection pools, server/database resolution, credential handling
 - `QueryService` — validates and executes SELECT queries, schema exploration queries
 - `WriteService` — handles write operations (views, stored procedures, DML) behind feature flags
+- `PerformanceService` — Query Store diagnostics (waits, CPU, failures, plans); delegates execution to `QueryService`
 
-All services share connection pooling through `ConnectionService`. The `ServiceContext` interface exposes lazy getters for all three services plus 8 feature-flag guard functions.
+`ConnectionService`, `QueryService` and `WriteService` share connection pooling through `ConnectionService`. `PerformanceService` composes over `QueryService` rather than `ConnectionService`, so its queries inherit the same row limits, response-size cap, PII redaction and error sanitisation as every other read. The `ServiceContext` interface exposes lazy getters for all four services plus 8 feature-flag guard functions.
 
 **Source layout:**
 ```
@@ -37,6 +38,9 @@ packages/azure-sql/src/
     connection-service.ts         # ConnectionService, all config interfaces
     query-service.ts              # QueryService, schema/query types
     write-service.ts              # WriteService, DML + DDL operations
+    performance-service.ts        # PerformanceService, Query Store builders + types
+    __tests__/
+      performance-service.test.ts # Query-builder + Query Store gate unit tests
   tools/
     connection-tools.ts           # sql-list-servers, sql-list-databases, sql-test-connection
     query-tools.ts                # sql-list-tables, sql-list-views, sql-list-stored-procedures,
@@ -46,6 +50,8 @@ packages/azure-sql/src/
     sproc-tools.ts                # sql-manage-sproc, sql-deploy-sproc-file, sql-drop-sproc, sql-execute-sproc
     crud-tools.ts                 # sql-insert-records, sql-update-records, sql-delete-records
     unrestricted-tools.ts         # sql-execute-unrestricted (conditionally registered)
+    performance-tools.ts          # sql-get-top-waits, sql-find-query-in-store, sql-get-query-wait-stats,
+                                  # sql-get-cpu-intensive-queries, sql-get-failed-queries, sql-get-query-plan
   prompts/
     templates.ts                  # sql-database-overview, sql-table-details, sql-query-results
   cli/
@@ -57,6 +63,7 @@ packages/azure-sql/src/
       sproc-commands.ts
       crud-commands.ts
       unrestricted-commands.ts
+      performance-commands.ts
 ```
 
 </architecture>
@@ -179,6 +186,16 @@ For read-only access (minimum required):
 ```sql
 ALTER ROLE db_datareader ADD MEMBER [mcp_readonly];
 GRANT VIEW DEFINITION TO [mcp_readonly];
+```
+
+For the Query Store performance tools, the login additionally needs `VIEW DATABASE STATE` so it can read `sys.database_query_store_options` and the `sys.query_store_*` views:
+```sql
+GRANT VIEW DATABASE STATE TO [mcp_readonly];
+```
+
+Query Store itself must be enabled on the target database. It is on by default for Azure SQL Database, and off by default for on-premises SQL Server:
+```sql
+ALTER DATABASE [YourDatabase] SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = AUTO);
 ```
 
 For write operations, grant additional permissions as needed for the specific operations enabled.
@@ -362,6 +379,91 @@ Queries `sys.objects` + `OBJECT_DEFINITION()`. Returns `objectName`, `schemaName
 All executions are audit-logged with operation, success/failure, row count, truncation status, and execution time.
 
 Returns: `columns`, `rows`, `rowCount`, `truncated`.
+
+</tool>
+
+### Performance Diagnostics (Query Store)
+
+All six tools are read-only (`readOnlyHint: true`) and query the `sys.query_store_*` views. Every one of them accepts the standard `serverId` / `database` pair (both optional, resolved to defaults when omitted).
+
+**Query Store gate.** Before running any diagnostic query, `PerformanceService` reads `sys.database_query_store_options` and checks `actual_state_desc`:
+
+| `actual_state_desc` | Behaviour |
+|---|---|
+| `READ_WRITE`, `READ_ONLY` | Diagnostic query proceeds |
+| `OFF` | Throws: *"Query Store is not enabled on database 'X' … Enable it with: ALTER DATABASE [X] SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = AUTO)"* |
+| `ERROR` | Throws a distinct message pointing at `SET QUERY_STORE CLEAR` recovery |
+| view unreadable | Throws: *"Query Store is not available on database 'X'"* (system database, pre-2016 engine, or missing `VIEW DATABASE STATE`) |
+
+This gate exists because the `sys.query_store_*` views still resolve when Query Store is switched off — they simply return **zero rows**. Without the gate an agent reads "no waits found" as "the database is healthy" rather than "diagnostics are unavailable". The gate costs one extra round-trip per tool call.
+
+<tool name="sql-get-top-waits">
+
+**`sql-get-top-waits`** — Top 20 wait categories across all queries over the last 7 days, grouped by `query_hash` + `wait_category_desc`. No parameters beyond the target pair.
+
+Returns: `waits[]` (`querySqlText` truncated to 200 chars, `waitCategoryDesc`, `totalWaitMs`, `avgWaitMs`) and `summary` (`totalCategories`, `topCategory`).
+
+</tool>
+
+<tool name="sql-find-query-in-store">
+
+**`sql-find-query-in-store`** — Search Query Store by query text. The entry point for the other query-ID-based tools.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `queryPattern` | string | Yes | Bound as `LIKE '%' + @queryPattern + '%'`. Wildcards (`%`, `_`) honoured; case sensitivity follows the database collation. |
+
+Returns: `queries[]` (`queryId`, `querySqlText`, `avgDuration`, `avgCpuTime`, `countExecutions`).
+
+</tool>
+
+<tool name="sql-get-query-wait-stats">
+
+**`sql-get-query-wait-stats`** — Per-interval wait-category breakdown for one `queryId`, newest interval first.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `queryId` | integer | Yes | Query Store `query_id`, from `sql-find-query-in-store` |
+
+Returns: `waits[]` (`waitCategoryDesc`, `avgQueryWaitTimeMs`, `totalQueryWaitTimeMs`, `maxQueryWaitTimeMs`, `stdevQueryWaitTimeMs`, `startTime`, `endTime`).
+
+</tool>
+
+<tool name="sql-get-cpu-intensive-queries">
+
+**`sql-get-cpu-intensive-queries`** — Top CPU consumers grouped by `query_hash`, so plan variants of the same statement roll up together.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `hours` | integer | No | Lookback window in hours (default 24) |
+| `limit` | integer | No | Max queries returned (default 15) |
+
+Returns: `queries[]` (`queryHash`, `totalCpuMs`, `avgCpuMs`, `maxCpuMs`, `maxLogicalReads`, `numberOfDistinctPlans`, `numberOfDistinctQueryIds`, `abortedExecutionCount`, `regularExecutionCount`, `exceptionExecutionCount`, `totalExecutions`, `sampledQueryText`) and `summary` (`totalCpuMs`, `topQueryHash`).
+
+</tool>
+
+<tool name="sql-get-failed-queries">
+
+**`sql-get-failed-queries`** — Queries whose Query Store `execution_type = 3` (exception/timeout), newest execution first.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `limit` | integer | No | Max queries returned (default 50) |
+| `includePlan` | boolean | No | Attach the XML execution plan per row (default `false`). Adds a `query_plan` column; output grows substantially. |
+
+Returns: `queries[]` (`queryHash`, `querySqlText`, `executionType`, `executionTypeDesc`, `countExecutions`, `lastExecutionTime`, `avgDurationSeconds`, `minDurationSeconds`, `maxDurationSeconds`, `lastDurationSeconds`, optional `queryPlan`) and `summary` (`total`).
+
+</tool>
+
+<tool name="sql-get-query-plan">
+
+**`sql-get-query-plan`** — All Query Store execution plans for one `queryId`, newest plan first. Output can exceed 1 MB and is subject to `AZURE_SQL_MAX_RESPONSE_SIZE_MB`.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `queryId` | integer | Yes | Query Store `query_id`, from `sql-find-query-in-store` |
+
+Returns: `plans[]` (`queryId`, `planId`, `querySqlText`, `queryPlanXml`, `engineVersion`) and `summary` (`total`).
 
 </tool>
 
@@ -796,6 +898,32 @@ Handles view management, stored procedure management/execution, and DML. All met
 
 </write-service>
 
+<performance-service>
+
+### PerformanceService
+
+**File:** `packages/azure-sql/src/services/performance-service.ts`
+
+Query Store diagnostics. Unlike the other services, it depends on `QueryService` rather than `ConnectionService` — every diagnostic query goes through `QueryService.executeQuery()` and therefore inherits connection pooling, the row limit, the response-size cap, PII redaction and error sanitisation without re-implementing any of them.
+
+**Query builders.** The SQL lives in exported pure functions, each returning `{ sql, parameters }`:
+
+| Builder | Parameters |
+|---|---|
+| `buildQueryStoreStateQuery()` | — |
+| `buildTopWaitsQuery()` | — |
+| `buildFindQueryInStoreQuery({ queryPattern })` | `@queryPattern` |
+| `buildQueryWaitStatsQuery({ queryId })` | `@queryId` |
+| `buildCpuIntensiveQueriesQuery({ hours?, limit? })` | `@hours` (default 24), `@limit` (default 15) |
+| `buildFailedQueriesQuery({ includePlan?, limit? })` | `@limit` (default 50) |
+| `buildQueryPlanQuery({ queryId })` | `@queryId` |
+
+Every caller-supplied value is a bound parameter — nothing is interpolated into the SQL string. The only structural variation is `buildFailedQueriesQuery`, which adds a `cast(p.query_plan as xml)` column when `includePlan` is set. The builders are exported so they can be unit-tested without a live database; `src/services/__tests__/performance-service.test.ts` asserts parameter binding, defaults, and the plan-column branch.
+
+**Gate.** Each public method calls `assertQueryStoreEnabled()` first — see the Query Store gate table under Tool Reference for the state matrix and the reason the gate is proactive rather than error-driven.
+
+</performance-service>
+
 </service-implementation>
 
 <connection-pooling>
@@ -889,6 +1017,7 @@ The CLI reuses the same `ServiceContext` as the MCP server via `context-factory.
 | `sproc` | `manage`, `deploy`, `drop`, `execute` | `sql-manage-sproc`, `sql-deploy-sproc-file`, `sql-drop-sproc`, `sql-execute-sproc` |
 | `crud` | `insert`, `update`, `delete` | `sql-insert-records`, `sql-update-records`, `sql-delete-records` |
 | `unrestricted` | `execute` | `sql-execute-unrestricted` (requires `SQL_ENABLE_UNRESTRICTED=true`) |
+| `perf` | `get-top-waits`, `find-query-in-store`, `get-query-wait-stats`, `get-cpu-intensive-queries`, `get-failed-queries`, `get-query-plan` | The six `sql-*` Query Store tools, 1:1 (command name = tool name minus the `sql-` prefix) |
 
 ### Parameter Mapping
 
@@ -934,6 +1063,15 @@ mcp-sql-cli crud delete prod-sql AppDB "DELETE FROM dbo.Config WHERE Key = 'them
 mcp-sql-cli unrestricted execute "ALTER TABLE dbo.Users ADD LastLoginDate DATETIME2 NULL"
 mcp-sql-cli unrestricted execute "EXEC sp_MSforeachtable 'TRUNCATE TABLE ?'"
 mcp-sql-cli unrestricted execute "ALTER TABLE dbo.Users ADD LastLoginDate DATETIME2 NULL" --server-id prod-sql --database AppDB
+
+# Query Store diagnostics (requires Query Store enabled + VIEW DATABASE STATE)
+mcp-sql-cli perf get-top-waits --server-id prod-sql --database AppDB
+mcp-sql-cli perf find-query-in-store "Orders" --server-id prod-sql --database AppDB
+mcp-sql-cli perf get-query-wait-stats 1234
+mcp-sql-cli perf get-cpu-intensive-queries --hours 6 --limit 5
+mcp-sql-cli perf get-failed-queries --limit 20
+mcp-sql-cli perf get-failed-queries --include-plan     # large output
+mcp-sql-cli perf get-query-plan 1234
 
 # Global flags
 mcp-sql-cli --json query tables prod-sql AppDB       # Raw JSON output

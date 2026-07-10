@@ -4,7 +4,7 @@
 
 Azure SQL Database integration with read-only queries and optional write operations behind feature flags.
 
-- **Tools:** 22 tools, 3 prompts
+- **Tools:** 28 tools (18 read-only + 10 write), 3 prompts. `sql-execute-unrestricted` is conditionally registered on top (29 with `SQL_ENABLE_UNRESTRICTED=true`).
 - **Authentication:** SQL Auth or Azure AD
 - **Read-Only by default:** Write operations available behind per-operation feature flags
 
@@ -91,6 +91,16 @@ SQL_ENABLE_UNRESTRICTED=true  # Any T-SQL: DDL, DML, EXEC, multi-batch with GO
 - `sql-get-object-definition` - Get SQL definition of any object
 - `sql-test-connection` - Test database connectivity
 
+**Query Store Diagnostics (read-only, no feature flag; require Query Store ON + `VIEW DATABASE STATE`):**
+- `sql-get-top-waits` - Top 20 wait categories over the last 7 days
+- `sql-find-query-in-store` - Search Query Store by query text; returns the `queryId` the next two tools need
+- `sql-get-query-wait-stats` - Wait breakdown over time for one `queryId`
+- `sql-get-cpu-intensive-queries` - Top CPU consumers, grouped by query hash (default: last 24h, top 15)
+- `sql-get-failed-queries` - Recent exception/timeout queries (default: top 50)
+- `sql-get-query-plan` - XML execution plan(s) for one `queryId` (can exceed 1 MB)
+
+When Query Store is off these tools fail with an actionable message rather than returning an empty result — the `sys.query_store_*` views return zero rows when disabled, which would otherwise read as a healthy database.
+
 **Write Operations (feature-flag gated):**
 - `sql-manage-view` - Create or update a view
 - `sql-deploy-view-file` - Deploy a view from a local .sql file
@@ -160,4 +170,12 @@ mcp-sql-cli crud delete "DELETE FROM dbo.Config WHERE Key = 'theme'"
 # Unrestricted execution (requires SQL_ENABLE_UNRESTRICTED=true)
 mcp-sql-cli unrestricted execute "ALTER TABLE dbo.Users ADD LastLoginDate DATETIME2 NULL"
 mcp-sql-cli unrestricted execute "EXEC sp_MSforeachtable 'TRUNCATE TABLE ?'"
+
+# Query Store diagnostics (read-only; requires Query Store enabled)
+mcp-sql-cli perf get-top-waits
+mcp-sql-cli perf find-query-in-store "Orders"
+mcp-sql-cli perf get-query-wait-stats 1234
+mcp-sql-cli perf get-cpu-intensive-queries --hours 6 --limit 5
+mcp-sql-cli perf get-failed-queries --limit 20
+mcp-sql-cli perf get-query-plan 1234
 ```
