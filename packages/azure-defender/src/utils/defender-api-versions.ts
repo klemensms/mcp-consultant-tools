@@ -1,0 +1,33 @@
+/**
+ * Pinned ARM api-versions for the Defender for Cloud surfaces this package reads.
+ *
+ * Verified against Microsoft Learn / azure-rest-api-specs on 2026-07-10. Every call
+ * site passes one of these explicitly — there is no resolve-by-path fallback, because
+ * a path like `/subscriptions/x/providers/Microsoft.Compute/.../providers/Microsoft.Security/assessments/y`
+ * contains two providers and any regex picks the wrong one.
+ *
+ * Re-check before a release: a stale api-version does not fail loudly. It either
+ * 400s or, worse, returns an older schema that silently omits fields.
+ */
+export const DEFENDER_API_VERSIONS = {
+  /** Only version ever shipped for this surface (2020-01-01-preview → 2020-01-01 GA). */
+  secureScores: '2020-01-01',
+  secureScoreControls: '2020-01-01',
+
+  /**
+   * `2020-01-01` is two GA generations behind and cannot represent a `Critical`
+   * severity at all — its enum is High/Medium/Low. `2025-05-04` adds `Critical`
+   * plus the `risk` object. `status.code` and `resourceDetails` are unchanged.
+   */
+  assessments: '2025-05-04',
+  assessmentMetadata: '2025-05-04',
+
+  /**
+   * Not a stale pin: `2019-01-01-preview` is the ONLY version this surface has
+   * ever had. No GA exists, seven years on. Do not "upgrade" it.
+   */
+  regulatoryCompliance: '2019-01-01-preview',
+
+  /** Resource Graph query POST. Current GA; `2021-03-01` differs only by an additive option field. */
+  resourceGraph: '2024-04-01',
+} as const;

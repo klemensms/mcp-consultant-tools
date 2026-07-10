@@ -30,6 +30,7 @@ MCP Consultant Tools is a **modular monorepo** with **22 independently published
 | **azure-devops** | Azure DevOps Wikis, Work Items, PRs, Builds, Test Runs | 65 | `mcp-ado-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS.md) |
 | **azure-devops-admin** | Azure DevOps Pipelines, Service Conns, Pools, Sprint Capacity | 71 | `mcp-ado-admin-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS_ADMIN.md) |
 | **azure-management** | Azure ARM API (Functions, App Services, Key Vault, SQL, Monitoring) | 31 | `mcp-azure-mgmt-cli` | [Setup & Usage](docs/documentation/AZURE_MANAGEMENT.md) |
+| **azure-defender** | Microsoft Defender for Cloud (secure score, assessments, compliance, attack paths) | 12 | `mcp-defender-cli` | [Setup & Usage](docs/documentation/AZURE_DEFENDER.md) |
 | **sharepoint** | SharePoint Online | 16-22 | `mcp-spo-cli` | [Setup & Usage](docs/documentation/SHAREPOINT.md) |
 | **github-enterprise** | GitHub Enterprise | 22 | `mcp-ghe-cli` | [Setup & Usage](docs/documentation/GITHUB_ENTERPRISE.md) |
 | **figma** | Figma Design Extraction | 4 | `mcp-figma-cli` | [Setup & Usage](docs/documentation/FIGMA.md) |
@@ -212,6 +213,7 @@ Each integration has comprehensive documentation with quick start, configuration
 - [Azure DevOps](docs/documentation/AZURE_DEVOPS.md)
 - [Azure DevOps Admin](docs/documentation/AZURE_DEVOPS_ADMIN.md)
 - [Azure Management](docs/documentation/AZURE_MANAGEMENT.md)
+- [Azure Defender for Cloud](docs/documentation/AZURE_DEFENDER.md)
 - [SharePoint Online](docs/documentation/SHAREPOINT.md)
 - [GitHub Enterprise](docs/documentation/GITHUB_ENTERPRISE.md)
 - [Figma](docs/documentation/FIGMA.md)

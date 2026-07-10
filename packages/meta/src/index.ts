@@ -17,6 +17,7 @@ import { registerGitHubEnterpriseTools } from "@mcp-consultant-tools/github-ente
 import { registerAzureB2CTools } from "@mcp-consultant-tools/azure-b2c";
 import { registerAzureDataFactoryTools } from "@mcp-consultant-tools/azure-data-factory";
 import { registerAzureManagementTools } from "@mcp-consultant-tools/azure-management";
+import { registerAzureDefenderTools } from "@mcp-consultant-tools/azure-defender";
 import { registerTeamsTools } from "@mcp-consultant-tools/teams";
 import { registerAzureDevOpsAdminTools } from "@mcp-consultant-tools/azure-devops-admin";
 import { registerAzureStorageTools } from "@mcp-consultant-tools/azure-storage";
@@ -27,7 +28,7 @@ import { registerFabricTools } from "@mcp-consultant-tools/fabric";
 /**
  * Register all MCP Consultant Tools
  *
- * This meta-package combines all 18 service packages:
+ * This meta-package combines all 19 service packages:
  * - PowerPlatform (read-only: 46 tools, 12 prompts)
  * - PowerPlatform Customization (schema changes: 70 tools)
  * - PowerPlatform Data (data CRUD: 10 tools)
@@ -43,6 +44,7 @@ import { registerFabricTools } from "@mcp-consultant-tools/fabric";
  * - Azure AD B2C (user management, password reset, groups)
  * - Azure Data Factory (pipeline execution, monitoring, error debugging)
  * - Azure Management (ARM API - Function Apps, App Services, Key Vaults, Storage, SQL, Monitoring)
+ * - Azure Defender for Cloud (secure score, assessments, regulatory compliance, attack paths)
  * - Azure Storage (blobs, queues, tables, file shares)
  * - REST API (generic HTTP requests with auth)
  * - Teams (channel messages, adaptive cards for release announcements)
@@ -91,6 +93,13 @@ export function registerAllTools(server: any) {
     console.error("⚠️  Azure Management skipped:", (error as Error).message);
   }
 
+  // Azure Defender for Cloud (optional - secure score, assessments, compliance, attack paths)
+  try {
+    registerAzureDefenderTools(server);
+  } catch (error) {
+    console.error("⚠️  Azure Defender skipped:", (error as Error).message);
+  }
+
   // Teams (optional - for release announcements)
   try {
     registerTeamsTools(server);
@@ -134,7 +143,7 @@ export function registerAllTools(server: any) {
   }
 
   console.error("All tools registered successfully!");
-  console.error("Total integrations: 18 services");
+  console.error("Total integrations: 19 services");
 }
 
 // CLI entry point (standalone execution)

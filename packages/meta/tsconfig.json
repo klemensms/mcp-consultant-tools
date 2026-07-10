@@ -11,6 +11,7 @@
     { "path": "../application-insights" },
     { "path": "../azure-b2c" },
     { "path": "../azure-data-factory" },
+    { "path": "../azure-defender" },
     { "path": "../azure-devops" },
     { "path": "../azure-management" },
     { "path": "../azure-sql" },

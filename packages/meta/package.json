@@ -61,6 +61,7 @@
     "@mcp-consultant-tools/application-insights": "35.0.0-beta.1",
     "@mcp-consultant-tools/azure-b2c": "35.0.0-beta.1",
     "@mcp-consultant-tools/azure-data-factory": "35.0.0-beta.1",
+    "@mcp-consultant-tools/azure-defender": "35.0.0-beta.1",
     "@mcp-consultant-tools/azure-devops": "35.0.0-beta.1",
     "@mcp-consultant-tools/azure-devops-admin": "35.0.0-beta.2",
     "@mcp-consultant-tools/azure-management": "35.0.0-beta.1",

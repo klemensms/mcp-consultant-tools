@@ -28,6 +28,7 @@ This explicitly tells npx which package to install and which binary to run. The 
 | `@mcp-consultant-tools/github-enterprise` | `mcp-ghe` | `mcp-ghe-cli` |
 | `@mcp-consultant-tools/azure-b2c` | `mcp-azure-b2c` | `mcp-azure-b2c-cli` |
 | `@mcp-consultant-tools/azure-management` | `mcp-azure-mgmt` | `mcp-azure-mgmt-cli` |
+| `@mcp-consultant-tools/azure-defender` | `mcp-defender` | `mcp-defender-cli` |
 | `@mcp-consultant-tools/azure-storage` | `mcp-storage` | `mcp-storage-cli` |
 | `@mcp-consultant-tools/azure-data-factory` | `mcp-adf` | `mcp-adf-cli` |
 | `@mcp-consultant-tools/fabric` | `mcp-fabric` | `mcp-fabric-cli` |

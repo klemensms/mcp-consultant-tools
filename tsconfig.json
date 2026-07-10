@@ -4,6 +4,7 @@
     { "path": "./packages/core" },
     { "path": "./packages/application-insights" },
     { "path": "./packages/azure-data-factory" },
+    { "path": "./packages/azure-defender" },
     { "path": "./packages/azure-devops" },
     { "path": "./packages/azure-devops-admin" },
     { "path": "./packages/azure-sql" },

@@ -139,7 +139,7 @@ Workspace root with `packages/`:
 - **Foundations:** `core` (shared utilities), `powerplatform-core` (internal PP library), `meta` (all integrations bundled).
 - **PowerPlatform (3-package split):** `powerplatform` read-only ✅ PRODUCTION-SAFE • `powerplatform-customization` schema changes ⚠️ DEV ONLY • `powerplatform-data` data CRUD ⚠️ OPERATIONAL.
 - **Azure DevOps:** `azure-devops` (work items, wiki, PRs) • `azure-devops-admin` (pipelines, admin).
-- **Azure platform:** `azure-management` (ARM) • `azure-data-factory` • `fabric` (Microsoft Fabric) • `application-insights` • `log-analytics` • `azure-sql` • `service-bus` • `azure-storage` • `azure-b2c`.
+- **Azure platform:** `azure-management` (ARM) • `azure-defender` (Defender for Cloud, read-only) • `azure-data-factory` • `fabric` (Microsoft Fabric) • `application-insights` • `log-analytics` • `azure-sql` • `service-bus` • `azure-storage` • `azure-b2c`.
 - **Other integrations:** `figma` • `sharepoint` • `github-enterprise` • `teams` • `1password` • `rest-api`.
 
 Tool counts live in `README.md` (don't duplicate). **Build order:** core → service packages → meta. **Setup:** `git clone` → `npm install` → `npm run build`. Per-package env config lives in each package's `CLAUDE.md`.
@@ -150,7 +150,7 @@ Detailed implementation guides in `docs/technical/{INTEGRATION}_TECHNICAL.md`:
 - PowerPlatform, Azure DevOps, Figma, Application Insights
 - Log Analytics, Azure SQL, Service Bus, SharePoint
 - GitHub Enterprise, Azure B2C, Azure Data Factory, REST API, Teams
-- Microsoft Fabric
+- Microsoft Fabric, Azure Defender for Cloud
 
 Each technical doc includes: Architecture, Available Tools, Service Implementation, Error Handling, Security Considerations, and **CLI Architecture** sections.
 

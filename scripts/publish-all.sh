@@ -72,6 +72,7 @@ PACKAGES=(
   "application-insights"
   "azure-b2c"
   "azure-data-factory"
+  "azure-defender"
   "azure-devops"
   "azure-devops-admin"
   "azure-management"
