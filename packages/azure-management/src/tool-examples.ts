@@ -156,6 +156,54 @@ export const RESOURCE_GRAPH_EXAMPLES = [
 ];
 
 // ============================================
+// Resource Graph Examples
+// ============================================
+
+export const ARM_RESOURCE_ID_EXAMPLES = [
+  {
+    label: 'App Service',
+    value:
+      '/subscriptions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/resourceGroups/rg-dev-uks-01/providers/Microsoft.Web/sites/app-dev-web-uks-01',
+  },
+  {
+    label: 'Key Vault',
+    value:
+      '/subscriptions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/resourceGroups/rg-dev-uks-01/providers/Microsoft.KeyVault/vaults/kv-dev-app-uks-01',
+  },
+  {
+    label: 'Subnet',
+    value:
+      '/subscriptions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/resourceGroups/rg-dev-uks-01/providers/Microsoft.Network/virtualNetworks/vnet-dev-uks-01/subnets/snet-app',
+  },
+];
+
+export const PRINCIPAL_ID_EXAMPLES = [
+  { label: 'Service principal object ID', value: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' },
+];
+
+/**
+ * Microsoft's published built-in role definition IDs. These are public constants,
+ * identical in every Azure tenant — not identifiers from any environment. A
+ * placeholder GUID here would make the example useless.
+ * https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
+ */
+export const ROLE_DEFINITION_ID_EXAMPLES = [
+  { label: 'Reader (built-in role GUID)', value: 'acdd72a7-3385-48ef-bd42-f606fba81ae7' },
+  { label: 'Contributor (built-in role GUID)', value: 'b24988ac-6180-42a0-ab88-20f7382dd24c' },
+];
+
+export const LOG_STREAM_TYPE_EXAMPLES = [
+  { label: 'Application logs', value: 'application' },
+  { label: 'HTTP request logs', value: 'http' },
+  { label: 'Every provider', value: 'all' },
+];
+
+export const DETECTOR_NAME_EXAMPLES = [
+  { label: 'Availability and performance', value: 'availability' },
+  { label: 'Application crashes', value: 'servicehealth' },
+];
+
+// ============================================
 // Location Examples
 // ============================================
 

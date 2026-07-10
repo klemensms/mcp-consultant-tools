@@ -29,7 +29,7 @@ MCP Consultant Tools is a **modular monorepo** with **22 independently published
 | **powerplatform-data** | PowerPlatform Data CRUD | 14 | `mcp-pp-data-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_DATA.md) |
 | **azure-devops** | Azure DevOps Wikis, Work Items, PRs, Builds, Test Runs | 65 | `mcp-ado-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS.md) |
 | **azure-devops-admin** | Azure DevOps Pipelines, Service Conns, Pools, Sprint Capacity | 71 | `mcp-ado-admin-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS_ADMIN.md) |
-| **azure-management** | Azure ARM API (Functions, App Services, Key Vault, SQL, Monitoring) | 31 | `mcp-azure-mgmt-cli` | [Setup & Usage](docs/documentation/AZURE_MANAGEMENT.md) |
+| **azure-management** | Azure ARM API (Functions, App Services, Key Vault, SQL, Monitoring, Resource Graph, log streaming) | 42 | `mcp-azure-mgmt-cli` | [Setup & Usage](docs/documentation/AZURE_MANAGEMENT.md) |
 | **azure-defender** | Microsoft Defender for Cloud (secure score, assessments, compliance, attack paths) | 12 | `mcp-defender-cli` | [Setup & Usage](docs/documentation/AZURE_DEFENDER.md) |
 | **entra-id** | Microsoft Entra ID (app registration audit, secret & certificate expiry) | 2 | `mcp-entra-cli` | [Setup & Usage](docs/documentation/ENTRA_ID.md) |
 | **sharepoint** | SharePoint Online | 16-22 | `mcp-spo-cli` | [Setup & Usage](docs/documentation/SHAREPOINT.md) |

@@ -81,7 +81,7 @@ function registerAzureManagementTools(
   registerAllTools(server, ctx);
   registerAllPrompts(server, ctx);
 
-  console.error('Azure Management tools registered: 31 tools, 4 prompts');
+  console.error('Azure Management tools registered: 42 tools, 4 prompts');
 }
 
 // ========================================

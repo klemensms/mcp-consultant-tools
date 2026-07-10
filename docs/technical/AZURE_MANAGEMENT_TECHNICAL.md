@@ -8,10 +8,10 @@
 **Package:** `@mcp-consultant-tools/azure-management`
 **Binary (MCP):** `mcp-azure-mgmt`
 **Binary (CLI):** `mcp-azure-mgmt-cli`
-**Tools:** 26 | **Prompts:** 4
+**Tools:** 42 (38 read-only, 4 write) | **Prompts:** 4
 **Auth:** Azure AD Service Principal (client credentials)
 
-MCP server and CLI for Azure Resource Manager (ARM) API. Covers resource discovery, Function Apps, App Services (including lifecycle management and config updates), Key Vaults, Storage, SQL, Monitoring, and Networking. Write operations require `AZURE_MGMT_ENABLE_WRITE=true`.
+MCP server and CLI for Azure Resource Manager (ARM) API. Covers resource discovery, Function Apps, App Services (including lifecycle management, config updates, live log streaming and diagnostic detectors), Key Vaults, Storage, SQL, Monitoring, Networking, and cross-resource queries over Azure Resource Graph (network security groups, RBAC, private endpoints, diagnostic settings, resource relationships). Write operations require `AZURE_MGMT_ENABLE_WRITE=true`.
 
 </overview>
 
@@ -24,11 +24,13 @@ The package follows the Service-Tool-Prompt pattern (v28+):
 ```
 index.ts                    # MCP entry point + registerAzureManagementTools()
 context-factory.ts          # Shared createServiceContext() for MCP and CLI
-AzureManagementService.ts   # Facade: lazy getters for 8 domain services
-client/ArmClient.ts         # HTTP client: auth, pagination, retry
+AzureManagementService.ts   # Facade: lazy getters for 10 domain services
+client/ArmClient.ts         # HTTP client: auth, pagination, retry, status-carrying errors
 auth/AzureAuthProvider.ts   # Token caching for ARM + Key Vault data plane
+utils/scm-client.ts         # Kudu SCM client: JSON, text, and bounded streaming reads
+utils/kql.ts                # KQL string-literal escaping for Resource Graph
 services/
-  ResourceService.ts        # Generic resource and resource graph operations
+  ResourceService.ts        # Subscriptions, generic resource and resource graph operations
   FunctionAppService.ts     # Function Apps
   AppServiceService.ts      # App Services and hosting plans
   KeyVaultService.ts        # Key Vaults (ARM management + data plane)
@@ -36,6 +38,8 @@ services/
   SqlService.ts             # SQL servers and databases
   MonitoringService.ts      # Alert rules, action groups, smart detectors
   NetworkingService.ts      # Front Door, Event Grid
+  ResourceGraphService.ts   # NSGs, RBAC, private endpoints, diagnostic settings, relationships
+  LogStreamService.ts       # Live log stream, log config, diagnostic detectors
 tools/                      # Thin MCP tool wrappers per domain
 prompts/                    # 4 MCP prompt registrations
 cli/commands/               # Commander.js CLI commands per domain
@@ -43,7 +47,7 @@ cli/commands/               # Commander.js CLI commands per domain
 
 ### AzureManagementService (Facade)
 
-`AzureManagementService` holds one `ArmClient` and 8 lazy-initialized domain services. It is the single object shared via `ServiceContext`.
+`AzureManagementService` holds one `ArmClient`, one `ScmClient`, and 10 lazy-initialized domain services. It is the single object shared via `ServiceContext`.
 
 ```typescript
 interface ServiceContext {
@@ -60,8 +64,49 @@ Domain service accessors on `AzureManagementService`:
 - `.sql` → `SqlService`
 - `.monitoring` → `MonitoringService`
 - `.networking` → `NetworkingService`
+- `.resourceGraph` → `ResourceGraphService`
+- `.logStream` → `LogStreamService`
 
 </architecture>
+
+<query-safety>
+
+## Query Safety (Azure Resource Graph)
+
+**The Resource Graph REST API has no query-parameter binding.** Every caller-supplied filter value is interpolated directly into a KQL string literal. `src/utils/kql.ts` is the only sanctioned way to do that.
+
+```typescript
+import { kqlString } from '../utils/kql.js';
+lines.push(`| where resourceGroup =~ ${kqlString(options.resourceGroup)}`);
+```
+
+`escapeKqlStringLiteral()` escapes the **backslash before the quote**. Escaping only the quote — as the source this was ported from did — lets a value ending in `\` escape the literal's closing quote and append arbitrary KQL clauses. Control characters are rejected outright rather than emitted into a broken literal.
+
+**Never interpolate a value into a Resource Graph query without `kqlString()`.** Scope comes from the request body's `subscriptions` array, not a `where subscriptionId ==` clause — one less interpolation site.
+
+### KQL conventions enforced by unit tests
+
+| Rule | Why |
+|------|-----|
+| `\| where type =~ 'x'`, never `== 'x'` | Microsoft documents `=~` for every `type` comparison. A provider that stops normalising casing turns `==` into a permanent empty result with no error. |
+| `tostring(properties) contains 'x'` | KQL's `contains` is typed to take a `string`. `properties` is `dynamic`; the implicit coercion is undocumented and can silently miss nested values. |
+| `\| order by id asc` on every paged query | Paging via `$skipToken` without a deterministic sort duplicates and drops rows in a changing environment. |
+| `roleDefinitionId = tolower(id)` join | ARG's `authorizationresources` normalises a role definition's `id` to the same tenant-scoped form assignments reference. **The raw ARM REST APIs do not** — there a subscription-scope prefix appears on one side only. Do not copy this join outside ARG. |
+
+### Truncation is never silent
+
+Resource Graph withholds `$skipToken` whenever it truncates (a `limit` clause, or a projection of only dynamic columns). A full page with no continuation token therefore cannot be distinguished from "exactly one page exists". Every Resource Graph tool returns `truncated: boolean`, set when:
+
+- `maxResults` cut the result short, **or**
+- a full 1000-row page arrived with no `$skipToken`.
+
+`truncated: true` means counts are a **lower bound**. `summary` always describes exactly the rows returned.
+
+### Partial subscription access is invisible
+
+If the service principal can read some but not all subscriptions in scope, Resource Graph returns a clean `200` containing only the readable ones, with no indication the answer is partial. If it can read none, it returns `403`. Cross-check `list-subscriptions` before treating a subscription-wide result as complete.
+
+</query-safety>
 
 <authentication>
 
@@ -607,6 +652,207 @@ Uses `Microsoft.Cdn/profiles` ARM resource type (Front Door Standard/Premium use
 
 </tool>
 
+### Subscription Tools
+
+<tool name="list-subscriptions">
+
+**`list-subscriptions`** — List the Azure subscriptions visible to this service principal. Takes no parameters.
+
+**Returns:** `{ subscriptions: Subscription[], note?: string, summary: { total, byState } }`
+
+Tenant-level: it ignores `AZURE_SUBSCRIPTION_ID`. `GET /subscriptions` (api-version `2022-12-01`) is RBAC-filtered — it returns only subscriptions the caller holds a role assignment on.
+
+**A principal with no role assignment anywhere receives `200` with `value: []`, never a `403`.** An empty list therefore proves nothing about the tenant. When `subscriptions` is empty, `note` explains this; surface it rather than reporting "no subscriptions exist".
+
+</tool>
+
+### Resource Graph Tools
+
+All six are read-only, subscription-scoped, and return `truncated: boolean`. See `<query-safety>` for the escaping and truncation contract.
+
+<tool name="list-network-security-groups">
+
+**`list-network-security-groups`** — NSGs with their security rules and subnet/NIC associations.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `resourceGroup` | string | No | — | Filter by resource group (server-side) |
+| `associatedSubnet` | string | No | — | Filter by associated subnet name or ID substring (client-side) |
+| `associatedNic` | string | No | — | Filter by associated NIC name or ID substring (client-side) |
+| `maxResults` | number | No | 500 | 1–5000 |
+
+**Returns:** `{ data: NsgSummary[], truncated, summary: { total, byResourceGroup, associated, unassociated } }`
+
+`associatedSubnet` and `associatedNic` live inside the dynamic `properties` blob, so they filter the rows already fetched rather than the query. With `truncated: true` a match may sit past the cut.
+
+An NSG with `associated: 0` enforces nothing. A rule missing `direction` or `access` is returned with an empty string, never a fabricated `Inbound`/`Deny` default.
+
+</tool>
+
+<tool name="list-role-assignments">
+
+**`list-role-assignments`** — Azure RBAC role assignments with resolved role names.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `principalId` | string | No | — | Exact principal object ID |
+| `roleDefinitionId` | string | No | — | Role definition ID substring |
+| `scope` | string | No | — | Exact assignment scope |
+| `maxResults` | number | No | 500 | 1–5000 |
+
+**Returns:** `{ data: RoleAssignmentSummary[], truncated, summary: { total, byRole, byPrincipalType, unresolvedRoleNames, roleDefinitionsTruncated } }`
+
+`roleDefinitionName` is `string | null`. **It is `null`, never the literal `"Unknown"`, when the role definition could not be read** — a fabricated `Unknown` would appear in `byRole` as though Azure had a role by that name. Unresolved assignments are excluded from `byRole` and counted in `summary.unresolvedRoleNames`. `roleDefinitionsTruncated` says the lookup itself was cut short, which is a distinct cause of missing names.
+
+`principalType` values: `User`, `Group`, `ServicePrincipal`, `ForeignGroup`, `Device`.
+
+</tool>
+
+<tool name="list-private-endpoints">
+
+**`list-private-endpoints`** — Private endpoints with target resource and connection status.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `resourceGroup` | string | No | — | Filter by resource group (server-side) |
+| `targetResourceId` | string | No | — | Target resource ID substring (client-side) |
+| `maxResults` | number | No | 500 | 1–5000 |
+
+**Returns:** `{ data: PrivateEndpointSummary[], truncated, summary: { total, byResourceGroup, byTargetResourceType, byConnectionStatus } }`
+
+Reads `privateLinkServiceConnections`, falling back to `manualPrivateLinkServiceConnections`. A `connectionStatus` other than `Approved` means traffic is not flowing.
+
+</tool>
+
+<tool name="find-resource-consumers">
+
+**`find-resource-consumers`** — Every resource whose configuration references a given ARM resource ID, and the property path that references it.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `resourceId` | string | **Yes** | — | Full ARM resource ID (must start with `/subscriptions/`) |
+| `maxResults` | number | No | 500 | 1–5000 |
+
+**Returns:** `{ data: ResourceConsumer[], truncated, summary: { total, byResourceType } }`
+
+`propertyPath` is a comma-separated list of dot paths (e.g. `properties.siteConfig.appSettings[0].value`). Property recursion is capped at depth 6, so a reference nested deeper is not reported. Use before deleting or renaming a resource.
+
+</tool>
+
+<tool name="list-diagnostic-settings">
+
+**`list-diagnostic-settings`** — Azure Monitor diagnostic settings across resources.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `resourceIds` | string[] | No | — | Specific ARM resource IDs to inspect |
+| `resourceGroup` | string | No | — | Enumerate resources in this resource group |
+| `resourceType` | string | No | — | Enumerate resources of this type |
+| `maxResources` | number | No | 100 | 1–500 |
+
+**Returns:** `{ data: DiagnosticSettingSummary[], truncated, unreadableResources: UnreadableResource[], summary: { total, resourcesInspected, resourcesWithSettings, resourcesWithoutSettings, resourcesUnreadable, byTargetResourceType, byDestinationType } }`
+
+Diagnostic settings are an **extension resource** and are not indexed by Resource Graph — there is no ARG table for them. Resource Graph supplies the target list; the settings themselves cost one ARM call per resource (`{resourceId}/providers/Microsoft.Insights/diagnosticSettings`, api-version `2021-05-01-preview`, concurrency 5). Hence the separate, lower `maxResources` cap.
+
+**`resourcesUnreadable` is not `resourcesWithoutSettings`.** A resource type that does not support diagnostic settings answers `200` with an empty list — genuinely nothing configured. A `403` (no `Microsoft.Insights/diagnosticSettings/read`) or `404` *rejects*. The source this was ported from bucketed every rejection as "not configured", turning a permissions gap into a clean audit result. Each rejection is now listed in `unreadableResources` with its HTTP status. **Absence of settings is unproven for anything in that list.**
+
+</tool>
+
+<tool name="get-resource-relationships">
+
+**`get-resource-relationships`** — A resource's subnet, VNet and reference relationships.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `resourceId` | string | **Yes** | — | Full ARM resource ID |
+| `maxResults` | number | No | 500 | Applied per relationship bucket |
+
+**Returns:** `{ data: { self, sameSubnet, sameVnet, referencesThis, referencedByThis }, truncated, summary: { ..., forwardReferencesTruncated } }`
+
+`sameVnet` excludes `sameSubnet` members (a subnet ID starts with its VNet ID, so the buckets would otherwise overlap). `referencedByThis` resolves the ARM IDs found inside the resource's own properties, capped at 50 per query — `forwardReferencesTruncated` flags when the resource referenced more.
+
+A non-existent `resourceId` returns `self: null` with empty buckets, not an error.
+
+</tool>
+
+### Log Stream & Detector Tools
+
+<tool name="get-log-stream">
+
+**`get-log-stream`** — Collect live log output from an App Service or Function App via the Kudu SCM stream.
+
+| Parameter | Type | Required | Default | Max | Description |
+|-----------|------|----------|---------|-----|-------------|
+| `appName` | string | **Yes** | — | — | App Service or Function App name |
+| `logType` | enum | No | `application` | — | `application` \| `http` \| `all` |
+| `durationSeconds` | number | No | 10 | **30** | Seconds to hold the stream open |
+| `maxLines` | number | No | 200 | **1000** | Stop after this many lines |
+| `slotName` | string | No | — | — | Deployment slot (`{app}-{slot}.scm.azurewebsites.net`) |
+
+**Returns:** `{ appName, slotName?, logType, lines, scmEndpoint, note?, summary: { totalLines, durationMs, terminationReason, truncated } }`
+
+**This tool blocks the MCP client for up to 30 seconds.** An MCP tool call is request/response, so an unbounded stream would hang the client. Both bounds are enforced twice — in the Zod schema (which rejects an over-range value) and again in the service (which clamps it). The source this was ported from allowed 120s / 2000 lines; those values are deliberately not honoured. Call the tool again for a longer window.
+
+`terminationReason` is `timeout`, `maxLines`, or `streamEnded`. `truncated` is set only by `maxLines`.
+
+**An empty result does not mean the app is idle.** App Service filesystem logging is off by default and **self-disables 12 hours** after being enabled. When `lines` is empty, `note` says so — check `get-log-config` before concluding the app produced no output.
+
+**Not available for Function Apps on Linux Consumption or Flex Consumption plans** — those have no Kudu site. The SCM client reports that case explicitly rather than returning an empty stream.
+
+Requires `Website Contributor` on the app.
+
+</tool>
+
+<tool name="get-log-config">
+
+**`get-log-config`** — The logging configuration of an App Service or Function App.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `appName` | string | **Yes** | — | App Service or Function App name |
+| `resourceGroup` | string | No | `AZURE_RESOURCE_GROUP` | Resource group |
+
+**Returns:** `{ appName, resourceGroup, applicationLogging, httpLogging, detailedErrorMessages, failedRequestTracing }`
+
+Reads `{site}/config/logs` (api-version `2022-09-01`). **Blob storage SAS URLs are never returned** — only whether blob logging is enabled and its retention. Check this first whenever `get-log-stream` or `get-app-service-logs` come back empty.
+
+</tool>
+
+<tool name="list-detectors">
+
+**`list-detectors`** — The App Service diagnostic detectors available for an app.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `appName` | string | **Yes** | — | App Service or Function App name |
+| `resourceGroup` | string | No | `AZURE_RESOURCE_GROUP` | Resource group |
+
+**Returns:** `{ detectors: DiagnosticDetectorSummary[], summary: { total, byCategory } }`
+
+These are the detectors behind "Diagnose and solve problems" in the portal. Function Apps and Web Apps are both `Microsoft.Web/sites` and share this surface; only which detectors are populated differs.
+
+</tool>
+
+<tool name="get-detector">
+
+**`get-detector`** — Run a single diagnostic detector and return its datasets.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `appName` | string | **Yes** | — | App Service or Function App name |
+| `detectorName` | string | **Yes** | — | Name from `list-detectors` |
+| `resourceGroup` | string | No | `AZURE_RESOURCE_GROUP` | Resource group |
+| `startTime` | string | No | detector's own window | ISO 8601 UTC |
+| `endTime` | string | No | detector's own window | ISO 8601 UTC |
+
+**Returns:** `{ appName, detectorName, metadata, dataset[], status }`
+
+Uses `Microsoft.Web/sites/{name}/detectors/{detectorName}` (`Diagnostics_GetSiteDetectorResponse`, api-version `2022-09-01`) — the surface that returns **data**. Do not confuse it with `Microsoft.Web/sites/{name}/diagnostics/{category}/detectors`, which is a category browser returning metadata only and cannot run a detector.
+
+`renderingProperties.type` is typed `number | string`: the published schema names a string enum, production responses commonly send a number.
+
+</tool>
+
 </tool-reference>
 
 <prompts>
@@ -648,6 +894,7 @@ Environment is loaded via `loadEnvForCli()` in a `preAction` hook on every comma
 
 | Command Group | Subcommands | MCP Tool Equivalent |
 |---------------|-------------|---------------------|
+| `resource subscriptions` | — | `list-subscriptions` |
 | `resource list` | `-g`, `-t`, `--tag-filter`, `-n`, `-m` | `list-resources` |
 | `resource get` | `-i`, `-g`, `-t`, `-n`, `--include-all-properties` | `get-resource` |
 | `resource groups` | `--tag-filter`, `-n` | `list-resource-groups` |
@@ -679,6 +926,18 @@ Environment is loaded via `loadEnvForCli()` in a `preAction` hook on every comma
 | `networking front-doors` | `-g` | `list-front-doors` |
 | `networking front-door get <name>` | `-g` | `get-front-door` |
 | `networking event-grid` | `-g`, `--include-system-topics` | `list-event-grid-topics` |
+| `graph nsgs` | `-g`, `--associated-subnet`, `--associated-nic`, `-m` | `list-network-security-groups` |
+| `graph role-assignments` | `--principal-id`, `--role-definition-id`, `--scope`, `-m` | `list-role-assignments` |
+| `graph private-endpoints` | `-g`, `--target-resource-id`, `-m` | `list-private-endpoints` |
+| `graph consumers <resourceId>` | `-m` | `find-resource-consumers` |
+| `graph diagnostic-settings` | `-i`, `-g`, `-t`, `-m` (max-resources) | `list-diagnostic-settings` |
+| `graph relationships <resourceId>` | `-m` | `get-resource-relationships` |
+| `log stream <appName>` | `-t`, `-d`, `-n`, `-s` | `get-log-stream` |
+| `log config <appName>` | `-g` | `get-log-config` |
+| `log detectors <appName>` | `-g` | `list-detectors` |
+| `log detector <appName> <detectorName>` | `-g`, `--start-time`, `--end-time` | `get-detector` |
+
+The `graph` and `log` command groups validate their numeric and enum options **before** touching the service, so a typo fails on the typo rather than on a missing-credentials error. Their text summaries print an explicit `WARNING:` line when results were truncated, when role names went unresolved, or when diagnostic settings could not be read — truncation must be visible in the summary, not only in the cached JSON.
 
 ### Global Flags
 
@@ -738,6 +997,15 @@ mcp-azure-mgmt-cli --env-file .env.prod function-app list -g rg-prod-uks-01
 | `Failed to get function keys` | Missing `Website Contributor` role | Assign `Website Contributor` on the Function App |
 | `Failed to acquire ARM access token` | Invalid service principal credentials | Check `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` |
 | `Resource group is required but not specified` | Tool called without `resourceGroup` and no `AZURE_RESOURCE_GROUP` set | Pass `resourceGroup` parameter or set `AZURE_RESOURCE_GROUP` |
+| `SCM authentication rejected` | Kudu did not accept the ARM access token | See `<known-limitations>` — the token audience may need to change |
+| `Could not reach the SCM endpoint` | No Kudu site (Linux/Flex Consumption Function App) or no running instance | Use `get-app-service-logs` or Application Insights instead |
+| `Filter values must not contain control characters` | A newline or NUL in a Resource Graph filter value | Strip control characters from the filter |
+| `maxResults must be an integer between 1 and 5000` | Out-of-range `maxResults` | Use a value in range; results are capped, not paged beyond it |
+| `resourceId must be a full ARM resource ID` | A bare resource name was passed | Pass the full `/subscriptions/.../providers/...` path |
+
+### ArmRequestError
+
+Errors thrown by `ArmClient` carry the HTTP status: `(error as ArmRequestError).status`, or `getArmErrorStatus(error)`. `list-diagnostic-settings` depends on this to tell a `403` apart from an empty result. Any new code that fans out across resources must make the same distinction — collapsing them reports a permissions gap as a clean result.
 
 ### Retry Behavior
 
@@ -753,7 +1021,9 @@ Every tool's catch block returns `{ content: [{ type: 'text', text: 'Failed: ...
 
 ## Security
 
-- **Read-only:** Zero tools perform write operations on ARM. All calls are GET or POST (Resource Graph queries POST to the graph API, which is also read-only).
+- **Read-first:** 38 of the 42 tools are read-only (`readOnlyHint: true`). The 4 write tools (`restart-app-service`, `stop-app-service`, `start-app-service`, `set-app-service-config`) are inert unless `AZURE_MGMT_ENABLE_WRITE=true`. Resource Graph queries POST to the graph API, which is read-only.
+- **KQL injection:** Resource Graph has no parameter binding. Escaping via `src/utils/kql.ts` is the only defence — see `<query-safety>`.
+- **Blob SAS URLs are never returned** by `get-log-config`, only the enabled flag and retention.
 - **Secret redaction:** When `AZURE_REDACT_SECRETS=true` (default), `FunctionAppService` and `StorageService` strip connection strings and keys from app settings before returning. Set to `false` only in trusted contexts.
 - **Key Vault secrets listed, never read:** `list-key-vault-secrets` returns secret names and metadata (enabled status, expiry dates), never secret values. The data plane is called for the list operation but no `GET /secrets/{name}/value` call is made.
 - **Audit logging:** All ARM API token acquisitions and retries are logged to stderr. No stdout output (MCP protocol requirement).
@@ -770,5 +1040,22 @@ Every tool's catch block returns `{ content: [{ type: 'text', text: 'Failed: ...
 - **Null property filtering:** `getResource` strips null/empty properties by default, significantly reducing response size for resources with many optional ARM properties.
 - **Event Grid system topic exclusion:** `list-event-grid-topics` excludes system topics by default, reducing noise from auto-generated GUID-named topics.
 - **Location filtering:** `list-locations` defaults to `Recommended` physical regions only, excluding staging/logical regions that add no value for most queries.
+- **`list-diagnostic-settings` is the most expensive tool here.** One ARM call per resource, 5 at a time, because Resource Graph does not index diagnostic settings. Scope it with `resourceIds` or `resourceType` rather than raising `maxResources`.
+- **`find-resource-consumers` and `get-resource-relationships` scan `tostring(properties)` across every resource in the subscription.** They are inherently broad; keep `maxResults` low when exploring.
+- **`get-log-stream` holds the MCP client open** for up to 30 seconds by design. It is the only blocking tool in the package.
 
 </performance>
+
+<known-limitations>
+
+## Known Limitations
+
+**Not verified against a live Azure subscription.** The 11 tools added for Resource Graph, log streaming and detectors are checked against Microsoft's published REST and Resource Graph schemas and exercised against stubbed clients in 71 unit tests. **No call in `ResourceGraphService` or `LogStreamService` has run against a real subscription.**
+
+**The Kudu SCM token audience is unconfirmed.** `ScmClient` authenticates to `{app}.scm.azurewebsites.net` with an Azure Resource Manager access token (audience `https://management.azure.com`). This is what the package's pre-existing `get-app-service-logs` has always done. However, `az webapp log tail` acquires a token for a **different** audience, `https://appservice.azure.com`. If Kudu ever stops accepting ARM-audience tokens, every SCM call in this package — `get-app-service-logs` and `get-log-stream` alike — returns `401`. That case is reported as `SCM authentication rejected`, naming the audience, rather than as an opaque axios error. The audience was not changed here because doing so on an unverified claim would risk breaking a shipped tool.
+
+**Resource Graph `resultTruncated` is not consulted.** The paging loop relies on `$skipToken` plus a full-page heuristic instead. Microsoft's documentation of `resultTruncated` conflates "query complete" with "paging impossible", so it cannot be used to distinguish the two. The consequence is a false `truncated: true` at exactly 1000 rows — cheaper than silently dropping rows.
+
+**`find-resource-consumers` recursion is capped at depth 6.** A reference nested deeper inside `properties` is not reported.
+
+</known-limitations>

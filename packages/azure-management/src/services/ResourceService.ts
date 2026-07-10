@@ -3,14 +3,49 @@ import type {
   ArmResource,
   ResourceGroup,
   AzureLocation,
+  Subscription,
 } from '../types/arm-types.js';
 import { getApiVersion } from '../utils/arm-api-versions.js';
+
+/**
+ * `GET /subscriptions` is RBAC-filtered, not tenant-wide: a principal with no
+ * role assignment anywhere gets `200 []`, never a `403`. An empty list therefore
+ * cannot be read as "this tenant has no subscriptions".
+ */
+export const NO_SUBSCRIPTIONS_NOTE =
+  'No subscriptions are visible to this service principal. This is not evidence that the tenant has none: /subscriptions returns only subscriptions the caller holds a role assignment on, and returns an empty list rather than an error when it holds none.';
 
 /**
  * Service for generic Azure resource operations.
  */
 export class ResourceService {
   constructor(private client: ArmClient) {}
+
+  /**
+   * List the subscriptions this service principal can see. Tenant-level — it does
+   * not use the configured subscription ID.
+   */
+  async listSubscriptions(): Promise<{
+    subscriptions: Subscription[];
+    note?: string;
+    summary: { total: number; byState: Record<string, number> };
+  }> {
+    const subscriptions = await this.client.paginate<Subscription>(
+      '/subscriptions',
+      getApiVersion('Microsoft.Resources/subscriptions')
+    );
+
+    const summary = { total: subscriptions.length, byState: {} as Record<string, number> };
+    for (const subscription of subscriptions) {
+      summary.byState[subscription.state] = (summary.byState[subscription.state] || 0) + 1;
+    }
+
+    return {
+      subscriptions,
+      note: subscriptions.length === 0 ? NO_SUBSCRIPTIONS_NOTE : undefined,
+      summary,
+    };
+  }
 
   /**
    * List all resources in the subscription or a specific resource group.

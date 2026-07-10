@@ -9,6 +9,23 @@ import {
 
 export function registerResourceTools(server: any, ctx: ServiceContext): void {
   server.tool(
+    'list-subscriptions',
+    'List the Azure subscriptions this service principal can see. Tenant-level - ignores AZURE_SUBSCRIPTION_ID. An empty list means the principal holds no role assignment on any subscription, NOT that the tenant has none.',
+    {},
+    { readOnlyHint: true, openWorldHint: true },
+    async () => {
+      try {
+        const result = await ctx.management.resources.listSubscriptions();
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('Error listing subscriptions:', error);
+        return { content: [{ type: 'text', text: `Failed: ${message}` }], isError: true };
+      }
+    }
+  );
+
+  server.tool(
     'list-resources',
     'List all Azure resources in the subscription or resource group with filtering',
     {
