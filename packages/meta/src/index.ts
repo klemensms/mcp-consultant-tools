@@ -20,6 +20,7 @@ import { registerAzureDataFactoryTools } from "@mcp-consultant-tools/azure-data-
 import { registerAzureManagementTools } from "@mcp-consultant-tools/azure-management";
 import { registerAzureDefenderTools } from "@mcp-consultant-tools/azure-defender";
 import { registerEntraIdTools } from "@mcp-consultant-tools/entra-id";
+import { registerMessageCenterTools } from "@mcp-consultant-tools/message-center";
 import { registerTeamsTools } from "@mcp-consultant-tools/teams";
 import { registerAzureDevOpsAdminTools } from "@mcp-consultant-tools/azure-devops-admin";
 import { registerAzureStorageTools } from "@mcp-consultant-tools/azure-storage";
@@ -30,7 +31,7 @@ import { registerFabricTools } from "@mcp-consultant-tools/fabric";
 /**
  * Register all MCP Consultant Tools
  *
- * This meta-package combines all 20 service packages:
+ * This meta-package combines all 21 service packages:
  * - PowerPlatform (read-only: 46 tools, 12 prompts)
  * - PowerPlatform Customization (schema changes: 70 tools)
  * - PowerPlatform Data (data CRUD: 10 tools)
@@ -48,6 +49,7 @@ import { registerFabricTools } from "@mcp-consultant-tools/fabric";
  * - Azure Management (ARM API - Function Apps, App Services, Key Vaults, Storage, SQL, Monitoring)
  * - Azure Defender for Cloud (secure score, assessments, regulatory compliance, attack paths)
  * - Entra ID (app registration audit, client secret and certificate expiry)
+ * - Message Center (M365 service health, issues, incident reports, Message Center posts)
  * - Azure Storage (blobs, queues, tables, file shares)
  * - REST API (generic HTTP requests with auth)
  * - Teams (channel messages, adaptive cards for release announcements)
@@ -116,6 +118,13 @@ export function registerAllTools(server: any) {
     console.error("⚠️  Entra ID skipped:", (error as Error).message);
   }
 
+  // Message Center (optional - M365 service health, issues, incident reports, Message Center posts)
+  try {
+    registerMessageCenterTools(safe("Message Center"));
+  } catch (error) {
+    console.error("⚠️  Message Center skipped:", (error as Error).message);
+  }
+
   // Teams (optional - for release announcements)
   try {
     registerTeamsTools(safe("Teams"));
@@ -161,7 +170,7 @@ export function registerAllTools(server: any) {
   for (const line of formatDuplicates(duplicates)) console.error(line);
 
   console.error("All tools registered successfully!");
-  console.error("Total integrations: 20 services");
+  console.error("Total integrations: 21 services");
 }
 
 // CLI entry point (standalone execution)

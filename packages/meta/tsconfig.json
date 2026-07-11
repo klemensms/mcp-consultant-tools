@@ -21,6 +21,7 @@
     { "path": "../figma" },
     { "path": "../github-enterprise" },
     { "path": "../log-analytics" },
+    { "path": "../message-center" },
     { "path": "../powerplatform" },
     { "path": "../powerplatform-customization" },
     { "path": "../powerplatform-data" },

@@ -13,6 +13,7 @@
     { "path": "./packages/figma" },
     { "path": "./packages/github-enterprise" },
     { "path": "./packages/log-analytics" },
+    { "path": "./packages/message-center" },
     { "path": "./packages/powerplatform" },
     { "path": "./packages/powerplatform-customization" },
     { "path": "./packages/powerplatform-data" },

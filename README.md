@@ -32,6 +32,7 @@ MCP Consultant Tools is a **modular monorepo** with **22 independently published
 | **azure-management** | Azure ARM API (Functions, App Services, Key Vault, SQL, Monitoring, Resource Graph, log streaming) | 42 | `mcp-azure-mgmt-cli` | [Setup & Usage](docs/documentation/AZURE_MANAGEMENT.md) |
 | **azure-defender** | Microsoft Defender for Cloud (secure score, assessments, compliance, attack paths) | 12 | `mcp-defender-cli` | [Setup & Usage](docs/documentation/AZURE_DEFENDER.md) |
 | **entra-id** | Microsoft Entra ID (app registration audit, secret & certificate expiry) | 2 | `mcp-entra-cli` | [Setup & Usage](docs/documentation/ENTRA_ID.md) |
+| **message-center** | Microsoft 365 Service Health & Message Center (health overviews, issues, incident reports, posts) | 7 | `mcp-message-center-cli` | [Setup & Usage](docs/documentation/MESSAGE_CENTER.md) |
 | **sharepoint** | SharePoint Online | 16-22 | `mcp-spo-cli` | [Setup & Usage](docs/documentation/SHAREPOINT.md) |
 | **github-enterprise** | GitHub Enterprise | 22 | `mcp-ghe-cli` | [Setup & Usage](docs/documentation/GITHUB_ENTERPRISE.md) |
 | **figma** | Figma Design Extraction | 4 | `mcp-figma-cli` | [Setup & Usage](docs/documentation/FIGMA.md) |
@@ -189,7 +190,7 @@ If you have MCP servers configured in another repo and want agents/subagents to 
 
 > **CLI Tools (for subagents, hooks, and scripting)**
 >
-> MCP servers are configured for native tool access, but CLI equivalents are also available via `npx` for use in subagents (which don't inherit MCP connections), hooks, and shell scripts. They use the same environment variables already configured for the MCP servers. Run `npx --package=@mcp-consultant-tools/<package> <binary> --help` for available commands. Common CLIs: `mcp-ado-cli` (Azure DevOps), `mcp-pp-cli` (PowerPlatform read-only), `mcp-pp-custom-cli` (PowerPlatform customization), `mcp-pp-data-cli` (PowerPlatform data), `mcp-ado-admin-cli` (ADO pipelines/admin), `mcp-spo-cli` (SharePoint), `mcp-sql-cli` (Azure SQL), `mcp-appins-cli` (Application Insights), `mcp-loganalytics-cli` (Log Analytics), `mcp-storage-cli` (Azure Storage), `mcp-adf-cli` (Data Factory), `mcp-azure-mgmt-cli` (Azure Management), `mcp-ghe-cli` (GitHub Enterprise), `mcp-azure-b2c-cli` (Azure B2C), `mcp-sb-cli` (Service Bus), `mcp-figma-cli` (Figma), `mcp-fabric-cli` (Microsoft Fabric), `mcp-rest-api-cli` (REST API), `mcp-teams-cli` (Teams), `mcp-audit-cli` (audit log verify/quarantine/search). Use `--json` for raw JSON output suitable for piping.
+> MCP servers are configured for native tool access, but CLI equivalents are also available via `npx` for use in subagents (which don't inherit MCP connections), hooks, and shell scripts. They use the same environment variables already configured for the MCP servers. Run `npx --package=@mcp-consultant-tools/<package> <binary> --help` for available commands. Common CLIs: `mcp-ado-cli` (Azure DevOps), `mcp-pp-cli` (PowerPlatform read-only), `mcp-pp-custom-cli` (PowerPlatform customization), `mcp-pp-data-cli` (PowerPlatform data), `mcp-ado-admin-cli` (ADO pipelines/admin), `mcp-spo-cli` (SharePoint), `mcp-sql-cli` (Azure SQL), `mcp-appins-cli` (Application Insights), `mcp-loganalytics-cli` (Log Analytics), `mcp-storage-cli` (Azure Storage), `mcp-adf-cli` (Data Factory), `mcp-azure-mgmt-cli` (Azure Management), `mcp-ghe-cli` (GitHub Enterprise), `mcp-azure-b2c-cli` (Azure B2C), `mcp-sb-cli` (Service Bus), `mcp-figma-cli` (Figma), `mcp-fabric-cli` (Microsoft Fabric), `mcp-rest-api-cli` (REST API), `mcp-teams-cli` (Teams), `mcp-message-center-cli` (M365 Service Health & Message Center), `mcp-audit-cli` (audit log verify/quarantine/search). Use `--json` for raw JSON output suitable for piping.
 
 ## PowerPlatform Security Split
 
@@ -216,6 +217,7 @@ Each integration has comprehensive documentation with quick start, configuration
 - [Azure Management](docs/documentation/AZURE_MANAGEMENT.md)
 - [Azure Defender for Cloud](docs/documentation/AZURE_DEFENDER.md)
 - [Microsoft Entra ID](docs/documentation/ENTRA_ID.md)
+- [Microsoft 365 Message Center](docs/documentation/MESSAGE_CENTER.md)
 - [SharePoint Online](docs/documentation/SHAREPOINT.md)
 - [GitHub Enterprise](docs/documentation/GITHUB_ENTERPRISE.md)
 - [Figma](docs/documentation/FIGMA.md)

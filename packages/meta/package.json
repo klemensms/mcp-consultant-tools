@@ -74,6 +74,7 @@
     "@mcp-consultant-tools/figma": "35.0.0-beta.1",
     "@mcp-consultant-tools/github-enterprise": "35.0.0-beta.1",
     "@mcp-consultant-tools/log-analytics": "35.0.0-beta.1",
+    "@mcp-consultant-tools/message-center": "35.0.0-beta.1",
     "@mcp-consultant-tools/powerplatform": "35.0.0-beta.1",
     "@mcp-consultant-tools/powerplatform-customization": "35.0.0-beta.1",
     "@mcp-consultant-tools/powerplatform-data": "35.0.0-beta.1",

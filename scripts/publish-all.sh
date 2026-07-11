@@ -82,6 +82,7 @@ PACKAGES=(
   "figma"
   "github-enterprise"
   "log-analytics"
+  "message-center"
   "rest-api"
   "powerplatform"
   "powerplatform-customization"
