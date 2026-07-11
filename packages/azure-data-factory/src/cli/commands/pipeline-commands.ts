@@ -6,6 +6,7 @@ import type { Command } from 'commander';
 import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../context-factory.js';
 import { outputResult } from '../output.js';
+import { buildDebugRunRequest, summariseDebugRuns } from '../../services/debug-run-query.js';
 
 export function registerPipelineCommands(program: Command, ctx: ServiceContext): void {
   const pipeline = program.command('pipeline').description('Pipeline operations');
@@ -129,6 +130,40 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'query pipeline runs'); }
+    });
+
+  pipeline
+    .command('query-debug-runs')
+    .description('Query DEBUG-mode pipeline run history (undocumented ARM op; ~15-day server-side retention)')
+    .option('-d, --last-days <n>', 'Number of days to look back', '7')
+    .option('-n, --pipeline-name <name>', 'Filter by pipeline name')
+    .option('-s, --status <status>', 'Filter by status (Queued|InProgress|Succeeded|Failed|Canceling|Cancelled)')
+    .option('-m, --max-results <n>', 'Max runs to return before truncating', '100')
+    .option('-f, --factory-id <id>', 'Factory ID')
+    .action(async (opts: any) => {
+      try {
+        const svc = ctx.adf;
+        const days = parseInt(opts.lastDays) || 7;
+        const maxResults = parseInt(opts.maxResults) || 100;
+
+        const request = buildDebugRunRequest({
+          lastDays: days,
+          now: Date.now(),
+          pipelineName: opts.pipelineName,
+          status: opts.status,
+        });
+
+        const { runs, truncated } = await svc.queryDebugPipelineRuns(request, opts.factoryId, maxResults);
+        const summary = summariseDebugRuns(runs, truncated);
+        outputResult(
+          {
+            fileName: 'debug-pipeline-runs',
+            data: { ...summary, runs },
+            summary: `${summary.returned} debug runs found (last ${days} days)${truncated ? ` — truncated at ${maxResults}, more available` : ''}`,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'query debug pipeline runs'); }
     });
 
   pipeline

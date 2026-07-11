@@ -5,6 +5,7 @@
 
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import axios, { AxiosError } from 'axios';
+import { paginateDebugRuns } from './debug-run-query.js';
 import type {
   AdfConfig,
   AdfFactoryConfig,
@@ -353,6 +354,28 @@ export class AdfService {
     const factory = this.resolveFactory(factoryId);
     const url = `${this.getBaseUrl(factory)}/queryPipelineRuns?api-version=${API_VERSION}`;
     return this.post<QueryPipelineRunsResponse>(url, request);
+  }
+
+  /**
+   * Query DEBUG-mode pipeline runs (runs launched via the ADF Studio "Debug"
+   * button). Uses the undocumented `queryDebugPipelineRuns` ARM action, which
+   * mirrors the documented `queryPipelineRuns` request/response contract.
+   * Pages through `continuationToken` up to `maxResults`; the response carries
+   * no total-count field, so `truncated` signals when the cap hid further runs.
+   * Debug-run history is retained server-side for only ~15 days.
+   */
+  async queryDebugPipelineRuns(
+    request: QueryPipelineRunsRequest,
+    factoryId?: string,
+    maxResults = 100
+  ): Promise<{ runs: PipelineRun[]; truncated: boolean }> {
+    const factory = this.resolveFactory(factoryId);
+    const url = `${this.getBaseUrl(factory)}/queryDebugPipelineRuns?api-version=${API_VERSION}`;
+    return paginateDebugRuns(
+      (body) => this.post<QueryPipelineRunsResponse>(url, body),
+      request,
+      maxResults
+    );
   }
 
   // ========================================

@@ -8,6 +8,7 @@ import {
   formatActivityRunsJson,
 } from '../utils/formatters.js';
 import { descWithExamples, PIPELINE_PARAM_EXAMPLES, RUN_STATUS_EXAMPLES, FACTORY_ID_EXAMPLES } from '../tool-examples.js';
+import { buildDebugRunRequest, summariseDebugRuns } from '../services/debug-run-query.js';
 
 export function registerPipelineTools(server: any, ctx: ServiceContext): void {
   // ========================================
@@ -409,6 +410,85 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): void {
             {
               type: 'text',
               text: `Failed to query pipeline runs: ${error.message}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    'adf-query-debug-pipeline-runs',
+    'Query DEBUG-mode pipeline run history (runs launched via the ADF Studio "Debug" button — a distinct surface from triggered/published runs). Uses an undocumented ARM operation that works with app-only auth given Data Factory Contributor RBAC. Debug-run history is retained server-side ~15 days. Reports "truncated": true when maxResults capped the result — the API exposes no total count.',
+    {
+      lastDays: z
+        .number()
+        .optional()
+        .default(7)
+        .describe('Number of days to look back (default: 7; debug history is kept ~15 days)'),
+      pipelineName: z.string().optional().describe('Filter by pipeline name'),
+      status: z
+        .enum(['Queued', 'InProgress', 'Succeeded', 'Failed', 'Canceling', 'Cancelled'])
+        .optional()
+        .describe(descWithExamples('Filter by run status', RUN_STATUS_EXAMPLES)),
+      maxResults: z
+        .number()
+        .int()
+        .min(1)
+        .max(1000)
+        .optional()
+        .default(100)
+        .describe('Max runs to return before truncating (default: 100, max: 1000)'),
+      factoryId: z.string().optional().describe(descWithExamples('Factory ID', FACTORY_ID_EXAMPLES)),
+    },
+    { readOnlyHint: true, openWorldHint: true },
+    async ({
+      lastDays,
+      pipelineName,
+      status,
+      maxResults,
+      factoryId,
+    }: {
+      lastDays?: number;
+      pipelineName?: string;
+      status?: string;
+      maxResults?: number;
+      factoryId?: string;
+    }) => {
+      try {
+        const svc = ctx.adf;
+        const request = buildDebugRunRequest({
+          lastDays: lastDays || 7,
+          now: Date.now(),
+          pipelineName,
+          status,
+        });
+
+        const { runs, truncated } = await svc.queryDebugPipelineRuns(
+          request,
+          factoryId,
+          maxResults || 100
+        );
+        const summary = summariseDebugRuns(runs, truncated);
+        const formatted = {
+          returned: summary.returned,
+          truncated: summary.truncated,
+          byStatus: summary.byStatus,
+          byPipeline: summary.byPipeline,
+          runs: (formatPipelineRunsJson(runs) as { runs: unknown[] }).runs,
+        };
+
+        return {
+          content: [{ type: 'text', text: JSON.stringify(formatted, null, 2) }],
+        };
+      } catch (error: any) {
+        console.error('Error querying debug pipeline runs:', error);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Failed to query debug pipeline runs: ${error.message}`,
             },
           ],
           isError: true,

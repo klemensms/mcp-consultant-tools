@@ -70,7 +70,8 @@ AZURE_DATA_FACTORY_ENABLE_TRIGGER_CONTROL=false
 - `adf-get-pipeline-run` - Get run status and errors
 - `adf-get-activity-runs` - Get activity-level details (critical for debugging)
 - `adf-cancel-pipeline-run` - Cancel a running pipeline (requires ENABLE_WRITE)
-- `adf-query-pipeline-runs` - Query runs by date/status
+- `adf-query-pipeline-runs` - Query triggered/published runs by date/status
+- `adf-query-debug-pipeline-runs` - Query **debug-mode** run history (undocumented ARM op, ~15-day retention)
 - `adf-rerun-pipeline` - Rerun from failure (requires ENABLE_WRITE)
 
 ### Resource Discovery
@@ -113,11 +114,13 @@ Minimum permissions:
 - `Microsoft.DataFactory/factories/triggers/stop/action`
 - `Microsoft.DataFactory/factories/integrationruntimes/read`
 
-## Important: Debug Mode Limitation
+## Important: Debug Mode — Execute vs Query
 
-The ADF REST API does NOT support true "debug mode" runs (running unpublished pipelines). All pipeline runs via this API execute the **published** version of the pipeline.
+The ADF REST API does NOT support *executing* true "debug mode" runs (running unpublished pipelines). All pipeline runs *created* via this API execute the **published** version of the pipeline.
 
-However, the API provides full pipeline execution and monitoring capabilities:
+*Querying* debug-run history is a different matter. Runs launched via the ADF Studio "Debug" button are retrievable through the `queryDebugPipelineRuns` ARM action (surfaced by `adf-query-debug-pipeline-runs`). That operation is **undocumented** by Microsoft — absent from the public Swagger/REST reference — but is a real, RBAC-registered control-plane action (`Microsoft.DataFactory/factories/querydebugpipelineruns/action`, `IsDataAction: false`) that works with app-only auth given Data Factory Contributor-equivalent RBAC. Debug-run history is retained server-side for only ~15 days, and the response has no total-count field (the tool reports `truncated` when `maxResults` capped the result). Treat the endpoint as unsupported — Microsoft may change or remove external access without notice.
+
+For *executing* pipelines, the API provides full execution and monitoring capabilities:
 1. Trigger pipeline runs with parameters
 2. Monitor execution status in real-time
 3. Get detailed error messages when activities fail

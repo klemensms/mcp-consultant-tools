@@ -237,6 +237,7 @@ https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{reso
 | Query Activity Runs | POST | `/pipelineruns/{runId}/queryActivityruns?api-version=2018-06-01` |
 | Cancel Pipeline Run | POST | `/pipelineruns/{runId}/cancel?api-version=2018-06-01` |
 | Query Pipeline Runs | POST | `/queryPipelineRuns?api-version=2018-06-01` |
+| Query Debug Pipeline Runs | POST | `/queryDebugPipelineRuns?api-version=2018-06-01` (undocumented ARM action) |
 | List Datasets | GET | `/datasets?api-version=2018-06-01` |
 | Get Dataset | GET | `/datasets/{datasetName}?api-version=2018-06-01` |
 | List Linked Services | GET | `/linkedservices?api-version=2018-06-01` |
@@ -345,6 +346,19 @@ Queries pipeline runs with optional filters. Returns JSON array of run summaries
 | `lastDays` | number | 7 | Look-back window in days |
 | `pipelineName` | string | — | Filter by exact pipeline name |
 | `status` | enum | — | `Queued`, `InProgress`, `Succeeded`, `Failed`, `Canceling`, `Cancelled` |
+| `factoryId` | string | — | Factory ID |
+
+**`adf-query-debug-pipeline-runs`**
+Queries **debug-mode** pipeline run history — runs launched via the ADF Studio "Debug" button, a distinct surface from triggered/published runs. Backed by the `queryDebugPipelineRuns` ARM action, which is **undocumented** by Microsoft (absent from the public Swagger/REST reference) but is a real, RBAC-registered control-plane action (`Microsoft.DataFactory/factories/querydebugpipelineruns/action`, `IsDataAction: false`) that works with **app-only** (service principal) auth given Data Factory Contributor-equivalent RBAC. Debug-run history is retained **server-side for ~15 days** regardless of the query window.
+
+The response schema has **no total-count field**, so the tool pages through `continuationToken` up to `maxResults` and reports `"truncated": true` when the cap hid further runs — a capped count is never reported as the total. Caller-supplied `status` is normalized to the wire casing (e.g. British `Cancelling` → `Canceling`) so an exact-match filter does not silently return zero.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `lastDays` | number | 7 | Look-back window in days (debug history kept ~15 days) |
+| `pipelineName` | string | — | Filter by exact pipeline name |
+| `status` | enum | — | `Queued`, `InProgress`, `Succeeded`, `Failed`, `Canceling`, `Cancelled` |
+| `maxResults` | number | 100 | Max runs to return before truncating (1–1000) |
 | `factoryId` | string | — | Factory ID |
 
 **`adf-rerun-pipeline`**
@@ -629,6 +643,33 @@ The `utils/formatters.ts` module produces markdown output for human-readable too
 ```json
 {
   "count": 3,
+  "runs": [
+    {
+      "runId": "abc123",
+      "pipelineName": "DataCopy_Pipeline",
+      "status": "Failed",
+      "runStart": "2026-03-03T08:00:00Z",
+      "runEnd": "2026-03-03T08:05:22Z",
+      "durationInMs": 322000,
+      "duration": "5m 22s",
+      "invokedBy": "Manual",
+      "invokedByType": "Manual",
+      "message": "Activity Copy_account failed"
+    }
+  ]
+}
+```
+
+### `adf-query-debug-pipeline-runs` — JSON Output Format
+
+Adds `returned`/`truncated` and `byStatus`/`byPipeline` rollups on top of the run list. `returned` is the number of runs actually returned (capped by `maxResults`), and `truncated` is `true` when more runs existed beyond the cap — there is no server-side total count.
+
+```json
+{
+  "returned": 2,
+  "truncated": false,
+  "byStatus": { "Succeeded": 1, "Failed": 1 },
+  "byPipeline": { "DataCopy_Pipeline": 2 },
   "runs": [
     {
       "runId": "abc123",
