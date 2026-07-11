@@ -1,7 +1,7 @@
 # PowerPlatform Package Guide
 
 This guide applies to all PowerPlatform packages:
-- `@mcp-consultant-tools/powerplatform` (read-only, 39 tools, 12 prompts)
+- `@mcp-consultant-tools/powerplatform` (read-only, 51 tools, 12 prompts)
 - `@mcp-consultant-tools/powerplatform-customization` (schema changes, 59 tools, 2 prompts)
 - `@mcp-consultant-tools/powerplatform-data` (data CRUD, 8 tools, 0 prompts)
 
@@ -24,7 +24,7 @@ The PowerPlatform integration is split into **3 security-isolated packages** fol
 ```typescript
 // Pattern 1: Production (read-only only)
 import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';
-registerPowerPlatformTools(server); // 41 read-only tools
+registerPowerPlatformTools(server); // 51 read-only tools
 
 // Pattern 2: Development (read + customization)
 import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';

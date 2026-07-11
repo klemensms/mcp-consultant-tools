@@ -162,7 +162,7 @@ For `get-flow-run-details` (Power Automate Management API):
 
 <tool-reference name="flow-tools">
 
-## Workflow and Flow Tools (9 tools)
+## Workflow and Flow Tools (11 tools)
 
 | Tool | Key Parameters | Returns |
 |------|---------------|---------|
@@ -171,6 +171,8 @@ For `get-flow-run-details` (Power Automate Management API):
 | `get-flow-definition` | `flowId`, `summary?` (default: false) | Full JSON definition or parsed summary (trigger, actions, connectors) |
 | `get-flow-runs` | `flowId`, `status?`, `startedAfter?`, `startedBefore?`, `maxRecords?` (default: 50, max: 250) | Run history: status, timestamps, trigger info, error details |
 | `get-flow-run-details` | `flowId`, `runId` | Action-level execution: per-action status, timing, errors, inputs/outputs links |
+| `scan-flow-health` | `daysBack?` (default: 7), `maxRunsPerFlow?` (default: 100), `maxFlows?` (default: 500), `activeOnly?` (default: true), `concurrency?` (default: 5) | Environment-wide run-health scan: per-flow + overall success rate, failure counts, top failing flows |
+| `get-flow-inventory` | `maxRecords?` (default: 500) | Complete paginated inventory of cloud flows (deployment metadata, no run history) |
 | `get-workflows` | `activeOnly?`, `maxRecords?` (default: 25) | Classic workflows with mode, triggers |
 | `get-workflow-definition` | `workflowId`, `summary?` (default: false) | Full XAML or parsed summary (activities, conditions, email sends) |
 | `get-business-rules` | `activeOnly?`, `maxRecords?` (default: 100) | All business rules |
@@ -190,6 +192,27 @@ For `get-flow-run-details` (Power Automate Management API):
 Over-fetch strategy: When client-side filtering is active, service requests 1.5x the `maxRecords` count. Response includes exclusion statistics. Set `excludeCustomerInsights: false`, `excludeSystem: false`, or `excludeCopilotSales: false` to disable respective filters.
 
 </filtering-behavior>
+
+<flow-health-scan-architecture>
+
+**`scan-flow-health` is app-only friendly and honest about sampling.** It builds the flow list from the Dataverse `workflow` table (`category eq 5`, paginated via `@odata.nextLink`) and reads run history from the `flowrun` elastic table via the same Dataverse Web API — **no dependency on the Power Automate Management API**, so it works with service-principal (client-credentials) auth.
+
+Run classification is **case-insensitive** because `flowrun.status` is an unvalidated free-text column (Microsoft prose even uses "Success"); `Succeeded`/`Success` map to succeeded, `Failed`/`Faulted`/`TimedOut`/`Aborted` to failed, `Cancelled`/`Canceled` to cancelled, `Running`/`Waiting` to running.
+
+Honesty guarantees (each addresses a defect in the original source):
+- **Sampling is surfaced, not hidden.** Runs are sampled newest-first up to `maxRunsPerFlow`. When more runs existed in the window, the flow's `sampleTruncated` is `true` and the summary's `flowsSampleTruncated` counts them — a flow's `successRate` is never presented as a full-population figure when it is over a sample. `successRate` is `null` (not `0`) for a flow with no runs.
+- **Errored ≠ idle.** A flow whose run fetch fails (e.g. 403) is reported with `scanError` and counted in `flowsErrored`, kept distinct from genuinely idle flows in `flowsNoRuns`.
+- **Flow-list completeness.** `flowListTruncated` is `true` when there were more cloud flows than `maxFlows`.
+
+**Permission note:** `flowrun` records are user-owned, so the Dataverse Application User's security role must grant **Organization-scope Read on FlowRun** — without it, the scan sees no runs (or reports `scanError`) even though flows exist.
+
+</flow-health-scan-architecture>
+
+<flow-inventory-behavior>
+
+**`get-flow-inventory` guarantees completeness where `get-flows` does not.** `get-flows` issues a single page and can silently truncate a large environment; `get-flow-inventory` follows `@odata.nextLink` to enumerate every cloud flow (`category eq 5`) up to `maxRecords`, setting `hasMore` when the cap was reached. Use it for deployment audits; use `get-flows` for filtered interactive investigation.
+
+</flow-inventory-behavior>
 
 <flow-run-details-architecture>
 

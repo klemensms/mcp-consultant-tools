@@ -12,6 +12,17 @@ import type {
   FlowListResult,
   FlowSummary,
 } from '../client/types.js';
+import {
+  aggregateFlowHealth,
+  erroredFlowEntry,
+  mapInventoryRow,
+  nextRelativeUrl,
+  summariseFlowRuns,
+  type FlowHealthEntry,
+  type FlowHealthSummary,
+  type FlowInventoryEntry,
+  type FlowRef,
+} from './flow-health.js';
 
 export interface CancelFlowRunResult {
   success: boolean;
@@ -69,6 +80,58 @@ export interface FlowRunsResult {
     maxRecords: number;
   };
   runs: FlowRunSummary[];
+}
+
+export interface FlowHealthScanOptions {
+  /** Days of run history to analyse (default: 7) */
+  daysBack?: number;
+  /** Max runs sampled per flow, newest first (default: 100) */
+  maxRunsPerFlow?: number;
+  /** Max flows to scan (default: 500) */
+  maxFlows?: number;
+  /** Only scan activated flows (default: true) */
+  activeOnly?: boolean;
+  /** Concurrent per-flow run fetches (default: 5) */
+  concurrency?: number;
+}
+
+export interface FlowHealthScanResult {
+  scanTime: string;
+  daysAnalyzed: number;
+  /** The per-flow run cap used; success rates for truncated flows are over this sample. */
+  runsSampledPerFlow: number;
+  activeOnly: boolean;
+  /** True when there were more cloud flows than maxFlows (list itself was capped). */
+  flowListTruncated: boolean;
+  summary: FlowHealthSummary;
+  topFailingFlows: FlowHealthEntry[];
+  allFlows: FlowHealthEntry[];
+}
+
+export interface FlowInventoryResult {
+  totalCount: number;
+  hasMore: boolean;
+  requestedMax: number;
+  flows: FlowInventoryEntry[];
+}
+
+/** Run an async mapper over items with a bounded number of concurrent workers, preserving order. */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  const workerCount = Math.max(1, Math.min(limit, items.length || 1));
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (cursor < items.length) {
+      const i = cursor++;
+      results[i] = await fn(items[i]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
 }
 
 /**
@@ -1048,6 +1111,144 @@ export class FlowService {
         `Failed to resubmit flow run: ${err.message} - ${JSON.stringify(errorDetails)}`
       );
     }
+  }
+
+  /**
+   * Scan cloud flows for run-health metrics (success rate, failures) over the last N days.
+   *
+   * App-only friendly: builds the flow list from the Dataverse `workflow` table and reads
+   * run history from the `flowrun` elastic table via `getFlowRuns` — no dependency on the
+   * Power Automate management API. Because `flowrun` is an elastic table (500-row page cap)
+   * and per-flow runs are sampled newest-first, each flow reports `sampleTruncated` when more
+   * runs existed in the window than were analysed, so success rates are never presented as a
+   * full-population figure when they are actually over a sample.
+   *
+   * Requires the Dataverse Application User's security role to grant Organization-scope Read
+   * on FlowRun (records are user-owned); otherwise a flow reports `scanError`, kept distinct
+   * from a genuinely idle (no-runs) flow.
+   */
+  async scanFlowHealth(options: FlowHealthScanOptions = {}): Promise<FlowHealthScanResult> {
+    const {
+      daysBack = 7,
+      maxRunsPerFlow = 100,
+      maxFlows = 500,
+      activeOnly = true,
+      concurrency = 5,
+    } = options;
+
+    const startedAfter = new Date(
+      Date.now() - daysBack * 24 * 60 * 60 * 1000
+    ).toISOString();
+
+    const { rows, truncated: flowListTruncated } = await this.paginateCloudFlows(
+      'workflowid,name,statecode',
+      undefined,
+      activeOnly ? 'statecode eq 1' : undefined,
+      'name',
+      maxFlows
+    );
+
+    const flowRefs: FlowRef[] = rows.map((r) => {
+      const statecode = r.statecode as number;
+      return {
+        workflowid: r.workflowid as string,
+        name: r.name as string,
+        statecode,
+        state: statecode === 0 ? 'Draft' : statecode === 1 ? 'Activated' : 'Suspended',
+      };
+    });
+
+    const allFlows: FlowHealthEntry[] = await mapWithConcurrency(
+      flowRefs,
+      concurrency,
+      async (flow) => {
+        try {
+          const runsResult = await this.getFlowRuns(flow.workflowid, {
+            startedAfter,
+            maxRecords: maxRunsPerFlow,
+          });
+          return summariseFlowRuns(flow, runsResult.runs, runsResult.hasMore);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return erroredFlowEntry(flow, message);
+        }
+      }
+    );
+
+    const { summary, topFailingFlows } = aggregateFlowHealth(allFlows, 20);
+
+    return {
+      scanTime: new Date().toISOString(),
+      daysAnalyzed: daysBack,
+      runsSampledPerFlow: maxRunsPerFlow,
+      activeOnly,
+      flowListTruncated,
+      summary,
+      topFailingFlows,
+      allFlows,
+    };
+  }
+
+  /**
+   * Complete inventory of cloud (Modern) flows with deployment metadata but no run history.
+   *
+   * Unlike `getFlows` (a single filtered page), this follows `@odata.nextLink` to enumerate
+   * every cloud flow up to `maxRecords`, so an audit gets a guaranteed-complete list. Sets
+   * `hasMore` when the cap was hit and more flows remained.
+   */
+  async getFlowInventory(options: { maxRecords?: number } = {}): Promise<FlowInventoryResult> {
+    const { maxRecords = 500 } = options;
+
+    const { rows, truncated } = await this.paginateCloudFlows(
+      'workflowid,name,statecode,statuscode,ismanaged,modifiedon',
+      'modifiedby($select=fullname)',
+      undefined,
+      'name',
+      maxRecords
+    );
+
+    return {
+      totalCount: rows.length,
+      hasMore: truncated,
+      requestedMax: maxRecords,
+      flows: rows.map((r) => mapInventoryRow(r)),
+    };
+  }
+
+  /**
+   * Page through cloud flows (`workflow` table, `category eq 5`) following `@odata.nextLink`
+   * up to `maxRecords`. Returns the accumulated rows and whether more remained beyond the cap.
+   */
+  private async paginateCloudFlows(
+    select: string,
+    expand: string | undefined,
+    extraFilter: string | undefined,
+    orderby: string,
+    maxRecords: number
+  ): Promise<{ rows: Record<string, unknown>[]; truncated: boolean }> {
+    const filter = ['category eq 5', ...(extraFilter ? [extraFilter] : [])].join(' and ');
+    // ceiling: 500-row page cap (elastic-table limit); enough per page, we follow nextLink for the rest.
+    const pageSize = Math.min(Math.max(maxRecords, 1), 500);
+    const expandClause = expand ? `&$expand=${expand}` : '';
+    let endpoint: string | null =
+      `api/data/v9.2/workflows?$filter=${filter}&$select=${select}${expandClause}&$orderby=${orderby}&$top=${pageSize}`;
+
+    const rows: Record<string, unknown>[] = [];
+    let truncated = false;
+
+    while (endpoint) {
+      const page: ApiCollectionResponse<Record<string, unknown>> =
+        await this.client.makeRequest<ApiCollectionResponse<Record<string, unknown>>>(endpoint);
+      rows.push(...page.value);
+      const next: string | undefined = page['@odata.nextLink'];
+      if (rows.length >= maxRecords) {
+        truncated = Boolean(next);
+        break;
+      }
+      endpoint = next ? nextRelativeUrl(next, this.client.getOrganizationUrl()) : null;
+    }
+
+    return { rows: rows.slice(0, maxRecords), truncated };
   }
 
   private async getEnvironmentId(): Promise<string> {

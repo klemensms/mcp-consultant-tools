@@ -18,6 +18,9 @@ import {
   type FlowSummary,
   type FlowRunFilterOptions,
   type FlowRunsResult,
+  type FlowHealthScanOptions,
+  type FlowHealthScanResult,
+  type FlowInventoryResult,
   type BestPracticesValidationResult,
   type DbmlGeneratorOptions,
   type DbmlResult,
@@ -303,6 +306,18 @@ export class PowerPlatformService {
 
   async getFlowRunDetails(flowId: string, runId: string): Promise<unknown> {
     return this.flow.getFlowRunDetails(flowId, runId);
+  }
+
+  async scanFlowHealth(
+    options: FlowHealthScanOptions = {}
+  ): Promise<FlowHealthScanResult> {
+    return this.flow.scanFlowHealth(options);
+  }
+
+  async getFlowInventory(
+    options: { maxRecords?: number } = {}
+  ): Promise<FlowInventoryResult> {
+    return this.flow.getFlowInventory(options);
   }
 
   // =====================================================

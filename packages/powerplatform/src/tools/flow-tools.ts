@@ -1,5 +1,5 @@
 /**
- * Flow Tools - 9 tools for flow/workflow/business rule inspection
+ * Flow Tools - 11 tools for flow/workflow/business rule inspection
  */
 import { z } from 'zod';
 import type { ServiceContext } from '../types.js';
@@ -295,6 +295,113 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
               text: `Failed to get flow run details: ${error.message}`,
             },
           ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "scan-flow-health",
+    "Scan Power Automate cloud flows for run-health metrics (success rate, failures) over the last N days. Reads run history from the Dataverse flowrun table (app-only friendly - no Power Automate management API). Because runs are sampled newest-first per flow, each flow reports sampleTruncated when more runs existed than were analysed, so success rates are honest about being over a sample. Flows whose run history could not be read (e.g. missing Organization-scope Read on FlowRun) are reported with scanError, kept distinct from genuinely idle (no-runs) flows. Use for environment-wide flow health triage.",
+    {
+      daysBack: z.number().optional().describe("Days of run history to analyse (default: 7)"),
+      maxRunsPerFlow: z.number().optional().describe("Max runs sampled per flow, newest first (default: 100)"),
+      maxFlows: z.number().optional().describe("Max flows to scan (default: 500)"),
+      activeOnly: z.boolean().optional().describe("Only scan activated flows (default: true)"),
+      concurrency: z.number().optional().describe("Concurrent per-flow run fetches (default: 5)"),
+    },
+    { readOnlyHint: true, openWorldHint: true },
+    async ({ daysBack, maxRunsPerFlow, maxFlows, activeOnly, concurrency }: any) => {
+      try {
+        const service = ctx.pp;
+        const result = await service.scanFlowHealth({
+          daysBack,
+          maxRunsPerFlow,
+          maxFlows,
+          activeOnly,
+          concurrency,
+        });
+
+        const s = result.summary;
+        const topList = result.topFailingFlows
+          .slice(0, 5)
+          .map((f) => `  - ${f.flowName}: ${f.failedRuns} failed / ${f.totalRuns} runs (${f.successRate ?? 'n/a'}% success)`)
+          .join('\n');
+
+        const lines = [
+          `Flow health scan (last ${result.daysAnalyzed} days, ${result.runsSampledPerFlow} runs/flow max):`,
+          `  Scanned: ${s.totalFlowsScanned} | Healthy: ${s.flowsHealthy} | Failing: ${s.flowsWithFailures} | No runs: ${s.flowsNoRuns} | Errored: ${s.flowsErrored}`,
+          `  Overall success rate: ${s.overallSuccessRate ?? 'n/a'}% over ${s.totalRunsAnalyzed} analysed runs`,
+          s.flowsSampleTruncated > 0 ? `  ⚠️ ${s.flowsSampleTruncated} flow(s) had more runs than sampled - their rates are over a sample` : '',
+          result.flowListTruncated ? `  ⚠️ More than ${maxFlows ?? 500} flows exist - flow list was capped` : '',
+          result.topFailingFlows.length > 0 ? `  Top failing flows:\n${topList}` : '',
+        ].filter(Boolean).join('\n');
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `${lines}\n\n${JSON.stringify(result, null, 2)}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error scanning flow health:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to scan flow health: ${error.message}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "get-flow-inventory",
+    "Get a complete inventory of Power Automate cloud flows (deployment metadata, no run history). Unlike get-flows (a single filtered page), this follows pagination to enumerate every cloud flow up to maxRecords, so an audit gets a guaranteed-complete list. Sets hasMore when the cap was hit and more flows remained.",
+    {
+      maxRecords: z.number().optional().describe("Maximum flows to return (default: 500)"),
+    },
+    { readOnlyHint: true, openWorldHint: true },
+    async ({ maxRecords }: any) => {
+      try {
+        const service = ctx.pp;
+        const result = await service.getFlowInventory({ maxRecords });
+
+        const stateCounts: Record<string, number> = {};
+        for (const flow of result.flows) {
+          stateCounts[flow.state] = (stateCounts[flow.state] || 0) + 1;
+        }
+        const stateSummary = Object.entries(stateCounts)
+          .map(([s, c]) => `${s}: ${c}`)
+          .join(', ');
+
+        const message = `Flow inventory: ${result.totalCount} cloud flow(s)` +
+          (result.hasMore ? ` (more available - increase maxRecords, currently ${result.requestedMax})` : '') +
+          (stateSummary ? `\n  By state: ${stateSummary}` : '');
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `${message}\n\n${JSON.stringify(result, null, 2)}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error getting flow inventory:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to get flow inventory: ${error.message}`,
+            },
+          ],
+          isError: true,
         };
       }
     }

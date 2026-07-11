@@ -42,7 +42,15 @@ export type {
   FlowRunFilterOptions,
   FlowRunSummary,
   FlowRunsResult,
+  FlowHealthScanOptions,
+  FlowHealthScanResult,
+  FlowInventoryResult,
 } from './services/FlowService.js';
+export type {
+  FlowHealthEntry,
+  FlowHealthSummary,
+  FlowInventoryEntry,
+} from './services/flow-health.js';
 export { MetadataService } from './services/MetadataService.js';
 export { PluginService } from './services/PluginService.js';
 export { SecurityRoleService } from './services/SecurityRoleService.js';

@@ -24,7 +24,7 @@ MCP Consultant Tools is a **modular monorepo** with **22 independently published
 | Package | Integration | Tools | CLI Binary | Documentation |
 |---------|-------------|-------|-----------|---------------|
 | **powerplatform-core** | Shared PowerPlatform services (internal) | N/A | N/A | — |
-| **powerplatform** | PowerPlatform/Dataverse (Read-Only) | 49 | `mcp-pp-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM.md) |
+| **powerplatform** | PowerPlatform/Dataverse (Read-Only) | 51 | `mcp-pp-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM.md) |
 | **powerplatform-customization** | PowerPlatform Schema Changes | 85 | `mcp-pp-custom-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_CUSTOMIZATION.md) |
 | **powerplatform-data** | PowerPlatform Data CRUD | 14 | `mcp-pp-data-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_DATA.md) |
 | **azure-devops** | Azure DevOps Wikis, Work Items, PRs, Builds, Branches, Test Runs | 73 | `mcp-ado-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS.md) |
