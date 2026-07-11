@@ -16,6 +16,7 @@
     { "path": "../azure-management" },
     { "path": "../azure-sql" },
     { "path": "../azure-storage" },
+    { "path": "../code-review" },
     { "path": "../entra-id" },
     { "path": "../rest-api" },
     { "path": "../figma" },

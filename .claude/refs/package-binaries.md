@@ -31,6 +31,7 @@ This explicitly tells npx which package to install and which binary to run. The 
 | `@mcp-consultant-tools/azure-defender` | `mcp-defender` | `mcp-defender-cli` |
 | `@mcp-consultant-tools/entra-id` | `mcp-entra` | `mcp-entra-cli` |
 | `@mcp-consultant-tools/message-center` | `mcp-message-center` | `mcp-message-center-cli` |
+| `@mcp-consultant-tools/code-review` | `mcp-code-review` | `mcp-code-review-cli` |
 | `@mcp-consultant-tools/azure-storage` | `mcp-storage` | `mcp-storage-cli` |
 | `@mcp-consultant-tools/azure-data-factory` | `mcp-adf` | `mcp-adf-cli` |
 | `@mcp-consultant-tools/fabric` | `mcp-fabric` | `mcp-fabric-cli` |

@@ -68,6 +68,7 @@
     "@mcp-consultant-tools/azure-management": "35.0.0-beta.1",
     "@mcp-consultant-tools/azure-sql": "35.0.0-beta.1",
     "@mcp-consultant-tools/azure-storage": "35.0.0-beta.1",
+    "@mcp-consultant-tools/code-review": "35.0.0-beta.1",
     "@mcp-consultant-tools/core": "34.0.0",
     "@mcp-consultant-tools/entra-id": "35.0.0-beta.1",
     "@mcp-consultant-tools/fabric": "35.0.0-beta.1",
