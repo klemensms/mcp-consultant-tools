@@ -185,14 +185,14 @@ test();
 
 ### Step 3.1: Check Package Requirements
 
-Read the package's CLAUDE.md or .env.example to identify required environment variables:
+Read the package's CLAUDE.md or `.mcp.json.example` to identify required environment variables:
 
 ```bash
 # Check package-specific CLAUDE.md
 cat packages/{PACKAGE_NAME}/CLAUDE.md 2>/dev/null | grep -A 20 "Environment" || echo "No CLAUDE.md"
 
-# Check .env.example
-cat .env.example | grep -i "{PACKAGE_PREFIX}" | head -20
+# Check the consolidated config reference (.mcp.json.example) for this server's env block
+cat .mcp.json.example | grep -i "{PACKAGE_PREFIX}" | head -20
 ```
 
 ### Step 3.2: Common Environment Variables by Package

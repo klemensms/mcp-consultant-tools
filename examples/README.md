@@ -74,4 +74,4 @@ const page = await service.getWikiPage("ProjectName", wikiId, pagePath, true);
 - Built project: `npm run build`
 - Valid Azure DevOps PAT with wiki and search permissions
 
-See [../.env.example](../.env.example) for configuration details.
+See [../.mcp.json.example](../.mcp.json.example) for configuration details (every server + env var).
