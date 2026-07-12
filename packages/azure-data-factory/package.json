@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/azure-data-factory",
-  "version": "35.0.0-beta.1",
+  "version": "35.0.0-beta.2",
   "description": "MCP server for Azure Data Factory - pipeline execution, monitoring, and error debugging",
   "type": "module",
   "main": "./build/index.js",
