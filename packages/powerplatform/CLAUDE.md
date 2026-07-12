@@ -56,7 +56,7 @@ POWERPLATFORM_CLIENT_SECRET=your-client-secret
 
 # Customization package only:
 POWERPLATFORM_DEFAULT_SOLUTION=YourSolutionName
-PUBLISHER_PREFIX=sic_
+PUBLISHER_PREFIX=contoso_
 
 # Data package only (granular flags):
 POWERPLATFORM_ENABLE_CREATE=false
@@ -155,14 +155,14 @@ Or use `deploy-plugin-complete` for end-to-end orchestration.
 // Validate entire solution
 validate-dataverse-best-practices({
   solutionUniqueName: 'YourSolution',
-  publisherPrefix: 'sic_',
+  publisherPrefix: 'contoso_',
   recentDays: 30
 })
 
 // Validate specific entities
 validate-dataverse-best-practices({
   entityLogicalNames: ['new_strikeaction', 'new_application'],
-  publisherPrefix: 'sic_'
+  publisherPrefix: 'contoso_'
 })
 ```
 

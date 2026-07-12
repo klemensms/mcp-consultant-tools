@@ -103,7 +103,7 @@ export function registerSolutionCommands(program: Command, ctx: ServiceContext):
     .description('Validate Dataverse entities against best practices')
     .option('-s, --solution <name>', 'Solution unique name to validate')
     .option('-e, --entities <names...>', 'Explicit list of entity logical names')
-    .requiredOption('-p, --prefix <prefix>', 'Publisher prefix to validate against (e.g., sic_)')
+    .requiredOption('-p, --prefix <prefix>', 'Publisher prefix to validate against (e.g., contoso_)')
     .option('--recent-days <n>', 'Only validate columns created in last N days (0=all)', '30')
     .option('--no-ref-data', 'Exclude RefData tables from validation')
     .option('--rules <rules...>', 'Specific rules to validate (prefix, lowercase, lookup, optionset, required-column, entity-icon)')

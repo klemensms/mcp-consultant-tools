@@ -64,7 +64,7 @@ Lazy initialization is in `index.ts` and `context-factory.ts` (both must be kept
 The customization package requires `PUBLISHER_PREFIX` at startup. This is managed by `powerplatform-core/src/utils/publisherConfig.ts`:
 
 - `initializePublisherPrefix()` - Called at service context creation; throws if `PUBLISHER_PREFIX` env var is not set
-- `normalizePrefix(raw)` - Adds trailing underscore if missing: `"sic"` → `"sic_"`
+- `normalizePrefix(raw)` - Adds trailing underscore if missing: `"contoso"` → `"contoso_"`
 - `getPublisherPrefix()` - Returns the normalized prefix; calls `initializePublisherPrefix()` on first access
 - Used internally by: `IconManager`, `BestPracticesValidator`, naming validation
 
