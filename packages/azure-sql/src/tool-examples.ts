@@ -70,3 +70,13 @@ export const DELETE_QUERY_EXAMPLES = [
   { label: 'Delete by ID', value: "DELETE FROM dbo.AuditLog WHERE Id = 123" },
   { label: 'Delete by condition', value: "DELETE FROM dbo.Sessions WHERE ExpiresAt < GETDATE()" },
 ];
+
+export const QUERY_PATTERN_EXAMPLES = [
+  { label: 'Any statement touching a table', value: 'Orders' },
+  { label: 'Updates to a table', value: 'UPDATE%dbo.Orders' },
+  { label: 'A stored procedure by name', value: 'usp_GetActiveUsers' },
+];
+
+export const QUERY_ID_EXAMPLES = [
+  { label: 'Query Store query_id', value: '1234' },
+];

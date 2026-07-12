@@ -1,5 +1,5 @@
 /**
- * Flow CLI Commands - 9 commands for flow/workflow/business rule inspection
+ * Flow CLI Commands - 11 commands for flow/workflow/business rule inspection
  */
 
 import type { Command } from 'commander';
@@ -117,6 +117,49 @@ export function registerFlowCommands(program: Command, ctx: ServiceContext): voi
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'get flow run details'); }
+    });
+
+  flow
+    .command('health')
+    .description('Scan cloud flows for run-health metrics (success rate, failures) over N days')
+    .option('-d, --days <n>', 'Days of run history to analyse', '7')
+    .option('--max-runs <n>', 'Max runs sampled per flow, newest first', '100')
+    .option('--max-flows <n>', 'Max flows to scan', '500')
+    .option('--all-flows', 'Scan draft flows too (default: activated only)', false)
+    .option('--concurrency <n>', 'Concurrent per-flow run fetches', '5')
+    .action(async (opts: any) => {
+      try {
+        const result = await ctx.pp.scanFlowHealth({
+          daysBack: parseInt(opts.days),
+          maxRunsPerFlow: parseInt(opts.maxRuns),
+          maxFlows: parseInt(opts.maxFlows),
+          activeOnly: !opts.allFlows,
+          concurrency: parseInt(opts.concurrency),
+        });
+        const s = result.summary;
+        outputResult(
+          {
+            fileName: 'flow-health-scan',
+            data: result,
+            summary: `Flow health (last ${result.daysAnalyzed}d): scanned ${s.totalFlowsScanned}, healthy ${s.flowsHealthy}, failing ${s.flowsWithFailures}, no runs ${s.flowsNoRuns}, errored ${s.flowsErrored}; overall success ${s.overallSuccessRate ?? 'n/a'}%`,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'scan flow health'); }
+    });
+
+  flow
+    .command('inventory')
+    .description('Complete inventory of cloud flows (deployment metadata, no run history)')
+    .option('-m, --max <n>', 'Maximum flows to return', '500')
+    .action(async (opts: any) => {
+      try {
+        const result = await ctx.pp.getFlowInventory({ maxRecords: parseInt(opts.max) });
+        outputResult(
+          { fileName: 'flow-inventory', data: result, summary: `Flow inventory: ${result.totalCount} cloud flow(s)${result.hasMore ? ' (more available)' : ''}` },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'get flow inventory'); }
     });
 
   flow

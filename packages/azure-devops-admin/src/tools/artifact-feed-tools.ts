@@ -64,5 +64,52 @@ export function registerArtifactFeedTools(server: any, ctx: ServiceContext): { r
   );
   readonlyCount++;
 
+  server.tool(
+    "feed-summary",
+    "All Azure Artifacts feeds with their package counts. Counts are obtained by paging, since the API publishes no total. A feed that could not be read (e.g. 403) is listed under 'unreadableFeeds' with its HTTP status — never as a feed with zero packages. When 'totalPackagesIsLowerBound' is true the total is a floor, not an exact figure.",
+    {
+      project: z.string().optional().describe(
+        descWithExamples("Project name for project-scoped feeds. Omit for org-scoped feeds", FEED_SCOPE_EXAMPLES)
+      ),
+      maxPackagesPerFeed: zCoerceNumber().optional().describe("Stop counting a feed after this many packages (default: 1000)"),
+    },
+    { readOnlyHint: true, openWorldHint: true },
+    async ({ project, maxPackagesPerFeed }: any) => {
+      try {
+        const result = await ctx.artifactFeeds.getFeedSummaries({ project, maxPackagesPerFeed });
+        return { content: [{ type: "text", text: `Feed summary:\n\n${JSON.stringify(result, null, 2)}` }] };
+      } catch (error: any) {
+        console.error("Error summarising feeds:", error);
+        return { content: [{ type: "text", text: `Failed to summarise feeds: ${error.message}` }] };
+      }
+    }
+  );
+  readonlyCount++;
+
+  server.tool(
+    "package-provenance",
+    "Publish provenance for one package version: who published it, with what agent, and from what source. IMPORTANT: Azure DevOps publishes no structured build/branch/commit field for a package version — the endpoint is preview-only and returns an untyped 'data' bag whose keys vary by protocol. 'buildId' and 'branch' are best-effort reads of that bag and are null when absent (never the string 'unknown'). Check 'structuredProvenanceAvailable'.",
+    {
+      feedName: z.string().describe("Feed name (e.g., 'Acme')"),
+      packageName: z.string().describe("Full package name (e.g., 'pp-solution-core')"),
+      version: z.string().describe("Exact version string (e.g., '1.2.3')"),
+      project: z.string().optional().describe("Project name for project-scoped feeds. Omit for org-scoped feeds."),
+      packageType: z.enum(["nuget", "npm", "maven", "upack", "pypi"]).optional().describe(
+        descWithExamples("Protocol type hint for faster lookup", PACKAGE_TYPE_EXAMPLES)
+      ),
+    },
+    { readOnlyHint: true, openWorldHint: true },
+    async ({ feedName, packageName, version, project, packageType }: any) => {
+      try {
+        const result = await ctx.artifactFeeds.getPackageProvenance(feedName, packageName, version, { project, packageType });
+        return { content: [{ type: "text", text: `Provenance for '${packageName}' ${version} in feed '${feedName}':\n\n${JSON.stringify(result, null, 2)}` }] };
+      } catch (error: any) {
+        console.error("Error getting package provenance:", error);
+        return { content: [{ type: "text", text: `Failed to get package provenance: ${error.message}` }] };
+      }
+    }
+  );
+  readonlyCount++;
+
   return { readonly: readonlyCount, upsert: 0, delete: 0 };
 }

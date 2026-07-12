@@ -7,6 +7,8 @@ import { registerStorageTools } from './storage-tools.js';
 import { registerSqlTools } from './sql-tools.js';
 import { registerMonitoringTools } from './monitoring-tools.js';
 import { registerNetworkingTools } from './networking-tools.js';
+import { registerResourceGraphTools } from './resource-graph-tools.js';
+import { registerLogStreamTools } from './log-stream-tools.js';
 
 export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerResourceTools(server, ctx);
@@ -17,6 +19,8 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerSqlTools(server, ctx);
   registerMonitoringTools(server, ctx);
   registerNetworkingTools(server, ctx);
+  registerResourceGraphTools(server, ctx);
+  registerLogStreamTools(server, ctx);
 }
 
 export {
@@ -28,4 +32,6 @@ export {
   registerSqlTools,
   registerMonitoringTools,
   registerNetworkingTools,
+  registerResourceGraphTools,
+  registerLogStreamTools,
 };

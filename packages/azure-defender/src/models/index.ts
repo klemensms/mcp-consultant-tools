@@ -1,0 +1,15 @@
+export type {
+  SecureScore,
+  SecureScoreControl,
+  SecureScoreControlDefinition,
+  SecurityAssessment,
+  AssessmentStatusCode,
+  AssessmentRisk,
+  AssessmentMetadata,
+  AssessmentSeverity,
+  ComplianceState,
+  RegulatoryComplianceStandard,
+  RegulatoryComplianceControl,
+  RegulatoryComplianceAssessment,
+  AttackPath,
+} from './defender-types.js';

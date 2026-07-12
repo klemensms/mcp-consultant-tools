@@ -1,7 +1,7 @@
 # PowerPlatform Package Guide
 
 This guide applies to all PowerPlatform packages:
-- `@mcp-consultant-tools/powerplatform` (read-only, 39 tools, 12 prompts)
+- `@mcp-consultant-tools/powerplatform` (read-only, 51 tools, 12 prompts)
 - `@mcp-consultant-tools/powerplatform-customization` (schema changes, 59 tools, 2 prompts)
 - `@mcp-consultant-tools/powerplatform-data` (data CRUD, 8 tools, 0 prompts)
 
@@ -24,7 +24,7 @@ The PowerPlatform integration is split into **3 security-isolated packages** fol
 ```typescript
 // Pattern 1: Production (read-only only)
 import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';
-registerPowerPlatformTools(server); // 41 read-only tools
+registerPowerPlatformTools(server); // 51 read-only tools
 
 // Pattern 2: Development (read + customization)
 import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';
@@ -56,7 +56,7 @@ POWERPLATFORM_CLIENT_SECRET=your-client-secret
 
 # Customization package only:
 POWERPLATFORM_DEFAULT_SOLUTION=YourSolutionName
-PUBLISHER_PREFIX=sic_
+PUBLISHER_PREFIX=contoso_
 
 # Data package only (granular flags):
 POWERPLATFORM_ENABLE_CREATE=false
@@ -155,14 +155,14 @@ Or use `deploy-plugin-complete` for end-to-end orchestration.
 // Validate entire solution
 validate-dataverse-best-practices({
   solutionUniqueName: 'YourSolution',
-  publisherPrefix: 'sic_',
+  publisherPrefix: 'contoso_',
   recentDays: 30
 })
 
 // Validate specific entities
 validate-dataverse-best-practices({
   entityLogicalNames: ['new_strikeaction', 'new_application'],
-  publisherPrefix: 'sic_'
+  publisherPrefix: 'contoso_'
 })
 ```
 

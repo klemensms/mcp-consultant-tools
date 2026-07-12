@@ -9,7 +9,7 @@ The Azure SQL Database integration provides access to Azure SQL Database and SQL
 
 **Package:** `@mcp-consultant-tools/azure-sql`
 **Binaries:** `mcp-sql` (MCP server), `mcp-sql-cli` (CLI)
-**Total tools:** 22 (11 read-only + 10 write operations + 1 conditionally registered)
+**Total tools:** 40 always registered (29 read-only + 11 write operations), plus `sql-execute-unrestricted` when `SQL_ENABLE_UNRESTRICTED=true` → 41
 **Prompts:** 3
 
 </overview>
@@ -22,8 +22,9 @@ The Azure SQL Database integration provides access to Azure SQL Database and SQL
 - `ConnectionService` — manages connection pools, server/database resolution, credential handling
 - `QueryService` — validates and executes SELECT queries, schema exploration queries
 - `WriteService` — handles write operations (views, stored procedures, DML) behind feature flags
+- `PerformanceService` — Query Store diagnostics (waits, CPU, failures, plans); delegates execution to `QueryService`
 
-All services share connection pooling through `ConnectionService`. The `ServiceContext` interface exposes lazy getters for all three services plus 8 feature-flag guard functions.
+`ConnectionService`, `QueryService` and `WriteService` share connection pooling through `ConnectionService`. `PerformanceService` composes over `QueryService` rather than `ConnectionService`, so its queries inherit the same row limits, response-size cap, PII redaction and error sanitisation as every other read. The `ServiceContext` interface exposes lazy getters for all four services plus 8 feature-flag guard functions.
 
 **Source layout:**
 ```
@@ -37,6 +38,9 @@ packages/azure-sql/src/
     connection-service.ts         # ConnectionService, all config interfaces
     query-service.ts              # QueryService, schema/query types
     write-service.ts              # WriteService, DML + DDL operations
+    performance-service.ts        # PerformanceService, Query Store builders + types
+    __tests__/
+      performance-service.test.ts # Query-builder + Query Store gate unit tests
   tools/
     connection-tools.ts           # sql-list-servers, sql-list-databases, sql-test-connection
     query-tools.ts                # sql-list-tables, sql-list-views, sql-list-stored-procedures,
@@ -46,6 +50,8 @@ packages/azure-sql/src/
     sproc-tools.ts                # sql-manage-sproc, sql-deploy-sproc-file, sql-drop-sproc, sql-execute-sproc
     crud-tools.ts                 # sql-insert-records, sql-update-records, sql-delete-records
     unrestricted-tools.ts         # sql-execute-unrestricted (conditionally registered)
+    performance-tools.ts          # sql-get-top-waits, sql-find-query-in-store, sql-get-query-wait-stats,
+                                  # sql-get-cpu-intensive-queries, sql-get-failed-queries, sql-get-query-plan
   prompts/
     templates.ts                  # sql-database-overview, sql-table-details, sql-query-results
   cli/
@@ -57,6 +63,7 @@ packages/azure-sql/src/
       sproc-commands.ts
       crud-commands.ts
       unrestricted-commands.ts
+      performance-commands.ts
 ```
 
 </architecture>
@@ -167,6 +174,7 @@ AZURE_SQL_PASSWORD=SecurePassword123!
 | `SQL_ENABLE_INSERT` | `INSERT` statement | `sql-insert-records` |
 | `SQL_ENABLE_UPDATE` | `UPDATE` statement | `sql-update-records` |
 | `SQL_ENABLE_DELETE` | `DELETE` statement (WHERE required) | `sql-delete-records` |
+| `SQL_ENABLE_INDEX_CREATE` | `CREATE NONCLUSTERED INDEX` on unindexed FK columns | `sql-create-fk-indexes` |
 | `SQL_ENABLE_UNRESTRICTED` | Any T-SQL without restrictions (break glass) | `sql-execute-unrestricted` (tool hidden when `false`) |
 
 </environment-variables>
@@ -180,6 +188,28 @@ For read-only access (minimum required):
 ALTER ROLE db_datareader ADD MEMBER [mcp_readonly];
 GRANT VIEW DEFINITION TO [mcp_readonly];
 ```
+
+For the Query Store performance tools, the login additionally needs `VIEW DATABASE STATE` so it can read `sys.database_query_store_options` and the `sys.query_store_*` views:
+```sql
+GRANT VIEW DATABASE STATE TO [mcp_readonly];
+```
+
+Query Store itself must be enabled on the target database. It is on by default for Azure SQL Database, and off by default for on-premises SQL Server:
+```sql
+ALTER DATABASE [YourDatabase] SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = AUTO);
+```
+
+For the session and space diagnostic tools, which read `sys.dm_exec_*`, `sys.dm_tran_*` and `sys.dm_db_*` DMVs, the required permission **differs by platform**:
+
+| Platform | Permission | Notes |
+|---|---|---|
+| SQL Server (on-prem/IaaS), Managed Instance | `GRANT VIEW SERVER STATE TO [mcp_readonly];` | Server scope. SQL Server 2022+ also accepts the narrower `VIEW SERVER PERFORMANCE STATE`. |
+| Azure SQL Database | `GRANT VIEW DATABASE STATE TO [mcp_readonly];` | `VIEW SERVER STATE` cannot be granted. Results are scoped to the connected database. |
+| Azure SQL Database — Basic / S0 / S1 / elastic pools | server admin, Microsoft Entra admin, or `##MS_ServerStateReader##` | `VIEW DATABASE STATE` alone is not sufficient on these tiers. |
+
+`sql-get-table-space` additionally needs `VIEW DEFINITION` (already granted above) for `sys.dm_db_partition_stats`. `sql-get-database-space` reads `sys.database_files`, a catalog view requiring only `public`.
+
+`sql-get-executing-requests` with `includePlan=true` reads `sys.dm_exec_query_statistics_xml`, which on Azure SQL Database requires a **Premium tier** (`VIEW DATABASE STATE`) or a server/Entra admin login on Standard and Basic tiers.
 
 For write operations, grant additional permissions as needed for the specific operations enabled.
 
@@ -365,6 +395,243 @@ Returns: `columns`, `rows`, `rowCount`, `truncated`.
 
 </tool>
 
+### Performance Diagnostics (Query Store)
+
+All six tools are read-only (`readOnlyHint: true`) and query the `sys.query_store_*` views. Every one of them accepts the standard `serverId` / `database` pair (both optional, resolved to defaults when omitted).
+
+**Query Store gate.** Before running any diagnostic query, `PerformanceService` reads `sys.database_query_store_options` and checks `actual_state_desc`:
+
+| `actual_state_desc` | Behaviour |
+|---|---|
+| `READ_WRITE`, `READ_ONLY` | Diagnostic query proceeds |
+| `OFF` | Throws: *"Query Store is not enabled on database 'X' … Enable it with: ALTER DATABASE [X] SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = AUTO)"* |
+| `ERROR` | Throws a distinct message pointing at `SET QUERY_STORE CLEAR` recovery |
+| view unreadable | Throws: *"Query Store is not available on database 'X'"* (system database, pre-2016 engine, or missing `VIEW DATABASE STATE`) |
+
+This gate exists because the `sys.query_store_*` views still resolve when Query Store is switched off — they simply return **zero rows**. Without the gate an agent reads "no waits found" as "the database is healthy" rather than "diagnostics are unavailable". The gate costs one extra round-trip per tool call.
+
+<tool name="sql-get-top-waits">
+
+**`sql-get-top-waits`** — Top 20 wait categories across all queries over the last 7 days, grouped by `query_hash` + `wait_category_desc`. No parameters beyond the target pair.
+
+Returns: `waits[]` (`querySqlText` truncated to 200 chars, `waitCategoryDesc`, `totalWaitMs`, `avgWaitMs`) and `summary` (`totalCategories`, `topCategory`).
+
+</tool>
+
+<tool name="sql-find-query-in-store">
+
+**`sql-find-query-in-store`** — Search Query Store by query text. The entry point for the other query-ID-based tools.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `queryPattern` | string | Yes | Bound as `LIKE '%' + @queryPattern + '%'`. Wildcards (`%`, `_`) honoured; case sensitivity follows the database collation. |
+
+Returns: `queries[]` (`queryId`, `querySqlText`, `avgDuration`, `avgCpuTime`, `countExecutions`).
+
+</tool>
+
+<tool name="sql-get-query-wait-stats">
+
+**`sql-get-query-wait-stats`** — Per-interval wait-category breakdown for one `queryId`, newest interval first.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `queryId` | integer | Yes | Query Store `query_id`, from `sql-find-query-in-store` |
+
+Returns: `waits[]` (`waitCategoryDesc`, `avgQueryWaitTimeMs`, `totalQueryWaitTimeMs`, `maxQueryWaitTimeMs`, `stdevQueryWaitTimeMs`, `startTime`, `endTime`).
+
+</tool>
+
+<tool name="sql-get-cpu-intensive-queries">
+
+**`sql-get-cpu-intensive-queries`** — Top CPU consumers grouped by `query_hash`, so plan variants of the same statement roll up together.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `hours` | integer | No | Lookback window in hours (default 24) |
+| `limit` | integer | No | Max queries returned (default 15) |
+
+Returns: `queries[]` (`queryHash`, `totalCpuMs`, `avgCpuMs`, `maxCpuMs`, `maxLogicalReads`, `numberOfDistinctPlans`, `numberOfDistinctQueryIds`, `abortedExecutionCount`, `regularExecutionCount`, `exceptionExecutionCount`, `totalExecutions`, `sampledQueryText`) and `summary` (`totalCpuMs`, `topQueryHash`).
+
+</tool>
+
+<tool name="sql-get-failed-queries">
+
+**`sql-get-failed-queries`** — Queries whose Query Store `execution_type = 3` (exception/timeout), newest execution first.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `limit` | integer | No | Max queries returned (default 50) |
+| `includePlan` | boolean | No | Attach the XML execution plan per row (default `false`). Adds a `query_plan` column; output grows substantially. |
+
+Returns: `queries[]` (`queryHash`, `querySqlText`, `executionType`, `executionTypeDesc`, `countExecutions`, `lastExecutionTime`, `avgDurationSeconds`, `minDurationSeconds`, `maxDurationSeconds`, `lastDurationSeconds`, optional `queryPlan`) and `summary` (`total`).
+
+</tool>
+
+<tool name="sql-get-query-plan">
+
+**`sql-get-query-plan`** — All Query Store execution plans for one `queryId`, newest plan first. Output can exceed 1 MB and is subject to `AZURE_SQL_MAX_RESPONSE_SIZE_MB`.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `queryId` | integer | Yes | Query Store `query_id`, from `sql-find-query-in-store` |
+
+Returns: `plans[]` (`queryId`, `planId`, `querySqlText`, `queryPlanXml`, `engineVersion`) and `summary` (`total`).
+
+</tool>
+
+### Session Diagnostics (DMV)
+
+All four tools are read-only (`readOnlyHint: true`), take no feature flag, and accept the standard `serverId` / `database` pair (both optional). They read `sys.dm_exec_*` and `sys.dm_tran_*` DMVs.
+
+**No Query Store gate.** `SessionService` deliberately does **not** call `assertQueryStoreEnabled()`. These DMVs are unrelated to Query Store, and gating on it would make the tools fail on a perfectly healthy database. Nor is a gate needed for its usual purpose: unlike the `sys.query_store_*` views, an unauthorised DMV read raises a SQL error rather than silently returning zero rows. An empty result therefore genuinely means "nothing is blocking / running / long-lived".
+
+**Engine-edition gate (deadlocks only).** `sql-get-deadlock-graphs` first reads `SERVERPROPERTY('EngineEdition')`. Value `5` is Azure SQL Database, which does not run the `system_health` session and has no server-scoped `sys.dm_xe_sessions`. The tool throws a message naming the `CREATE EVENT SESSION … ADD EVENT sqlserver.database_xml_deadlock_report` setup required to capture deadlocks there, rather than surfacing a bare `Invalid object name`. Managed Instance (`8`) and SQL Server pass the gate.
+
+<tool name="sql-get-blocking-chains">
+
+**`sql-get-blocking-chains`** — Recursive blocking hierarchy built from `sys.dm_exec_sessions` + `sys.dm_exec_requests` + `sys.dm_exec_connections`. `EXCHANGE`/`CXPACKET` waits are excluded from the recursion so intra-query parallelism doesn't masquerade as blocking. No parameters beyond the target pair.
+
+Returns: `chains[]` (`headBlockerSessionId`, `sessionId`, `blockingSessionId`, `waitType`, `waitDurationMs`, `waitResource`, `level`, `blockerQuery`) and `summary` (`totalBlocked`, `headBlockers`). `level` is `0` for a head blocker; blocked sessions count up from `1`.
+
+</tool>
+
+<tool name="sql-get-executing-requests">
+
+**`sql-get-executing-requests`** — Currently executing requests, ordered by CPU descending.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `includePlan` | boolean | No | Attach execution plans (default `false`). Adds `OUTER APPLY sys.dm_exec_query_plan` and `sys.dm_exec_query_statistics_xml`; output grows substantially and Azure SQL Database needs a Premium tier or admin login. |
+
+Returns: `requests[]` (`sessionId`, `status`, `startTime`, `cpuTimeMs`, `logicalReads`, `dop`, `loginName`, `hostName`, `programName`, `objectName`, `statementText`, optional `queryPlan`) and `summary` (`total`, `totalCpuMs`). When `includePlan` is set, `queryPlan` prefers the compiled plan and falls back to the in-flight statistics plan when `sys.dm_exec_query_plan` returns NULL.
+
+</tool>
+
+<tool name="sql-get-deadlock-graphs">
+
+**`sql-get-deadlock-graphs`** — Recent deadlock graphs from the `system_health` ring buffer, newest first. **Not supported on Azure SQL Database** (see the engine-edition gate above).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `limit` | integer | No | Max deadlock events returned (default 20) |
+
+Returns: `deadlocks[]` (`eventTimestamp`, `deadlockXml`, `victimProcess`, `deadlockResources`, `waitTypes`, `objectNames`, `processCount`) and `summary` (`total`, `earliestTimestamp`, `latestTimestamp`). The scalar fields are regex-extracted from `deadlockXml`; when `PII_PROTECTION=true` the XML passes through redaction first and may be altered.
+
+</tool>
+
+<tool name="sql-get-long-running-transactions">
+
+**`sql-get-long-running-transactions`** — Open user transactions past a duration threshold, from `sys.dm_tran_active_transactions` joined to the session and database transaction DMVs. Use to find transactions pinning the log or holding locks.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `thresholdSeconds` | integer | No | Only report transactions open longer than this (default 30) |
+
+Returns: `transactions[]` (`transactionId`, `sessionId`, `transactionBeginTime`, `durationSeconds`, `transactionType`, `transactionState`, `loginName`, `hostName`, `programName`, `isolationLevel`, `logUsedBytes`, `currentStatementText`, `openResultSets`) and `summary` (`total`, `maxDurationSeconds`, `totalLogUsedBytes`).
+
+</tool>
+
+### Space Diagnostics (DMV + Catalog Views)
+
+All four tools are read-only (`readOnlyHint: true`), take no feature flag, and accept the standard `serverId` / `database` pair. Like the session tools they do **not** gate on Query Store.
+
+**TempDB targeting.** `sql-get-tempdb-space` and `sql-get-tempdb-session-usage` always describe the TempDB of the resolved connection — `database` selects which connection pool is used, not which database is inspected. `buildTempDbSpaceQuery()` reaches TempDB by three-part name (`tempdb.sys.dm_db_file_space_usage`, `tempdb.sys.database_files`); TempDB is the one documented exception to Azure SQL Database's ban on cross-database references, and Azure SQL Database has no `USE` statement. `buildTempDbSessionUsageQuery()` reads `sys.dm_db_session_space_usage` **unprefixed**, because that DMV is documented as applicable only to TempDB regardless of database context. Neither query needs an engine-edition branch.
+
+<tool name="sql-get-database-space">
+
+**`sql-get-database-space`** — Data and log file sizes from `sys.database_files`. No parameters beyond the target pair.
+
+Returns: `files[]` (`fileId`, `fileName`, `fileType`, `sizeMb`, `usedMb`, `freeMb`, `freePercent`, `maxSizeMb`, `growthSetting`, `physicalName`) and `summary` (`totalSizeMb`, `totalUsedMb`, `totalFreeMb`, `fileCount`). `maxSizeMb` is `null` when the file is set to unlimited growth (`max_size = -1`).
+
+</tool>
+
+<tool name="sql-get-table-space">
+
+**`sql-get-table-space`** — Largest user tables by reserved space, from `sys.dm_db_partition_stats`. System-shipped tables are excluded.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `topN` | integer | No | Max tables returned, largest first (default 50) |
+
+Returns: `tables[]` (`schema`, `table`, `rowCount`, `reservedKb`, `dataKb`, `indexKb`, `unusedKb`, `totalMb`) and `summary` (`totalTables`, `totalReservedMb`, `largestTable` as `schema.table`, or `null`).
+
+</tool>
+
+<tool name="sql-get-tempdb-space">
+
+**`sql-get-tempdb-space`** — TempDB file breakdown with the allocation split that identifies what is consuming it. No parameters beyond the target pair.
+
+Returns: `files[]` (`fileId`, `sizeMb`, `usedMb`, `freeMb`, `freePercent`, `versionStoreMb`, `userObjectMb`, `internalObjectMb`, `mixedExtentMb`) and `summary` (`totalSizeMb`, `totalVersionStoreMb`, `totalUserObjectMb`, `totalInternalObjectMb`). A large `versionStoreMb` points at long-running snapshot-isolation readers; a large `internalObjectMb` at spills (sorts, hashes).
+
+</tool>
+
+<tool name="sql-get-tempdb-session-usage">
+
+**`sql-get-tempdb-session-usage`** — User sessions consuming TempDB, ranked by net allocation. Pairs with `sql-get-tempdb-space` to attribute growth to a session. Only user sessions that have allocated pages are returned.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `topN` | integer | No | Max sessions returned, largest consumer first (default 50) |
+
+Returns: `sessions[]` (`sessionId`, `loginName`, `hostName`, `programName`, `userObjectsAllocKb`, `userObjectsDeallocKb`, `internalObjectsAllocKb`, `internalObjectsDeallocKb`, `netUserObjectsKb`, `netInternalObjectsKb`, `totalNetKb`) and `summary` (`totalSessions`, `totalNetKb`, `topSession`).
+
+</tool>
+
+### Index Health (DMV + Catalog Views)
+
+The three read tools below are read-only (`readOnlyHint: true`), take no feature flag, and accept the standard `serverId` / `database` pair. They read `sys.indexes`, `sys.foreign_key_columns`, `sys.dm_db_index_usage_stats` and `sys.dm_db_partition_stats` — never Query Store, so they do **not** gate on it. `sys.dm_db_partition_stats` and `sys.dm_db_index_usage_stats` additionally need `VIEW DEFINITION`.
+
+The fourth tool in the group, `sql-create-fk-indexes`, is a write and is documented under Write Operations below.
+
+**Generated DDL is quoted, not concatenated.** Both `buildDisabledIndexesQuery()` and `buildCreateFkIndexesQuery()` assemble identifiers with `QUOTENAME()`. A catalog name may legally contain `]`; naked bracket concatenation (`'[' + i.name + ']'`, as the ported source used) would let a table named `foo]bar` terminate the identifier early and inject into the generated statement. The names come from catalog views rather than from the caller, so this is defence in depth, not a live injection path.
+
+**PII redaction reaches generated DDL.** These services compose over `QueryService.executeQuery()`, so when `PII_PROTECTION=true` the schema/table/column names embedded in `rebuildStatement` are subject to the redaction pipeline and may be rewritten. The DDL string may therefore not be executable verbatim under redaction. This is expected, not a bug.
+
+<tool name="sql-get-disabled-indexes">
+
+**`sql-get-disabled-indexes`** — Disabled indexes from `sys.indexes` (`is_disabled = 1`), with key columns aggregated via `STRING_AGG(... ) WITHIN GROUP (ORDER BY ic.key_ordinal)` (SQL Server 2017+). No parameters beyond the target pair.
+
+Returns: `indexes[]` (`schema`, `table`, `indexName`, `indexType`, `indexColumns`, `tableRowCount`, `backsForeignKey`, `rebuildStatement`) and `summary` (`total`, `byTable` keyed `schema.table`, `backingForeignKeys`).
+
+`rebuildStatement` is a ready-to-run `ALTER INDEX … REBUILD;` **returned as text**. The service never executes it: the tool stays `readOnlyHint: true`, and rebuilding takes a schema lock that can hold for a long time on a large table. `backsForeignKey` marks the indexes whose disablement is breaking FK enforcement — rebuild those first.
+
+</tool>
+
+<tool name="sql-get-missing-fk-indexes">
+
+**`sql-get-missing-fk-indexes`** — Every row of `sys.foreign_key_columns`, flagged with whether a rowstore index (`i.type IN (1, 2)`) has that column at `key_ordinal = 1`. No parameters beyond the target pair.
+
+Returns: `foreignKeys[]` (`schema`, `table`, `column`, `referencedTable`, `referencedColumn`, `isIndexed`) and `summary` (`total`, `indexed`, `missing`).
+
+Two semantics worth stating plainly. **Leading key, not mere membership:** an FK column at position 2 of a composite index cannot serve the FK lookup, so it counts as missing. **Per column, not per constraint:** a composite foreign key reports each of its columns separately, and `sql-create-fk-indexes` would accordingly build one single-column index per column rather than one composite index. This mirrors the tool's source semantics; if you want a composite index, write it yourself.
+
+This tool is the dry run for `sql-create-fk-indexes` — the rows with `isIndexed: false` are exactly what that tool would create.
+
+</tool>
+
+<tool name="sql-get-index-usage-stats">
+
+**`sql-get-index-usage-stats`** — Read/write counters per index from `sys.dm_db_index_usage_stats`, ordered least-read first (`seeks + scans + lookups` ascending, then `updates` descending), so the strongest drop candidates surface at the top.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `topN` | integer | No | Max indexes returned, least-read first (default 100) |
+
+Returns: `indexes[]` (`schema`, `table`, `indexName`, `indexType`, `hasUsageData`, `userSeeks`, `userScans`, `userLookups`, `userUpdates`, `lastUserSeek`, `lastUserScan`, `lastUserLookup`, `lastUserUpdate`, `rowCount`, `isUnused`, `isHeavilyScanned`) and `summary` (`total`, `unusedCount`, `heavilyScannedCount`, `withoutUsageData`, `unusedIndexes[]` as `schema.table.index`, `statsSince`, `statsWindowHours`).
+
+Three documented properties of the DMV shape this query, and each maps to a field in the output:
+
+1. **A never-used index has no row at all**, not a row of zeros — *"When an index is used, a row is added to sys.dm_db_index_usage_stats if a row does not already exist for the index."* Hence the `LEFT JOIN` and the `hasUsageData` flag. `isUnused` therefore requires `hasUsageData && userSeeks === 0 && userScans === 0 && userLookups === 0 && userUpdates > 0` — the engine maintains the index on every write and nothing reads it. An index with **no** row has seen no activity of any kind, which is an absence of evidence rather than evidence of disuse, and is never flagged.
+2. **The counters reset** — *"The counters are initialized to empty whenever the database engine is started … whenever a database is detached or is shut down (for example, because AUTO_CLOSE is set to ON), all rows associated with the database are removed."* `statsSince` (`sys.dm_os_sys_info.sqlserver_start_time`) and `statsWindowHours` (`DATEDIFF(HOUR, …, GETDATE())`) report the accumulation window. `DATEDIFF` runs server-side on purpose: computing the delta client-side would skew by the server's UTC offset. On Azure SQL Database treat the window as approximate — a database can be relocated to a host whose start time predates its own arrival. Note that `ALTER INDEX … REBUILD` reset the counters on SQL Server 2012/2014 but **not** on 2016+, Managed Instance, or Azure SQL Database.
+3. **Memory-optimized and spatial indexes are not covered** — *"The DMV sys.dm_db_index_usage_stats does not return information about memory-optimized indexes or spatial indexes."* Both are excluded (`i.type <> 4`, `t.is_memory_optimized = 0`) rather than reported as having no usage data, which would read as "unused".
+
+`sys.dm_os_sys_info` is `CROSS JOIN`ed rather than fetched separately. It carries the same permission requirement as the usage DMV on every platform, so the join adds no grant the caller does not already need.
+
+`isHeavilyScanned` is `userScans > userSeeks * 10 && userScans > 1000` — a scan-to-seek ratio that lopsided, at that volume, suggests a missing or misordered key.
+
+</tool>
+
 ### Write Operations (Feature-Flag Gated)
 
 All write tools call a guard function before executing. If the corresponding env var is not `"true"`, the tool throws an error listing the exact variable name to set.
@@ -526,6 +793,24 @@ DML validation applied. Audit-logged as `UPDATE` operation. Returns `success`, `
 | `query` | string | Yes | DELETE statement (must include WHERE clause) |
 
 DML validation applied plus a mandatory WHERE clause check. If no WHERE clause is detected after comment stripping, throws: `"DELETE queries must include a WHERE clause to prevent accidental full-table deletion. If you truly need to delete all rows, use DELETE FROM table WHERE 1=1."`. Audit-logged as `DELETE` operation.
+
+</tool>
+
+<tool name="sql-create-fk-indexes">
+
+**`sql-create-fk-indexes`** — Create a single-column nonclustered index named `IX_<table>_<column>` on every foreign-key column that lacks a leading-key index. Requires `SQL_ENABLE_INDEX_CREATE=true`. No parameters beyond the target pair.
+
+Annotations: `{ readOnlyHint: false, destructiveHint: false, openWorldHint: true }`. Creating an index is additive — it adds an object, it does not remove or alter data — so it carries the same annotation shape as `sql-manage-view`, not `sql-drop-view`. Like the other write tools it stays **visible** when its flag is off and fails with an explicit message; `sql-execute-unrestricted` is the deliberate exception that hides.
+
+Returns: `results[]` (`indexName`, `schema`, `table`, `column`, `status`, `errorMessage`) with `status` one of `created` / `skipped` / `failed`; `summary` (`created`, `skipped`, `failed`); and `truncated`.
+
+Implementation notes:
+
+- **`checkIndexCreateEnabled()` runs before target resolution.** `createWithTarget()` takes an optional `before` callback for exactly this: the flag guard must report "Index creation is disabled" rather than whichever configuration error server/database resolution would have raised first.
+- **Per-attempt reporting.** The T-SQL cursor writes one row per attempted index into a table variable — `created`, `skipped` (an index of that name already exists), or `failed` with `ERROR_MESSAGE()` — and selects it as the single result set (`SET NOCOUNT ON` guarantees it is the only one). The source this was ported from returned only three counters and labelled every row `created` regardless of outcome, swallowing the error text entirely.
+- **`truncated`.** The report is a normal result set and is subject to `AZURE_SQL_MAX_RESULT_ROWS`. When `truncated` is `true` the summary counts are a lower bound on what the server actually did.
+- **`@IndexName` is `NVARCHAR(300)`, not `sysname`.** A generated name longer than 128 characters must fail loudly inside `CREATE INDEX` — and be reported as `failed` — rather than be silently truncated into a collision with another index.
+- **Blast radius.** Every `CREATE INDEX` takes a schema lock on its table and can run for minutes on a large one. Run `sql-get-missing-fk-indexes` first; it is the dry run and lists exactly what this will create. Composite foreign keys yield one single-column index per column, not one composite index.
 
 </tool>
 
@@ -796,6 +1081,32 @@ Handles view management, stored procedure management/execution, and DML. All met
 
 </write-service>
 
+<performance-service>
+
+### PerformanceService
+
+**File:** `packages/azure-sql/src/services/performance-service.ts`
+
+Query Store diagnostics. Unlike the other services, it depends on `QueryService` rather than `ConnectionService` — every diagnostic query goes through `QueryService.executeQuery()` and therefore inherits connection pooling, the row limit, the response-size cap, PII redaction and error sanitisation without re-implementing any of them.
+
+**Query builders.** The SQL lives in exported pure functions, each returning `{ sql, parameters }`:
+
+| Builder | Parameters |
+|---|---|
+| `buildQueryStoreStateQuery()` | — |
+| `buildTopWaitsQuery()` | — |
+| `buildFindQueryInStoreQuery({ queryPattern })` | `@queryPattern` |
+| `buildQueryWaitStatsQuery({ queryId })` | `@queryId` |
+| `buildCpuIntensiveQueriesQuery({ hours?, limit? })` | `@hours` (default 24), `@limit` (default 15) |
+| `buildFailedQueriesQuery({ includePlan?, limit? })` | `@limit` (default 50) |
+| `buildQueryPlanQuery({ queryId })` | `@queryId` |
+
+Every caller-supplied value is a bound parameter — nothing is interpolated into the SQL string. The only structural variation is `buildFailedQueriesQuery`, which adds a `cast(p.query_plan as xml)` column when `includePlan` is set. The builders are exported so they can be unit-tested without a live database; `src/services/__tests__/performance-service.test.ts` asserts parameter binding, defaults, and the plan-column branch.
+
+**Gate.** Each public method calls `assertQueryStoreEnabled()` first — see the Query Store gate table under Tool Reference for the state matrix and the reason the gate is proactive rather than error-driven.
+
+</performance-service>
+
 </service-implementation>
 
 <connection-pooling>
@@ -889,6 +1200,10 @@ The CLI reuses the same `ServiceContext` as the MCP server via `context-factory.
 | `sproc` | `manage`, `deploy`, `drop`, `execute` | `sql-manage-sproc`, `sql-deploy-sproc-file`, `sql-drop-sproc`, `sql-execute-sproc` |
 | `crud` | `insert`, `update`, `delete` | `sql-insert-records`, `sql-update-records`, `sql-delete-records` |
 | `unrestricted` | `execute` | `sql-execute-unrestricted` (requires `SQL_ENABLE_UNRESTRICTED=true`) |
+| `perf` | `get-top-waits`, `find-query-in-store`, `get-query-wait-stats`, `get-cpu-intensive-queries`, `get-failed-queries`, `get-query-plan` | The six `sql-*` Query Store tools, 1:1 (command name = tool name minus the `sql-` prefix) |
+| `session` | `get-blocking-chains`, `get-executing-requests`, `get-deadlock-graphs`, `get-long-running-transactions` | The four `sql-*` session tools, 1:1 |
+| `space` | `get-database-space`, `get-table-space`, `get-tempdb-space`, `get-tempdb-session-usage` | The four `sql-*` space tools, 1:1 |
+| `index` | `get-disabled-indexes`, `get-missing-fk-indexes`, `get-index-usage-stats`, `create-fk-indexes` | The four `sql-*` index tools, 1:1. `create-fk-indexes` requires `SQL_ENABLE_INDEX_CREATE=true` |
 
 ### Parameter Mapping
 
@@ -934,6 +1249,23 @@ mcp-sql-cli crud delete prod-sql AppDB "DELETE FROM dbo.Config WHERE Key = 'them
 mcp-sql-cli unrestricted execute "ALTER TABLE dbo.Users ADD LastLoginDate DATETIME2 NULL"
 mcp-sql-cli unrestricted execute "EXEC sp_MSforeachtable 'TRUNCATE TABLE ?'"
 mcp-sql-cli unrestricted execute "ALTER TABLE dbo.Users ADD LastLoginDate DATETIME2 NULL" --server-id prod-sql --database AppDB
+
+# Query Store diagnostics (requires Query Store enabled + VIEW DATABASE STATE)
+mcp-sql-cli perf get-top-waits --server-id prod-sql --database AppDB
+mcp-sql-cli perf find-query-in-store "Orders" --server-id prod-sql --database AppDB
+mcp-sql-cli perf get-query-wait-stats 1234
+mcp-sql-cli perf get-cpu-intensive-queries --hours 6 --limit 5
+mcp-sql-cli perf get-failed-queries --limit 20
+mcp-sql-cli perf get-failed-queries --include-plan     # large output
+mcp-sql-cli perf get-query-plan 1234
+
+# Index health (read-only; VIEW DATABASE STATE + VIEW DEFINITION)
+mcp-sql-cli index get-disabled-indexes --server-id prod-sql --database AppDB
+mcp-sql-cli index get-missing-fk-indexes               # dry run for create-fk-indexes
+mcp-sql-cli index get-index-usage-stats --top-n 25     # least-read first
+
+# Create the missing FK indexes (requires SQL_ENABLE_INDEX_CREATE=true)
+mcp-sql-cli index create-fk-indexes --server-id prod-sql --database AppDB
 
 # Global flags
 mcp-sql-cli --json query tables prod-sql AppDB       # Raw JSON output

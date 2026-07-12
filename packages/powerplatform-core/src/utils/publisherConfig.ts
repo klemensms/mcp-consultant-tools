@@ -9,8 +9,8 @@ let _publisherPrefix: string | null = null;
 
 /**
  * Normalize the publisher prefix to ensure it ends with underscore
- * @param prefix - The raw prefix value (e.g., 'sic' or 'sic_')
- * @returns Normalized prefix with trailing underscore (e.g., 'sic_')
+ * @param prefix - The raw prefix value (e.g., 'contoso' or 'contoso_')
+ * @returns Normalized prefix with trailing underscore (e.g., 'contoso_')
  */
 export function normalizePrefix(prefix: string): string {
   const trimmed = prefix.trim().toLowerCase();
@@ -35,7 +35,7 @@ export function initializePublisherPrefix(): void {
 
 /**
  * Get the normalized publisher prefix.
- * @returns The publisher prefix with trailing underscore (e.g., 'sic_')
+ * @returns The publisher prefix with trailing underscore (e.g., 'contoso_')
  * @throws Error if prefix has not been initialized
  */
 export function getPublisherPrefix(): string {

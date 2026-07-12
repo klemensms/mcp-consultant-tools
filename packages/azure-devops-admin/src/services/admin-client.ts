@@ -6,6 +6,29 @@ import axios from 'axios';
 import type { AzureDevOpsAdminConfig, AdoApiCollectionResponse } from '../types.js';
 import { AdoAuthProvider, type AdoAuthConfig } from '../ado-auth-provider.js';
 
+/**
+ * An Azure DevOps failure that still carries its HTTP status.
+ *
+ * Tools that fan out across many resources need to tell "this feed has no
+ * packages" (200 with an empty list) apart from "we were not allowed to look"
+ * (403). Without the status the two collapse into one bucket, and an audit
+ * reports a permissions gap as a clean result.
+ */
+export interface AdoRequestError extends Error {
+  status?: number;
+}
+
+/** Read the HTTP status off an error thrown by {@link AdminClient}, if it has one. */
+export function getAdoErrorStatus(error: unknown): number | undefined {
+  return error instanceof Error ? (error as AdoRequestError).status : undefined;
+}
+
+function adoError(message: string, status?: number): AdoRequestError {
+  const error: AdoRequestError = new Error(message);
+  if (status !== undefined) error.status = status;
+  return error;
+}
+
 export class AdminClient {
   readonly config: AzureDevOpsAdminConfig;
   readonly baseUrl: string;
@@ -102,33 +125,35 @@ export class AdminClient {
       return response.data as T;
     } catch (error: any) {
       const errorDetails = error.response?.data?.message || error.response?.data || error.message;
+      const status = error.response?.status;
       console.error('Azure DevOps Admin API request failed:', {
         endpoint,
         method,
-        status: error.response?.status,
+        status,
         statusText: error.response?.statusText,
         error: errorDetails
       });
 
-      if (error.response?.status === 302) {
-        throw new Error(
+      if (status === 302) {
+        throw adoError(
           'Azure DevOps authentication failed (302 redirect to sign-in). ' +
           'Your PAT may be expired, revoked, or not resolved (e.g. 1Password op:// reference). ' +
-          'Restart the MCP server to re-authenticate.'
+          'Restart the MCP server to re-authenticate.',
+          status
         );
       }
-      if (error.response?.status === 401) {
-        throw new Error('Azure DevOps authentication failed. Please check your PAT token or Entra ID credentials and permissions.');
+      if (status === 401) {
+        throw adoError('Azure DevOps authentication failed. Please check your PAT token or Entra ID credentials and permissions.', status);
       }
-      if (error.response?.status === 403) {
+      if (status === 403) {
         const detail = typeof errorDetails === 'string' ? errorDetails : '';
-        throw new Error(`Azure DevOps access denied: ${detail || 'Please check your PAT scopes and project permissions.'}`);
+        throw adoError(`Azure DevOps access denied: ${detail || 'Please check your PAT scopes and project permissions.'}`, status);
       }
-      if (error.response?.status === 404) {
-        throw new Error(`Azure DevOps resource not found: ${endpoint}`);
+      if (status === 404) {
+        throw adoError(`Azure DevOps resource not found: ${endpoint}`, status);
       }
 
-      throw new Error(`Azure DevOps Admin API request failed: ${error.message} - ${JSON.stringify(errorDetails)}`);
+      throw adoError(`Azure DevOps Admin API request failed: ${error.message} - ${JSON.stringify(errorDetails)}`, status);
     }
   }
 }

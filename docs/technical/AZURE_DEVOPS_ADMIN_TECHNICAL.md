@@ -8,7 +8,7 @@
 **Package:** `@mcp-consultant-tools/azure-devops-admin`
 **Binary (MCP):** `mcp-ado-admin`
 **Binary (CLI):** `mcp-ado-admin-cli`
-**Total tools:** 66 (30 read-only + 26 upsert + 10 delete)
+**Total tools:** 75 (36 read-only + 29 upsert + 10 delete)
 **Prompts:** None
 **Related package:** `@mcp-consultant-tools/azure-devops` (wikis, work items, pull requests)
 
@@ -94,7 +94,7 @@ packages/azure-devops-admin/src/
     environment-tools.ts              # 4 readonly + 4 upsert + 2 delete = 10 tools
     classification-tools.ts           # 4 readonly + 5 upsert + 2 delete = 11 tools
     iteration-capacity-tools.ts       # 2 readonly + 3 upsert = 5 tools
-    artifact-feed-tools.ts            # 2 readonly only = 2 tools
+    artifact-feed-tools.ts            # 4 readonly only = 4 tools
     project-tools.ts                  # 3 readonly + 2 upsert + 1 delete = 6 tools
     index.ts                          # registerAllTools() aggregator
   cli/
@@ -291,6 +291,53 @@ Finds approval checkpoints for a build by reading its timeline, then fetches app
 - `buildId` (number, required) — Build ID
 
 **Implementation:** Reads timeline to find `Checkpoint.Approval` records, then calls `/pipelines/approvals?approvalIds=...&$expand=steps`.
+
+</tool>
+
+<tool name="pipeline-summary">
+
+Every pipeline in a project with the status of its latest build.
+
+**Parameters:**
+- `project` (string, required) — Project name
+- `nameContains` (string, optional) — Case-insensitive substring filter
+- `maxResults` (number, optional, default 25) — Maximum pipelines to inspect
+
+**Implementation:** One call to `/build/definitions`, then one `/build/builds?definitions={id}&$top=1&queryOrder=queueTimeDescending` per pipeline. `maxResults` bounds that fan-out.
+
+`resultBreakdown` covers the whole `BuildResult` enum — `succeeded`, `partiallySucceeded`, `failed`, `canceled`, `none` — plus `noBuilds` and `other`, so the counts always add up to `pipelineCount`. Counting only succeeded/failed leaves `partiallySucceeded` pipelines invisible.
+
+`truncated` is `true` when more pipelines matched than `maxResults` allowed.
+
+</tool>
+
+<tool name="last-deploys">
+
+Latest successful deployment of each stage of one pipeline, with the build's `templateParameters`.
+
+**Parameters:**
+- `project` (string, required) — Project name
+- `pipelineId` (number, optional) — Build definition ID. Preferred.
+- `pipelineName` (string, optional) — Exact name, matched case-insensitively
+- `stages` (string[], optional, default `["Dev","UAT","Prod"]`)
+- `templateParameter` (string, optional) — Surface this parameter as `paramValue` per stage
+- `searchTop` (number, optional, default 50) — Recent builds to scan
+
+**Implementation:** Stage-level status does **not** exist on the Build object. Recent builds are listed newest-first and their timelines walked until every stage is found. `vsrm.dev.azure.com` (`_apis/release/deployments`) is Classic Release only and does not apply to YAML pipelines; `environmentdeploymentrecords` only sees stages that use the `environment:` keyword. The build timeline is the one source that works universally.
+
+Matching rules:
+- Record `type` is compared case-insensitively against `stage`. Microsoft documents it as an untyped string with no published enum.
+- Stage **names** are compared case-insensitively. A strict comparison makes `--stages prod` against a `Prod` stage report "never deployed" forever.
+- Both `succeeded` and `succeededWithIssues` count as deployed; `stageResult` says which.
+
+Fields that keep a miss from reading as a false all-clear:
+
+| Field | Meaning |
+|-------|---------|
+| `availableStageNames` | Every stage name actually seen across the inspected builds. A misspelling shows up here |
+| `noStageRecordsFound` | No build carried a single stage record. Not evidence the stages never deployed |
+| `searchWindowFull` | The window was completely filled, so older builds exist that were never inspected |
+| `buildsSearched` | How many builds were actually read before every stage was found |
 
 </tool>
 
@@ -1081,9 +1128,9 @@ Sets the team-wide days-off for a sprint. **Full replace** — the supplied list
 
 <domain name="artifact-feeds">
 
-**2 tools total: 2 read-only only**
+**4 tools total: 4 read-only only**
 
-Feed access is validated against the `AZUREDEVOPS_FEEDS` allowlist. The API uses a different base URL: `https://feeds.dev.azure.com/{organization}`.
+Feed access is validated against the `AZUREDEVOPS_FEEDS` allowlist. The API uses a different base URL: `https://feeds.dev.azure.com/{organization}` — **not** `pkgs.dev.azure.com`, which serves protocol-specific routes only.
 
 <tool-group name="read-only">
 
@@ -1121,6 +1168,52 @@ Gets version history for a specific package, sorted by publish date.
 ```
 
 </example>
+
+</tool>
+
+<tool name="feed-summary">
+
+All feeds with their package counts.
+
+**Parameters:**
+- `project` (string, optional) — For project-scoped feeds. Omit for org-scoped.
+- `maxPackagesPerFeed` (number, optional, default 1000) — Stop counting a feed after this many packages
+
+**Implementation:** `GET /_apis/packaging/feeds`, then pages `/packages?$top=&$skip=` per feed until a short page arrives. The packages endpoint returns a bare array with **no total count and no continuation token**, so counting requires paging; a single unpaged call silently caps.
+
+| Field | Meaning |
+|-------|---------|
+| `packageCount` | Packages counted in that feed |
+| `packageCountTruncated` | `true` when `maxPackagesPerFeed` was hit first — the count is a floor |
+| `unreadableFeeds` | Feeds that errored, each with its HTTP `status` and `reason` |
+| `totalPackagesIsLowerBound` | `true` when any feed was truncated **or** any feed was unreadable |
+
+A feed that returns `403` is reported under `unreadableFeeds`, never as a feed with zero packages. Collapsing the two turns a permissions gap into a clean audit result.
+
+</tool>
+
+<tool name="package-provenance">
+
+Publish provenance for one package version.
+
+**Parameters:**
+- `feedName` (string, required)
+- `packageName` (string, required) — Full package name, matched case-insensitively
+- `version` (string, required) — Exact version string, matched case-insensitively
+- `project` (string, optional) — For project-scoped feeds
+- `packageType` (enum, optional) — Protocol type hint
+
+**Implementation:** Resolves package name → id and version string → id, then calls `/Packages/{id}/Versions/{id}/provenance`.
+
+> **This route has never gone GA.** It is pinned to `api-version=7.1-preview.1`, not the client's `7.1` default, which would not resolve it.
+
+**Azure DevOps publishes no structured build/branch/commit field for a package version.** The typed response carries only `provenanceSource`, `publisherUserIdentity` and `userAgent`; anything else lives in an untyped `data` bag whose keys vary by package protocol.
+
+| Field | Meaning |
+|-------|---------|
+| `data` | The raw provenance bag, verbatim |
+| `buildId` / `branch` | Best-effort reads of known key names. **`null` when absent — never the string `"unknown"`**, so absence cannot be mistaken for a value |
+| `structuredProvenanceAvailable` | `false` when neither a build nor a branch could be read |
 
 </tool>
 

@@ -1,0 +1,23 @@
+/**
+ * Every Defender tool is read-only and returns JSON. This centralises the
+ * success/`isError` response shape so the 12 registrations stay thin.
+ */
+export async function runTool(action: string, run: () => Promise<unknown>) {
+  try {
+    const result = await run();
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  } catch (error: any) {
+    return {
+      content: [{ type: 'text', text: `Error ${action}: ${error.message}` }],
+      isError: true,
+    };
+  }
+}
+
+/** Read-only tools that reach an external API. */
+export const READ_ONLY: { readOnlyHint: true; openWorldHint: true } = {
+  readOnlyHint: true,
+  openWorldHint: true,
+};
+
+export const SECURITY_READER = 'Requires the service principal to hold the Security Reader role on the subscription.';

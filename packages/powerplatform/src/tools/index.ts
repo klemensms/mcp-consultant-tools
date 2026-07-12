@@ -23,8 +23,8 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerSecurityTools(server, ctx);
   registerFieldSecurityTools(server, ctx);
 
-  // 5 metadata + 4 plugin + 9 flow + 4 app + 7 form-view + 8 solution + 5 integration + 4 security + 3 field-security = 49
-  console.error(`powerplatform tools registered: 49 tools`);
+  // 5 metadata + 4 plugin + 11 flow + 4 app + 7 form-view + 8 solution + 5 integration + 4 security + 3 field-security = 51
+  console.error(`powerplatform tools registered: 51 tools`);
 }
 
 export { registerMetadataTools } from './metadata-tools.js';

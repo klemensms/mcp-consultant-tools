@@ -7,6 +7,22 @@ import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../types.js';
 import { outputResult } from '../output.js';
 
+/**
+ * Parse a positive integer, throwing on anything else.
+ *
+ * Call this BEFORE reaching into `ctx`: the service getters construct a client
+ * and throw on missing config, so a parse evaluated inside the service-call
+ * argument list never runs, and a typo surfaces as a credentials error.
+ */
+function parsePipelinePositiveInt(value: string | undefined, flag: string): number | undefined {
+  if (value === undefined) return undefined;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${flag} must be a positive integer, got '${value}'`);
+  }
+  return parsed;
+}
+
 export function registerPipelineCommands(program: Command, ctx: ServiceContext): void {
   const pipeline = program.command('pipeline').alias('pl').description('Pipeline operations');
 
@@ -288,5 +304,69 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, `${status} stage`); }
+    });
+
+  pipeline
+    .command('summary')
+    .description('All pipelines with the status of their latest build')
+    .argument('<project>', 'Project name')
+    .option('-n, --name-contains <text>', 'Case-insensitive substring filter on pipeline name')
+    .option('--max-results <n>', 'Maximum pipelines to inspect (default 25)')
+    .action(async (project: string, opts: any) => {
+      try {
+        const maxResults = parsePipelinePositiveInt(opts.maxResults, '--max-results');
+        const result = await ctx.pipelines.getPipelineSummaries(project, {
+          nameContains: opts.nameContains,
+          maxResults,
+        });
+        const b = result.resultBreakdown;
+        outputResult(
+          {
+            fileName: `pipeline-summary-${project}`,
+            data: result,
+            summary: `${result.pipelineCount} pipeline(s): ${b.succeeded} succeeded, ${b.partiallySucceeded} partial, ${b.failed} failed, ${b.canceled} canceled, ${b.noBuilds} never built${result.truncated ? ' (truncated)' : ''}`,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'summarise pipelines'); }
+    });
+
+  pipeline
+    .command('last-deploys')
+    .description('Latest successful deploy per stage, with templateParameters')
+    .argument('<project>', 'Project name')
+    .option('--pipeline-id <n>', 'Pipeline (build definition) ID — preferred')
+    .option('--pipeline-name <name>', 'Exact pipeline name (case-insensitive)')
+    .option('-s, --stages <list>', 'Comma-separated stage names (default Dev,UAT,Prod)')
+    .option('--param <name>', 'Template parameter to surface per stage')
+    .option('--search-top <n>', 'How many recent builds to scan (default 50)')
+    .action(async (project: string, opts: any) => {
+      try {
+        const pipelineId = parsePipelinePositiveInt(opts.pipelineId, '--pipeline-id');
+        const searchTop = parsePipelinePositiveInt(opts.searchTop, '--search-top');
+        if (pipelineId === undefined && !opts.pipelineName) {
+          throw new Error('Provide either --pipeline-id or --pipeline-name.');
+        }
+        const stages = opts.stages
+          ? String(opts.stages).split(',').map((s: string) => s.trim()).filter(Boolean)
+          : undefined;
+
+        const result = await ctx.pipelines.getLastDeploys(project, {
+          pipelineId,
+          pipelineName: opts.pipelineName,
+          stages,
+          templateParameter: opts.param,
+          searchTop,
+        });
+        const foundCount = result.requestedStages.length - result.stagesNotFound.length;
+        outputResult(
+          {
+            fileName: `last-deploys-${result.pipelineId}`,
+            data: result,
+            summary: `${result.pipelineName}: ${foundCount}/${result.requestedStages.length} stage(s) found across ${result.buildsSearched} build(s)${result.stagesNotFound.length ? `; missing: ${result.stagesNotFound.join(', ')}` : ''}`,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'get last deploys'); }
     });
 }

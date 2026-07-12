@@ -26,7 +26,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
         "POWERPLATFORM_CLIENT_ID": "op://Work/PP-App-Registration/username",
         "POWERPLATFORM_CLIENT_SECRET": "op://Work/PP-App-Registration/password",
         "POWERPLATFORM_TENANT_ID": "op://Work/PP-App-Registration/tenantid",
-        "PUBLISHER_PREFIX": "sic_",
+        "PUBLISHER_PREFIX": "contoso_",
         "POWERPLATFORM_DEFAULT_SOLUTION": "YourSolutionUniqueName"
       }
     }
@@ -47,7 +47,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
         "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
         "POWERPLATFORM_TENANT_ID": "your-tenant-id",
-        "PUBLISHER_PREFIX": "sic_",
+        "PUBLISHER_PREFIX": "contoso_",
         "POWERPLATFORM_DEFAULT_SOLUTION": "YourSolutionUniqueName"
       }
     }
@@ -67,7 +67,7 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 
 ## Notable Behavior
 
-- **`PUBLISHER_PREFIX` is validated at startup:** If missing, the server fails to start. Provide with or without trailing underscore — it is normalized automatically (e.g., `"sic"` becomes `"sic_"`). This prefix is used by naming validation and icon management throughout the package.
+- **`PUBLISHER_PREFIX` is validated at startup:** If missing, the server fails to start. Provide with or without trailing underscore — it is normalized automatically (e.g., `"contoso"` becomes `"contoso_"`). This prefix is used by naming validation and icon management throughout the package.
 - **Most schema changes require publishing:** After `create-entity`, `update-entity`, `create-attribute`, etc., call `publish-customizations` or `publish-entity` to make changes live.
 - **`deploy-plugin-complete` is an orchestration tool:** Handles the full plugin deployment workflow in one call — upload DLL, register steps, register images. Use individual tools (`create-plugin-assembly`, `register-plugin-step`, `register-plugin-image`) for incremental updates.
 - **`register-webhook` is an orchestration tool:** Creates the service endpoint and SDK message processing step in a single call.

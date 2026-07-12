@@ -12,6 +12,8 @@ import { registerMonitoringCommands } from './monitoring-commands.js';
 import { registerNetworkingCommands } from './networking-commands.js';
 import { registerSqlCommands } from './sql-commands.js';
 import { registerStorageCommands } from './storage-commands.js';
+import { registerResourceGraphCommands } from './resource-graph-commands.js';
+import { registerLogStreamCommands } from './log-stream-commands.js';
 
 export function registerAllCommands(program: Command, ctx: ServiceContext): void {
   registerResourceCommands(program, ctx);
@@ -22,6 +24,8 @@ export function registerAllCommands(program: Command, ctx: ServiceContext): void
   registerNetworkingCommands(program, ctx);
   registerSqlCommands(program, ctx);
   registerStorageCommands(program, ctx);
+  registerResourceGraphCommands(program, ctx);
+  registerLogStreamCommands(program, ctx);
 }
 
 export { registerResourceCommands } from './resource-commands.js';
@@ -32,3 +36,5 @@ export { registerMonitoringCommands } from './monitoring-commands.js';
 export { registerNetworkingCommands } from './networking-commands.js';
 export { registerSqlCommands } from './sql-commands.js';
 export { registerStorageCommands } from './storage-commands.js';
+export { registerResourceGraphCommands } from './resource-graph-commands.js';
+export { registerLogStreamCommands } from './log-stream-commands.js';

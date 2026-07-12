@@ -4,6 +4,23 @@ import { getApiVersion } from '../utils/arm-api-versions.js';
 import type { ArmListResponse, ArmError } from '../types/arm-types.js';
 
 /**
+ * An ARM failure that still carries its HTTP status.
+ *
+ * Callers that fan out across many resources need to tell "this resource has
+ * nothing configured" (200 with an empty list) apart from "we were not allowed
+ * to look" (403). Without the status, the two collapse into one bucket and an
+ * audit reports a permissions gap as a clean result.
+ */
+export interface ArmRequestError extends Error {
+  status?: number;
+}
+
+/** Read the HTTP status off an error thrown by {@link ArmClient}, if it has one. */
+export function getArmErrorStatus(error: unknown): number | undefined {
+  return error instanceof Error ? (error as ArmRequestError).status : undefined;
+}
+
+/**
  * Configuration for the ARM client.
  */
 export interface ArmClientConfig extends AzureAuthConfig {
@@ -272,13 +289,24 @@ export class ArmClient {
           ?.map((d) => `  - ${d.code}: ${d.message}`)
           .join('\n');
 
-        return new Error(details ? `${message}\n${details}` : message);
+        return this.withStatus(
+          new Error(details ? `${message}\n${details}` : message),
+          error.response?.status
+        );
       }
 
-      return new Error(`ARM API error: ${error.message} (status: ${error.response?.status})`);
+      return this.withStatus(
+        new Error(`ARM API error: ${error.message} (status: ${error.response?.status})`),
+        error.response?.status
+      );
     }
 
     return error instanceof Error ? error : new Error(String(error));
+  }
+
+  private withStatus(error: Error, status?: number): ArmRequestError {
+    (error as ArmRequestError).status = status;
+    return error;
   }
 
   /**

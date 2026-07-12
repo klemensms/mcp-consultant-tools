@@ -5,7 +5,7 @@
 
 **Package:** `@mcp-consultant-tools/azure-management`
 
-MCP server for the Azure Resource Manager (ARM) API, providing discovery and inspection of Azure infrastructure including Function Apps, App Services, Key Vaults, Storage, SQL, Monitoring, and Networking. Read-first: all discovery tools are always available, and 4 App Service write operations (`restart-app-service`, `stop-app-service`, `start-app-service`, `set-app-service-config`) become available only when `AZURE_MGMT_ENABLE_WRITE=true`.
+MCP server for the Azure Resource Manager (ARM) API, providing discovery and inspection of Azure infrastructure including Function Apps, App Services, Key Vaults, Storage, SQL, Monitoring, Networking, cross-resource queries over Azure Resource Graph (network security groups, RBAC, private endpoints, diagnostic settings, resource relationships), and App Service log streaming and diagnostic detectors. Read-first: all discovery tools are always available, and 4 App Service write operations (`restart-app-service`, `stop-app-service`, `start-app-service`, `set-app-service-config`) become available only when `AZURE_MGMT_ENABLE_WRITE=true`.
 
 ## Configuration
 
@@ -82,3 +82,10 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 - **Secret redaction:** Connection strings and keys in app settings are redacted by default (`AZURE_REDACT_SECRETS=true`). Set to `false` to expose raw values.
 - **`get-function-keys` and `list-key-vault-secrets` require elevated permissions** beyond the base Reader role — these will fail with permission errors if the service principal only has Reader access.
 - **`get-resource` filters nulls by default** to reduce response size; pass `includeAllProperties=true` to get the full ARM payload.
+- **An empty `list-subscriptions` result means the service principal has no role assignment on any subscription — not that the tenant has none.** `GET /subscriptions` is filtered by RBAC and returns an empty list rather than an error. The tool says so in a `note` field.
+- **Resource Graph tools return `truncated`.** When it is `true`, more rows exist than were returned and the counts in `summary` are a lower bound. Raise `maxResults` (up to 5000) or narrow the filter.
+- **`list-diagnostic-settings` separates "no settings" from "could not look".** Resources it was refused access to (403) or could not find (404) are listed under `unreadableResources`, never counted as "no diagnostic settings configured". Treat a non-empty `unreadableResources` as an unfinished audit.
+- **`list-role-assignments` returns `roleDefinitionName: null` when a role name cannot be resolved**, and counts those in `summary.unresolvedRoleNames`. It never invents an `"Unknown"` role.
+- **`get-log-stream` blocks for up to 30 seconds** (default 10). It is the only tool in this package that holds the client open. An empty result does *not* mean the app is idle: App Service filesystem logging is off by default and switches itself off 12 hours after being enabled — check `get-log-config`. Not available for Function Apps on Linux Consumption or Flex Consumption plans, which have no Kudu site.
+- **`get-log-config` never returns blob storage SAS URLs**, only whether blob logging is enabled and its retention.
+- **`get-log-stream`, `get-log-config` and `get-app-service-logs` need `Website Contributor`**, not just `Reader`.

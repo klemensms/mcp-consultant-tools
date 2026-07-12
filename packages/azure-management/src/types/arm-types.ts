@@ -670,6 +670,25 @@ export interface EventGridSystemTopic extends ArmResource {
 }
 
 /**
+ * Azure subscription, as returned by `GET /subscriptions`.
+ * Every field sits at the top level — none are nested under `properties`.
+ */
+export interface Subscription {
+  id: string;
+  subscriptionId: string;
+  displayName: string;
+  state: 'Enabled' | 'Warned' | 'PastDue' | 'Disabled' | 'Deleted';
+  tenantId?: string;
+  authorizationSource?: string;
+  subscriptionPolicies?: {
+    locationPlacementId?: string;
+    quotaId?: string;
+    spendingLimit?: string;
+  };
+  tags?: Record<string, string>;
+}
+
+/**
  * Azure location.
  */
 export interface AzureLocation {

@@ -364,13 +364,29 @@ By default, comments are sent as Markdown. Set `AZUREDEVOPS_COMMENT_FORMAT=html`
 
 <tool-group name="build">
 
-### Build Tools (3 tools)
+### Build Tools (4 tools)
 
 | Tool | Description |
 |------|-------------|
 | `get-build-status` | Get build status; optional `detail` parameter adds timeline or logs inline |
 | `get-build-timeline` | Step-by-step breakdown with `scope` filtering |
 | `get-build-logs` | Without `logId`: list available logs. With `logId`: return that log's content |
+| `build-issues` | Every warning and error, read from the timeline's `issues[]` (no log download) |
+
+#### `build-issues` semantics
+
+Azure DevOps emits `issue.type` as the lowercase `error` or `warning` only. Each
+timeline record also carries `errorCount`/`warningCount`, which are **independent
+of `issues[]`** — a record can report a count with no message attached.
+
+| Field | Meaning |
+|-------|---------|
+| `totalErrors` / `totalWarnings` | Issues actually listed, with messages. Always cover the whole build, even when `severity` narrows the listing |
+| `timelineCounters` | The server's own tally, summed across every record |
+| `countersExceedListedIssues` | `true` when the server counted problems it attached no message to — the listed detail is then a subset |
+
+`recordType` is passed through verbatim: Microsoft documents the timeline record
+`type` as an untyped string with no published enum, so this tool never filters on it.
 
 #### Timeline Scope Values
 
@@ -389,14 +405,76 @@ The `get-build-timeline` and `get-build-logs` tool descriptions include sub-agen
 
 <tool-group name="variable-group">
 
-### Variable Group Tools (2 tools)
+### Variable Group Tools (5 tools)
 
 | Tool | Description |
 |------|-------------|
 | `get-variable-groups` | List variable groups in a project |
 | `get-variable-group` | Get a specific variable group and its variables |
+| `compare-variable-groups` | Side-by-side diff of two groups |
+| `compare-environments` | Detect `<base>-<env>` families and diff each environment against the first |
+| `variable-group-summary` | Per-group variable and secret **counts** |
 
-Secret variables (`isSecret=true`) are never returned in API responses — values are masked.
+#### Secret handling
+
+Azure DevOps returns a secret as `{ "isSecret": true, "value": null }` and **omits
+`isSecret` entirely** for a normal variable.
+
+- `get-variable-group(s)` mask a secret's value to the literal `***SECRET***`.
+- The three comparison/summary tools read the **raw** API payload and branch on
+  `isSecret`, never on the value. A variable that is secret on either side is
+  listed by name under `secretsSkipped` and its values are never read, so even if
+  the API returned a real value it could not reach the output. This is covered by
+  a unit test that asserts a planted secret value appears nowhere in the result.
+- Diffing the masked output would be wrong in the other direction too: two
+  *different* secrets both render as `***SECRET***` and would compare equal.
+- `secretPresenceDifferences` reports a variable that is a secret on one side and
+  plaintext on the other — a real drift finding that leaks nothing.
+
+#### `compare-environments` and the empty-result trap
+
+Environment detection matches the **longest** suffix from `environmentSuffixes`
+(default: `-dev -development -qa -uat -staging -stage -test -prod -production`),
+so `-production` is never mistaken for `-prod`. A team using `-prd` or `_dev`
+would otherwise match nothing, forever, with no error — so the tool returns:
+
+| Field | Meaning |
+|-------|---------|
+| `unmatchedGroups` | Groups whose name fit no suffix. A long list here explains an empty result |
+| `incompleteSets` | Families with a single environment (nothing to diff against) |
+| `environmentSuffixes` | The suffixes actually used, echoed back |
+
+</tool-group>
+
+<tool-group name="git">
+
+### Git Tools (2 tools)
+
+| Tool | Description |
+|------|-------------|
+| `list-branches` | Branches in a repository, with the tip commit SHA |
+| `latest-release-branch` | Newest `release/*` branch by version |
+
+Refs API facts (api-version `7.1`): `filter` is a **prefix** match; `name` comes
+back as the **full** ref (`refs/heads/main`); a ref carries `objectId` and **no
+date**; `$top` caps at 1000 and further pages arrive via the
+`x-ms-continuationtoken` **response header**.
+
+`list-branches` follows that header until `maxResults` is met and sets
+`truncated: true` when the server still had more — a partial list is never
+reported as complete.
+
+#### What "latest" means
+
+`latest-release-branch` sorts by **version name**, digit-aware, descending — so
+`release/10` beats `release/9` (a plain lexical sort gets this backwards). Because
+the refs API exposes no commit date, this does **not** mean "most recently
+committed".
+
+A branch with no digit in its name (`release/next`) cannot be ranked against
+`release/35.0`; letting it win would be arbitrary. Such branches are excluded from
+candidacy and reported under `ignoredNonVersionBranches` rather than silently
+dropped. When every candidate is unrankable, `branchName` is `null`.
 
 </tool-group>
 

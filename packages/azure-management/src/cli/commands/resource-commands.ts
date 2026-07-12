@@ -1,5 +1,5 @@
 /**
- * Resource CLI Commands - 6 commands mapping to resource MCP tools
+ * Resource CLI Commands - 7 commands mapping to resource MCP tools
  */
 
 import type { Command } from 'commander';
@@ -9,6 +9,27 @@ import { outputResult } from '../output.js';
 
 export function registerResourceCommands(program: Command, ctx: ServiceContext): void {
   const resource = program.command('resource').description('Azure resource operations');
+
+  resource
+    .command('subscriptions')
+    .description('List the subscriptions visible to this service principal')
+    .action(async () => {
+      try {
+        const result = await ctx.management.resources.listSubscriptions();
+        outputResult(
+          {
+            fileName: 'subscriptions',
+            data: result,
+            summary: [
+              `Found ${result.summary.total} subscription(s)`,
+              ...Object.entries(result.summary.byState).map(([state, count]) => `  ${state}: ${count}`),
+              ...(result.note ? ['', result.note] : []),
+            ].join('\n'),
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'list subscriptions'); }
+    });
 
   resource
     .command('list')

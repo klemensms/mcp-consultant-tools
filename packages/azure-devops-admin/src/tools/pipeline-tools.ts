@@ -200,6 +200,51 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
   );
   readonlyCount++;
 
+  server.tool(
+    "pipeline-summary",
+    "Every pipeline in a project with the status of its latest build. 'resultBreakdown' covers the whole Azure DevOps result enum (succeeded, partiallySucceeded, failed, canceled, none) plus pipelines that have never built, so the counts add up to the total. Costs one API call per pipeline, so 'maxResults' bounds the fan-out.",
+    {
+      project: z.string().describe("The project name"),
+      nameContains: z.string().optional().describe("Case-insensitive substring filter on pipeline name"),
+      maxResults: zCoerceNumber().optional().describe("Maximum pipelines to inspect (default: 25)"),
+    },
+    { readOnlyHint: true, openWorldHint: true },
+    async ({ project, nameContains, maxResults }: any) => {
+      try {
+        const result = await ctx.pipelines.getPipelineSummaries(project, { nameContains, maxResults });
+        return { content: [{ type: "text", text: `Pipeline summary for '${project}':\n\n${JSON.stringify(result, null, 2)}` }] };
+      } catch (error: any) {
+        console.error("Error summarising pipelines:", error);
+        return { content: [{ type: "text", text: `Failed to summarise pipelines: ${error.message}` }] };
+      }
+    }
+  );
+  readonlyCount++;
+
+  server.tool(
+    "last-deploys",
+    "Latest successful deployment of each stage of a pipeline, with the build's templateParameters. Stage status lives only on the build timeline, so recent builds are walked newest-first until every stage is found. Stage names match case-insensitively, and both 'succeeded' and 'succeededWithIssues' count as deployed. If a stage is not found, check 'availableStageNames' (every stage actually seen) and 'searchWindowFull' (older builds exist beyond searchTop) before concluding it never deployed.",
+    {
+      project: z.string().describe("The project name"),
+      pipelineId: zCoerceNumber().optional().describe("Pipeline (build definition) ID. Preferred over pipelineName."),
+      pipelineName: z.string().optional().describe("Exact pipeline name, matched case-insensitively. Ignored when pipelineId is given."),
+      stages: z.array(z.string()).optional().describe("Stage names to look for (default: Dev, UAT, Prod)"),
+      templateParameter: z.string().optional().describe("Name of a template parameter to surface as 'paramValue' per stage"),
+      searchTop: zCoerceNumber().optional().describe("How many recent builds to scan (default: 50)"),
+    },
+    { readOnlyHint: true, openWorldHint: true },
+    async ({ project, pipelineId, pipelineName, stages, templateParameter, searchTop }: any) => {
+      try {
+        const result = await ctx.pipelines.getLastDeploys(project, { pipelineId, pipelineName, stages, templateParameter, searchTop });
+        return { content: [{ type: "text", text: `Last deploys for '${result.pipelineName}':\n\n${JSON.stringify(result, null, 2)}` }] };
+      } catch (error: any) {
+        console.error("Error getting last deploys:", error);
+        return { content: [{ type: "text", text: `Failed to get last deploys: ${error.message}` }] };
+      }
+    }
+  );
+  readonlyCount++;
+
   // ========================================
   // PIPELINE UPSERT TOOLS (Tier 2)
   // ========================================

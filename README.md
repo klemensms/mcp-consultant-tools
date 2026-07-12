@@ -24,19 +24,23 @@ MCP Consultant Tools is a **modular monorepo** with **22 independently published
 | Package | Integration | Tools | CLI Binary | Documentation |
 |---------|-------------|-------|-----------|---------------|
 | **powerplatform-core** | Shared PowerPlatform services (internal) | N/A | N/A | — |
-| **powerplatform** | PowerPlatform/Dataverse (Read-Only) | 49 | `mcp-pp-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM.md) |
+| **powerplatform** | PowerPlatform/Dataverse (Read-Only) | 51 | `mcp-pp-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM.md) |
 | **powerplatform-customization** | PowerPlatform Schema Changes | 85 | `mcp-pp-custom-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_CUSTOMIZATION.md) |
 | **powerplatform-data** | PowerPlatform Data CRUD | 14 | `mcp-pp-data-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_DATA.md) |
-| **azure-devops** | Azure DevOps Wikis, Work Items, PRs, Builds, Test Runs | 65 | `mcp-ado-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS.md) |
-| **azure-devops-admin** | Azure DevOps Pipelines, Service Conns, Pools, Sprint Capacity | 71 | `mcp-ado-admin-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS_ADMIN.md) |
-| **azure-management** | Azure ARM API (Functions, App Services, Key Vault, SQL, Monitoring) | 31 | `mcp-azure-mgmt-cli` | [Setup & Usage](docs/documentation/AZURE_MANAGEMENT.md) |
+| **azure-devops** | Azure DevOps Wikis, Work Items, PRs, Builds, Branches, Test Runs | 73 | `mcp-ado-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS.md) |
+| **azure-devops-admin** | Azure DevOps Pipelines, Deploys, Feeds, Service Conns, Pools, Sprint Capacity | 75 | `mcp-ado-admin-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS_ADMIN.md) |
+| **azure-management** | Azure ARM API (Functions, App Services, Key Vault, SQL, Monitoring, Resource Graph, log streaming) | 42 | `mcp-azure-mgmt-cli` | [Setup & Usage](docs/documentation/AZURE_MANAGEMENT.md) |
+| **azure-defender** | Microsoft Defender for Cloud (secure score, assessments, compliance, attack paths) | 12 | `mcp-defender-cli` | [Setup & Usage](docs/documentation/AZURE_DEFENDER.md) |
+| **entra-id** | Microsoft Entra ID (app registration audit, secret & certificate expiry) | 2 | `mcp-entra-cli` | [Setup & Usage](docs/documentation/ENTRA_ID.md) |
+| **message-center** | Microsoft 365 Service Health & Message Center (health overviews, issues, incident reports, posts) | 7 | `mcp-message-center-cli` | [Setup & Usage](docs/documentation/MESSAGE_CENTER.md) |
+| **code-review** | Repository review across Azure DevOps / GitHub Enterprise (.NET EOL scan, NuGet audit, complexity estimate, GitHub Packages) | 10 | `mcp-code-review-cli` | [Setup & Usage](docs/documentation/CODE_REVIEW.md) |
 | **sharepoint** | SharePoint Online | 16-22 | `mcp-spo-cli` | [Setup & Usage](docs/documentation/SHAREPOINT.md) |
 | **github-enterprise** | GitHub Enterprise | 22 | `mcp-ghe-cli` | [Setup & Usage](docs/documentation/GITHUB_ENTERPRISE.md) |
 | **figma** | Figma Design Extraction | 4 | `mcp-figma-cli` | [Setup & Usage](docs/documentation/FIGMA.md) |
 | **application-insights** | Application Insights | 10 | `mcp-appins-cli` | [Setup & Usage](docs/documentation/APPLICATION_INSIGHTS.md) |
 | **log-analytics** | Log Analytics | 13 | `mcp-loganalytics-cli` | [Setup & Usage](docs/documentation/LOG_ANALYTICS.md) |
 | **1password** | 1Password Vault & Item Management | 21 | `mcp-op-cli` | [Setup & Usage](docs/documentation/ONEPASSWORD.md) |
-| **azure-sql** | Azure SQL Database | 20 | `mcp-sql-cli` | [Setup & Usage](docs/documentation/AZURE_SQL.md) |
+| **azure-sql** | Azure SQL Database | 40 | `mcp-sql-cli` | [Setup & Usage](docs/documentation/AZURE_SQL.md) |
 | **service-bus** | Azure Service Bus | 8 | `mcp-sb-cli` | [Setup & Usage](docs/documentation/SERVICE_BUS.md) |
 | **azure-b2c** | Azure AD B2C | 11 | `mcp-azure-b2c-cli` | [Setup & Usage](docs/documentation/AZURE_B2C.md) |
 | **azure-storage** | Azure Blob, Files, Queue, Table Storage | 47 | `mcp-storage-cli` | [Setup & Usage](docs/documentation/AZURE_STORAGE.md) |
@@ -187,7 +191,7 @@ If you have MCP servers configured in another repo and want agents/subagents to 
 
 > **CLI Tools (for subagents, hooks, and scripting)**
 >
-> MCP servers are configured for native tool access, but CLI equivalents are also available via `npx` for use in subagents (which don't inherit MCP connections), hooks, and shell scripts. They use the same environment variables already configured for the MCP servers. Run `npx --package=@mcp-consultant-tools/<package> <binary> --help` for available commands. Common CLIs: `mcp-ado-cli` (Azure DevOps), `mcp-pp-cli` (PowerPlatform read-only), `mcp-pp-custom-cli` (PowerPlatform customization), `mcp-pp-data-cli` (PowerPlatform data), `mcp-ado-admin-cli` (ADO pipelines/admin), `mcp-spo-cli` (SharePoint), `mcp-sql-cli` (Azure SQL), `mcp-appins-cli` (Application Insights), `mcp-loganalytics-cli` (Log Analytics), `mcp-storage-cli` (Azure Storage), `mcp-adf-cli` (Data Factory), `mcp-azure-mgmt-cli` (Azure Management), `mcp-ghe-cli` (GitHub Enterprise), `mcp-azure-b2c-cli` (Azure B2C), `mcp-sb-cli` (Service Bus), `mcp-figma-cli` (Figma), `mcp-fabric-cli` (Microsoft Fabric), `mcp-rest-api-cli` (REST API), `mcp-teams-cli` (Teams), `mcp-audit-cli` (audit log verify/quarantine/search). Use `--json` for raw JSON output suitable for piping.
+> MCP servers are configured for native tool access, but CLI equivalents are also available via `npx` for use in subagents (which don't inherit MCP connections), hooks, and shell scripts. They use the same environment variables already configured for the MCP servers. Run `npx --package=@mcp-consultant-tools/<package> <binary> --help` for available commands. Common CLIs: `mcp-ado-cli` (Azure DevOps), `mcp-pp-cli` (PowerPlatform read-only), `mcp-pp-custom-cli` (PowerPlatform customization), `mcp-pp-data-cli` (PowerPlatform data), `mcp-ado-admin-cli` (ADO pipelines/admin), `mcp-spo-cli` (SharePoint), `mcp-sql-cli` (Azure SQL), `mcp-appins-cli` (Application Insights), `mcp-loganalytics-cli` (Log Analytics), `mcp-storage-cli` (Azure Storage), `mcp-adf-cli` (Data Factory), `mcp-azure-mgmt-cli` (Azure Management), `mcp-ghe-cli` (GitHub Enterprise), `mcp-azure-b2c-cli` (Azure B2C), `mcp-sb-cli` (Service Bus), `mcp-figma-cli` (Figma), `mcp-fabric-cli` (Microsoft Fabric), `mcp-rest-api-cli` (REST API), `mcp-teams-cli` (Teams), `mcp-message-center-cli` (M365 Service Health & Message Center), `mcp-code-review-cli` (repository .NET/NuGet/complexity review), `mcp-audit-cli` (audit log verify/quarantine/search). Use `--json` for raw JSON output suitable for piping.
 
 ## PowerPlatform Security Split
 
@@ -212,6 +216,10 @@ Each integration has comprehensive documentation with quick start, configuration
 - [Azure DevOps](docs/documentation/AZURE_DEVOPS.md)
 - [Azure DevOps Admin](docs/documentation/AZURE_DEVOPS_ADMIN.md)
 - [Azure Management](docs/documentation/AZURE_MANAGEMENT.md)
+- [Azure Defender for Cloud](docs/documentation/AZURE_DEFENDER.md)
+- [Microsoft Entra ID](docs/documentation/ENTRA_ID.md)
+- [Microsoft 365 Message Center](docs/documentation/MESSAGE_CENTER.md)
+- [Code Review](docs/documentation/CODE_REVIEW.md)
 - [SharePoint Online](docs/documentation/SHAREPOINT.md)
 - [GitHub Enterprise](docs/documentation/GITHUB_ENTERPRISE.md)
 - [Figma](docs/documentation/FIGMA.md)

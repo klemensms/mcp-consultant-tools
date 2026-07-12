@@ -7,6 +7,7 @@ import { registerWikiTools } from './wiki-tools.js';
 import { registerWorkItemTools } from './work-item-tools.js';
 import { registerPullRequestTools, getPrWriteToolCount } from './pull-request-tools.js';
 import { registerBuildTools } from './build-tools.js';
+import { registerGitTools } from './git-tools.js';
 import { registerVariableGroupTools } from './variable-group-tools.js';
 import { registerSyncTools } from './sync-tools.js';
 import { registerChecklistTools } from './checklist-tools.js';
@@ -19,15 +20,18 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerWorkItemTools(server, ctx);
   registerPullRequestTools(server, ctx);
   registerBuildTools(server, ctx);
+  registerGitTools(server, ctx);
   registerVariableGroupTools(server, ctx);
   registerSyncTools(server, ctx);
   registerChecklistTools(server, ctx);
   registerVisualizeTools(server, ctx);
   registerTestTools(server, ctx);
 
-  // Log registration summary
-  // 1 config + 11 wiki + 10 work-item + 6 PR-read + 3 build + 2 variable-group + 8 sync + 8 checklist + 2 visualize + 7 test = 58
-  const baseToolsCount = 58;
+  // Log registration summary.
+  // 66 tools register unconditionally; the 7 pull-request write tools register
+  // only when AZUREDEVOPS_ENABLE_PR_WRITE=true, for 73 in total.
+  // Measured against `tools/list` over stdio — do not derive this by hand.
+  const baseToolsCount = 66;
   const prWriteToolsCount = getPrWriteToolCount();
   const totalToolsCount = baseToolsCount + prWriteToolsCount;
   console.error(`azure-devops tools registered: ${totalToolsCount} tools (${baseToolsCount} base + ${prWriteToolsCount} PR write)`);
@@ -38,6 +42,7 @@ export { registerWikiTools } from './wiki-tools.js';
 export { registerWorkItemTools } from './work-item-tools.js';
 export { registerPullRequestTools, getPrWriteToolCount } from './pull-request-tools.js';
 export { registerBuildTools } from './build-tools.js';
+export { registerGitTools } from './git-tools.js';
 export { registerVariableGroupTools } from './variable-group-tools.js';
 export { registerSyncTools } from './sync-tools.js';
 export { registerChecklistTools } from './checklist-tools.js';

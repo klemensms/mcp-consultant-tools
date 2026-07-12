@@ -5,7 +5,7 @@
 export const ARM_API_VERSIONS: Record<string, string> = {
   // Core
   'Microsoft.Resources/resourceGroups': '2021-04-01',
-  'Microsoft.Resources/subscriptions': '2021-04-01',
+  'Microsoft.Resources/subscriptions': '2022-12-01',
   'Microsoft.Resources/subscriptions/locations': '2021-04-01',
   'Microsoft.Resources/tags': '2021-04-01',
 
@@ -18,6 +18,10 @@ export const ARM_API_VERSIONS: Record<string, string> = {
   'Microsoft.Web/sites/deployments': '2022-09-01',
   'Microsoft.Web/sites/host/default/listkeys': '2022-09-01',
   'Microsoft.Web/sites/functions/listkeys': '2022-09-01',
+  // Diagnostics_ListSiteDetectorResponses / Diagnostics_GetSiteDetectorResponse.
+  // Not the category-scoped `/diagnostics/{category}/detectors` surface, which
+  // returns metadata only and cannot run a detector.
+  'Microsoft.Web/sites/detectors': '2022-09-01',
 
   // Storage
   'Microsoft.Storage/storageAccounts': '2023-01-01',
@@ -35,6 +39,10 @@ export const ARM_API_VERSIONS: Record<string, string> = {
   'Microsoft.Insights/components': '2020-02-02',
   'Microsoft.Insights/metricAlerts': '2018-03-01',
   'Microsoft.Insights/actionGroups': '2023-01-01',
+  // No GA version has ever shipped for this surface. `2021-05-01-preview` is what
+  // the portal, `az monitor diagnostic-settings` and Microsoft's own ARM samples
+  // use. It is a deliberate pin, not a stale one.
+  'Microsoft.Insights/diagnosticSettings': '2021-05-01-preview',
   'Microsoft.AlertsManagement/smartDetectorAlertRules': '2021-04-01',
 
   // Networking

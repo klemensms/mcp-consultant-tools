@@ -46,4 +46,4 @@ All tests require:
 - Valid credentials for PowerPlatform/Azure DevOps
 - Built project (`npm run build`)
 
-See [.env.example](../.env.example) for required environment variables.
+See [.mcp.json.example](../.mcp.json.example) for required environment variables (per server).

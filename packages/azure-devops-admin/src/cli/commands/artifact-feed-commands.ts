@@ -1,11 +1,27 @@
 /**
- * Artifact Feed CLI Commands - list packages, get versions
+ * Artifact Feed CLI Commands - list packages, get versions, feed summary, provenance
  */
 
 import type { Command } from 'commander';
 import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../types.js';
 import { outputResult } from '../output.js';
+
+/**
+ * Parse a positive integer, throwing on anything else.
+ *
+ * Call this BEFORE reaching into `ctx`: the service getters construct a client
+ * and throw on missing config, so a parse evaluated inside the service-call
+ * argument list never runs, and a typo surfaces as a credentials error.
+ */
+function parsePositiveInt(value: string | undefined, flag: string): number | undefined {
+  if (value === undefined) return undefined;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${flag} must be a positive integer, got '${value}'`);
+  }
+  return parsed;
+}
 
 export function registerArtifactFeedCommands(program: Command, ctx: ServiceContext): void {
   const feed = program.command('feed').alias('af').description('Artifact feed operations');
@@ -55,5 +71,55 @@ export function registerArtifactFeedCommands(program: Command, ctx: ServiceConte
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'get package versions'); }
+    });
+
+  feed
+    .command('summary')
+    .description('All feeds with package counts (unreadable feeds are reported, not counted as empty)')
+    .option('-p, --project <name>', 'Project name for project-scoped feeds')
+    .option('--max-packages-per-feed <n>', 'Stop counting a feed after this many packages (default 1000)')
+    .action(async (opts: any) => {
+      try {
+        const maxPackagesPerFeed = parsePositiveInt(opts.maxPackagesPerFeed, '--max-packages-per-feed');
+        const result = await ctx.artifactFeeds.getFeedSummaries({
+          project: opts.project,
+          maxPackagesPerFeed,
+        });
+        outputResult(
+          {
+            fileName: 'feed-summary',
+            data: result,
+            summary: `${result.feedCount} feed(s), ${result.totalPackages} package(s)${result.totalPackagesIsLowerBound ? ' (lower bound)' : ''}${result.unreadableFeeds.length ? `, ${result.unreadableFeeds.length} unreadable` : ''}`,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'summarise feeds'); }
+    });
+
+  feed
+    .command('provenance')
+    .description('Publish provenance for a package version (preview API; build/branch may be absent)')
+    .argument('<feedName>', 'Feed name')
+    .argument('<packageName>', 'Package name')
+    .argument('<version>', 'Exact version string')
+    .option('-p, --project <name>', 'Project name for project-scoped feeds')
+    .option('--package-type <type>', 'Package protocol type (npm, nuget, maven, upack, pypi)')
+    .action(async (feedName: string, packageName: string, version: string, opts: any) => {
+      try {
+        const result = await ctx.artifactFeeds.getPackageProvenance(feedName, packageName, version, {
+          project: opts.project,
+          packageType: opts.packageType,
+        });
+        outputResult(
+          {
+            fileName: `package-provenance-${packageName}-${version}`,
+            data: result,
+            summary: result.structuredProvenanceAvailable
+              ? `${packageName} ${version}: build ${result.buildId ?? 'n/a'}, branch ${result.branch ?? 'n/a'}`
+              : `${packageName} ${version}: no structured build/branch provenance exposed by Azure DevOps`,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'get package provenance'); }
     });
 }

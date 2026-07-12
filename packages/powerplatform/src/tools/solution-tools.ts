@@ -294,7 +294,7 @@ export function registerSolutionTools(server: any, ctx: ServiceContext): void {
       entityLogicalNames: z.array(z.string()).optional().describe(
         descWithExamples("Explicit list of entity logical names to validate. Mutually exclusive with solutionUniqueName", ENTITY_NAME_EXAMPLES)
       ),
-      publisherPrefix: z.string().describe("Publisher prefix to validate against (e.g., 'sic_'). Required."),
+      publisherPrefix: z.string().describe("Publisher prefix to validate against (e.g., 'contoso_'). Required."),
       recentDays: z.number().optional().describe("Only validate columns created in the last N days. Set to 0 to validate all columns regardless of age. Default: 30."),
       includeRefDataTables: z.boolean().optional().describe("Include RefData tables (schema starts with prefix + 'ref_') in validation. Default: true."),
       rules: z.array(z.string()).optional().describe("Specific rules to validate: 'prefix', 'lowercase', 'lookup', 'optionset', 'required-column', 'entity-icon'. Default: all rules."),

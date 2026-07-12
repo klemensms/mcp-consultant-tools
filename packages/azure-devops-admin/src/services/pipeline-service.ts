@@ -4,6 +4,15 @@
  */
 import type { AdminClient } from './admin-client.js';
 import type { AdoApiCollectionResponse } from '../types.js';
+import {
+  findSuccessfulStage,
+  stageNames,
+  summariseBuildResults,
+  type TimelineRecord,
+} from './pipeline-analysis.js';
+
+/** Stages checked by `getLastDeploys` when the caller names none. */
+const DEFAULT_STAGES = ['Dev', 'UAT', 'Prod'];
 
 export class PipelineService {
   constructor(private client: AdminClient) {}
@@ -683,5 +692,207 @@ export class PipelineService {
       project,
       message: `Approval ${approvalId} ${status}`
     };
+  }
+
+  /**
+   * Every pipeline in a project with the status of its latest build.
+   *
+   * Costs one call per pipeline, so `maxResults` bounds the fan-out. The
+   * breakdown covers the whole BuildResult enum, so the counts add up.
+   */
+  async getPipelineSummaries(
+    project: string,
+    options?: { nameContains?: string; maxResults?: number }
+  ): Promise<any> {
+    this.client.validateProject(project);
+
+    const maxResults = options?.maxResults ?? 25;
+    const needle = options?.nameContains?.toLowerCase();
+
+    const response = await this.client.makeRequest<AdoApiCollectionResponse<any>>(
+      `${project}/_apis/build/definitions?api-version=${this.client.apiVersion}`
+    );
+
+    const matched = (response.value ?? []).filter(
+      (definition: any) => !needle || String(definition.name ?? '').toLowerCase().includes(needle)
+    );
+    const selected = matched.slice(0, maxResults);
+
+    const pipelines = await Promise.all(
+      selected.map(async (definition: any) => {
+        const builds = await this.client.makeRequest<AdoApiCollectionResponse<any>>(
+          `${project}/_apis/build/builds?definitions=${definition.id}&$top=1&queryOrder=queueTimeDescending&api-version=${this.client.apiVersion}`
+        );
+        const latest = builds.value?.[0];
+        return {
+          id: definition.id,
+          name: definition.name,
+          path: definition.path,
+          queueStatus: definition.queueStatus,
+          latestBuild: latest
+            ? {
+                id: latest.id,
+                buildNumber: latest.buildNumber,
+                status: latest.status,
+                result: latest.result ?? null,
+                sourceBranch: latest.sourceBranch,
+                finishTime: latest.finishTime,
+              }
+            : null,
+        };
+      })
+    );
+
+    return {
+      project,
+      pipelineCount: pipelines.length,
+      truncated: matched.length > selected.length,
+      // Describes exactly the pipelines returned above, never a wider population.
+      resultBreakdown: summariseBuildResults(pipelines.map((p) => p.latestBuild?.result ?? null)),
+      pipelines,
+    };
+  }
+
+  /**
+   * The latest successful deployment of each stage of one pipeline.
+   *
+   * Walks recent builds newest-first and reads their timelines, because
+   * stage-level status does not exist on the Build object. Stops as soon as
+   * every requested stage is found.
+   *
+   * Never reports a bare "not found": `availableStageNames` lists every stage
+   * actually seen, so a misspelled or wrongly-cased stage name is diagnosable
+   * instead of looking like "this pipeline has never deployed".
+   */
+  async getLastDeploys(
+    project: string,
+    options: {
+      pipelineId?: number;
+      pipelineName?: string;
+      stages?: string[];
+      templateParameter?: string;
+      searchTop?: number;
+    }
+  ): Promise<any> {
+    this.client.validateProject(project);
+
+    const stages = options.stages?.length ? options.stages : DEFAULT_STAGES;
+    const searchTop = options.searchTop ?? 50;
+
+    const definition = await this.resolvePipeline(project, options.pipelineId, options.pipelineName);
+
+    const buildsResponse = await this.client.makeRequest<AdoApiCollectionResponse<any>>(
+      `${project}/_apis/build/builds?definitions=${definition.id}&$top=${searchTop}&queryOrder=queueTimeDescending&api-version=${this.client.apiVersion}`
+    );
+    const builds = buildsResponse.value ?? [];
+
+    const found = new Map<string, any>();
+    const seenStageNames = new Set<string>();
+    let searched = 0;
+
+    for (const build of builds) {
+      if (found.size === stages.length) break;
+      searched++;
+
+      const timeline = await this.client.makeRequest<{ records?: TimelineRecord[] }>(
+        `${project}/_apis/build/builds/${build.id}/timeline?api-version=${this.client.apiVersion}`
+      );
+      const records = timeline?.records ?? [];
+      for (const name of stageNames(records)) seenStageNames.add(name);
+
+      for (const stage of stages) {
+        if (found.has(stage)) continue;
+        const record = findSuccessfulStage(records, stage);
+        if (!record) continue;
+
+        found.set(stage, {
+          found: true,
+          buildId: build.id,
+          buildNumber: build.buildNumber,
+          stageResult: record.result,
+          stageFinishTime: record.finishTime,
+          buildFinishTime: build.finishTime,
+          sourceBranch: build.sourceBranch,
+          templateParameters: build.templateParameters ?? {},
+          paramValue: options.templateParameter
+            ? (build.templateParameters?.[options.templateParameter] ?? null)
+            : undefined,
+        });
+      }
+    }
+
+    const stageResults: Record<string, any> = {};
+    for (const stage of stages) stageResults[stage] = found.get(stage) ?? { found: false };
+
+    const notFound = stages.filter((stage) => !found.has(stage));
+
+    return {
+      project,
+      pipelineId: definition.id,
+      pipelineName: definition.name,
+      requestedStages: stages,
+      templateParameter: options.templateParameter ?? null,
+      buildsAvailable: builds.length,
+      buildsSearched: searched,
+      /**
+       * The search window was completely filled, so older builds exist that we
+       * never looked at. A stage reported `found: false` may simply have last
+       * deployed further back than `searchTop` builds.
+       */
+      searchWindowFull: builds.length === searchTop,
+      stages: stageResults,
+      stagesNotFound: notFound,
+      /** Every stage name seen across the builds we inspected. */
+      availableStageNames: [...seenStageNames].sort(),
+      /**
+       * No build carried a single Stage-type timeline record. Either the pipeline
+       * has no stages, or none of the inspected builds reached one — NOT evidence
+       * that the requested stages never deployed.
+       */
+      noStageRecordsFound: seenStageNames.size === 0,
+    };
+  }
+
+  /** Resolve a pipeline by id, or by name using a case-insensitive exact match. */
+  private async resolvePipeline(
+    project: string,
+    pipelineId?: number,
+    pipelineName?: string
+  ): Promise<{ id: number; name: string }> {
+    if (pipelineId !== undefined) {
+      const definition = await this.client.makeRequest<any>(
+        `${project}/_apis/build/definitions/${pipelineId}?api-version=${this.client.apiVersion}`
+      );
+      return { id: definition.id, name: definition.name };
+    }
+
+    if (!pipelineName) {
+      throw new Error('Provide either pipelineId or pipelineName.');
+    }
+
+    const response = await this.client.makeRequest<AdoApiCollectionResponse<any>>(
+      `${project}/_apis/build/definitions?name=${encodeURIComponent(pipelineName)}&api-version=${this.client.apiVersion}`
+    );
+    const definitions = response.value ?? [];
+
+    // The server-side `name` filter is not an exact match, so narrow it here —
+    // case-insensitively, or a correctly-named pipeline reports "not found".
+    const wanted = pipelineName.toLowerCase();
+    const exact = definitions.filter((d: any) => String(d.name ?? '').toLowerCase() === wanted);
+
+    if (exact.length === 1) return { id: exact[0].id, name: exact[0].name };
+
+    if (exact.length === 0) {
+      const nearby = definitions.map((d: any) => d.name).slice(0, 10);
+      throw new Error(
+        `Pipeline '${pipelineName}' not found in project '${project}'.` +
+        (nearby.length ? ` Similar pipelines: ${nearby.join(', ')}` : '')
+      );
+    }
+
+    throw new Error(
+      `Pipeline name '${pipelineName}' is ambiguous in project '${project}': ` +
+      `${exact.map((d: any) => `${d.name} (id ${d.id})`).join(', ')}. Pass pipelineId instead.`
+    );
   }
 }

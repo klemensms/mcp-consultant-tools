@@ -4,7 +4,7 @@
 
 MCP server for Azure Resource Manager (ARM) API. Provides discovery and inspection of Azure infrastructure, App Service lifecycle management, and configuration updates.
 
-**Tools:** 31 | **Prompts:** 4 | **Auth:** Entra ID (Service Principal)
+**Tools:** 42 (38 read-only, 4 write) | **Prompts:** 4 | **Auth:** Entra ID (Service Principal)
 
 ## Environment Configuration
 
@@ -48,10 +48,19 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 ## Key Tools
 
 ### Discovery
+- `list-subscriptions` - Subscriptions visible to the service principal (tenant-level)
 - `list-resources` - List all resources with filtering
 - `get-resource` - Get detailed resource info
 - `list-resource-groups` - List resource groups
 - `query-resource-graph` - Advanced KQL-like queries
+
+### Resource Graph (cross-resource, read-only)
+- `list-network-security-groups` - NSGs + rules + subnet/NIC associations
+- `list-role-assignments` - RBAC assignments with resolved role names
+- `list-private-endpoints` - Private endpoints + connection status
+- `find-resource-consumers` - What references a given resource
+- `list-diagnostic-settings` - Diagnostic settings across resources
+- `get-resource-relationships` - Subnet/VNet adjacency + forward/reverse references
 
 ### Function Apps
 - `list-function-apps` - List all Function Apps
@@ -63,7 +72,11 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 - `list-app-services` - List web apps
 - `get-app-service` - Get App Service details (supports `showValues` to override redaction)
 - `list-app-service-plans` - List hosting plans
-- `get-app-service-logs` - Fetch logs via Kudu SCM (docker, eventlog, stdout)
+- `get-app-service-logs` - Fetch log *files* via Kudu SCM (docker, eventlog, stdout)
+- `get-log-stream` - Collect *live* log output via Kudu SCM (bounded: max 30s / 1000 lines)
+- `get-log-config` - Logging configuration (levels, blob destinations, tracing)
+- `list-detectors` - App Service diagnostic detectors
+- `get-detector` - Run one detector over a time range
 
 ### App Services (Write — requires AZURE_MGMT_ENABLE_WRITE=true)
 - `restart-app-service` - Restart an App Service
@@ -125,6 +138,31 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 4. If config fix needed: use set-app-service-config then restart-app-service
 ```
 
+## Things that will bite you
+
+**Resource Graph has no query-parameter binding.** Filter values are escaped into the KQL literal by `src/utils/kql.ts`, which escapes the backslash *before* the quote. Escaping only the quote lets a trailing `\` close the literal and inject clauses. Never interpolate a value into a query without `kqlString()`.
+
+**Compare `type` with `=~`, never `==`.** A wrong-cased `type` literal compiles and returns zero rows — a false all-clear, not an error. Same for `tostring(properties) contains`: `contains` takes a `string`, and `properties` is `dynamic`.
+
+**`truncated: true` means the counts are a lower bound.** Resource Graph withholds `$skipToken` whenever it truncates, so a full 1000-row page with no continuation token is indistinguishable from "exactly one page exists". Every Resource Graph tool reports `truncated`; `summary` always describes exactly the rows returned. Paged queries carry `| order by id asc` — without a deterministic sort, `$skipToken` duplicates and drops rows.
+
+**`list-diagnostic-settings` distinguishes "nothing configured" from "could not look".** A resource type that does not support diagnostic settings answers `200 []`. A `403` or `404` *rejects*. The si source bucketed every rejection as "not configured", turning a permissions gap into a clean audit result. `ArmClient` errors now carry `.status` (`getArmErrorStatus()`) so the two stay apart. Any new fan-out across resources must do the same.
+
+**`list-role-assignments` returns `roleDefinitionName: null`, never `"Unknown"`,** when a role definition cannot be read — a fabricated `Unknown` reads like a real role in `byRole`. The whole-lowercased-id join is correct **only** against ARG's `authorizationresources` table; the raw ARM REST APIs put a subscription prefix on one side and not the other.
+
+**`list-subscriptions` returning `[]` is a permissions signal.** `GET /subscriptions` is RBAC-filtered and answers `200 []`, never `403`, when the principal holds no role assignment. Partial subscription access is equally invisible to Resource Graph: it returns a clean `200` with only the readable subscriptions.
+
+**`get-log-stream` blocks the MCP client** for up to 30 seconds. Bounds are enforced twice — Zod schema *and* a service-side clamp — because a CLI caller bypasses the schema. The si source allowed 120s/2000 lines; deliberately not honoured. An empty stream is not evidence the app is idle: filesystem logging is off by default and self-disables after 12 hours.
+
+**Kudu SCM auth is unverified.** `ScmClient` sends an ARM-audience token; `az webapp log tail` uses `https://appservice.azure.com`. If Kudu ever rejects ARM tokens, every SCM call here 401s. Reported explicitly as `SCM authentication rejected`. Not changed, because it would risk breaking the already-shipped `get-app-service-logs`.
+
+**Detectors: `sites/{name}/detectors` returns data; `sites/{name}/diagnostics/{category}/detectors` is a metadata browser.** They are different APIs. Use the former.
+
+**Pre-existing, do not fix inside a port commit:**
+- `AzureManagementService.ts` logs the subscription ID to stderr on startup. It lands in transcripts and CI output.
+- `src/index.ts` carries a duplicate private copy of `createServiceContext()` alongside `context-factory.ts`. Both must gain any new field or the build fails.
+- The technical doc's CLI cache path says `.context/.mcp-mgmt-cache/`; the code uses `.mcp-azure-mgmt-cache`.
+
 ## Security Notes
 
 - **Read-only by default**: Write tools require `AZURE_MGMT_ENABLE_WRITE=true`
@@ -155,9 +193,20 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 }
 ```
 
+## Testing
+
+```bash
+npm run build --workspace=packages/azure-management
+npm test --workspace=packages/azure-management   # 71 tests, no live API
+```
+
+Services take injected clients, so the suite uses plain stub objects and needs no `vi.mock`. Query builders are exported as pure `buildXQuery(opts) => string` functions and tested without a subscription.
+
+**Not verified against a live Azure subscription.** The Resource Graph, log-stream and detector surfaces are checked against Microsoft's published schemas and mocked responses only. See `<known-limitations>` in the technical doc.
+
 ## Reference
 
-See `docs/technical/AZURE_MANAGEMENT_TECHNICAL.md` for detailed implementation documentation.
+See `docs/technical/AZURE_MANAGEMENT_TECHNICAL.md` for detailed implementation documentation, including the `<query-safety>` and `<known-limitations>` sections.
 
 ## CLI Usage
 
@@ -176,4 +225,21 @@ mcp-azure-mgmt-cli app-service get my-app --show-values
 mcp-azure-mgmt-cli app-service logs my-app --log-type docker
 mcp-azure-mgmt-cli app-service restart my-app
 mcp-azure-mgmt-cli app-service set-config my-app --app-settings '{"KEY":"value"}'
+
+# Subscriptions
+mcp-azure-mgmt-cli resource subscriptions
+
+# Resource Graph
+mcp-azure-mgmt-cli graph nsgs --resource-group my-rg
+mcp-azure-mgmt-cli graph role-assignments --principal-id aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+mcp-azure-mgmt-cli graph private-endpoints
+mcp-azure-mgmt-cli graph consumers /subscriptions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/resourceGroups/my-rg/providers/Microsoft.KeyVault/vaults/my-vault
+mcp-azure-mgmt-cli graph diagnostic-settings --resource-type Microsoft.Web/sites --max-resources 50
+mcp-azure-mgmt-cli graph relationships /subscriptions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/resourceGroups/my-rg/providers/Microsoft.Web/sites/my-app
+
+# Log streaming and detectors
+mcp-azure-mgmt-cli log stream my-app --duration 15 --max-lines 500
+mcp-azure-mgmt-cli log config my-app
+mcp-azure-mgmt-cli log detectors my-app
+mcp-azure-mgmt-cli log detector my-app availability --start-time 2026-07-10T00:00:00Z
 ```

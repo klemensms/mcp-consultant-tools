@@ -6,6 +6,7 @@
  */
 import type { AzureDevOpsClient } from '../azure-devops-client.js';
 import type { AdoApiCollectionResponse } from '../models/index.js';
+import { extractBuildIssues } from './build-issues.js';
 
 export class BuildService {
   constructor(private readonly client: AzureDevOpsClient) {}
@@ -244,6 +245,41 @@ export class BuildService {
         lastChangedOn: log.lastChangedOn,
         url: log.url
       }))
+    };
+  }
+
+  /**
+   * Warnings and errors for a build, read from the timeline's `issues[]`.
+   *
+   * No log download is needed: the timeline carries each issue's full message.
+   */
+  async getBuildIssues(
+    project: string,
+    buildId: number,
+    severity: 'all' | 'errors' | 'warnings' = 'all'
+  ): Promise<any> {
+    this.client.validateProject(project);
+
+    const [build, timeline] = await Promise.all([
+      this.client.get<any>(
+        `${project}/_apis/build/builds/${buildId}?api-version=${this.client.apiVersion}`
+      ),
+      this.client.get<any>(
+        `${project}/_apis/build/builds/${buildId}/timeline?api-version=${this.client.apiVersion}`
+      ),
+    ]);
+
+    const summary = extractBuildIssues(timeline?.records ?? [], severity);
+
+    return {
+      project,
+      buildId,
+      buildNumber: build?.buildNumber,
+      status: build?.status,
+      result: build?.result,
+      sourceBranch: build?.sourceBranch,
+      severity,
+      ...summary,
     };
   }
 }

@@ -18,6 +18,7 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf build *.tsbuildinfo",
+    "test": "vitest run",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -28,7 +29,7 @@
     "database",
     "sql-server"
   ],
-  "author": "Michal Sobieraj",
+  "author": "Klemens Stelk",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -48,7 +49,8 @@
   "devDependencies": {
     "@types/mssql": "^9.1.8",
     "@types/node": "^22.10.5",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^2.1.9"
   },
   "bin": {
     "mcp-sql": "build/index.js",

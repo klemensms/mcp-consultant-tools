@@ -83,7 +83,9 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 ## Notable Behavior
 
 - **`get-flows` filters by default:** Excludes Customer Insights (CXP_ prefix), SYSTEM-modified flows, and Copilot for Sales flows. Use `excludeCustomerInsights: false` etc. to include them. Response includes exclusion statistics.
-- **`validate-dataverse` validates publisher prefix compliance:** Pass your `publisherPrefix` (e.g., `"sic_"`) to check naming conventions, lookup naming, option set scope, required columns, and entity icons across a solution or specific entities.
+- **`scan-flow-health` needs Organization-scope Read on FlowRun:** It reads run history from the Dataverse `flowrun` table (app-only friendly, no management API). Because `flowrun` records are user-owned, the app registration's Dataverse security role must grant **Organization-scope Read on FlowRun** — otherwise the scan sees no runs and reports each flow with `scanError` rather than a false all-healthy. Success rates are honest about sampling: a flow with more runs than `maxRunsPerFlow` is flagged `sampleTruncated`, and a flow with no runs reports `successRate: null` (not `0`).
+- **`get-flow-inventory` vs `get-flows`:** `get-flow-inventory` paginates to a guaranteed-complete list of every cloud flow (for deployment audits); `get-flows` returns a single filtered page (for interactive investigation).
+- **`validate-dataverse` validates publisher prefix compliance:** Pass your `publisherPrefix` (e.g., `"contoso_"`) to check naming conventions, lookup naming, option set scope, required columns, and entity icons across a solution or specific entities.
 - **`gen-integration-audit` is the top-level audit tool:** Aggregates service endpoints, webhooks, flow complexity, environment variables, and plugin inventory into a single Markdown report. Use `outputFormat: "summary"` to surface only flagged items.
 - **Flow/workflow definition tools support `summary` mode:** Pass `summary: true` to `get-flow-definition` or `get-workflow-definition` for a parsed, reduced-size summary instead of raw JSON/XAML.
 

@@ -15,6 +15,10 @@ import { createMcpServer, createEnvLoader, resolveSecrets, createPiiPipelineFrom
 import { ConnectionService } from './services/connection-service.js';
 import { QueryService } from './services/query-service.js';
 import { WriteService } from './services/write-service.js';
+import { PerformanceService } from './services/performance-service.js';
+import { SessionService } from './services/session-service.js';
+import { SpaceService } from './services/space-service.js';
+import { IndexService } from './services/index-service.js';
 import type { AzureSqlConfig } from './services/connection-service.js';
 import type { ServiceContext } from './types.js';
 import { registerAllTools } from './tools/index.js';
@@ -45,6 +49,10 @@ function createServiceContext(): ServiceContext {
   let connection: ConnectionService | null = null;
   let query: QueryService | null = null;
   let write: WriteService | null = null;
+  let performance: PerformanceService | null = null;
+  let session: SessionService | null = null;
+  let space: SpaceService | null = null;
+  let index: IndexService | null = null;
 
   function getConnection(): ConnectionService {
     if (!connection) {
@@ -92,10 +100,18 @@ function createServiceContext(): ServiceContext {
     return connection;
   }
 
+  function getQuery(): QueryService {
+    return query ??= new QueryService(getConnection(), piiPipeline);
+  }
+
   return {
     get connection() { return getConnection(); },
-    get query() { return query ??= new QueryService(getConnection(), piiPipeline); },
+    get query() { return getQuery(); },
     get write() { return write ??= new WriteService(getConnection(), piiPipeline); },
+    get performance() { return performance ??= new PerformanceService(getQuery()); },
+    get session() { return session ??= new SessionService(getQuery()); },
+    get space() { return space ??= new SpaceService(getQuery()); },
+    get index() { return index ??= new IndexService(getQuery()); },
     checkViewManageEnabled() {
       if (process.env.SQL_ENABLE_VIEW_MANAGE !== 'true') {
         throw new Error('View management is disabled. Set SQL_ENABLE_VIEW_MANAGE=true to enable CREATE OR ALTER VIEW.');
@@ -136,6 +152,11 @@ function createServiceContext(): ServiceContext {
         throw new Error('DELETE operations are disabled. Set SQL_ENABLE_DELETE=true to enable.');
       }
     },
+    checkIndexCreateEnabled() {
+      if (process.env.SQL_ENABLE_INDEX_CREATE !== 'true') {
+        throw new Error('Index creation is disabled. Set SQL_ENABLE_INDEX_CREATE=true to enable.');
+      }
+    },
   };
 }
 
@@ -153,6 +174,9 @@ export function registerAzureSqlTools(server: any): void {
 export { ConnectionService } from './services/connection-service.js';
 export { QueryService } from './services/query-service.js';
 export { WriteService } from './services/write-service.js';
+export { SessionService } from './services/session-service.js';
+export { SpaceService } from './services/space-service.js';
+export { IndexService } from './services/index-service.js';
 export type { AzureSqlConfig } from './services/connection-service.js';
 export type { ServiceContext } from './types.js';
 

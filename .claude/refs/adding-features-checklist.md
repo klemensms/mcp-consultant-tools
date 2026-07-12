@@ -6,7 +6,7 @@
 2. Add tool registration in `tools/{domain}-tools.ts` (catch blocks must return `isError: true`)
 3. Add examples to `tool-examples.ts` for complex params (queries, JSON, enums, IDs)
 4. Add matching CLI command in `cli/commands/{domain}-commands.ts`
-5. Update `.env.example` if new env vars
+5. Update `.mcp.json.example` if new env vars (the consolidated config reference at the repo root)
 6. Update `docs/technical/{INTEGRATION}_TECHNICAL.md` (XML-tagged tool reference)
 7. Update `docs/documentation/{integration}.md` ONLY if user-facing (env vars, flags, prompts)
 8. Update `README.md` and package `CLAUDE.md` if needed
@@ -20,7 +20,7 @@
 ## Adding a new integration package
 
 - Follow the canonical structure (see `package-architecture.md`). Reference: `packages/azure-devops/`.
-- Update `package.json` (MCP bin, CLI bin, `commander` dep), `.env.example`, `README.md`, `scripts/publish-all.sh` PACKAGES array.
+- Update `package.json` (MCP bin, CLI bin, `commander` dep), `.mcp.json.example` (add a server block), `README.md`, `scripts/publish-all.sh` PACKAGES array.
 - Create package `CLAUDE.md`, `docs/documentation/{integration}.md`, `docs/technical/{INTEGRATION}_TECHNICAL.md`.
 - Wire into the meta package imports.
 - Add row to the binary mapping table in `package-binaries.md`.

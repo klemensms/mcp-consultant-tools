@@ -71,7 +71,7 @@ All configurations use the following environment variables:
 - `AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE` - Enable work item write (default: false)
 - `AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE` - Enable work item delete (default: false)
 
-See [../.env.example](../.env.example) for a complete list of environment variables.
+See [../.mcp.json.example](../.mcp.json.example) for a complete list of environment variables across all servers.
 
 ## Security Notes
 

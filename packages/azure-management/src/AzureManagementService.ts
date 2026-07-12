@@ -7,6 +7,8 @@ import { StorageService } from './services/StorageService.js';
 import { SqlService } from './services/SqlService.js';
 import { MonitoringService } from './services/MonitoringService.js';
 import { NetworkingService } from './services/NetworkingService.js';
+import { ResourceGraphService } from './services/ResourceGraphService.js';
+import { LogStreamService } from './services/LogStreamService.js';
 import { ScmClient } from './utils/scm-client.js';
 
 /**
@@ -37,6 +39,8 @@ export class AzureManagementService {
   private _sqlService: SqlService | null = null;
   private _monitoringService: MonitoringService | null = null;
   private _networkingService: NetworkingService | null = null;
+  private _resourceGraphService: ResourceGraphService | null = null;
+  private _logStreamService: LogStreamService | null = null;
 
   private redactSecrets: boolean;
   private enableWrite: boolean;
@@ -146,6 +150,26 @@ export class AzureManagementService {
       this._networkingService = new NetworkingService(this.client);
     }
     return this._networkingService;
+  }
+
+  /**
+   * Get the Resource Graph Service (lazy initialization).
+   */
+  get resourceGraph(): ResourceGraphService {
+    if (!this._resourceGraphService) {
+      this._resourceGraphService = new ResourceGraphService(this.client);
+    }
+    return this._resourceGraphService;
+  }
+
+  /**
+   * Get the Log Stream Service (lazy initialization).
+   */
+  get logStream(): LogStreamService {
+    if (!this._logStreamService) {
+      this._logStreamService = new LogStreamService(this.client, this.scmClient);
+    }
+    return this._logStreamService;
   }
 
   /**

@@ -1,0 +1,545 @@
+// =============================================================================
+// .mcp.json.example — comprehensive MCP server configuration reference
+// =============================================================================
+// This file lists EVERY MCP server in this monorepo (24 in total) together with
+// EVERY environment variable each one accepts, annotated with whether it is
+// required or optional, its default, and a one-line purpose. It is a reference,
+// not a ready-to-run config: copy the block(s) for the server(s) you actually
+// use into your MCP client config and delete the rest. You almost never want all
+// 24 servers enabled at once.
+//
+// -----------------------------------------------------------------------------
+// JSONC vs strict JSON — where each wrapper key goes
+// -----------------------------------------------------------------------------
+// This file is JSONC: it uses `//` line comments for documentation. Two of the
+// three common clients accept JSONC as-is; one does not:
+//   * VS Code            → .vscode/mcp.json, top-level key "servers"   (JSONC OK)
+//   * Claude Code        → .mcp.json,        top-level key "mcpServers" (JSONC OK)
+//   * Claude Desktop     → claude_desktop_config.json, key "mcpServers" (STRICT
+//                          JSON — strip every `//` comment first)
+// The command/args/env are identical across all three; only the wrapper key
+// differs ("servers" vs "mcpServers"). This file uses "mcpServers" below.
+//
+// -----------------------------------------------------------------------------
+// 1Password secret references (recommended)
+// -----------------------------------------------------------------------------
+// Every value shown below is a plain placeholder (e.g. "your-client-secret").
+// ANY value may instead be a 1Password secret reference of the form
+// `op://Vault/Item/field`, resolved at runtime via biometric auth so no secret
+// is stored in the file. Requires the 1Password desktop app with CLI integration
+// enabled. Full setup: docs/documentation/ONEPASSWORD_SECRET_RESOLUTION.md
+//
+// -----------------------------------------------------------------------------
+// Shared block A — PII protection pipeline (v31+)
+// -----------------------------------------------------------------------------
+// A 4-layer redaction pipeline runs on responses from FIVE servers:
+// powerplatform-data, azure-devops, azure-sql, rest-api, azure-b2c. It is
+// OPT-IN and OFF by default; the server starts normally without it. Set
+// PII_PROTECTION=true to turn redaction on. There is no environment-type gate
+// today. The relevant variables (documented once here, repeated in each of the
+// five env blocks below):
+//   MCP_ENVIRONMENT_TYPE  production|uat|dev. Advisory only in v32 — not a gate;
+//                         only feeds the "looks unprotected" stderr warning.
+//                         Inert for powerplatform-data and azure-b2c (those fix
+//                         it to production internally).
+//   PII_PROTECTION        true|false (default false). true = redaction active.
+//   PII_OBSERVE_MODE      true|false (default false). true = compute what would
+//                         be redacted but return original data unchanged.
+//   PII_CONFIG_PATH       path to a JSON file of per-layer/per-entity rules.
+//                         Empty = built-in defaults.
+//   PII_NONPROD_HINTS     comma-separated substrings that mark an identifier as
+//                         non-prod. Default: dev,uat,training,support,migration,
+//                         sandbox,test
+//   PII_SESSION_SALT      64-hex-char cross-server correlation salt. Set the
+//                         SAME value in every server's env so identical inputs
+//                         tokenise identically. Empty = per-process random.
+//                         A non-empty value MUST be exactly 64 hex chars or the
+//                         server refuses to start. Generate: openssl rand -hex 32
+//                         Rotate per engagement. Never persist outside this file.
+// See docs/documentation/pii-protection.md for the full reference.
+//
+// -----------------------------------------------------------------------------
+// Shared block B — Azure Service Principal (AZURE_* quartet)
+// -----------------------------------------------------------------------------
+// azure-management, azure-defender, and azure-data-factory read the SAME four
+// unprefixed variables. One Entra ID app registration can serve all three
+// (azure-management needs Reader, azure-defender needs Security Reader, ADF
+// needs Data Factory Contributor / Reader as appropriate):
+//   AZURE_TENANT_ID  AZURE_CLIENT_ID  AZURE_CLIENT_SECRET  AZURE_SUBSCRIPTION_ID
+// entra-id, message-center, and the *_TENANT_ID/_CLIENT_ID vars on other
+// servers are DELIBERATELY separate (Graph directory permissions, not
+// subscription RBAC) — do not assume they share the same app registration.
+//
+// -----------------------------------------------------------------------------
+// Meta package
+// -----------------------------------------------------------------------------
+// The `mcp-consultant-tools` meta package bundles all integrations behind a
+// single binary. This file configures each integration as its own server, which
+// is the recommended approach (smaller tool surface, per-server credentials).
+// =============================================================================
+
+{
+  "mcpServers": {
+
+    // ---- powerplatform — Dynamics 365 / Dataverse, READ-ONLY (production-safe) ----
+    "powerplatform": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/powerplatform@beta", "mcp-consultant-tools-powerplatform"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com", // required — Dataverse environment URL
+        "POWERPLATFORM_CLIENT_ID": "your-client-id",                     // required — Entra app (client) ID
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id",                     // required — Entra tenant ID
+        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret"              // optional — omit for interactive browser (SSO) auth; set for service-principal auth
+      }
+    },
+
+    // ---- powerplatform-customization — Dataverse SCHEMA changes (DEV ONLY, not production-safe) ----
+    "powerplatform-customization": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/powerplatform-customization@beta", "mcp-pp-custom"],
+      "env": {
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com", // required — Dataverse environment URL
+        "POWERPLATFORM_CLIENT_ID": "your-client-id",                     // required — Entra app (client) ID
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id",                     // required — Entra tenant ID
+        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",             // optional — omit for interactive (SSO) auth
+        "PUBLISHER_PREFIX": "contoso_",                                  // required — publisher prefix; validated at startup, trailing underscore normalised
+        "POWERPLATFORM_DEFAULT_SOLUTION": "YourSolutionUniqueName"       // optional — default solution for schema-creation tools when none passed per-call
+      }
+    },
+
+    // ---- powerplatform-data — Dataverse record CRUD + actions (OPERATIONAL; writes off by default) ----
+    // PII pipeline server (see Shared block A). Audit logging is opt-in (see docs/documentation/audit-logging.md).
+    // MCP_ENVIRONMENT_TYPE is inert for this package (fixed to production internally) — omitted here.
+    "powerplatform-data": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/powerplatform-data@beta", "mcp-pp-data"],
+      "env": {
+        "PII_PROTECTION": "true",                            // optional (default false) — true = redact query-records responses
+        "PII_OBSERVE_MODE": "false",                         // optional (default false) — true = report would-redact, return data unchanged
+        "PII_SESSION_SALT": "",                              // optional — 64-hex cross-server salt; empty = per-process random (openssl rand -hex 32)
+        "PII_CONFIG_PATH": "",                               // optional — path to PII rules JSON; empty = built-in defaults
+        "PII_NONPROD_HINTS": "dev,uat,training,support,migration,sandbox,test", // optional — non-prod substring hints
+        "MCP_AUDIT_LEVEL": "",                               // optional (default off) — lean|full to enable write audit logging
+        "MCP_AUDIT_CLIENT": "Contoso",                       // optional — client label recorded in the audit log
+        "MCP_AUDIT_OPERATOR": "jdoe@example.com",            // optional — operator identity recorded in the audit log
+        "MCP_AUDIT_PATH": "~/.mcp-audit",                    // optional — audit log directory
+        "MCP_AUDIT_ROTATION": "monthly",                     // optional — audit log rotation cadence
+        "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com", // required — Dataverse environment URL
+        "POWERPLATFORM_CLIENT_ID": "your-client-id",         // required — Entra app (client) ID
+        "POWERPLATFORM_TENANT_ID": "your-tenant-id",         // required — Entra tenant ID
+        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret", // optional — omit for interactive (SSO) auth
+        "POWERPLATFORM_ENABLE_CREATE": "false",              // optional (default false) — enable create-record, associate-records
+        "POWERPLATFORM_ENABLE_UPDATE": "false",              // optional (default false) — enable update-record
+        "POWERPLATFORM_ENABLE_DELETE": "false",              // optional (default false) — enable delete-record, disassociate-records (needs confirm:true too)
+        "POWERPLATFORM_ENABLE_ACTIONS": "false"              // optional (default false) — enable execute-action
+      }
+    },
+
+    // ---- azure-devops — wiki, work items, PRs, build troubleshooting (read-only by default) ----
+    // PII pipeline server (see Shared block A). Auth: AZUREDEVOPS_PAT OR the Entra ID trio (TENANT/CLIENT/SECRET) together.
+    "azure-devops": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/azure-devops@beta", "mcp-ado"],
+      "env": {
+        "MCP_ENVIRONMENT_TYPE": "production",                // optional — advisory only (feeds "looks unprotected" warning), not a gate
+        "PII_PROTECTION": "true",                            // optional (default false) — true = redact work-item fields and identities
+        "PII_OBSERVE_MODE": "false",                         // optional (default false) — true = report would-redact, return data unchanged
+        "PII_CONFIG_PATH": "",                               // optional — path to PII rules JSON; empty = built-in defaults
+        "PII_NONPROD_HINTS": "dev,uat,training,support,migration,sandbox,test", // optional — non-prod substring hints (checked against AZUREDEVOPS_ORGANIZATION)
+        "AZUREDEVOPS_ORGANIZATION": "your-org",              // required — org name from https://dev.azure.com/<organization>
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2",         // required — comma-separated project allowlist (* = all)
+        "AZUREDEVOPS_PAT": "your-personal-access-token",     // required (PAT auth) — leave empty if using the Entra ID trio below
+        "AZUREDEVOPS_TENANT_ID": "",                         // optional (Entra ID auth) — set all three of TENANT/CLIENT/SECRET together
+        "AZUREDEVOPS_CLIENT_ID": "",                         // optional (Entra ID auth) — app (client) ID
+        "AZUREDEVOPS_CLIENT_SECRET": "",                     // optional (Entra ID auth) — client secret
+        "AZUREDEVOPS_API_VERSION": "7.1",                    // optional (default 7.1) — Azure DevOps REST API version
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE": "false",       // optional (default false) — enable work item create/update
+        "AZUREDEVOPS_ENABLE_WORK_ITEM_DELETE": "false",      // optional (default false) — enable work item delete
+        "AZUREDEVOPS_ENABLE_WIKI_WRITE": "false",            // optional (default false) — enable wiki page create/update
+        "AZUREDEVOPS_ENABLE_WIKI_DELETE": "false",           // optional (default false) — enable wiki page delete
+        "AZUREDEVOPS_ENABLE_PR_WRITE": "false",              // optional (default false) — enable PR reviews/comments/merges
+        "AZUREDEVOPS_COMMENT_FORMAT": "markdown",            // optional (default markdown) — html auto-converts markdown for legacy orgs
+        "AZUREDEVOPS_SYNC_FOLDER": "docs/user-stories",      // optional (default docs/user-stories) — local file sync target folder
+        "AZUREDEVOPS_SYNC_AUTO_COMMIT": "false"              // optional (default false) — auto-commit synced work item files
+      }
+    },
+
+    // ---- azure-devops-admin — pipelines, service connections, agent pools, environments (read-only by default) ----
+    // Auth: AZUREDEVOPS_PAT OR the Entra ID trio (TENANT/CLIENT/SECRET) together.
+    "azure-devops-admin": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/azure-devops-admin@beta", "mcp-ado-admin"],
+      "env": {
+        "AZUREDEVOPS_ORGANIZATION": "your-org-name",         // required — org name
+        "AZUREDEVOPS_PROJECTS": "Project1,Project2",         // required — comma-separated project allowlist (* = all)
+        "AZUREDEVOPS_PAT": "your-personal-access-token",     // required (PAT auth) — leave empty if using the Entra ID trio below
+        "AZUREDEVOPS_TENANT_ID": "",                         // optional (Entra ID auth) — set all three together
+        "AZUREDEVOPS_CLIENT_ID": "",                         // optional (Entra ID auth) — app (client) ID
+        "AZUREDEVOPS_CLIENT_SECRET": "",                     // optional (Entra ID auth) — client secret
+        "AZUREDEVOPS_API_VERSION": "7.1",                    // optional (default 7.1) — REST API version
+        "AZUREDEVOPS_ENABLE_PIPELINE_UPSERT": "false",       // optional (default false) — create/update pipelines, queue/cancel/retry builds
+        "AZUREDEVOPS_ENABLE_PIPELINE_DELETE": "false",       // optional (default false) — delete pipeline definitions (needs UPSERT true)
+        "AZUREDEVOPS_ENABLE_SERVICE_CONN_UPSERT": "false",   // optional (default false) — create/update/share service connections
+        "AZUREDEVOPS_ENABLE_SERVICE_CONN_DELETE": "false",   // optional (default false) — delete service connections
+        "AZUREDEVOPS_ENABLE_VARIABLE_GROUP_UPSERT": "false", // optional (default false) — create variable groups, set variables
+        "AZUREDEVOPS_ENABLE_VARIABLE_GROUP_DELETE": "false", // optional (default false) — delete variable groups, remove variables
+        "AZUREDEVOPS_ENABLE_AGENT_POOL_UPSERT": "false",     // optional (default false) — update pool settings, enable agents
+        "AZUREDEVOPS_ENABLE_AGENT_POOL_DISABLE": "false",    // optional (default false) — disable agents (graceful drain)
+        "AZUREDEVOPS_ENABLE_ENVIRONMENT_UPSERT": "false",    // optional (default false) — create/update environments, add checks
+        "AZUREDEVOPS_ENABLE_ENVIRONMENT_DELETE": "false",    // optional (default false) — delete environments, remove checks
+        "AZUREDEVOPS_ENABLE_CLASSIFICATION_NODE_UPSERT": "false", // optional (default false) — create/update iterations and areas
+        "AZUREDEVOPS_ENABLE_CLASSIFICATION_NODE_DELETE": "false", // optional (default false) — delete iterations and areas
+        "AZUREDEVOPS_ENABLE_ITERATION_CAPACITY_UPSERT": "false",  // optional (default false) — set member/team capacity and days-off (PAT needs vso.work_write)
+        "AZUREDEVOPS_ENABLE_PROJECT_UPSERT": "false",        // optional (default false) — create/update projects
+        "AZUREDEVOPS_ENABLE_PROJECT_DELETE": "false",        // optional (default false) — delete projects
+        "AZUREDEVOPS_FEEDS": ""                              // optional — comma-separated artifact-feed allowlist; empty = all feeds
+      }
+    },
+
+    // ---- log-analytics — KQL access to Azure Log Analytics workspaces (read-only) ----
+    // Credentials fall back to APPINSIGHTS_* if unset (one app registration can serve both).
+    "log-analytics": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/log-analytics@beta", "mcp-loganalytics"],
+      "env": {
+        "LOGANALYTICS_WORKSPACE_ID": "your-workspace-guid",  // required (single-workspace) — the workspace GUID; or use LOGANALYTICS_RESOURCES instead
+        "LOGANALYTICS_RESOURCES": "",                        // optional (multi-workspace) — JSON array of {id,name,workspaceId,active}; overrides single-workspace
+        "LOGANALYTICS_TENANT_ID": "your-tenant-id",          // required (entra-id auth) — Entra tenant ID (falls back to APPINSIGHTS_TENANT_ID)
+        "LOGANALYTICS_CLIENT_ID": "your-client-id",          // required (entra-id auth) — app (client) ID (falls back to APPINSIGHTS_CLIENT_ID)
+        "LOGANALYTICS_CLIENT_SECRET": "your-client-secret",  // required (entra-id auth) — client secret (falls back to APPINSIGHTS_CLIENT_SECRET)
+        "LOGANALYTICS_API_KEY": "",                          // optional (api-key auth) — set only when LOGANALYTICS_AUTH_METHOD=api-key
+        "LOGANALYTICS_AUTH_METHOD": "entra-id"               // optional (default entra-id) — entra-id (recommended) or api-key
+      }
+    },
+
+    // ---- application-insights — telemetry queries: exceptions, perf, dependencies, traces (read-only) ----
+    "application-insights": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/application-insights@beta", "mcp-appins"],
+      "env": {
+        "APPINSIGHTS_RESOURCES": "[{\"id\":\"prod-api\",\"name\":\"Production API\",\"appId\":\"your-app-id\",\"active\":true}]", // required (recommended) — JSON array of {id,name,appId,active}; add "apiKey" per-resource for api-key auth
+        "APPINSIGHTS_APP_ID": "",                            // optional (fallback) — single resource appId when APPINSIGHTS_RESOURCES is not used
+        "APPINSIGHTS_TENANT_ID": "your-tenant-id",           // required (entra-id auth) — Entra tenant ID
+        "APPINSIGHTS_CLIENT_ID": "your-client-id",           // required (entra-id auth) — app (client) ID
+        "APPINSIGHTS_CLIENT_SECRET": "your-client-secret",   // required (entra-id auth) — client secret
+        "APPINSIGHTS_AUTH_METHOD": "entra-id"                // optional (default entra-id) — entra-id (60 req/min) or api-key (15 req/min, per-resource apiKey)
+      }
+    },
+
+    // ---- azure-sql — read-only Azure SQL / SQL Server; writes behind per-op flags ----
+    // PII pipeline server (see Shared block A). Connection: AZURE_SQL_SERVERS (multi) OR the single-server quartet.
+    "azure-sql": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/azure-sql@beta", "mcp-sql"],
+      "env": {
+        "MCP_ENVIRONMENT_TYPE": "production",                // optional — advisory only, not a gate
+        "PII_PROTECTION": "true",                            // optional (default false) — true = redact query result rows
+        "PII_OBSERVE_MODE": "false",                         // optional (default false) — true = report would-redact, return data unchanged
+        "PII_CONFIG_PATH": "",                               // optional — path to PII rules JSON; empty = built-in defaults
+        "PII_NONPROD_HINTS": "dev,uat,training,support,migration,sandbox,test", // optional — non-prod hints (checked against AZURE_SQL_SERVER / first AZURE_SQL_SERVERS entry)
+        "AZURE_SQL_SERVERS": "[{\"id\":\"prod\",\"name\":\"Production\",\"server\":\"prod.database.windows.net\",\"port\":1433,\"active\":true,\"databases\":[{\"name\":\"AppDB\",\"active\":true}],\"username\":\"mcp_readonly\",\"password\":\"...\"}]", // recommended (multi-server) — JSON array; per-server Azure AD via useAzureAd + azureAd* fields
+        "AZURE_SQL_SERVER": "your-server.database.windows.net", // required (single-server) — used when AZURE_SQL_SERVERS is unset
+        "AZURE_SQL_DATABASE": "your-database-name",           // required (single-server) — database name
+        "AZURE_SQL_USERNAME": "your-username",               // required (single-server, SQL auth) — login
+        "AZURE_SQL_PASSWORD": "your-password",               // required (single-server, SQL auth) — password
+        "AZURE_SQL_PORT": "1433",                            // optional (default 1433) — single-server port
+        "AZURE_SQL_QUERY_TIMEOUT": "30000",                  // optional (default 30000) — query timeout (ms)
+        "AZURE_SQL_MAX_RESULT_ROWS": "1000",                 // optional (default 1000) — max rows per query
+        "AZURE_SQL_MAX_RESPONSE_SIZE_MB": "10",              // optional (default 10) — response size cap for large XML (plans, deadlock graphs)
+        "SQL_ENABLE_VIEW_MANAGE": "false",                   // optional (default false) — CREATE OR ALTER VIEW
+        "SQL_ENABLE_VIEW_DROP": "false",                     // optional (default false) — DROP VIEW
+        "SQL_ENABLE_SPROC_MANAGE": "false",                  // optional (default false) — CREATE OR ALTER PROCEDURE
+        "SQL_ENABLE_SPROC_DROP": "false",                    // optional (default false) — DROP PROCEDURE
+        "SQL_ENABLE_SPROC_EXECUTE": "false",                 // optional (default false) — EXEC procedure
+        "SQL_ENABLE_INSERT": "false",                        // optional (default false) — INSERT statements
+        "SQL_ENABLE_UPDATE": "false",                        // optional (default false) — UPDATE statements
+        "SQL_ENABLE_DELETE": "false",                        // optional (default false) — DELETE statements (WHERE clause required)
+        "SQL_ENABLE_INDEX_CREATE": "false",                  // optional (default false) — sql-create-fk-indexes (schema locks; maintenance-window op)
+        "SQL_ENABLE_UNRESTRICTED": "false"                   // optional (default false) — break-glass any-T-SQL; tool is HIDDEN until this is true
+        // Inert / not yet wired (server uses fixed built-in values; setting them does nothing):
+        //   AZURE_SQL_CONNECTION_TIMEOUT, AZURE_SQL_POOL_MIN, AZURE_SQL_POOL_MAX
+      }
+    },
+
+    // ---- service-bus — read-only queue / DLQ inspection (peek only, never consumes) ----
+    // Auth: Entra ID (default) OR connection-string (set SERVICEBUS_AUTH_METHOD=connection-string).
+    "service-bus": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/service-bus@beta", "mcp-sb"],
+      "env": {
+        "SERVICEBUS_NAMESPACE": "your-namespace.servicebus.windows.net", // required (single-namespace) — or use SERVICEBUS_RESOURCES instead
+        "SERVICEBUS_RESOURCES": "",                          // optional (multi-namespace) — JSON array of {id,name,namespace,active}
+        "SERVICEBUS_AUTH_METHOD": "entra-id",                // optional (default entra-id) — entra-id or connection-string
+        "SERVICEBUS_TENANT_ID": "your-tenant-id",            // required (entra-id auth) — Entra tenant ID
+        "SERVICEBUS_CLIENT_ID": "your-client-id",            // required (entra-id auth) — app (client) ID
+        "SERVICEBUS_CLIENT_SECRET": "your-client-secret",    // required (entra-id auth) — client secret
+        "SERVICEBUS_CONNECTION_STRING": "",                  // required (connection-string auth) — ignored unless SERVICEBUS_AUTH_METHOD=connection-string
+        "SERVICEBUS_SANITIZE_MESSAGES": "false"              // optional (default false) — true = redact message bodies/properties matching sensitive patterns
+        // Inert / not yet wired (server uses fixed built-in values): SERVICEBUS_MAX_PEEK_MESSAGES,
+        //   SERVICEBUS_MAX_SEARCH_MESSAGES, SERVICEBUS_PEEK_TIMEOUT, SERVICEBUS_RETRY_MAX_ATTEMPTS,
+        //   SERVICEBUS_RETRY_DELAY, SERVICEBUS_CACHE_QUEUE_LIST_TTL
+      }
+    },
+
+    // ---- sharepoint — SharePoint Online browse via Graph (read-only by default) ----
+    "sharepoint": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/sharepoint@beta", "mcp-spo"],
+      "env": {
+        "SHAREPOINT_TENANT_ID": "your-tenant-id",            // required — Entra tenant ID
+        "SHAREPOINT_CLIENT_ID": "your-client-id",            // required — app (client) ID
+        "SHAREPOINT_CLIENT_SECRET": "your-client-secret",    // required — client secret
+        "SHAREPOINT_SITE_URL": "https://yourtenant.sharepoint.com/sites/yoursite", // required (single-site) — or use SHAREPOINT_SITES instead
+        "SHAREPOINT_SITES": "[{\"id\":\"intranet\",\"name\":\"Intranet\",\"siteUrl\":\"https://yourtenant.sharepoint.com/sites/intranet\",\"active\":true}]", // optional (multi-site) — JSON array; provide this OR SHAREPOINT_SITE_URL
+        "SHAREPOINT_MAX_DOWNLOAD_SIZE_MB": "50",             // optional (default 50) — download size limit
+        "SHAREPOINT_MAX_UPLOAD_SIZE_MB": "100",              // optional (default 100) — upload size limit
+        "SHAREPOINT_ENABLE_WRITE": "false",                  // optional (default false) — enable upload, create-folder, move, copy, rename
+        "SHAREPOINT_ENABLE_DELETE": "false"                  // optional (default false) — enable delete (also needs confirm:true)
+        // Inert / not yet wired (server uses fixed built-in values): SHAREPOINT_MAX_SEARCH_RESULTS, SHAREPOINT_CACHE_TTL
+      }
+    },
+
+    // ---- figma — extract design data from Figma files / FigJam boards ----
+    // Auth: FIGMA_API_KEY (PAT) OR FIGMA_OAUTH_TOKEN — not both.
+    "figma": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/figma@beta", "mcp-figma"],
+      "env": {
+        "FIGMA_API_KEY": "your-personal-access-token",       // required (PAT auth) — Figma personal access token
+        "FIGMA_OAUTH_TOKEN": "",                             // optional (OAuth auth) — set with FIGMA_USE_OAUTH=true instead of FIGMA_API_KEY
+        "FIGMA_USE_OAUTH": "false",                          // optional (default false) — true = authenticate via FIGMA_OAUTH_TOKEN
+        "MCP_CONTEXT_SAFE_RESPONSE": "true",                 // optional (real default false; true recommended for Figma) — offload large responses to disk, return a summary
+        "MCP_RESPONSE_SIZE_THRESHOLD": "1000"                // optional (real default 5000; 1000 recommended for Figma) — offload threshold in bytes
+      }
+    },
+
+    // ---- github-enterprise — repos, branches, commits, PRs, code search (read-only by default) ----
+    "github-enterprise": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/github-enterprise@beta", "mcp-ghe"],
+      "env": {
+        "GHE_TOKEN": "your-personal-access-token",           // required — GitHub PAT
+        "GHE_REPOS": "[{\"id\":\"plugin-core\",\"owner\":\"your-org\",\"repo\":\"PluginCore\",\"defaultBranch\":\"release/9.0\",\"active\":true}]", // required — JSON array of {id,owner,repo,active}; defaultBranch/description optional
+        "GHE_BASE_URL": "https://github.com",                // optional (default https://github.com) — set to your GHE Server URL for self-hosted
+        "GHE_API_VERSION": "2022-11-28",                     // optional (default 2022-11-28) — GitHub REST API version
+        "GHE_ENABLE_CACHE": "true",                          // optional (default true) — cache API responses in memory
+        "GHE_CACHE_TTL": "300",                              // optional (default 300) — cache lifetime (seconds)
+        "GHE_MAX_FILE_SIZE": "1048576",                      // optional (default 1048576) — max file size fetched (bytes)
+        "GHE_MAX_SEARCH_RESULTS": "100",                     // optional (default 100) — max code-search results
+        "GHE_ENABLE_WRITE": "false",                         // optional (default false) — enable file updates
+        "GHE_ENABLE_CREATE": "false",                        // optional (default false) — enable branch/file/PR creation
+        "GHE_ENABLE_PR_WRITE": "false"                       // optional (default false) — enable PR reviews, comments, merges
+      }
+    },
+
+    // ---- azure-b2c — Azure AD B2C user management via Graph (writes off by default) ----
+    // PII pipeline server (see Shared block A). MCP_ENVIRONMENT_TYPE is inert here (fixed to production) — omitted.
+    "azure-b2c": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/azure-b2c@beta", "mcp-azure-b2c"],
+      "env": {
+        "PII_PROTECTION": "true",                            // optional (default false) — true = redact B2C user responses
+        "PII_OBSERVE_MODE": "false",                         // optional (default false) — true = report would-redact, return data unchanged
+        "PII_CONFIG_PATH": "",                               // optional — path to PII rules JSON; empty = built-in defaults
+        "PII_NONPROD_HINTS": "dev,uat,training,support,migration,sandbox,test", // optional — non-prod hints (checked against AZURE_B2C_TENANT_ID)
+        "PII_SESSION_SALT": "",                              // optional — 64-hex cross-server salt; empty = per-process random
+        "AZURE_B2C_TENANT_ID": "contoso.onmicrosoft.com",    // required — B2C tenant GUID or domain
+        "AZURE_B2C_CLIENT_ID": "12345678-1234-1234-1234-123456789012", // required — app registration client ID
+        "AZURE_B2C_CLIENT_SECRET": "your-client-secret",     // required — client secret
+        "AZURE_B2C_ENABLE_PASSWORD_RESET": "false",          // optional (default false) — enable password reset / force change (needs User Administrator role)
+        "AZURE_B2C_ENABLE_USER_CREATE": "false",             // optional (default false) — enable user creation
+        "AZURE_B2C_ENABLE_USER_UPDATE": "false",             // optional (default false) — enable user profile updates
+        "AZURE_B2C_ENABLE_USER_DELETE": "false",             // optional (default false) — enable user deletion (irreversible; also needs confirmDeletion:true)
+        "AZURE_B2C_MAX_RESULTS": "100"                       // optional (default 100) — max users/groups per request
+      }
+    },
+
+    // ---- azure-management — Azure Resource Manager discovery/inspection (read-first) ----
+    // Uses the shared AZURE_* service principal (see Shared block B). Needs Reader on the subscription.
+    "azure-management": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/azure-management@beta", "mcp-azure-mgmt"],
+      "env": {
+        "AZURE_TENANT_ID": "your-tenant-id",                 // required — Entra tenant ID
+        "AZURE_CLIENT_ID": "your-client-id",                 // required — app (client) ID
+        "AZURE_CLIENT_SECRET": "your-client-secret",         // required — client secret
+        "AZURE_SUBSCRIPTION_ID": "your-subscription-id",     // required — subscription to inspect
+        "AZURE_RESOURCE_GROUP": "",                          // optional (default empty) — scope discovery to one resource group
+        "AZURE_REDACT_SECRETS": "true",                      // optional (default true) — redact connection strings/keys in app settings
+        "AZURE_MGMT_ENABLE_WRITE": "false"                   // optional (default false) — enable the 4 App Service write ops (restart/stop/start/set-config)
+      }
+    },
+
+    // ---- azure-defender — Defender for Cloud: secure score, assessments, compliance, attack paths (read-only) ----
+    // Uses the shared AZURE_* service principal (see Shared block B). Needs Security Reader on the subscription.
+    "azure-defender": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/azure-defender@beta", "mcp-defender"],
+      "env": {
+        "AZURE_TENANT_ID": "your-tenant-id",                 // required — Entra tenant ID
+        "AZURE_CLIENT_ID": "your-client-id",                 // required — app (client) ID
+        "AZURE_CLIENT_SECRET": "your-client-secret",         // required — client secret
+        "AZURE_SUBSCRIPTION_ID": "your-subscription-id"      // required — every tool is subscription-scoped; server refuses without it
+      }
+    },
+
+    // ---- entra-id — audit Entra ID app-registration credential expiry + API permissions (read-only) ----
+    // Deliberately NOT the shared AZURE_* block: needs Microsoft Graph Application.Read.All (directory), no subscription ID.
+    "entra-id": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/entra-id@beta", "mcp-entra"],
+      "env": {
+        "ENTRA_ID_TENANT_ID": "your-tenant-id",              // required — Entra tenant ID
+        "ENTRA_ID_CLIENT_ID": "your-client-id",              // required — app (client) ID (with Application.Read.All, admin-consented)
+        "ENTRA_ID_CLIENT_SECRET": "your-client-secret"       // required — client secret
+      }
+    },
+
+    // ---- message-center — M365 Service Health & Message Center (read-only) ----
+    // Deliberately NOT the shared AZURE_* block: needs Graph ServiceHealth.Read.All + ServiceMessage.Read.All, no subscription ID.
+    "message-center": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/message-center@beta", "mcp-message-center"],
+      "env": {
+        "MESSAGE_CENTER_TENANT_ID": "your-tenant-id",        // required — Entra tenant ID
+        "MESSAGE_CENTER_CLIENT_ID": "your-client-id",        // required — app (client) ID (Graph app permissions, admin-consented)
+        "MESSAGE_CENTER_CLIENT_SECRET": "your-client-secret" // required — client secret
+      }
+    },
+
+    // ---- code-review — provider-agnostic repo review: .NET EOL, NuGet audit, complexity, GH Packages (read-only) ----
+    // Set only the vars for your chosen CODE_REVIEW_PROVIDER. NuGet lookups need no credential.
+    "code-review": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/code-review@beta", "mcp-code-review"],
+      "env": {
+        "CODE_REVIEW_PROVIDER": "azure-devops",              // required — azure-devops | github-enterprise | github-app
+        "CODE_REVIEW_AZDO_ORGANIZATION": "your-azdo-organization", // required (provider=azure-devops) — ADO org
+        "CODE_REVIEW_AZDO_PROJECT": "MyProject",             // required (provider=azure-devops) — ADO project
+        "CODE_REVIEW_AZDO_PAT": "your-azure-devops-pat",     // required (provider=azure-devops) — ADO PAT
+        "CODE_REVIEW_GHE_BASE_URL": "https://your-ghe-host", // required (provider=github-enterprise) — GHE base URL
+        "CODE_REVIEW_GHE_TOKEN": "your-ghe-pat",             // required (provider=github-enterprise) — classic PAT (read:packages for the Packages tools)
+        "CODE_REVIEW_GHE_APP_ID": "your-github-app-id",      // required (provider=github-app) — GitHub App ID (cannot use the Packages tools)
+        "CODE_REVIEW_GHE_INSTALLATION_ID": "your-github-app-installation-id", // required (provider=github-app) — installation ID
+        "CODE_REVIEW_GHE_PRIVATE_KEY_PATH": "/path/to/github-app-private-key.pem", // required (provider=github-app) — PEM key path...
+        "CODE_REVIEW_GHE_PRIVATE_KEY": "",                   // ...optional alternative to _PATH — inline PEM (use \\n for newlines)
+        "CODE_REVIEW_ALLOWED_REPOSITORIES": ""               // optional — comma-separated repo allowlist scoping every clone/list; empty = all
+      }
+    },
+
+    // ---- azure-storage — Blob / File / Queue / Table across accounts (read-only by default) ----
+    // Auth: Entra ID (default) OR connection-string per account. Connection: AZURE_STORAGE_ACCOUNTS (multi) OR single account.
+    "azure-storage": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/azure-storage@beta", "mcp-storage"],
+      "env": {
+        "AZURE_STORAGE_AUTH_METHOD": "entra-id",             // optional (default entra-id) — entra-id or connection-string
+        "AZURE_STORAGE_TENANT_ID": "your-tenant-id",         // required (entra-id auth) — Entra tenant ID
+        "AZURE_STORAGE_CLIENT_ID": "your-client-id",         // required (entra-id auth) — app (client) ID
+        "AZURE_STORAGE_CLIENT_SECRET": "your-client-secret", // required (entra-id auth) — client secret
+        "AZURE_STORAGE_ACCOUNTS": "[{\"id\":\"prod\",\"name\":\"Production\",\"accountName\":\"mystorageaccount\",\"active\":true}]", // recommended (multi-account) — JSON array; optional per-account connectionString overrides Entra ID
+        "AZURE_STORAGE_ACCOUNT_NAME": "",                    // optional (single-account fallback) — account name when AZURE_STORAGE_ACCOUNTS is unset
+        "AZURE_STORAGE_CONNECTION_STRING": "",               // optional (connection-string auth) — single-account connection string
+        "AZURE_STORAGE_MAX_BLOB_SIZE_MB": "100",             // optional (default 100) — max blob upload size
+        "AZURE_STORAGE_MAX_LIST_RESULTS": "1000",            // optional (default 1000) — max items per list operation
+        "AZURE_STORAGE_ENABLE_WRITE": "false",               // optional (default false) — enable write/create/update ops
+        "AZURE_STORAGE_ENABLE_DELETE": "false"               // optional (default false) — enable delete/clear ops
+      }
+    },
+
+    // ---- azure-data-factory — pipeline execution, monitoring, error debugging (read-only by default) ----
+    // Uses the shared AZURE_* service principal (see Shared block B). Single-factory shown; use AZURE_DATA_FACTORIES for multi.
+    "azure-data-factory": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/azure-data-factory@beta", "mcp-adf"],
+      "env": {
+        "AZURE_DATA_FACTORY_SUBSCRIPTION_ID": "your-subscription-id", // required (single-factory) — subscription ID
+        "AZURE_DATA_FACTORY_RESOURCE_GROUP": "your-resource-group",   // required (single-factory) — resource group
+        "AZURE_DATA_FACTORY_NAME": "your-factory-name",               // required (single-factory) — factory name
+        "AZURE_TENANT_ID": "your-tenant-id",                 // required — Entra tenant ID
+        "AZURE_CLIENT_ID": "your-client-id",                 // required — app (client) ID
+        "AZURE_CLIENT_SECRET": "your-client-secret",         // required — client secret
+        "AZURE_DATA_FACTORY_ENABLE_WRITE": "false",          // optional (default false) — enable pipeline run/cancel/rerun
+        "AZURE_DATA_FACTORY_ENABLE_TRIGGER_CONTROL": "false" // optional (default false) — enable trigger start/stop
+        // Multi-factory: replace the three single-factory vars above with AZURE_DATA_FACTORIES
+        //   (JSON array). Schema: docs/technical/AZURE_DATA_FACTORY_TECHNICAL.md
+      }
+    },
+
+    // ---- fabric — Microsoft Fabric workspaces/items/shortcuts/domains (read-only by default) ----
+    "fabric": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/fabric@beta", "mcp-fabric"],
+      "env": {
+        "FABRIC_TENANT_ID": "your-tenant-id",                // required — Entra tenant ID (service principal must be enabled for Fabric APIs)
+        "FABRIC_CLIENT_ID": "your-client-id",                // required — app (client) ID
+        "FABRIC_CLIENT_SECRET": "your-client-secret",        // required — client secret
+        "FABRIC_ENABLE_WRITE": "false",                      // optional (default false) — enable create/update of workspaces, items, shortcuts + assigns
+        "FABRIC_ENABLE_DELETE": "false"                      // optional (default false) — enable deletion of workspaces, items, shortcuts
+      }
+    },
+
+    // ---- 1password — CRUD access to 1Password vaults/items (reads always on; writes off by default) ----
+    // Default CLI mode uses the 1Password desktop app (must be running + unlocked). SDK mode via OP_SERVICE_ACCOUNT_TOKEN.
+    "1password": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/1password@beta", "mcp-op"],
+      "env": {
+        "OP_ACCOUNT": "",                                    // optional — account URL shorthand (e.g. my.1password.com); required if you have multiple accounts. `op account list`
+        "OP_SERVICE_ACCOUNT_TOKEN": "",                      // optional — set to use SDK mode (unattended); if unset, CLI mode (desktop app) is used
+        "OP_ALLOWED_VAULTS": "*",                            // optional (default *) — comma-separated vault names/UUIDs; * = all accessible vaults
+        "OP_ENABLE_WRITE": "false",                          // optional (default false) — enable create/update/archive item + vault, batch-create
+        "OP_ENABLE_DELETE": "false",                         // optional (default false) — enable delete item/vault, batch-delete (permanent, no undo)
+        "OP_ENABLE_VAULT_ADMIN": "false"                     // optional (default false) — enable grant/update/revoke vault permissions
+      }
+    },
+
+    // ---- rest-api — arbitrary HTTP calls with auto-auth (OAuth2 client-creds, bearer, basic, api-key) ----
+    // PII pipeline server (see Shared block A). Auth priority: OAuth2 > Bearer > Basic > API Key — configure one.
+    "rest-api": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/rest-api@beta", "mcp-rest-api"],
+      "env": {
+        "MCP_ENVIRONMENT_TYPE": "production",                // optional — advisory only, not a gate
+        "PII_PROTECTION": "true",                            // optional (default false) — true = redact response bodies
+        "PII_OBSERVE_MODE": "false",                         // optional (default false) — true = report would-redact, return data unchanged
+        "PII_SESSION_SALT": "",                              // optional — 64-hex cross-server salt; empty = per-process random
+        "PII_CONFIG_PATH": "",                               // optional — path to PII rules JSON; empty = built-in defaults
+        "PII_NONPROD_HINTS": "dev,uat,training,support,migration,sandbox,test", // optional — non-prod hints (checked against REST_BASE_URL)
+        "REST_BASE_URL": "https://your-api.example.com",     // required — base URL for all requests
+        "OAUTH2_TOKEN_URL": "https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/token", // required (OAuth2 auth) — token endpoint
+        "OAUTH2_CLIENT_ID": "your-client-id",                // required (OAuth2 auth) — client ID
+        "OAUTH2_CLIENT_SECRET": "your-client-secret",        // required (OAuth2 auth) — client secret
+        "OAUTH2_SCOPE": "api://your-app-id/.default",        // required (OAuth2 auth) — scope
+        "OAUTH2_GRANT_TYPE": "client_credentials",           // optional (default client_credentials) — grant type
+        "OAUTH2_ADDITIONAL_PARAMS": "",                      // optional — extra token-request params
+        "AUTH_BEARER": "",                                   // optional (bearer auth) — pre-acquired JWT; alternative to OAuth2
+        "AUTH_BASIC_USERNAME": "",                           // optional (basic auth) — username
+        "AUTH_BASIC_PASSWORD": "",                           // optional (basic auth) — password
+        "AUTH_APIKEY_HEADER_NAME": "X-Api-Key",              // optional (api-key auth) — header name
+        "AUTH_APIKEY_VALUE": "",                             // optional (api-key auth) — header value
+        "REST_OPENAPI_URL": "",                              // optional — OpenAPI/Swagger URL to enable endpoint discovery
+        "REST_RESPONSE_SIZE_LIMIT": "10000",                 // optional (default 10000) — response truncation limit (bytes)
+        "REST_ENABLE_SSL_VERIFY": "true",                    // optional (default true) — false = skip cert verification (dev only)
+        "REST_TIMEOUT": "30000",                             // optional (default 30000) — request timeout (ms)
+        "HEADER_Accept": "application/json"                  // optional — any HEADER_* var is injected as a request header
+      }
+    },
+
+    // ---- teams — send messages + Adaptive Cards to Teams channels via Graph ----
+    // Auth: device-code (interactive, default) OR client-credentials (automation; set TEAMS_AUTH_MODE=client-credentials).
+    "teams": {
+      "command": "npx",
+      "args": ["-y", "--package=@mcp-consultant-tools/teams@beta", "mcp-teams"],
+      "env": {
+        "TEAMS_TENANT_ID": "your-tenant-id",                 // required — Entra tenant ID
+        "TEAMS_CLIENT_ID": "your-client-id",                 // required — your app (client) ID (both auth modes)
+        "TEAMS_AUTH_MODE": "device-code",                    // optional (default device-code) — device-code or client-credentials
+        "TEAMS_CLIENT_SECRET": "",                           // required (client-credentials mode) — client secret; leave empty for device-code
+        "TEAMS_DEFAULT_TEAM_ID": "",                         // optional — default team GUID to avoid passing it per call
+        "TEAMS_DEFAULT_CHANNEL_ID": ""                       // optional — default channel GUID to avoid passing it per call
+      }
+    }
+
+  }
+}

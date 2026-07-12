@@ -74,4 +74,24 @@ export function registerBuildTools(server: any, ctx: ServiceContext): void {
       }
     }
   );
+
+  server.tool(
+    "build-issues",
+    "Extract every warning and error from a build, read straight from the timeline's issues (no log download needed). Each issue carries its full message and the timeline record it came from. 'timelineCounters' is the server's own error/warning tally; when 'countersExceedListedIssues' is true the server counted problems it attached no message to, so the listed detail is a subset.",
+    {
+      project: z.string().describe("The project name"),
+      buildId: zCoerceNumber().describe("The build ID"),
+      severity: z.enum(['all', 'errors', 'warnings']).optional().describe("Which issues to list (default 'all'). Totals always cover both."),
+    },
+    { readOnlyHint: true, openWorldHint: true },
+    async ({ project, buildId, severity }: any) => {
+      try {
+        const result = await ctx.build.getBuildIssues(project, buildId, severity || 'all');
+        return { content: [{ type: "text", text: `Build ${buildId} issues:\n\n${JSON.stringify(result, null, 2)}` }] };
+      } catch (error: any) {
+        console.error("Error getting build issues:", error);
+        return { content: [{ type: "text", text: `Failed to get build issues: ${error.message}` }] };
+      }
+    }
+  );
 }
