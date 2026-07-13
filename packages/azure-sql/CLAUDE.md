@@ -38,13 +38,9 @@ AZURE_SQL_SERVER=myserver.database.windows.net
 AZURE_SQL_DATABASE=mydatabase
 AZURE_SQL_USERNAME=mcp_readonly
 AZURE_SQL_PASSWORD=SecurePassword123!
-
-# Azure AD auth
-AZURE_SQL_USE_AZURE_AD=false
-AZURE_SQL_CLIENT_ID=your-client-id
-AZURE_SQL_CLIENT_SECRET=your-client-secret
-AZURE_SQL_TENANT_ID=your-tenant-id
 ```
+
+Single-server mode reads only server, port, database, username, and password — SQL authentication only. **Azure AD authentication** is configured **per server, inside the `AZURE_SQL_SERVERS` JSON** (not via top-level env vars): add `useAzureAd: true` plus `azureAdClientId` / `azureAdClientSecret` / `azureAdTenantId` to the server entry.
 
 ### Safety Limits
 
@@ -90,8 +86,8 @@ SQL_ENABLE_UNRESTRICTED=true  # Any T-SQL: DDL, DML, EXEC, multi-batch with GO
 - `sql-execute-query` - Execute read-only SELECT query
 - `sql-get-table-schema` - Table structure
 - `sql-list-tables` - Available tables
-- `sql-list-views`, `sql-list-stored-procedures`, `sql-list-triggers`, `sql-list-functions` - List database objects
-- `sql-get-object-definition` - Get SQL definition of any object
+- `sql-list-views`, `sql-list-sprocs`, `sql-list-triggers`, `sql-list-functions` - List database objects
+- `sql-get-obj-def` - Get SQL definition of any object
 - `sql-test-connection` - Test database connectivity
 
 **Query Store Diagnostics (read-only, no feature flag; require Query Store ON + `VIEW DATABASE STATE`):**
@@ -168,11 +164,15 @@ See `docs/technical/AZURE_SQL_TECHNICAL.md` for detailed implementation.
 Binary: `mcp-sql-cli`
 
 ```bash
-# Execute read-only query
-mcp-sql-cli query execute prod-sql AppDB "SELECT TOP 10 * FROM Users"
+# List configured servers/databases and test connectivity (connection group)
+mcp-sql-cli connection list-servers
+mcp-sql-cli connection test --server-id prod-sql --database AppDB
+
+# Execute read-only query (server/database are -s/-d options)
+mcp-sql-cli query execute "SELECT TOP 10 * FROM Users" --server-id prod-sql --database AppDB
 
 # List tables
-mcp-sql-cli query tables prod-sql AppDB
+mcp-sql-cli query list-tables --server-id prod-sql --database AppDB
 
 # View management (requires SQL_ENABLE_VIEW_MANAGE=true)
 mcp-sql-cli view manage dbo MyView "SELECT Id, Name FROM dbo.Users WHERE IsActive = 1"

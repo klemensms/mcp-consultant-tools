@@ -4,7 +4,7 @@
 
 Azure DevOps admin operations for DevOps engineers managing pipelines, service connections, agent pools, environments, iterations, areas, and projects.
 
-- **Tools:** 75 tools (36 read-only + 29 upsert + 10 delete), 2 prompts
+- **Tools:** 75 tools (36 read-only + 29 upsert + 10 delete), no prompts
 - **Authentication:** Personal Access Token (PAT) or Entra ID App Registration (client credentials)
 
 > **Developer Tools:** For wikis, work items, and pull requests, see `@mcp-consultant-tools/azure-devops`
@@ -160,7 +160,7 @@ Binary: `mcp-ado-admin-cli`
 # List pipelines
 mcp-ado-admin-cli pipeline list MyProject
 
-# List agent pools
+# Get a pipeline definition
 mcp-ado-admin-cli pipeline get MyProject 123
 
 # Pipeline overview and per-stage deploys
@@ -169,7 +169,7 @@ mcp-ado-admin-cli pipeline last-deploys MyProject --pipeline-id 1234 --param Tem
 
 # Artifact feeds
 mcp-ado-admin-cli feed summary
-mcp-ado-admin-cli feed provenance Acme pp-solution-core 1.2.3
+mcp-ado-admin-cli feed provenance Contoso pp-solution-core 1.2.3 --package-type nuget
 
 # List all projects
 mcp-ado-admin-cli project list

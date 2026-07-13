@@ -131,6 +131,7 @@ Authentication uses `@azure/identity` `ClientSecretCredential` (OAuth 2.0 client
 |----------|---------|-------------|
 | `AZURE_RESOURCE_GROUP` | (none) | Default resource group — used when tools omit `resourceGroup` |
 | `AZURE_REDACT_SECRETS` | `true` | Redact connection strings and keys in app settings responses |
+| `AZURE_MGMT_ENABLE_WRITE` | `false` | Enable the 4 App Service write ops (`restart-app-service`, `stop-app-service`, `start-app-service`, `set-app-service-config`) |
 
 ### Token Caching
 
@@ -980,6 +981,75 @@ mcp-azure-mgmt-cli --json storage list
 
 # Use a custom env file
 mcp-azure-mgmt-cli --env-file .env.prod function-app list -g rg-prod-uks-01
+```
+
+#### Resource Graph (cross-resource, read-only)
+
+Each `graph` command validates its numeric/enum options before touching the service, and prints an explicit `WARNING:` line when results were truncated. Every example below shows all available flags.
+
+```bash
+# NSGs with rules + subnet/NIC associations, scoped and filtered, row-capped
+mcp-azure-mgmt-cli graph nsgs \
+  --resource-group my-rg \
+  --associated-subnet my-subnet \
+  --associated-nic my-nic \
+  --max-results 500
+
+# RBAC role assignments filtered by principal, role definition, and scope
+mcp-azure-mgmt-cli graph role-assignments \
+  --principal-id aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee \
+  --role-definition-id aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee \
+  --scope /subscriptions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/resourceGroups/my-rg \
+  --max-results 500
+
+# Private endpoints filtered by target resource, as raw JSON
+mcp-azure-mgmt-cli --json graph private-endpoints \
+  --resource-group my-rg \
+  --target-resource-id /subscriptions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/resourceGroups/my-rg/providers/Microsoft.KeyVault/vaults/my-vault \
+  --max-results 500
+
+# Every resource whose config references a given resource ID (positional arg)
+mcp-azure-mgmt-cli graph consumers \
+  /subscriptions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/resourceGroups/my-rg/providers/Microsoft.KeyVault/vaults/my-vault \
+  --max-results 500
+
+# Diagnostic settings — enumerate by resource group and type (one ARM call per resource)
+mcp-azure-mgmt-cli graph diagnostic-settings \
+  --resource-group my-rg \
+  --resource-type Microsoft.Web/sites \
+  --max-resources 100
+
+# Diagnostic settings — inspect explicit resource IDs instead (-i accepts multiple)
+mcp-azure-mgmt-cli graph diagnostic-settings \
+  --resource-ids /subscriptions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/resourceGroups/my-rg/providers/Microsoft.Web/sites/my-app
+
+# Subnet/VNet adjacency + forward/reverse references for one resource (positional arg)
+mcp-azure-mgmt-cli graph relationships \
+  /subscriptions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/resourceGroups/my-rg/providers/Microsoft.Web/sites/my-app \
+  --max-results 500
+```
+
+#### Log streaming & diagnostic detectors
+
+```bash
+# Collect live logs (bounded: max 30s / 1000 lines), one provider, from a slot
+mcp-azure-mgmt-cli log stream my-app \
+  --log-type all \
+  --duration 30 \
+  --max-lines 1000 \
+  --slot staging
+
+# Logging configuration (levels, blob destinations, tracing)
+mcp-azure-mgmt-cli log config my-app --resource-group my-rg
+
+# List available diagnostic detectors
+mcp-azure-mgmt-cli log detectors my-app --resource-group my-rg
+
+# Run one detector over an explicit UTC window (detector name is a positional arg)
+mcp-azure-mgmt-cli log detector my-app availability \
+  --resource-group my-rg \
+  --start-time 2026-07-10T00:00:00Z \
+  --end-time 2026-07-10T06:00:00Z
 ```
 
 </cli-architecture>

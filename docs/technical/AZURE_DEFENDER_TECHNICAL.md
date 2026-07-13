@@ -328,7 +328,7 @@ Binary: `mcp-defender-cli`. Every MCP tool has a matching CLI command; the comma
 
 ```bash
 # Secure score
-mcp-defender-cli score get-secure-score
+mcp-defender-cli score get-secure-score --score-name ascScore
 mcp-defender-cli score list-secure-scores
 mcp-defender-cli score list-score-controls --max-results 10
 
@@ -342,11 +342,11 @@ mcp-defender-cli assessment list-assessment-metadata --severity Critical
 # Compliance
 mcp-defender-cli compliance list-compliance-standards
 mcp-defender-cli compliance list-compliance-controls Azure-CIS-1.1.0 --state Failed
-mcp-defender-cli compliance list-compliance-assessments Azure-CIS-1.1.0 1.1
-mcp-defender-cli compliance get-compliance-summary
+mcp-defender-cli compliance list-compliance-assessments Azure-CIS-1.1.0 1.1 --state Failed
+mcp-defender-cli compliance get-compliance-summary Azure-CIS-1.1.0   # omit the name for all standards
 
 # Attack paths
-mcp-defender-cli attack-path list-attack-paths --risk-category DataExposure --max-results 25
+mcp-defender-cli attack-path list-attack-paths --risk-category DataExposure --name-contains "storage account" --max-results 25
 mcp-defender-cli attack-path get-attack-path <attackPathName>
 ```
 

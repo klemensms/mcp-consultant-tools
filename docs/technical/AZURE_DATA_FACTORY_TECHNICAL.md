@@ -31,11 +31,11 @@ packages/azure-data-factory/src/
     adf-service.ts            # AdfService class (single service, all domains)
     index.ts                  # Barrel export
   tools/
-    pipeline-tools.ts         # Factory + pipeline tools (9 tools)
+    pipeline-tools.ts         # Factory + pipeline tools (10 tools)
     monitoring-tools.ts       # Integration runtime tools (4 tools)
     trigger-tools.ts          # Trigger tools (5 tools)
     dataset-tools.ts          # Dataset tools (2 tools)
-    linked-service-tools.ts   # Linked service tools (1 tool)
+    linked-service-tools.ts   # Linked service + data flow tools (3 tools)
     index.ts                  # registerAllTools() aggregator
   utils/
     formatters.ts             # Markdown + JSON output formatters
@@ -776,7 +776,7 @@ Cache directory: `.context/.mcp-adf-cache/`
 | Group | Commands | Notes |
 |-------|----------|-------|
 | `factory` | `list` | Lists all configured factories |
-| `pipeline` | `list`, `get`, `run`, `get-run`, `cancel-run`, `query-runs`, `activity-runs`, `rerun` | `run`, `cancel-run`, `rerun` require ENABLE_WRITE |
+| `pipeline` | `list`, `get`, `run`, `get-run`, `cancel-run`, `query-runs`, `query-debug-runs`, `activity-runs`, `rerun` | `run`, `cancel-run`, `rerun` require ENABLE_WRITE |
 | `dataset` | `list`, `get` | |
 | `linked-service` | `list` | Credentials always redacted |
 | `data-flow` | `list`, `get` | |
@@ -817,6 +817,13 @@ mcp-adf-cli pipeline activity-runs abc123-def456 --status Failed
 
 # Query pipeline runs from the last 14 days, failed only
 mcp-adf-cli pipeline query-runs --last-days 14 --status Failed
+
+# Query DEBUG-mode run history (undocumented ARM op; ~15-day server-side retention).
+# All flags shown: -d look-back window, -n pipeline-name filter, -s status filter
+# (British "Cancelling" is normalized to wire "Canceling"), -m truncation cap
+# (default 100, max 1000), -f target factory. The response reports "truncated": true
+# when --max-results hid further runs — a capped count is never the total.
+mcp-adf-cli pipeline query-debug-runs --last-days 14 --pipeline-name DataCopy_Pipeline --status Failed --max-results 500 --factory-id prod-adf
 
 # Rerun from failure point
 mcp-adf-cli pipeline rerun abc123-def456

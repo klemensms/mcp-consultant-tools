@@ -225,6 +225,15 @@ mcp-pp-cli metadata get account
 # List flows
 mcp-pp-cli flow list
 
+# Scan flow run-health across the environment (last N days)
+mcp-pp-cli flow health --days 7 --max-flows 500
+
+# Complete cloud-flow inventory (deployment metadata, no run history)
+mcp-pp-cli flow inventory --max 500
+
+# List Field Security Profiles
+mcp-pp-cli fsp list
+
 # Generate integration audit
 mcp-pp-cli integration audit
 ```

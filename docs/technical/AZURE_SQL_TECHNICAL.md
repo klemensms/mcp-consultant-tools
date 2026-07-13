@@ -23,8 +23,11 @@ The Azure SQL Database integration provides access to Azure SQL Database and SQL
 - `QueryService` — validates and executes SELECT queries, schema exploration queries
 - `WriteService` — handles write operations (views, stored procedures, DML) behind feature flags
 - `PerformanceService` — Query Store diagnostics (waits, CPU, failures, plans); delegates execution to `QueryService`
+- `SessionService` — live session/request/transaction DMV diagnostics (blocking chains, executing requests, deadlock graphs, long-running transactions); delegates execution to `QueryService`
+- `SpaceService` — database/table/TempDB space DMV diagnostics; delegates execution to `QueryService`
+- `IndexService` — index-health diagnostics (disabled indexes, missing FK indexes, usage stats) plus the gated `sql-create-fk-indexes` write; delegates execution to `QueryService`
 
-`ConnectionService`, `QueryService` and `WriteService` share connection pooling through `ConnectionService`. `PerformanceService` composes over `QueryService` rather than `ConnectionService`, so its queries inherit the same row limits, response-size cap, PII redaction and error sanitisation as every other read. The `ServiceContext` interface exposes lazy getters for all four services plus 8 feature-flag guard functions.
+`ConnectionService`, `QueryService` and `WriteService` share connection pooling through `ConnectionService`. `PerformanceService`, `SessionService`, `SpaceService` and `IndexService` compose over `QueryService` rather than `ConnectionService`, so their queries inherit the same row limits, response-size cap, PII redaction and error sanitisation as every other read. The `ServiceContext` interface exposes lazy getters for all seven services plus 9 feature-flag guard functions.
 
 **Source layout:**
 ```
@@ -39,19 +42,29 @@ packages/azure-sql/src/
     query-service.ts              # QueryService, schema/query types
     write-service.ts              # WriteService, DML + DDL operations
     performance-service.ts        # PerformanceService, Query Store builders + types
+    session-service.ts            # SessionService, live session/request/transaction DMV builders + types
+    space-service.ts              # SpaceService, database/table/TempDB space DMV builders + types
+    index-service.ts              # IndexService, index-health builders + gated FK-index creation
     __tests__/
       performance-service.test.ts # Query-builder + Query Store gate unit tests
+      session-service.test.ts     # Session/deadlock builder + engine-edition gate unit tests
   tools/
-    connection-tools.ts           # sql-list-servers, sql-list-databases, sql-test-connection
-    query-tools.ts                # sql-list-tables, sql-list-views, sql-list-stored-procedures,
+    connection-tools.ts           # sql-list-servers, sql-list-databases, sql-get-defaults, sql-test-connection
+    query-tools.ts                # sql-list-tables, sql-list-views, sql-list-sprocs,
                                   # sql-list-triggers, sql-list-functions, sql-get-table-schema,
-                                  # sql-get-object-definition, sql-execute-query
+                                  # sql-get-obj-def, sql-execute-query
     view-tools.ts                 # sql-manage-view, sql-deploy-view-file, sql-drop-view
     sproc-tools.ts                # sql-manage-sproc, sql-deploy-sproc-file, sql-drop-sproc, sql-execute-sproc
     crud-tools.ts                 # sql-insert-records, sql-update-records, sql-delete-records
     unrestricted-tools.ts         # sql-execute-unrestricted (conditionally registered)
     performance-tools.ts          # sql-get-top-waits, sql-find-query-in-store, sql-get-query-wait-stats,
                                   # sql-get-cpu-intensive-queries, sql-get-failed-queries, sql-get-query-plan
+    session-tools.ts              # sql-get-blocking-chains, sql-get-executing-requests,
+                                  # sql-get-deadlock-graphs, sql-get-long-running-transactions
+    space-tools.ts                # sql-get-database-space, sql-get-table-space,
+                                  # sql-get-tempdb-space, sql-get-tempdb-session-usage
+    index-tools.ts                # sql-get-disabled-indexes, sql-get-missing-fk-indexes,
+                                  # sql-get-index-usage-stats, sql-create-fk-indexes
   prompts/
     templates.ts                  # sql-database-overview, sql-table-details, sql-query-results
   cli/
@@ -64,6 +77,9 @@ packages/azure-sql/src/
       crud-commands.ts
       unrestricted-commands.ts
       performance-commands.ts
+      session-commands.ts
+      space-commands.ts
+      index-commands.ts
 ```
 
 </architecture>
@@ -141,14 +157,7 @@ AZURE_SQL_PASSWORD=SecurePassword123!
 | `AZURE_SQL_USERNAME` | SQL auth username (single-server mode) |
 | `AZURE_SQL_PASSWORD` | SQL auth password (single-server mode) |
 
-**Azure AD authentication (single-server mode):**
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `AZURE_SQL_USE_AZURE_AD` | `false` | Enable Azure AD authentication |
-| `AZURE_SQL_CLIENT_ID` | — | Service principal client ID |
-| `AZURE_SQL_CLIENT_SECRET` | — | Service principal client secret |
-| `AZURE_SQL_TENANT_ID` | — | Azure AD tenant ID |
+**Azure AD authentication** is configured **per server, inside the `AZURE_SQL_SERVERS` JSON** — not via top-level env vars. Set `useAzureAd: true` plus `azureAdClientId`, `azureAdClientSecret`, and `azureAdTenantId` on the individual server entry (see the `dev-sql` entry in the multi-server example above). When `useAzureAd` is true, that server's `username`/`password` are ignored. Single-server mode (`AZURE_SQL_SERVER`/`AZURE_SQL_DATABASE`/…) reads only server, port, database, username, and password — it supports SQL authentication only.
 
 **Optional global settings:**
 
@@ -243,6 +252,16 @@ If `databases: []` was configured for the server (discovery mode), this queries 
 
 </tool>
 
+<tool name="sql-get-defaults">
+
+**`sql-get-defaults`** — Return the default server and database that omitted `serverId`/`database` parameters resolve to. Takes no parameters. Read-only, and reads local configuration only — no database round-trip.
+
+Returns: `defaultServerId`, `defaultDatabase`.
+
+Agents rarely need this: every tool applies the defaults automatically when the parameters are omitted. Use it only to confirm what "default" resolves to after a resolution error, or when the user explicitly asks which server/database is configured.
+
+</tool>
+
 <tool name="sql-test-connection">
 
 **`sql-test-connection`** — Test connectivity and return server information.
@@ -284,9 +303,9 @@ Returns: `schemaName`, `viewName`, `definition` per view. Queries `INFORMATION_S
 
 </tool>
 
-<tool name="sql-list-stored-procedures">
+<tool name="sql-list-sprocs">
 
-**`sql-list-stored-procedures`** — List all stored procedures with creation and modification dates.
+**`sql-list-sprocs`** — List all stored procedures with creation and modification dates.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -343,9 +362,9 @@ Verifies table existence before querying; throws if not found with suggestion to
 
 </tool>
 
-<tool name="sql-get-object-definition">
+<tool name="sql-get-obj-def">
 
-**`sql-get-object-definition`** — Get the SQL definition (source code) for views, stored procedures, functions, or triggers.
+**`sql-get-obj-def`** — Get the SQL definition (source code) for views, stored procedures, functions, or triggers.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -1195,7 +1214,8 @@ The CLI reuses the same `ServiceContext` as the MCP server via `context-factory.
 
 | Group | Commands | Maps to Tools |
 |-------|----------|--------------|
-| `query` | `execute`, `tables`, `views`, `sprocs`, `triggers`, `functions`, `table-schema`, `object-def`, `list-servers`, `list-databases`, `test-connection` | All read-only tools |
+| `connection` | `list-servers`, `list-databases`, `get-defaults`, `test` | `sql-list-servers`, `sql-list-databases`, `sql-get-defaults`, `sql-test-connection` |
+| `query` | `execute`, `list-tables`, `list-views`, `list-sprocs`, `list-triggers`, `list-functions`, `table-schema`, `obj-def` | `sql-execute-query`, `sql-list-tables`/`-views`/`-sprocs`/`-triggers`/`-functions`, `sql-get-table-schema`, `sql-get-obj-def` |
 | `view` | `manage`, `deploy`, `drop` | `sql-manage-view`, `sql-deploy-view-file`, `sql-drop-view` |
 | `sproc` | `manage`, `deploy`, `drop`, `execute` | `sql-manage-sproc`, `sql-deploy-sproc-file`, `sql-drop-sproc`, `sql-execute-sproc` |
 | `crud` | `insert`, `update`, `delete` | `sql-insert-records`, `sql-update-records`, `sql-delete-records` |
@@ -1207,43 +1227,51 @@ The CLI reuses the same `ServiceContext` as the MCP server via `context-factory.
 
 ### Parameter Mapping
 
-Required tool parameters (e.g., `serverId`, `database`, `query`) become positional CLI arguments. Optional parameters become `--flag` options. JSON object parameters (like `parameters` for `sql-execute-sproc`) are passed as JSON strings and parsed in the command handler.
+Genuinely required tool parameters (e.g., `schemaName`, `tableName`, `query`) become positional CLI arguments. The optional `serverId` / `database` target pair is always passed as `-s, --server-id` / `-d, --database` options — never positional — and resolves to the configured defaults when omitted. Other optional parameters become `--flag` options. JSON object parameters (like `parameters` for `sql-execute-sproc`) are passed as JSON strings and parsed in the command handler.
 
 ### CLI Usage Examples
 
 ```bash
-# Execute read-only query
-mcp-sql-cli query execute prod-sql AppDB "SELECT TOP 10 * FROM Users"
-
-# List tables
-mcp-sql-cli query tables prod-sql AppDB
-
-# Get table schema
-mcp-sql-cli query table-schema prod-sql AppDB dbo Users
+# List configured servers and databases (connection group)
+mcp-sql-cli connection list-servers
+mcp-sql-cli connection list-databases --server-id prod-sql
+mcp-sql-cli connection get-defaults
 
 # Test connection
-mcp-sql-cli query test-connection prod-sql AppDB
+mcp-sql-cli connection test --server-id prod-sql --database AppDB
+
+# Execute read-only query (server/database are -s/-d options)
+mcp-sql-cli query execute "SELECT TOP 10 * FROM Users" --server-id prod-sql --database AppDB
+
+# List tables
+mcp-sql-cli query list-tables --server-id prod-sql --database AppDB
+
+# Get table schema (schema + table are positional)
+mcp-sql-cli query table-schema dbo Users --server-id prod-sql --database AppDB
+
+# Get an object definition (schema, name, type positional)
+mcp-sql-cli query obj-def dbo vw_ActiveUsers VIEW --server-id prod-sql --database AppDB
 
 # View management (requires SQL_ENABLE_VIEW_MANAGE=true)
-mcp-sql-cli view manage prod-sql AppDB dbo ActiveUsers "SELECT Id, Name FROM dbo.Users WHERE IsActive = 1"
+mcp-sql-cli view manage dbo ActiveUsers "SELECT Id, Name FROM dbo.Users WHERE IsActive = 1" --server-id prod-sql --database AppDB
 
 # Drop a view (requires SQL_ENABLE_VIEW_DROP=true)
-mcp-sql-cli view drop prod-sql AppDB dbo ActiveUsers
+mcp-sql-cli view drop dbo ActiveUsers --server-id prod-sql --database AppDB
 
 # Stored procedure management (requires SQL_ENABLE_SPROC_MANAGE=true)
-mcp-sql-cli sproc manage prod-sql AppDB dbo GetActiveUsers "AS BEGIN SELECT * FROM dbo.Users WHERE IsActive = 1 END"
+mcp-sql-cli sproc manage dbo GetActiveUsers "AS BEGIN SELECT * FROM dbo.Users WHERE IsActive = 1 END" --server-id prod-sql --database AppDB
 
 # Execute a stored procedure (requires SQL_ENABLE_SPROC_EXECUTE=true)
-mcp-sql-cli sproc execute prod-sql AppDB dbo GetUserById -p '{"UserId": 42}'
+mcp-sql-cli sproc execute dbo GetUserById -p '{"UserId": 42}' --server-id prod-sql --database AppDB
 
 # Insert records (requires SQL_ENABLE_INSERT=true)
-mcp-sql-cli crud insert prod-sql AppDB "INSERT INTO dbo.Config (Key, Value) VALUES ('theme', 'dark')"
+mcp-sql-cli crud insert "INSERT INTO dbo.Config (Key, Value) VALUES ('theme', 'dark')" --server-id prod-sql --database AppDB
 
 # Update records (requires SQL_ENABLE_UPDATE=true)
-mcp-sql-cli crud update prod-sql AppDB "UPDATE dbo.Config SET Value = 'light' WHERE Key = 'theme'"
+mcp-sql-cli crud update "UPDATE dbo.Config SET Value = 'light' WHERE Key = 'theme'" --server-id prod-sql --database AppDB
 
 # Delete records (requires SQL_ENABLE_DELETE=true)
-mcp-sql-cli crud delete prod-sql AppDB "DELETE FROM dbo.Config WHERE Key = 'theme'"
+mcp-sql-cli crud delete "DELETE FROM dbo.Config WHERE Key = 'theme'" --server-id prod-sql --database AppDB
 
 # Unrestricted execution (requires SQL_ENABLE_UNRESTRICTED=true)
 mcp-sql-cli unrestricted execute "ALTER TABLE dbo.Users ADD LastLoginDate DATETIME2 NULL"
@@ -1268,9 +1296,9 @@ mcp-sql-cli index get-index-usage-stats --top-n 25     # least-read first
 mcp-sql-cli index create-fk-indexes --server-id prod-sql --database AppDB
 
 # Global flags
-mcp-sql-cli --json query tables prod-sql AppDB       # Raw JSON output
-mcp-sql-cli --no-cache query tables prod-sql AppDB   # Skip cache
-mcp-sql-cli --env-file .env.prod query tables prod-sql AppDB
+mcp-sql-cli --json query list-tables --server-id prod-sql --database AppDB       # Raw JSON output
+mcp-sql-cli --no-cache query list-tables --server-id prod-sql --database AppDB   # Skip cache
+mcp-sql-cli --env-file .env.prod query list-tables --server-id prod-sql --database AppDB
 ```
 
 </cli-architecture>

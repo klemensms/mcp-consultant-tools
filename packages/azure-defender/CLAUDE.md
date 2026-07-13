@@ -101,7 +101,7 @@ See `docs/technical/AZURE_DEFENDER_TECHNICAL.md` for the full reference.
 Binary: `mcp-defender-cli`. Command name = tool name minus the `defender-` prefix, grouped by domain.
 
 ```bash
-mcp-defender-cli score get-secure-score
+mcp-defender-cli score get-secure-score --score-name ascScore
 mcp-defender-cli score list-score-controls --max-results 10
 
 mcp-defender-cli assessment list-assessments --status Unhealthy --max-results 50
@@ -111,6 +111,6 @@ mcp-defender-cli compliance list-compliance-standards
 mcp-defender-cli compliance list-compliance-controls Azure-CIS-1.1.0 --state Failed
 mcp-defender-cli compliance get-compliance-summary
 
-mcp-defender-cli attack-path list-attack-paths --risk-category DataExposure
+mcp-defender-cli attack-path list-attack-paths --risk-category DataExposure --name-contains "storage account"
 mcp-defender-cli attack-path get-attack-path <attackPathName>
 ```

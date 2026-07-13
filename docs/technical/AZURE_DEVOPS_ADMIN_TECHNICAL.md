@@ -57,7 +57,7 @@ The three-tier permission model is enforced at tool registration time, not at re
 
 | Tier | Count | Condition | Purpose |
 |------|-------|-----------|---------|
-| Tier 1 — Read-Only | 32 | Always registered | View resources |
+| Tier 1 — Read-Only | 36 | Always registered | View resources |
 | Tier 2 — Upsert | 29 | Requires `_UPSERT=true` flag | Create and update |
 | Tier 3 — Delete/Disable | 10 | Requires `_DELETE=true` or `_DISABLE=true` flag | Destructive operations |
 
@@ -87,7 +87,7 @@ packages/azure-devops-admin/src/
     project-service.ts                # Project CRUD (org-scoped)
     index.ts                          # Barrel export
   tools/
-    pipeline-tools.ts                 # 8 readonly + 7 upsert + 1 delete = 16 tools
+    pipeline-tools.ts                 # 10 readonly + 7 upsert + 1 delete = 18 tools
     service-connection-tools.ts       # 3 readonly + 3 upsert + 1 delete = 7 tools
     variable-group-tools.ts           # 2 readonly + 3 upsert + 2 delete = 7 tools
     agent-pool-tools.ts               # 4 readonly + 2 upsert + 1 delete = 7 tools
@@ -182,7 +182,7 @@ All flags default to `false`. Set to the string `"true"` to enable.
 
 <domain name="pipelines">
 
-**16 tools total: 8 read-only + 7 upsert + 1 delete**
+**18 tools total: 10 read-only + 7 upsert + 1 delete**
 
 Note: `get-build-status`, `get-build-timeline`, and `get-build-logs` are duplicated in the `@mcp-consultant-tools/azure-devops` package for developer access. If these tools are updated here, the counterparts in `packages/azure-devops/` must also be updated.
 
@@ -427,7 +427,8 @@ Queues a new build run.
 **Parameters:**
 - `project` (string, required)
 - `definitionId` (number, required)
-- `branch` (string, optional) — Source branch (e.g., `refs/heads/main`)
+- `sourceBranch` (string, optional) — Source branch ref (e.g., `refs/heads/main`, `refs/tags/v1.0.0`). Defaults to the pipeline's default branch.
+- `sourceVersion` (string, optional) — Commit SHA to build. Defaults to the tip of `sourceBranch`.
 - `variables` (object, optional) — Runtime variables as `Record<string, string>`; serialized to `parameters` field
 - `parameters` (object, optional) — Template parameters for YAML pipelines; sent as `templateParameters`
 
@@ -1139,7 +1140,7 @@ Feed access is validated against the `AZUREDEVOPS_FEEDS` allowlist. The API uses
 Lists packages in an Azure Artifacts feed with optional filtering. Returns package names, latest versions, and publish dates.
 
 **Parameters:**
-- `feedName` (string, required) — Feed name (e.g., `Acme`)
+- `feedName` (string, required) — Feed name (e.g., `Contoso`)
 - `project` (string, optional) — For project-scoped feeds; omit for org-scoped
 - `namePrefix` (string, optional) — Filter by name prefix (e.g., `pp-solution-`)
 - `packageType` (enum, optional) — `nuget`, `npm`, `maven`, `upack`, `pypi`
@@ -1162,8 +1163,8 @@ Gets version history for a specific package, sorted by publish date.
 <example name="find-latest-for-deployment">
 
 ```
-1. list-feed-packages: feedName="Acme", namePrefix="pp-solution-"
-2. get-package-versions: feedName="Acme", packageName="pp-solution-core"
+1. list-feed-packages: feedName="Contoso", namePrefix="pp-solution-"
+2. get-package-versions: feedName="Contoso", packageName="pp-solution-core"
 3. queue-build: use the latest version as a template parameter
 ```
 
@@ -1356,14 +1357,14 @@ The CLI reuses the same `ServiceContext` and service classes as the MCP server. 
 
 | Command Group | Alias | Sub-commands |
 |---------------|-------|-------------|
-| `pipeline` | `pl` | `list`, `get`, `yaml`, `runs`, `approvals`, `create`, `update`, `rename`, `delete`, `queue`, `build-status`, `build-timeline`, `build-logs`, `cancel`, `retry`, `approve` |
+| `pipeline` | `pl` | `list`, `get`, `yaml`, `runs`, `approvals`, `summary`, `last-deploys`, `create`, `update`, `rename`, `delete`, `queue`, `build-status`, `build-timeline`, `build-logs`, `cancel`, `retry`, `approve` |
 | `environment` | `env` | `list`, `get`, `deployments`, `checks`, `create`, `update`, `create-check`, `update-check`, `delete`, `delete-check` |
 | `svc-conn` | `svc` | `list`, `get`, `types`, `create`, `update`, `share`, `delete` |
 | `var-group` | `vg` | `list`, `get`, `create`, `update`, `set-var`, `remove-var`, `delete` |
 | `pool` | (alias) | `list`, `get`, `agents`, `agent`, `update`, `enable`, `disable` |
 | `iteration` | `it` | `list`, `get`, `create`, `update`, `delete`, `add-to-team` |
 | `area` | `ar` | `list`, `get`, `create`, `update`, `delete` |
-| `feed` | (alias) | `list-packages`, `package-versions` |
+| `feed` | `af` | `packages`, `versions`, `summary`, `provenance` |
 | `project` | `p` | `list`, `get`, `properties`, `create`, `update`, `delete` |
 
 </command-groups>
@@ -1376,10 +1377,18 @@ mcp-ado-admin-cli pipeline list MyProject
 mcp-ado-admin-cli pipeline get MyProject 123
 mcp-ado-admin-cli pipeline yaml MyProject 123
 mcp-ado-admin-cli pipeline runs MyProject 123 --top 20
-mcp-ado-admin-cli pipeline build-status MyProject 5678 --detail timeline --scope problems
+mcp-ado-admin-cli pipeline build-status MyProject 5678 --detail full --scope problems --max-issues 10
+mcp-ado-admin-cli pipeline build-timeline MyProject 5678 --scope stages --max-issues 5
 mcp-ado-admin-cli pipeline build-logs MyProject 5678 --log-id 3 --mode errors
-mcp-ado-admin-cli pipeline queue MyProject 123 --branch refs/heads/main
-mcp-ado-admin-cli pipeline approve MyProject abc-guid-123 approved --comment "LGTM"
+mcp-ado-admin-cli pipeline queue MyProject 123 --branch refs/heads/main --source-version a1b2c3d --variables '{"deployEnv":"prod"}' --parameters '{"TemplateBranch":"main"}'
+mcp-ado-admin-cli pipeline approve MyProject aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee approved --comment "LGTM"
+
+# All pipelines with the status of their latest build (read-only overview)
+mcp-ado-admin-cli pipeline summary MyProject --name-contains deploy --max-results 50
+
+# Latest successful deploy per stage, with template parameters (read-only)
+mcp-ado-admin-cli pipeline last-deploys MyProject --pipeline-id 1234 --stages Dev,UAT,Prod --param TemplateBranch --search-top 50
+mcp-ado-admin-cli pipeline last-deploys MyProject --pipeline-name "Release Pipeline" --stages Prod
 
 # Environment operations
 mcp-ado-admin-cli environment list MyProject
@@ -1413,8 +1422,12 @@ mcp-ado-admin-cli capacity set MyProject "My Team" aaaaaaaa-bbbb-cccc-dddd-eeeee
 mcp-ado-admin-cli capacity set-batch MyProject "My Team" aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee --file ./sprint-capacity.json
 mcp-ado-admin-cli capacity days-off-set MyProject "My Team" aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee --day 2026-12-25
 
-# Artifact feeds
-mcp-ado-admin-cli feed list-packages Acme --name-prefix "pp-solution-"
+# Artifact feeds (all read-only)
+mcp-ado-admin-cli feed packages Contoso --name-prefix "pp-solution-" --package-type nuget --top 50
+mcp-ado-admin-cli feed versions Contoso pp-solution-core --package-type nuget --top 10 --include-delisted
+mcp-ado-admin-cli feed summary --max-packages-per-feed 1000
+mcp-ado-admin-cli feed summary --project MyProject
+mcp-ado-admin-cli feed provenance Contoso pp-solution-core 1.2.3 --package-type nuget
 
 # Projects
 mcp-ado-admin-cli project list

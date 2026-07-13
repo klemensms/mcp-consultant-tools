@@ -239,16 +239,39 @@ Services take an injected client, so tests use plain stub objects — **zero `vi
 
 ## CLI
 
-Binary: `mcp-message-center-cli`. Command name = tool name minus the `m365-` prefix, grouped by domain (`health`, `message`). Global flags: `--json`, `--no-cache`, `--env-file`, `--mcp-config`, `--mcp-server`. Full JSON is cached to `.context/.mcp-message-center-cache/`.
+Binary: `mcp-message-center-cli`. Command name = tool name minus the `m365-` prefix, grouped by domain (`health`, `message`). Full JSON is cached to `.context/.mcp-message-center-cache/`.
+
+**Global flags** (any command): `--json` (raw JSON instead of the summary), `--no-cache` (skip the cache file), `--env-file <path>` (load a `.env`), `--mcp-config <path>` (load env from an `.mcp.json`), `--mcp-server <name>` (server name within that config, defaults to `.mcp.json` in cwd).
+
+**Command flags** (every option, with its short alias — enum values and booleans are validated before any Graph call):
+
+| Command | Positional | Flags |
+|---------|-----------|-------|
+| `health list-service-health` | — | `-m, --max-results <count>` |
+| `health get-service-health` | `<service>` | — |
+| `health list-health-issues` | — | `-s, --service <name>`, `-c, --classification <advisory\|incident>`, `-r, --is-resolved <true\|false>`, `-m, --max-results <count>` |
+| `health get-health-issue` | `<issueId>` | — |
+| `health get-incident-report` | `<issueId>` | — |
+| `message list-messages` | — | `-c, --category <preventOrFixIssue\|planForChange\|stayInformed>`, `-v, --severity <normal\|high\|critical>`, `-s, --service <name>`, `-M, --is-major-change <true\|false>`, `-m, --max-results <count>` |
+| `message get-message` | `<messageId>` | — |
+
+Examples (each list command shown with every flag):
 
 ```bash
-mcp-message-center-cli health list-service-health
+# Service health
+mcp-message-center-cli health list-service-health --max-results 50
 mcp-message-center-cli health get-service-health "Exchange Online"
-mcp-message-center-cli health list-health-issues --classification incident --is-resolved false
+mcp-message-center-cli health list-health-issues --service Exchange --classification incident --is-resolved false --max-results 25
 mcp-message-center-cli health get-health-issue EX226792
 mcp-message-center-cli health get-incident-report EX226792
-mcp-message-center-cli message list-messages --category planForChange --is-major-change true
+
+# Message Center
+mcp-message-center-cli message list-messages --category planForChange --severity high --service Teams --is-major-change true --max-results 25
 mcp-message-center-cli message get-message MC172851
+
+# Global flags: raw JSON output, and pulling credentials from an .mcp.json server block
+mcp-message-center-cli health list-service-health --json
+mcp-message-center-cli message list-messages --mcp-config .mcp.json --mcp-server message-center
 ```
 
 CLI option parsing (`parseEnum`, `parseBoolean`, `parsePositiveInt`) rejects bad arguments before any Graph call, matching the MCP layer's Zod validation.

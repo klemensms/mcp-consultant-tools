@@ -8,9 +8,9 @@
 **Package:** `@mcp-consultant-tools/azure-devops`
 **Binary (MCP):** `mcp-ado`
 **Binary (CLI):** `mcp-ado-cli`
-**Tools:** 47 base tools + up to 6 PR write tools (53 total when enabled)
+**Tools:** 66 base tools + up to 7 PR write tools (73 total when enabled)
 **Prompts:** 4
-**Services:** wiki, workItem, pullRequest, build, variableGroup, sync, configuration, checklist
+**Services:** wiki, workItem, pullRequest, build, git, variableGroup, sync, configuration, checklist, test
 
 Reference package for the v28 Service-Tool-Prompt architecture. All other packages follow the same patterns established here.
 
@@ -119,7 +119,7 @@ Use `get-configuration` first when constructing URLs or when the project name is
 
 <tool-group name="wiki">
 
-### Wiki Tools (10 tools)
+### Wiki Tools (12 tools)
 
 | Tool | Requires flag | Description |
 |------|--------------|-------------|
@@ -133,6 +133,8 @@ Use `get-configuration` first when constructing URLs or when the project name is
 | `delete-wiki-page` | `ENABLE_WIKI_DELETE` | Permanently delete a page and all sub-pages |
 | `download-wiki-attachment` | — | Download a single wiki attachment to disk |
 | `download-wiki-page-attachments` | — | Download all attachments referenced in a page |
+| `save-wiki-page-to-file` | — | Download a wiki page (by `pagePath` OR numeric `pageId`) to a local `.md` file with frontmatter for offline editing |
+| `upload-wiki-page-from-file` | `ENABLE_WIKI_WRITE` | Push a locally edited wiki file back to ADO (reads target + etag from its frontmatter) |
 
 #### Wiki Path Conversion
 
@@ -207,7 +209,7 @@ await ado-str-replace-wiki({ ..., replace_all: true, old_str: 'TODO', new_str: '
 
 <tool-group name="work-item">
 
-### Work Item Tools (10 tools)
+### Work Item Tools (11 tools)
 
 | Tool | Requires flag | Description |
 |------|--------------|-------------|
@@ -220,6 +222,7 @@ await ado-str-replace-wiki({ ..., replace_all: true, old_str: 'TODO', new_str: '
 | `update-work-item-comment` | `ENABLE_WORK_ITEM_WRITE` | Update an existing comment |
 | `update-work-item` | `ENABLE_WORK_ITEM_WRITE` | Update fields using JSON Patch operations |
 | `create-work-item` | `ENABLE_WORK_ITEM_WRITE` | Create with optional parent relationship |
+| `upload-work-item-attachment` | `ENABLE_WORK_ITEM_WRITE` | Upload a local file as an attachment; returns the URL to embed in an `<img>`. Records in the work item's manifest when `workItemId` is supplied |
 | `delete-work-item` | `ENABLE_WORK_ITEM_DELETE` | Delete a work item |
 
 #### WIQL Query Syntax
@@ -290,7 +293,7 @@ By default, comments are sent as Markdown. Set `AZUREDEVOPS_COMMENT_FORMAT=html`
 
 <tool-group name="pull-request">
 
-### Pull Request Tools (6 read + up to 6 write = 12 tools)
+### Pull Request Tools (6 read + up to 7 write = 13 tools)
 
 **Read tools (always available):**
 
@@ -409,7 +412,7 @@ The `get-build-timeline` and `get-build-logs` tool descriptions include sub-agen
 
 | Tool | Description |
 |------|-------------|
-| `get-variable-groups` | List variable groups in a project |
+| `list-variable-groups` | List variable groups in a project |
 | `get-variable-group` | Get a specific variable group and its variables |
 | `compare-variable-groups` | Side-by-side diff of two groups |
 | `compare-environments` | Detect `<base>-<env>` families and diff each environment against the first |
@@ -420,7 +423,7 @@ The `get-build-timeline` and `get-build-logs` tool descriptions include sub-agen
 Azure DevOps returns a secret as `{ "isSecret": true, "value": null }` and **omits
 `isSecret` entirely** for a normal variable.
 
-- `get-variable-group(s)` mask a secret's value to the literal `***SECRET***`.
+- `get-variable-group` and `list-variable-groups` mask a secret's value to the literal `***SECRET***`.
 - The three comparison/summary tools read the **raw** API payload and branch on
   `isSecret`, never on the value. A variable that is secret on either side is
   listed by name under `secretsSkipped` and its values are never read, so even if
@@ -475,6 +478,37 @@ A branch with no digit in its name (`release/next`) cannot be ranked against
 `release/35.0`; letting it win would be arbitrary. Such branches are excluded from
 candidacy and reported under `ignoredNonVersionBranches` rather than silently
 dropped. When every candidate is unrankable, `branchName` is `null`.
+
+</tool-group>
+
+<tool-group name="visualize">
+
+### Visualization Tools (2 tools)
+
+Generative-UI pattern (MCP Apps). `visualize-data` fetches the work items and returns them plus a design-system prompt; the host LLM writes the HTML on its own subscription (no API key, no extra cost) and hands it to `render-visualization`, which sanitizes the HTML and renders it in an iframe. Use these only when the user explicitly asks for a chart/dashboard/visual — plain queries should use `query-work-items` / `run-saved-query`.
+
+| Tool | Description |
+|------|-------------|
+| `visualize-data` | Fetch work items (via `wiql` OR `queryId`) and return the data plus a design-system prompt for the host LLM to render |
+| `render-visualization` | Sanitize host-generated HTML and render it as an interactive visualization |
+
+#### `visualize-data` parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `project` | string | Yes | — | ADO project name |
+| `wiql` | string | One of `wiql`/`queryId` | — | WIQL query (mutually exclusive with `queryId`) |
+| `queryId` | string | One of `wiql`/`queryId` | — | Saved query GUID (mutually exclusive with `wiql`) |
+| `intent` | string | Yes | — | What to visualize (e.g. 'sprint status dashboard', 'burndown chart') |
+| `theme` | `light` \| `dark` | No | `light` | Colour theme |
+| `maxResults` | number | No | `20` | Maximum work items to fetch |
+
+#### `render-visualization` parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `html` | string | Yes | Self-contained HTML snippet (inline CSS/JS) to sanitize and render |
+| `title` | string | No | Short title for the visualization |
 
 </tool-group>
 
@@ -1176,10 +1210,12 @@ export interface ServiceContext {
   readonly workItem: WorkItemService;
   readonly pullRequest: PullRequestService;
   readonly build: BuildService;
+  readonly git: GitService;
   readonly variableGroup: VariableGroupService;
   readonly sync: SyncService;
   readonly configuration: ConfigurationService;
   readonly checklist: ChecklistService;
+  readonly test: TestService;
 }
 ```
 
@@ -1206,10 +1242,12 @@ packages/azure-devops/src/
     work-item-service.ts
     pull-request-service.ts
     build-service.ts
+    git-service.ts
     variable-group-service.ts
     sync-service.ts
     configuration-service.ts
     checklist-service.ts
+    test-service.ts
   sync/                       # Sync module (used by SyncService)
     html-detection.ts         # HTML vs markdown detection
     markdown-serializer.ts    # Work item ↔ markdown conversion
@@ -1217,13 +1255,16 @@ packages/azure-devops/src/
     git-utils.ts              # Git auto-commit helpers
   tools/
     index.ts                  # registerAllTools() aggregator
-    wiki-tools.ts             # 9 wiki tools
-    work-item-tools.ts        # 10 work item tools
-    pull-request-tools.ts     # 6 read + 6 write PR tools
-    build-tools.ts            # 3 build tools
-    variable-group-tools.ts   # 2 variable group tools
+    wiki-tools.ts             # 12 wiki tools
+    work-item-tools.ts        # 11 work item tools
+    pull-request-tools.ts     # 6 read + 7 write PR tools
+    build-tools.ts            # 4 build tools
+    git-tools.ts              # 2 git tools
+    variable-group-tools.ts   # 5 variable group tools
     sync-tools.ts             # 8 sync tools
     checklist-tools.ts        # 8 checklist tools
+    test-tools.ts             # 7 test management tools
+    visualize-tools.ts        # 2 visualization tools
     configuration-tools.ts    # 1 configuration tool
   prompts/
     index.ts                  # registerAllPrompts()
@@ -1236,8 +1277,11 @@ packages/azure-devops/src/
       work-item-commands.ts
       pull-request-commands.ts
       build-commands.ts
+      git-commands.ts
       variable-group-commands.ts
       sync-commands.ts
+      checklist-commands.ts
+      test-commands.ts
       configuration-commands.ts
 ```
 
@@ -1284,8 +1328,9 @@ The CLI reuses the same services and ServiceContext as the MCP server. Binary: `
 | `wiki` | list, search, get, tree, create, update, str-replace | get-wikis, search-wiki-pages, get-wiki-page, get-wiki-tree, create-wiki-page, update-wiki-page, ado-str-replace-wiki |
 | `work-item` | get, query, run-saved-query, get-saved-query, comments, add-comment, update-comment, update, create, delete | All work item tools |
 | `pull-request` | list, get, files, comments, create, update, complete, vote, reply, add-thread | All PR tools |
-| `build` | status, timeline, logs | get-build-status, get-build-timeline, get-build-logs |
-| `variable-group` | list, get | get-variable-groups, get-variable-group |
+| `build` | status, timeline, logs, issues | get-build-status, get-build-timeline, get-build-logs, build-issues |
+| `git` | branches, latest-release | list-branches, latest-release-branch |
+| `variable-group` (alias `vg`) | list, get, compare, compare-environments, summary | list-variable-groups, get-variable-group, compare-variable-groups, compare-environments, variable-group-summary |
 | `sync` | pull, push, create-file, check, list, pull-tasks, push-tasks | All sync tools |
 | `checklist` | get, template, list-templates, report, update-item, add-item, remove-item, update-template | All checklist tools |
 | `test` | create-run, add-results, complete-run, list-runs, run-results, case-history, link-case | All test management tools |
@@ -1334,6 +1379,23 @@ mcp-ado-cli pull-request get MyProject MyRepo 123
 mcp-ado-cli sync pull MyProject --work-item-ids 1044,1045
 mcp-ado-cli sync push MyProject
 mcp-ado-cli sync pull-tasks MyProject --parent-ids 1044
+
+# Build troubleshooting (all flags shown with their defaults)
+mcp-ado-cli build status MyProject 1234 --detail timeline --scope problems --max-issues 5
+mcp-ado-cli build timeline MyProject 1234 --scope all --max-issues 10
+mcp-ado-cli build logs MyProject 1234 --log-id 7 --mode errors
+mcp-ado-cli build issues MyProject 1234 --severity errors      # all | errors | warnings (default all)
+
+# Git branches / release detection
+mcp-ado-cli git branches MyProject MyRepo --filter heads/feature/ --max-results 200
+mcp-ado-cli git latest-release MyProject MyRepo --prefix release/
+
+# Variable groups (read-only; secret VALUES are never read)
+mcp-ado-cli variable-group list MyProject
+mcp-ado-cli variable-group get MyProject 1234
+mcp-ado-cli variable-group compare MyProject 12 34
+mcp-ado-cli variable-group compare-environments MyProject --name-contains billing --suffixes -dev,-uat,-prod
+mcp-ado-cli vg summary MyProject --name-contains billing --max-results 100   # 'vg' alias
 
 # Test management
 mcp-ado-cli test create-run MyProject "Plugin Test — #1928"

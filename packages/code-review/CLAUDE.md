@@ -121,14 +121,20 @@ See `docs/technical/CODE_REVIEW_TECHNICAL.md` for the full reference.
 
 ## CLI Usage
 
-Binary: `mcp-code-review-cli`. Command name = tool name minus the `cr-` prefix (flat top-level commands).
+Binary: `mcp-code-review-cli`. Command name = tool name minus the `cr-` prefix (flat top-level commands). Global flags on every command: `--json`, `--no-cache`, `--env-file <path>`. `--project` falls back to `CODE_REVIEW_AZDO_PROJECT`.
+
+All 10 commands with their full flag sets:
 
 ```bash
 mcp-code-review-cli list-repos --project MyProject
-mcp-code-review-cli check-dotnet MyRepo --project MyProject
-mcp-code-review-cli check-nuget MyRepo --project MyProject
-mcp-code-review-cli complexity MyRepo --project MyProject --no-limit
-mcp-code-review-cli review MyRepo --project MyProject
-mcp-code-review-cli packages --org contoso
-mcp-code-review-cli latest-package-version my-lib --org contoso
+mcp-code-review-cli tree MyRepo --project MyProject --branch main
+mcp-code-review-cli check-dotnet MyRepo --project MyProject --branch main
+mcp-code-review-cli check-nuget MyRepo --project MyProject --branch main --skip-vulnerabilities
+mcp-code-review-cli nuget-info Newtonsoft.Json --version 13.0.1
+mcp-code-review-cli complexity MyRepo --project MyProject --branch main --path src/ --ext .cs,.ts --max-files 2000
+mcp-code-review-cli complexity MyRepo --project MyProject --no-limit   # overrides --max-files
+mcp-code-review-cli review MyRepo --project MyProject --branch main --skip-complexity --max-files 2000
+mcp-code-review-cli packages --org your-org --type nuget                 # github-enterprise provider only
+mcp-code-review-cli package-versions my-lib --org your-org --type npm    # github-enterprise provider only
+mcp-code-review-cli latest-package-version my-lib --org your-org         # github-enterprise provider only
 ```

@@ -175,19 +175,46 @@ Services take injected clients/fetchers, so tests use plain stub objects — **z
 
 ## CLI
 
-Binary: `mcp-code-review-cli`. Command names map 1:1 to the tools (tool name minus the `cr-` prefix). Global flags: `--json`, `--no-cache`, `--env-file`.
+Binary: `mcp-code-review-cli`. Command names map 1:1 to the tools (tool name minus the `cr-` prefix). Provider and credentials come from the `CODE_REVIEW_*` environment variables (see Configuration); `--project` falls back to `CODE_REVIEW_AZDO_PROJECT` when omitted.
+
+Global flags (any command): `--json` (raw JSON to stdout instead of the summary), `--no-cache` (skip the disk cache), `--env-file <path>` (load a specific `.env`).
+
+Each command below is shown with every flag it accepts:
 
 ```bash
+# list-repos — flags: -p/--project
 mcp-code-review-cli list-repos --project MyProject
-mcp-code-review-cli tree MyRepo --project MyProject
-mcp-code-review-cli check-dotnet MyRepo --project MyProject
-mcp-code-review-cli check-nuget MyRepo --project MyProject
+mcp-code-review-cli list-repos --project MyProject --json
+
+# tree <repository> — flags: -p/--project, -b/--branch
+mcp-code-review-cli tree MyRepo --project MyProject --branch main
+
+# check-dotnet <repository> — flags: -p/--project, -b/--branch
+mcp-code-review-cli check-dotnet MyRepo --project MyProject --branch main
+
+# check-nuget <repository> — flags: -p/--project, -b/--branch, --skip-vulnerabilities
+mcp-code-review-cli check-nuget MyRepo --project MyProject --branch main
+mcp-code-review-cli check-nuget MyRepo --project MyProject --skip-vulnerabilities   # reference-only inventory, no NuGet API calls
+
+# nuget-info <packageId> — flags: -v/--version
 mcp-code-review-cli nuget-info Newtonsoft.Json --version 13.0.1
-mcp-code-review-cli complexity MyRepo --project MyProject --path src/ --no-limit
-mcp-code-review-cli review MyRepo --project MyProject
-mcp-code-review-cli packages --org contoso
-mcp-code-review-cli package-versions my-lib --org contoso
-mcp-code-review-cli latest-package-version my-lib --org contoso
+
+# complexity <repository> — flags: -p/--project, -b/--branch, --path, --ext, --max-files, --no-limit
+mcp-code-review-cli complexity MyRepo --project MyProject --branch main --path src/ --ext .cs,.ts --max-files 2000
+mcp-code-review-cli complexity MyRepo --project MyProject --no-limit   # analyse all matching files (overrides --max-files)
+
+# review <repository> — flags: -p/--project, -b/--branch, --skip-complexity, --max-files
+mcp-code-review-cli review MyRepo --project MyProject --branch main --max-files 2000
+mcp-code-review-cli review MyRepo --project MyProject --skip-complexity
+
+# packages — flags: --org (required), --type          [github-enterprise provider only]
+mcp-code-review-cli packages --org your-org --type nuget
+
+# package-versions <packageName> — flags: --org (required), --type   [github-enterprise provider only]
+mcp-code-review-cli package-versions my-lib --org your-org --type npm
+
+# latest-package-version <packageName> — flags: --org (required)     [github-enterprise provider only]
+mcp-code-review-cli latest-package-version my-lib --org your-org
 ```
 
 </cli-architecture>

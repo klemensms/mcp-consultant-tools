@@ -18,14 +18,8 @@ AZURE_SUBSCRIPTION_ID=your-subscription-id
 # Optional - Default resource group
 AZURE_RESOURCE_GROUP=your-default-rg
 
-# Optional - Filtering
-AZURE_ALLOWED_RESOURCE_GROUPS=rg1,rg2,rg3    # Restrict to specific RGs
-AZURE_EXCLUDED_RESOURCE_TYPES=Microsoft.Compute/disks  # Hide certain types
-
 # Optional - Features
-AZURE_INCLUDE_TAGS=true                       # Include tags in listings (default: true)
 AZURE_REDACT_SECRETS=true                     # Redact sensitive values (default: true)
-AZURE_MAX_RESULTS=100                         # Default max results
 AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart, stop, start, set-config (default: false)
 ```
 

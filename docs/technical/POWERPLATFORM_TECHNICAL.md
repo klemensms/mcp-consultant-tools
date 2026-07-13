@@ -11,7 +11,7 @@ This document covers all three PowerPlatform MCP packages:
 
 | Package | Binary | CLI Binary | Tools | Prompts | Production-Safe |
 |---------|--------|-----------|-------|---------|-----------------|
-| `@mcp-consultant-tools/powerplatform` | `mcp-consultant-tools-powerplatform` | `mcp-pp-cli` | 46 | 12 | YES |
+| `@mcp-consultant-tools/powerplatform` | `mcp-consultant-tools-powerplatform` | `mcp-pp-cli` | 51 | 12 | YES |
 | `@mcp-consultant-tools/powerplatform-customization` | `mcp-pp-custom` | `mcp-pp-custom-cli` | 70 | 0 | NO |
 | `@mcp-consultant-tools/powerplatform-data` | `mcp-pp-data` | `mcp-pp-data-cli` | 10 | 0 | NO |
 
@@ -416,6 +416,20 @@ Risk levels: Low (0-20), Medium (21-50), High (51-100), Critical (>100)
 | `get-security-roles` | — | All security roles |
 | `get-security-role-privileges` | `roleId` | All privileges for a role |
 | `get-security-roles-by-solution` | `solutionUniqueName` | Roles in a specific solution |
+
+</tool-reference>
+
+<tool-reference name="field-security-tools">
+
+## Field Security Tools (3 tools)
+
+| Tool | Key Parameters | Returns |
+|------|---------------|---------|
+| `list-field-security-profiles` | `namePattern?` (case-insensitive substring on FSP name) | All Field Security Profiles: id, name, description, managed flag |
+| `get-field-security-profile` | `fieldSecurityProfileId` (GUID) | Single FSP snapshot: field permissions (`entity.attribute` with Create/Read/Update), plus team and user assignments |
+| `get-secured-columns` | `entityLogicalName` | Secured columns on an entity (`IsSecured=true`) and, per column, the FSPs that grant access (with C/R/U). Columns no FSP grants access to are flagged as fully locked down |
+
+Field-secured columns are governed by Field Security Profiles, not by entity-level security roles. Use `get-secured-columns` to audit coverage (which columns are locked down and which profiles unlock them); use `get-field-security-profile` for the inverse view (which columns, teams, and users a single profile grants).
 
 </tool-reference>
 
@@ -1036,6 +1050,56 @@ Cache dir: `.mcp-pp-cache`
 | `app` | app-commands.ts | Model-driven app and sitemap inspection |
 | `validation` | validation-commands.ts | Schema name validation |
 | `dbml` | dbml-commands.ts | DBML schema generation from Dataverse |
+| `fsp` | field-security-commands.ts | Field Security Profiles and secured-column coverage |
+
+**Flow / workflow examples** (all flags shown):
+
+```bash
+# List activated cloud flows, filtered by name, including normally-excluded categories
+mcp-pp-cli flow list --active-only --max 50 --name "invoice" \
+  --include-customer-insights --include-system --include-copilot-sales
+
+# Search classic workflows + modern flows (category 5 = ModernFlow, state 1 = Activated)
+mcp-pp-cli flow search --name "sync" --entity account --category 5 --state 1 --max 100
+# add --description "<text>" to search the description field, or --no-description to omit it from results
+
+# Flow definition — parsed summary instead of full JSON
+mcp-pp-cli flow definition aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee --summary
+
+# Run history for a flow, filtered by status and date window
+mcp-pp-cli flow runs aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee \
+  --status Failed --started-after 2024-01-01 --started-before 2024-02-01 --max 50
+
+# Action-level detail for a single run (Management API)
+mcp-pp-cli flow run-details aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee 11111111-2222-3333-4444-555555555555
+
+# Environment-wide flow health scan — all flags (--all-flows also scans draft flows)
+mcp-pp-cli flow health --days 7 --max-runs 100 --max-flows 500 --all-flows --concurrency 5
+
+# Complete cloud-flow inventory (deployment metadata, no run history)
+mcp-pp-cli flow inventory --max 500
+
+# Classic Dynamics workflows and their definitions
+mcp-pp-cli flow workflows --active-only --max 25
+mcp-pp-cli flow workflow-def aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee --summary
+
+# Business rules
+mcp-pp-cli flow business-rules --active-only --max 100
+mcp-pp-cli flow business-rule aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+```
+
+**Field Security Profile examples:**
+
+```bash
+# List FSPs (optionally filter by name substring)
+mcp-pp-cli fsp list --name-pattern "Finance"
+
+# Get one FSP with its field permissions and team/user assignments
+mcp-pp-cli fsp get aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+
+# Audit secured columns on an entity and which FSPs unlock them
+mcp-pp-cli fsp secured-columns account
+```
 
 </cli-commands>
 

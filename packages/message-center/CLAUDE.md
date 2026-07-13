@@ -124,14 +124,18 @@ See `docs/technical/MESSAGE_CENTER_TECHNICAL.md` for the full reference.
 ## CLI Usage
 
 Binary: `mcp-message-center-cli`. Command name = tool name minus the `m365-` prefix, grouped by domain.
+Global flags on any command: `--json`, `--no-cache`, `--env-file <path>`, `--mcp-config <path>`, `--mcp-server <name>`.
+List commands shown below with every flag (each has a short alias: `-m/-s/-c/-r/-v/-M`).
 
 ```bash
-mcp-message-center-cli health list-service-health
+mcp-message-center-cli health list-service-health --max-results 50
 mcp-message-center-cli health get-service-health "Exchange Online"
-mcp-message-center-cli health list-health-issues --is-resolved false --classification incident
+mcp-message-center-cli health list-health-issues --service Exchange --classification incident --is-resolved false --max-results 25
 mcp-message-center-cli health get-health-issue EX226792
 mcp-message-center-cli health get-incident-report EX226792
 
-mcp-message-center-cli message list-messages --category planForChange --is-major-change true
+mcp-message-center-cli message list-messages --category planForChange --severity high --service Teams --is-major-change true --max-results 25
 mcp-message-center-cli message get-message MC172851
 ```
+
+Full CLI reference (per-command flag table + global flags) is in `docs/technical/MESSAGE_CENTER_TECHNICAL.md`.

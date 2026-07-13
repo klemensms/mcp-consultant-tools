@@ -447,7 +447,7 @@ Read-only tools for investigating build/pipeline failures:
 
 ## Variable Group Tools
 
-- `get-variable-groups` / `get-variable-group` - List / fetch (secrets masked)
+- `list-variable-groups` / `get-variable-group` - List / fetch (secrets masked)
 - `compare-variable-groups` - Diff two groups; secret values never read
 - `compare-environments` - Diff `<base>-<env>` families
 - `variable-group-summary` - Variable and secret **counts**

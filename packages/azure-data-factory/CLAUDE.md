@@ -162,9 +162,15 @@ See `docs/technical/AZURE_DATA_FACTORY_TECHNICAL.md` for detailed implementation
 Binary: `mcp-adf-cli`
 
 ```bash
-# List pipelines
-mcp-adf-cli pipeline list dev-adf
+# List pipelines (default factory)
+mcp-adf-cli pipeline list
 
-# Get pipeline run
-mcp-adf-cli pipeline get-run dev-adf abc-123-run-id
+# List pipelines in a specific factory (factory ID is a --factory-id flag, not positional)
+mcp-adf-cli pipeline list --factory-id prod-adf
+
+# Get a pipeline run's status
+mcp-adf-cli pipeline get-run abc123-def456
+
+# Query DEBUG-mode run history — all flags: window, pipeline, status, truncation cap, factory
+mcp-adf-cli pipeline query-debug-runs --last-days 14 --pipeline-name DataCopy_Pipeline --status Failed --max-results 500 --factory-id prod-adf
 ```
