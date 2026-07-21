@@ -140,13 +140,14 @@ For `get-flow-run-details` (Power Automate Management API):
 
 <tool-reference name="plugin-tools">
 
-## Plugin Inspection Tools (4 tools)
+## Plugin Inspection Tools (5 tools)
 
 | Tool | Key Parameters | Returns |
 |------|---------------|---------|
 | `get-plugin-assemblies` | `includeManaged?` (default: false), `maxRecords?` (default: 100) | Assembly list with isolation mode, version, modified-by |
 | `get-plugin-asm-full` | `assemblyName`, `includeDisabled?` (default: false) | Assembly + all types, steps, images + automatic validation |
 | `get-entity-plugins` | `entityName`, `messageFilter?`, `includeDisabled?` (default: false) | All plugin steps on entity, organized by message and execution order |
+| `get-all-plugin-steps` | `includeDisabled?` (default: **true**), `maxRecords?` (default: 500) | Environment-wide step inventory across all assemblies — for registration comparison between environments |
 | `get-plugin-trace-logs` | `entityName?`, `messageName?`, `correlationId?`, `exceptionOnly?`, `hoursBack?` (default: 24), `maxRecords?` (default: 50), `pluginStepId?` | Trace logs with parsed exception details (type, message, stack trace) |
 
 **Automatic validation in `get-plugin-asm-full`:**
@@ -1086,6 +1087,18 @@ mcp-pp-cli flow workflow-def aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee --summary
 # Business rules
 mcp-pp-cli flow business-rules --active-only --max 100
 mcp-pp-cli flow business-rule aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+```
+
+**Plugin examples:**
+
+```bash
+# Plugin steps on a single entity
+mcp-pp-cli plugin entity account --message Update --include-disabled
+
+# Environment-wide step inventory — disabled steps are INCLUDED by default,
+# so the output can be diffed against another environment to find registration drift
+mcp-pp-cli plugin steps --max 500
+mcp-pp-cli plugin steps --no-include-disabled   # enabled steps only
 ```
 
 **Field Security Profile examples:**

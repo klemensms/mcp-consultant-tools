@@ -15,6 +15,10 @@ export type {
 export { FlowService } from './FlowService.js';
 export { MetadataService } from './MetadataService.js';
 export { PluginService } from './PluginService.js';
+export type {
+  PluginStepInventoryEntry,
+  PluginStepInventoryResult,
+} from './PluginService.js';
 export { SecurityRoleService } from './SecurityRoleService.js';
 export type {
   SecurityRole,

@@ -1,5 +1,5 @@
 /**
- * Plugin Tools - 4 tools for plugin inspection
+ * Plugin Tools - 5 tools for plugin inspection
  */
 import { z } from 'zod';
 import type { ServiceContext } from '../types.js';
@@ -112,6 +112,46 @@ export function registerPluginTools(server: any, ctx: ServiceContext): void {
             {
               type: "text",
               text: `Failed to get entity plugin pipeline: ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "get-all-plugin-steps",
+    "Get every SDK message processing step in the environment across all assemblies. Use for a full plugin-registration inventory or to compare registrations between environments; use get-entity-plugins instead when you only care about one entity.",
+    {
+      includeDisabled: z.boolean().optional().describe("Include disabled steps (default: true)"),
+      maxRecords: z.number().optional().describe("Maximum number of steps to return (default: 500)"),
+    },
+    { readOnlyHint: true, openWorldHint: true },
+    async ({ includeDisabled, maxRecords }: any) => {
+      try {
+        const service = ctx.pp;
+        const result = await service.getAllPluginSteps({
+          includeDisabled: includeDisabled ?? true,
+          maxRecords: maxRecords ?? 500,
+        });
+        const enabledCount = result.steps.filter((s) => s.enabled).length;
+        const resultStr = JSON.stringify(result, null, 2);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Found ${result.totalCount} plugin steps (${enabledCount} enabled):\n\n${resultStr}`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error getting all plugin steps:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to get all plugin steps: ${error.message}`,
             },
           ],
         };

@@ -37,6 +37,9 @@ import {
   type SecurityRolesResult,
   type SecurityRolePrivilegesResult,
   type SecurityRolesBySolutionResult,
+  // Plugin types
+  type PluginStepInventoryEntry,
+  type PluginStepInventoryResult,
   // Read-only services
   MetadataService,
   PluginService,
@@ -93,6 +96,9 @@ export type {
   FieldSecurityProfileSummary,
   FieldSecurityProfileDetail,
   SecuredColumnInfo,
+  // Plugin types
+  PluginStepInventoryEntry,
+  PluginStepInventoryResult,
 };
 
 export class PowerPlatformService {
@@ -266,6 +272,13 @@ export class PowerPlatformService {
     maxRecords?: number;
   }): Promise<{ totalCount: number; logs: unknown[] }> {
     return this.plugin.getPluginTraceLogs(options);
+  }
+
+  async getAllPluginSteps(options?: {
+    includeDisabled?: boolean;
+    maxRecords?: number;
+  }): Promise<PluginStepInventoryResult> {
+    return this.plugin.getAllPluginSteps(options);
   }
 
   // =====================================================
