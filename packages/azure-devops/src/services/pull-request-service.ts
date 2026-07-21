@@ -1,8 +1,12 @@
 /**
  * Pull Request Service - Azure DevOps pull request operations
  */
+import { createTwoFilesPatch } from 'diff';
 import type { AzureDevOpsClient } from '../azure-devops-client.js';
 import type { AdoApiCollectionResponse } from '../models/index.js';
+
+/** Skip per-file unified diff above this combined size (old + new bytes). */
+const MAX_DIFF_BYTES = 400_000;
 
 export class PullRequestService {
   constructor(private readonly client: AzureDevOpsClient) {}
@@ -203,12 +207,17 @@ export class PullRequestService {
     };
   }
 
-  async getPullRequestChanges(
+  /**
+   * Resolve the target iteration (defaulting to the latest) and fetch its raw change
+   * entries. Shared by getPullRequestChanges and getPullRequestDiff — the diff path
+   * needs fields (isFolder) that the public changes shape does not expose.
+   */
+  private async fetchIterationChanges(
     project: string,
     repositoryId: string,
     pullRequestId: number,
     iterationId?: number
-  ): Promise<any> {
+  ): Promise<{ iterationId: number; changeEntries: any[] }> {
     this.client.validateProject(project);
 
     let targetIteration = iterationId;
@@ -228,11 +237,26 @@ export class PullRequestService {
     );
 
     return {
+      iterationId: targetIteration as number,
+      changeEntries: response.changeEntries || []
+    };
+  }
+
+  async getPullRequestChanges(
+    project: string,
+    repositoryId: string,
+    pullRequestId: number,
+    iterationId?: number
+  ): Promise<any> {
+    const { iterationId: targetIteration, changeEntries } =
+      await this.fetchIterationChanges(project, repositoryId, pullRequestId, iterationId);
+
+    return {
       pullRequestId,
       iterationId: targetIteration,
       project,
-      totalCount: response.changeEntries?.length || 0,
-      changes: (response.changeEntries || []).map((c: any) => ({
+      totalCount: changeEntries.length,
+      changes: changeEntries.map((c: any) => ({
         changeType: c.changeType,
         path: c.item?.path,
         originalPath: c.originalPath,
@@ -240,6 +264,149 @@ export class PullRequestService {
         originalObjectId: c.item?.originalObjectId
       }))
     };
+  }
+
+  /**
+   * Fetch a blob's raw bytes by its object ID (SHA-1).
+   * Returns null when the blob cannot be retrieved (e.g. it no longer exists).
+   */
+  private async getBlobContent(
+    project: string,
+    repositoryId: string,
+    objectId: string
+  ): Promise<Buffer | null> {
+    const response = await this.client.requestRaw(
+      `${project}/_apis/git/repositories/${repositoryId}/blobs/${objectId}?$format=octetstream&api-version=${this.client.apiVersion}`,
+      'GET',
+      undefined,
+      undefined,
+      'arraybuffer'
+    );
+    return response?.data ? Buffer.from(response.data) : null;
+  }
+
+  /**
+   * Build unified diffs for the files changed in a pull request iteration.
+   *
+   * Both blob sides come from the iteration's change entries, so renames and
+   * multi-commit iterations resolve correctly without re-walking commits.
+   */
+  async getPullRequestDiff(
+    project: string,
+    repositoryId: string,
+    pullRequestId: number,
+    options: { iterationId?: number; paths?: string[]; contextLines?: number } = {}
+  ): Promise<any> {
+    const { iterationId: targetIteration, changeEntries } =
+      await this.fetchIterationChanges(project, repositoryId, pullRequestId, options.iterationId);
+
+    const pathFilter = options.paths?.length ? new Set(options.paths) : null;
+    const relevant = changeEntries.filter(
+      (c: any) => !c.item?.isFolder && (pathFilter === null || pathFilter.has(c.item?.path))
+    );
+
+    const files: any[] = [];
+    let totalAdditions = 0;
+    let totalDeletions = 0;
+
+    for (const change of relevant) {
+      const diff = await this.computeFileDiff(
+        project,
+        repositoryId,
+        change,
+        options.contextLines ?? 3
+      );
+      files.push(diff);
+      totalAdditions += diff.additions;
+      totalDeletions += diff.deletions;
+    }
+
+    return {
+      pullRequestId,
+      iterationId: targetIteration,
+      project,
+      totalCount: files.length,
+      totalAdditions,
+      totalDeletions,
+      files
+    };
+  }
+
+  private async computeFileDiff(
+    project: string,
+    repositoryId: string,
+    change: any,
+    contextLines: number
+  ): Promise<any> {
+    const path: string = change.item?.path;
+    const originalPath: string | undefined = change.originalPath;
+    const changeType: string = change.changeType ?? 'edit';
+
+    const { oldObjectId, newObjectId } = resolveBlobSides(change);
+
+    const base = {
+      path,
+      changeType,
+      originalPath: originalPath ?? null
+    };
+
+    let oldBuf: Buffer | null = null;
+    let newBuf: Buffer | null = null;
+    try {
+      [oldBuf, newBuf] = await Promise.all([
+        oldObjectId ? this.getBlobContent(project, repositoryId, oldObjectId) : Promise.resolve(null),
+        newObjectId ? this.getBlobContent(project, repositoryId, newObjectId) : Promise.resolve(null)
+      ]);
+    } catch (error: any) {
+      return {
+        ...base,
+        isBinary: false,
+        patch: `Could not fetch blob content: ${error.message}`,
+        additions: 0,
+        deletions: 0,
+        skipped: 'fetch-failed'
+      };
+    }
+
+    if (looksBinary(oldBuf) || looksBinary(newBuf)) {
+      return {
+        ...base,
+        isBinary: true,
+        patch: 'Binary files differ',
+        additions: 0,
+        deletions: 0,
+        skipped: 'binary'
+      };
+    }
+
+    const totalBytes = (oldBuf?.length ?? 0) + (newBuf?.length ?? 0);
+    if (totalBytes > MAX_DIFF_BYTES) {
+      return {
+        ...base,
+        isBinary: false,
+        patch: `File too large to diff inline (${totalBytes} bytes). Fetch the blob directly if needed.`,
+        additions: 0,
+        deletions: 0,
+        skipped: 'too-large'
+      };
+    }
+
+    const oldStr = oldBuf ? oldBuf.toString('utf8') : '';
+    const newStr = newBuf ? newBuf.toString('utf8') : '';
+
+    const patch = createTwoFilesPatch(
+      originalPath ?? path,
+      path,
+      oldStr,
+      newStr,
+      undefined,
+      undefined,
+      { context: contextLines }
+    );
+
+    const { additions, deletions } = countHunkLines(patch);
+
+    return { ...base, isBinary: false, patch, additions, deletions };
   }
 
   // ==================== WRITE OPERATIONS ====================
@@ -572,4 +739,49 @@ export class PullRequestService {
 
     return results;
   }
+}
+
+/**
+ * Pick which blob is the "before" and which is the "after" side of a change.
+ * Driven by changeType because ADO omits one side's object ID inconsistently
+ * for adds and deletes. changeType can be compound, e.g. "edit, rename".
+ */
+export function resolveBlobSides(change: any): {
+  oldObjectId: string | null;
+  newObjectId: string | null;
+} {
+  const changeType: string = (change.changeType ?? 'edit').toLowerCase();
+  const objectId: string | null = change.item?.objectId ?? null;
+  const originalObjectId: string | null = change.item?.originalObjectId ?? null;
+
+  if (changeType.includes('delete')) {
+    return { oldObjectId: originalObjectId ?? objectId, newObjectId: null };
+  }
+  if (changeType.includes('add')) {
+    return { oldObjectId: null, newObjectId: objectId };
+  }
+  return { oldObjectId: originalObjectId, newObjectId: objectId };
+}
+
+/** Treat a blob as binary if its leading bytes contain a NUL. */
+export function looksBinary(content: Buffer | null): boolean {
+  if (content === null || content.length === 0) return false;
+  return content.subarray(0, 8192).includes(0x00);
+}
+
+/** Count added/removed lines inside a unified patch, ignoring the file headers. */
+export function countHunkLines(patch: string): { additions: number; deletions: number } {
+  let additions = 0;
+  let deletions = 0;
+  let inHunk = false;
+  for (const line of patch.split(/\r?\n/)) {
+    if (line.startsWith('@@')) {
+      inHunk = true;
+      continue;
+    }
+    if (!inHunk) continue;
+    if (line.startsWith('+')) additions++;
+    else if (line.startsWith('-')) deletions++;
+  }
+  return { additions, deletions };
 }

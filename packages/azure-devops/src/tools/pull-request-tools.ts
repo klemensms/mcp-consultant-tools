@@ -129,6 +129,33 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
     }
   );
 
+  server.tool(
+    "get-pull-request-diff",
+    "Get unified diffs (actual line-by-line content changes) for the files in a pull request. Use this for code review — get-pull-request-changes returns only file paths and change types, not content.",
+    {
+      project: z.string().describe("The project name"),
+      repositoryId: z.string().describe("Repository ID (GUID) or name"),
+      pullRequestId: zCoerceNumber().describe("The pull request ID"),
+      iterationId: zCoerceNumber().optional().describe("Iteration ID (default: latest)"),
+      paths: z.array(z.string()).optional().describe("Restrict the diff to these file paths"),
+      contextLines: zCoerceNumber().optional().describe("Unified diff context lines (default: 3)"),
+    },
+    { readOnlyHint: true, openWorldHint: true },
+    async ({ project, repositoryId, pullRequestId, iterationId, paths, contextLines }: any) => {
+      try {
+        const result = await ctx.pullRequest.getPullRequestDiff(project, repositoryId, pullRequestId, {
+          iterationId,
+          paths,
+          contextLines,
+        });
+        return { content: [{ type: "text", text: `Diff for PR #${pullRequestId}:\n\n${JSON.stringify(result, null, 2)}` }] };
+      } catch (error: any) {
+        console.error("Error getting pull request diff:", error);
+        return { content: [{ type: "text", text: `Failed to get pull request diff: ${error.message}` }] };
+      }
+    }
+  );
+
   // ========================================
   // WRITE TOOLS (conditional on AZUREDEVOPS_ENABLE_PR_WRITE)
   // ========================================
