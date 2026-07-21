@@ -4,4 +4,5 @@ export type {
   LogAnalyticsResourceConfig,
   QueryResult,
   MetadataResult,
+  InvestigateAppResult,
 } from './log-analytics-service.js';

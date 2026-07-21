@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { ServiceContext } from '../types.js';
 import {
   formatTableAsMarkdown,
+  formatInvestigateAppMarkdown,
   filterColumns,
   resolveColumnPreset,
 } from '../utils/loganalytics-formatters.js';
@@ -355,116 +356,26 @@ export function registerFunctionTools(server: any, ctx: ServiceContext): void {
       detailsLimit: z.number().optional().describe("Max recent errors to include (default: 20)"),
       deduplicateRetries: z.boolean().optional()
         .describe("Group by OperationId to deduplicate retry attempts (default: true)"),
+      outputFormat: z.enum(["json", "markdown"]).optional()
+        .describe(descWithExamples("Output format (default: markdown for readability; json returns the structured exceptionSummary / traceSeverity / recentErrors query results)", OUTPUT_FORMAT_EXAMPLES)),
     },
     { readOnlyHint: true, openWorldHint: true },
-    async ({ resourceId, appNamePattern, timespan, includeDetails, detailsLimit, deduplicateRetries }: any) => {
+    async ({ resourceId, appNamePattern, timespan, includeDetails, detailsLimit, deduplicateRetries, outputFormat }: any) => {
       try {
         const timespanValue = timespan || 'PT1H';
         const showDetails = includeDetails !== false;
         const limit = detailsLimit || 20;
         const dedupe = deduplicateRetries !== false;
 
-        const appFilter = appNamePattern
-          ? `| where AppRoleName contains "${appNamePattern}"`
-          : '';
+        const result = await ctx.logAnalytics.investigateApp(
+          resourceId, appNamePattern, timespanValue, showDetails, limit, dedupe
+        );
 
-        const exceptionSummaryQuery = dedupe ? `
-          AppExceptions
-          ${appFilter}
-          | summarize
-              RetryCount = count(),
-              FirstSeen = min(TimeGenerated),
-              LastSeen = max(TimeGenerated)
-            by OperationId, ExceptionType, AppRoleName
-          | summarize
-              UniqueErrors = count(),
-              TotalRetries = sum(RetryCount),
-              FirstSeen = min(FirstSeen),
-              LastSeen = max(LastSeen)
-            by ExceptionType, AppRoleName
-          | order by UniqueErrors desc
-          | take 20
-        ` : `
-          AppExceptions
-          ${appFilter}
-          | summarize
-              Count = count(),
-              FirstSeen = min(TimeGenerated),
-              LastSeen = max(TimeGenerated)
-            by ExceptionType, AppRoleName
-          | order by Count desc
-          | take 20
-        `;
-
-        const traceSeverityQuery = dedupe ? `
-          AppTraces
-          ${appFilter}
-          | summarize RetryCount = count() by OperationId, SeverityLevel, AppRoleName
-          | summarize UniqueTraces = count(), TotalCount = sum(RetryCount) by SeverityLevel, AppRoleName
-          | order by SeverityLevel desc
-        ` : `
-          AppTraces
-          ${appFilter}
-          | summarize Count = count() by SeverityLevel, AppRoleName
-          | order by SeverityLevel desc
-        `;
-
-        const recentErrorsQuery = showDetails ? (dedupe ? `
-          AppExceptions
-          ${appFilter}
-          | summarize
-              TimeGenerated = max(TimeGenerated),
-              RetryCount = count(),
-              OuterMessage = take_any(OuterMessage)
-            by OperationId, AppRoleName, ExceptionType
-          | project TimeGenerated, AppRoleName, ExceptionType, OuterMessage, RetryCount
-          | order by TimeGenerated desc
-          | take ${limit}
-        ` : `
-          AppExceptions
-          ${appFilter}
-          | project TimeGenerated, AppRoleName, ExceptionType, OuterMessage
-          | order by TimeGenerated desc
-          | take ${limit}
-        `) : null;
-
-        const [exceptionSummary, traceSeverity, recentErrors] = await Promise.all([
-          ctx.logAnalytics.executeQuery(resourceId, exceptionSummaryQuery, timespanValue),
-          ctx.logAnalytics.executeQuery(resourceId, traceSeverityQuery, timespanValue),
-          recentErrorsQuery ? ctx.logAnalytics.executeQuery(resourceId, recentErrorsQuery, timespanValue) : null,
-        ]);
-
-        let markdown = `# App Investigation Report\n\n`;
-        markdown += `**Filter:** ${appNamePattern || '(all apps)'}\n`;
-        markdown += `**Time range:** ${timespanValue}\n`;
-        markdown += dedupe ? `**Deduplication:** enabled (grouped by OperationId)\n\n` : '\n';
-
-        markdown += `## Exception Summary\n\n`;
-        if (exceptionSummary.tables && exceptionSummary.tables.length > 0 && exceptionSummary.tables[0].rows.length > 0) {
-          markdown += formatTableAsMarkdown(exceptionSummary.tables[0]);
-        } else {
-          markdown += '*No exceptions found*';
-        }
-        markdown += '\n\n';
-
-        markdown += `## Trace Severity Distribution\n\n`;
-        if (traceSeverity.tables && traceSeverity.tables.length > 0 && traceSeverity.tables[0].rows.length > 0) {
-          markdown += formatTableAsMarkdown(traceSeverity.tables[0]);
-        } else {
-          markdown += '*No traces found*';
-        }
-        markdown += '\n\n';
-
-        if (showDetails && recentErrors) {
-          markdown += `## Recent Errors (${limit} max)\n\n`;
-          if (recentErrors.tables && recentErrors.tables.length > 0 && recentErrors.tables[0].rows.length > 0) {
-            markdown += formatTableAsMarkdown(recentErrors.tables[0]);
-          } else {
-            markdown += '*No recent errors*';
-          }
+        if ((outputFormat || 'markdown') === 'json') {
+          return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
         }
 
-        return { content: [{ type: "text", text: markdown }] };
+        return { content: [{ type: "text", text: formatInvestigateAppMarkdown(result) }] };
       } catch (error: any) {
         console.error("Error investigating app:", error);
         return {

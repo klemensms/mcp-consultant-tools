@@ -2,6 +2,8 @@
  * Utility functions for formatting Log Analytics query results
  */
 
+import type { InvestigateAppResult } from '../services/log-analytics-service.js';
+
 // ========================================
 // Column Presets for Token Reduction
 // ========================================
@@ -132,6 +134,46 @@ export function formatTableAsMarkdown(table: {
   });
 
   return [header, separator, ...rows].join('\n');
+}
+
+/**
+ * Render an app investigation report as markdown.
+ * Shared by the CLI and the MCP tool so both surfaces emit the same report.
+ */
+export function formatInvestigateAppMarkdown(result: InvestigateAppResult): string {
+  const { appNamePattern, timespan, deduplicate, exceptionSummary, traceSeverity, recentErrors, includeDetails, detailsLimit } = result;
+
+  let markdown = `# App Investigation Report\n\n`;
+  markdown += `**Filter:** ${appNamePattern || '(all apps)'}\n`;
+  markdown += `**Time range:** ${timespan}\n`;
+  markdown += deduplicate ? `**Deduplication:** enabled (grouped by OperationId)\n\n` : '\n';
+
+  markdown += `## Exception Summary\n\n`;
+  if (exceptionSummary.tables && exceptionSummary.tables.length > 0 && exceptionSummary.tables[0].rows.length > 0) {
+    markdown += formatTableAsMarkdown(exceptionSummary.tables[0]);
+  } else {
+    markdown += '*No exceptions found*';
+  }
+  markdown += '\n\n';
+
+  markdown += `## Trace Severity Distribution\n\n`;
+  if (traceSeverity.tables && traceSeverity.tables.length > 0 && traceSeverity.tables[0].rows.length > 0) {
+    markdown += formatTableAsMarkdown(traceSeverity.tables[0]);
+  } else {
+    markdown += '*No traces found*';
+  }
+  markdown += '\n\n';
+
+  if (includeDetails && recentErrors) {
+    markdown += `## Recent Errors (${detailsLimit} max)\n\n`;
+    if (recentErrors.tables && recentErrors.tables.length > 0 && recentErrors.tables[0].rows.length > 0) {
+      markdown += formatTableAsMarkdown(recentErrors.tables[0]);
+    } else {
+      markdown += '*No recent errors*';
+    }
+  }
+
+  return markdown;
 }
 
 /**
