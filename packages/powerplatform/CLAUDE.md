@@ -1,7 +1,7 @@
 # PowerPlatform Package Guide
 
 This guide applies to all PowerPlatform packages:
-- `@mcp-consultant-tools/powerplatform` (read-only, 51 tools, 12 prompts)
+- `@mcp-consultant-tools/powerplatform` (read-only, 52 tools, 12 prompts)
 - `@mcp-consultant-tools/powerplatform-customization` (schema changes, 59 tools, 2 prompts)
 - `@mcp-consultant-tools/powerplatform-data` (data CRUD, 8 tools, 0 prompts)
 
@@ -24,7 +24,7 @@ The PowerPlatform integration is split into **3 security-isolated packages** fol
 ```typescript
 // Pattern 1: Production (read-only only)
 import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';
-registerPowerPlatformTools(server); // 51 read-only tools
+registerPowerPlatformTools(server); // 52 read-only tools
 
 // Pattern 2: Development (read + customization)
 import { registerPowerPlatformTools } from '@mcp-consultant-tools/powerplatform';
@@ -221,6 +221,9 @@ Binary: `mcp-pp-cli`
 ```bash
 # Get entity metadata
 mcp-pp-cli metadata get account
+
+# Environment-wide plugin step inventory (disabled steps included by default)
+mcp-pp-cli plugin steps --max 500
 
 # List flows
 mcp-pp-cli flow list

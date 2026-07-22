@@ -38,6 +38,21 @@ export interface MetadataResult {
   }[];
 }
 
+/**
+ * Structured result of a combined app investigation.
+ * Consumers parse these fields directly; the markdown report is rendered from them.
+ */
+export interface InvestigateAppResult {
+  appNamePattern?: string;
+  timespan: string;
+  deduplicate: boolean;
+  exceptionSummary: QueryResult;
+  traceSeverity: QueryResult;
+  recentErrors: QueryResult | null;
+  includeDetails: boolean;
+  detailsLimit: number;
+}
+
 export class LogAnalyticsService {
   private config: LogAnalyticsConfig;
   private msalClient: ConfidentialClientApplication | null = null;
@@ -433,6 +448,100 @@ export class LogAnalyticsService {
     `.trim();
 
     return this.executeQuery(resourceId, query, timespan);
+  }
+
+  /**
+   * Combined investigation: exception summary + trace severity distribution + recent errors.
+   * Returns the structured result; callers render markdown from it when they need a report.
+   */
+  async investigateApp(
+    resourceId: string,
+    appNamePattern?: string,
+    timespan: string = 'PT1H',
+    includeDetails: boolean = true,
+    detailsLimit: number = 20,
+    deduplicateRetries: boolean = true
+  ): Promise<InvestigateAppResult> {
+    const appFilter = appNamePattern
+      ? `| where AppRoleName contains "${appNamePattern}"`
+      : '';
+
+    const exceptionSummaryQuery = deduplicateRetries ? `
+          AppExceptions
+          ${appFilter}
+          | summarize
+              RetryCount = count(),
+              FirstSeen = min(TimeGenerated),
+              LastSeen = max(TimeGenerated)
+            by OperationId, ExceptionType, AppRoleName
+          | summarize
+              UniqueErrors = count(),
+              TotalRetries = sum(RetryCount),
+              FirstSeen = min(FirstSeen),
+              LastSeen = max(LastSeen)
+            by ExceptionType, AppRoleName
+          | order by UniqueErrors desc
+          | take 20
+        ` : `
+          AppExceptions
+          ${appFilter}
+          | summarize
+              Count = count(),
+              FirstSeen = min(TimeGenerated),
+              LastSeen = max(TimeGenerated)
+            by ExceptionType, AppRoleName
+          | order by Count desc
+          | take 20
+        `;
+
+    const traceSeverityQuery = deduplicateRetries ? `
+          AppTraces
+          ${appFilter}
+          | summarize RetryCount = count() by OperationId, SeverityLevel, AppRoleName
+          | summarize UniqueTraces = count(), TotalCount = sum(RetryCount) by SeverityLevel, AppRoleName
+          | order by SeverityLevel desc
+        ` : `
+          AppTraces
+          ${appFilter}
+          | summarize Count = count() by SeverityLevel, AppRoleName
+          | order by SeverityLevel desc
+        `;
+
+    const recentErrorsQuery = includeDetails ? (deduplicateRetries ? `
+          AppExceptions
+          ${appFilter}
+          | summarize
+              TimeGenerated = max(TimeGenerated),
+              RetryCount = count(),
+              OuterMessage = take_any(OuterMessage)
+            by OperationId, AppRoleName, ExceptionType
+          | project TimeGenerated, AppRoleName, ExceptionType, OuterMessage, RetryCount
+          | order by TimeGenerated desc
+          | take ${detailsLimit}
+        ` : `
+          AppExceptions
+          ${appFilter}
+          | project TimeGenerated, AppRoleName, ExceptionType, OuterMessage
+          | order by TimeGenerated desc
+          | take ${detailsLimit}
+        `) : null;
+
+    const [exceptionSummary, traceSeverity, recentErrors] = await Promise.all([
+      this.executeQuery(resourceId, exceptionSummaryQuery, timespan),
+      this.executeQuery(resourceId, traceSeverityQuery, timespan),
+      recentErrorsQuery ? this.executeQuery(resourceId, recentErrorsQuery, timespan) : null,
+    ]);
+
+    return {
+      appNamePattern,
+      timespan,
+      deduplicate: deduplicateRetries,
+      exceptionSummary,
+      traceSeverity,
+      recentErrors,
+      includeDetails,
+      detailsLimit,
+    };
   }
 
   /**

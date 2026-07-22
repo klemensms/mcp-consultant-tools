@@ -109,6 +109,48 @@ export function registerPullRequestCommands(program: Command, ctx: ServiceContex
       } catch (error) { handleCliError(error, 'get PR changes'); }
     });
 
+  pr
+    .command('diff')
+    .description('Get unified diffs for the files changed in a pull request')
+    .argument('<project>', 'Project name')
+    .argument('<repositoryId>', 'Repository ID or name')
+    .argument('<pullRequestId>', 'Pull request ID')
+    .option('-i, --iteration <n>', 'Iteration ID (default: latest)')
+    .option('--path <path...>', 'Restrict to one or more paths (repeatable)')
+    .option('--context <n>', 'Unified diff context lines', '3')
+    .option('--patch-only', 'Print just the concatenated patch to stdout (suitable for piping)')
+    .action(async (project: string, repositoryId: string, pullRequestId: string, opts: any) => {
+      try {
+        const result = await ctx.pullRequest.getPullRequestDiff(project, repositoryId, parseInt(pullRequestId), {
+          iterationId: opts.iteration ? parseInt(opts.iteration) : undefined,
+          paths: opts.path,
+          contextLines: parseInt(opts.context),
+        });
+
+        if (opts.patchOnly) {
+          for (const f of result.files) {
+            if (f.skipped) {
+              process.stdout.write(`# skipped ${f.path} (${f.skipped})\n`);
+              continue;
+            }
+            process.stdout.write(f.patch);
+            if (!f.patch.endsWith('\n')) process.stdout.write('\n');
+          }
+          return;
+        }
+
+        const skipped = result.files.filter((f: any) => f.skipped).length;
+        outputResult(
+          {
+            fileName: `pr-${pullRequestId}-diff`,
+            data: result,
+            summary: `PR #${pullRequestId} iteration ${result.iterationId}: ${result.totalCount} file(s), +${result.totalAdditions} / -${result.totalDeletions}${skipped ? ` (${skipped} skipped)` : ''}`,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'get PR diff'); }
+    });
+
   // --- Write commands (require AZUREDEVOPS_ENABLE_PR_WRITE=true) ---
 
   pr

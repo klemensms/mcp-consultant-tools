@@ -71,9 +71,14 @@ Investigation tools group by `OperationId` to deduplicate retry attempts:
 - Enabled by default, disable with `deduplicateRetries: false`
 
 ### Output Formats
-All tools support `outputFormat` parameter:
-- `json` - Raw JSON (default)
+All tools support the `outputFormat` parameter (`--format` on the CLI):
+- `json` - Raw JSON
 - `markdown` - Formatted markdown tables
+
+Default is `json`, except the report-style tools `la-get-error-summary` and `la-investigate-app`,
+which default to `markdown` because they are read by humans. Pass `json` to those when a consumer
+parses the result — `la-investigate-app` then returns `{ appNamePattern, timespan, deduplicate,
+exceptionSummary, traceSeverity, recentErrors, includeDetails, detailsLimit }`.
 
 ### Sync Function App Investigation
 
@@ -136,4 +141,10 @@ mcp-loganalytics-cli query execute my-workspace "AppTraces | take 10"
 
 # List workspaces
 mcp-loganalytics-cli workspace list
+
+# Combined app investigation — markdown report (default)
+mcp-loganalytics-cli query investigate-app my-workspace --app-name "func-dev" --timespan PT2H
+
+# Same investigation as structured JSON, for a consumer that parses the findings
+mcp-loganalytics-cli query investigate-app my-workspace --timespan P7D --format json
 ```

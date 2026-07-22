@@ -53,6 +53,10 @@ export type {
 } from './services/flow-health.js';
 export { MetadataService } from './services/MetadataService.js';
 export { PluginService } from './services/PluginService.js';
+export type {
+  PluginStepInventoryEntry,
+  PluginStepInventoryResult,
+} from './services/PluginService.js';
 export { SecurityRoleService } from './services/SecurityRoleService.js';
 export type {
   SecurityRole,

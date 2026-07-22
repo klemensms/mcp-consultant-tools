@@ -421,11 +421,14 @@ Parameters:
 - `includeDetails` (optional): Include recent error details section (default: `true`)
 - `detailsLimit` (optional): Max recent errors (default: 20)
 - `deduplicateRetries` (optional): Default `true`
+- `outputFormat` (optional): `markdown` (default) or `json`
 
-Returns markdown report with:
+Returns a markdown report with:
 1. Exception Summary (top 20 by UniqueErrors/Count)
 2. Trace Severity Distribution
 3. Recent Errors (if `includeDetails: true`)
+
+With `outputFormat: "json"` it returns the structured result instead — `{ appNamePattern, timespan, deduplicate, exceptionSummary, traceSeverity, recentErrors, includeDetails, detailsLimit }`, where the three query fields are raw `QueryResult`s. Use this when a consumer parses the findings rather than reads them.
 
 Runs 2-3 queries in parallel (`Promise.all`).
 
@@ -898,8 +901,11 @@ mcp-loganalytics-cli query search log-dev-acme-uks-01 "timeout" --table AppTrace
 # Error summary (defaults to markdown, deduplicated)
 mcp-loganalytics-cli query error-summary log-dev-acme-uks-01 --timespan PT8H
 
-# Combined investigation
+# Combined investigation (defaults to markdown)
 mcp-loganalytics-cli query investigate-app log-dev-acme-uks-01 --app-name "func-dev" --timespan PT2H
+
+# Combined investigation as structured JSON (for downstream parsing)
+mcp-loganalytics-cli query investigate-app log-dev-acme-uks-01 --app-name "func-dev" --timespan PT2H --format json
 
 # function-app sync investigation
 mcp-loganalytics-cli query investigate-sync log-dev-acme-uks-01 --timespan PT8H
