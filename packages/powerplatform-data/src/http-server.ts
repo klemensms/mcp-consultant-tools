@@ -160,6 +160,17 @@ const authMiddleware = async (req: Request, res: Response, next: NextFunction) =
   return res.status(401).json({ error: 'Invalid or missing authentication' });
 };
 
+// OAuth discovery paths must 404, not 401. This server only does static API keys / Entra JWT —
+// it has no OAuth routes. A 401 tells an MCP client "OAuth is supported, you are unauthorized",
+// so the client starts a flow that can never complete and reports "authentication failed" even
+// though the API key works. Must be registered BEFORE the auth middleware; after it, the 401 wins.
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.path.startsWith('/.well-known/oauth-') || req.path === '/register') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  next();
+});
+
 app.use(authMiddleware);
 
 // Debug logging
