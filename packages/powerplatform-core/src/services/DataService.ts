@@ -13,6 +13,10 @@ import {
 } from '@mcp-consultant-tools/core';
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
 import type { ApiCollectionResponse } from '../client/types.js';
+import { nextRelativeUrl } from './flow-health.js';
+
+/** Dataverse never returns more than 5,000 rows in a single response, whatever `$top` asks for. */
+const DATAVERSE_MAX_PAGE_SIZE = 5000;
 
 /** Resolved N:N intersect entity metadata */
 interface IntersectEntityInfo {
@@ -62,7 +66,13 @@ export class DataService {
   }
 
   /**
-   * Query records using entity name (plural) and a filter expression
+   * Query records using entity name (plural) and a filter expression.
+   *
+   * Pages via `Prefer: odata.maxpagesize` + `@odata.nextLink` rather than `$top`.
+   * Dataverse caps every response at 5,000 rows and ignores `$top` when a page-size
+   * preference is present, so a returned-row count can't distinguish "capped" from
+   * "exhausted" — only the continuation token can. `hasMore` is therefore derived
+   * from `@odata.nextLink`, never from `value.length`.
    */
   async queryRecords(
     entityNamePlural: string,
@@ -76,7 +86,6 @@ export class DataService {
     requestedMax: number;
     piiReport?: PipelineReport;
   }> {
-    const requestLimit = maxRecords + 1;
     const entityLogicalName = this.toEntityLogicalName(entityNamePlural);
 
     let effectiveSelect = select;
@@ -90,22 +99,39 @@ export class DataService {
       l1Report = l1.report;
     }
 
-    let url = `api/data/v9.2/${entityNamePlural}?$filter=${encodeURIComponent(filter)}&$top=${requestLimit}`;
+    let url = `api/data/v9.2/${entityNamePlural}?$filter=${encodeURIComponent(filter)}`;
     if (effectiveSelect && effectiveSelect.length > 0) {
       url += `&$select=${effectiveSelect.join(',')}`;
     }
 
-    const response = await this.client.makeRequest<ApiCollectionResponse<unknown>>(
-      url,
-      'GET',
-      undefined,
-      { Prefer: 'odata.include-annotations="*"' }
-    );
+    // No `$orderby`: Dataverse falls back to primary-key order, which is deterministic
+    // enough for stable paging. Add one here if a caller ever needs a specific order.
+    const pageSize = Math.min(Math.max(maxRecords, 1), DATAVERSE_MAX_PAGE_SIZE);
+    const prefer = `odata.include-annotations="*",odata.maxpagesize=${pageSize}`;
 
-    const hasMore = response.value.length > maxRecords;
-    const trimmedValue = hasMore
-      ? response.value.slice(0, maxRecords)
-      : response.value;
+    const rows: unknown[] = [];
+    let hasMore = false;
+    let endpoint: string | null = url;
+
+    while (endpoint) {
+      const page: ApiCollectionResponse<unknown> =
+        await this.client.makeRequest<ApiCollectionResponse<unknown>>(
+          endpoint,
+          'GET',
+          undefined,
+          { Prefer: prefer }
+        );
+      rows.push(...page.value);
+
+      const next: string | undefined = page['@odata.nextLink'];
+      if (rows.length >= maxRecords) {
+        hasMore = Boolean(next);
+        break;
+      }
+      endpoint = next ? nextRelativeUrl(next, this.client.getOrganizationUrl()) : null;
+    }
+
+    const trimmedValue = rows.slice(0, maxRecords);
 
     if (!this.piiPipeline?.isEnabled) {
       return {

@@ -59,7 +59,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       maxRecords: z
         .number()
         .optional()
-        .describe("Maximum number of records to retrieve (default: 50, max: 5000)"),
+        .describe("Maximum number of records to retrieve (default: 50). Values above 5,000 are served by following Dataverse paging — one extra API call per 5,000 rows"),
     },
     { readOnlyHint: true, openWorldHint: true },
     async ({ entityNamePlural, filter, select, maxRecords }: any) => {

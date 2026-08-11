@@ -825,7 +825,7 @@ Checks are implemented via `ServiceContext.checkCreateEnabled()` etc. in `types.
 
 | Tool | Key Parameters | Returns |
 |------|---------------|---------|
-| `query-records` | `entityNamePlural` (required), `filter` (required), `maxRecords?` (default: 50, max: 5000) | Matching records with all fields |
+| `query-records` | `entityNamePlural` (required), `filter` (required), `maxRecords?` (default: 50, pages past 5,000) | Matching records with all fields; `hasMore` from `@odata.nextLink` |
 | `get-record` | `entityNamePlural`, `recordId` | Complete record; 404 error if not found |
 | `get-entity-metadata` | `entityName` | EntitySetName (plural name for API), PrimaryIdAttribute, PrimaryNameAttribute |
 | `get-lookup-target` | `entityName`, `fieldName` | Target entity's EntitySetName + `@odata.bind` syntax example |
