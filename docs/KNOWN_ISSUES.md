@@ -59,6 +59,40 @@ message together. Do not leave it half-live.
 
 ---
 
+## `$top`-based completeness checks survive in three PowerPlatform services
+
+**Status:** confirmed in source. **Affects:** `MetadataService.getGlobalOptionSets`,
+`WorkflowService.getWorkflows`, `FlowService.getFlows`.
+
+Each requests `$top = maxRecords + 1` and infers `hasMore` from the returned row count:
+
+```ts
+const hasMore = response.value.length > maxRecords;   // wrong at the page cap
+```
+
+This is the defect fixed in `DataService.queryRecords` in v35.0.0-beta.5, left in place elsewhere.
+Dataverse caps every response at 5,000 rows whatever `$top` asks for, so once `maxRecords` reaches
+5,000 the sentinel row can never come back: the server returns exactly 5,000, `5000 > 5000` is
+false, and the caller is told a truncated result set is complete. `$top` cannot detect the
+truncation either — it is client-driven paging, so no `@odata.nextLink` accompanies it, and
+Dataverse ignores `$top` outright when `Prefer: odata.maxpagesize` is present.
+
+The exposure is lower than it was for `query-records` — these three query metadata and workflow
+tables, which reach 5,000 rows far less often than a filtered data query does — but the failure mode
+is identical and silent when it happens.
+
+`FlowService.getFlowInventory` is **not** affected: it already pages via `@odata.nextLink` and
+derives its truncation flag from the continuation token.
+
+**Fix:** the same change made in `DataService.queryRecords` — drop `$top`, send
+`Prefer: odata.maxpagesize=<n>`, follow `@odata.nextLink` until the cap is satisfied or the set is
+exhausted, and derive `hasMore` from the continuation token. See
+`packages/powerplatform-core/src/services/DataService.ts` and its
+`__tests__/DataService.queryRecords.test.ts` for the shape, including a stub that reproduces the
+real Dataverse page-cap behaviour.
+
+---
+
 ## Unverified: does `PII_PROTECTION` reach the CLI path?
 
 **Status:** NOT confirmed — recorded so it is not lost, and so the wrong mechanism is not chased.
