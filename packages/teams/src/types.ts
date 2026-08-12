@@ -3,6 +3,7 @@
  */
 
 import type { TeamsService } from './services/teams-service.js';
+import type { MessageService } from './services/message-service.js';
 
 /**
  * Service context shared between MCP server entry points.
@@ -10,6 +11,7 @@ import type { TeamsService } from './services/teams-service.js';
  */
 export interface ServiceContext {
   readonly teams: TeamsService;
+  readonly messages: MessageService;
 }
 
 /**
@@ -165,6 +167,64 @@ export interface ChannelInfo {
 export interface SendMessageResult {
   messageId: string;
   webUrl?: string;
+}
+
+/**
+ * A message read from a channel or chat, rendered for a human reader.
+ * `id` is retained because it is what a reply or reaction call needs next.
+ */
+export interface MessageInfo {
+  id: string;
+  createdDateTime: string;
+  lastModifiedDateTime?: string;
+  /** Display name of the sender, or a bot/system label when there is no user. */
+  authorName: string;
+  /** AAD user id of the sender when available - usable for @-mentions. */
+  authorId?: string;
+  /** Body flattened to readable plain text. */
+  text: string;
+  /** Number of replies, when the caller asked for it via $expand. */
+  replyCount?: number;
+  importance?: string;
+  /** "message", "systemEventMessage", etc. */
+  messageType?: string;
+  webUrl?: string;
+  /** Set when the message was deleted; body will be empty. */
+  isDeleted?: boolean;
+}
+
+/**
+ * A chat (1:1, group, or meeting) the signed-in user is part of
+ */
+export interface ChatInfo {
+  id: string;
+  topic?: string;
+  chatType: string;
+  /** Display names of members, when expanded. Graph caps this at 25 per chat. */
+  memberNames?: string[];
+  lastUpdatedDateTime?: string;
+  webUrl?: string;
+}
+
+/**
+ * Options common to the message-read tools
+ */
+export interface MessageReadOptions {
+  /** Number of messages to return. Defaults to 20. */
+  top?: number;
+  /** Only messages modified at or after this ISO-8601 timestamp. */
+  since?: string;
+  /** Only messages modified before this ISO-8601 timestamp. */
+  until?: string;
+}
+
+/**
+ * The signed-in user's identity (from /me, via User.Read)
+ */
+export interface MeInfo {
+  id: string;
+  displayName: string;
+  userPrincipalName: string;
 }
 
 /**

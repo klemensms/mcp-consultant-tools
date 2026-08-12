@@ -5,16 +5,26 @@
 
 **Package:** `@mcp-consultant-tools/teams`
 
-Send messages and Adaptive Cards to Microsoft Teams channels via the Microsoft Graph API. Supports both interactive (device-code) and automated (client-credentials) authentication.
+Read, send and manage Microsoft Teams channel messages and chats via the Microsoft Graph API. Supports both interactive (device-code) and automated (client-credentials) authentication.
 
 ## Tools
 
 | Tool | Description |
 |------|-------------|
-| `send-channel-message` | Send a plain-text or markdown message to a channel |
-| `send-adaptive-card` | Send an Adaptive Card (built-in release templates or raw card JSON) |
+| `authenticate` | Start sign-in (device-code returns a URL and one-time code) |
+| `auth-status` | Check authentication state; renews silently if a refresh token is cached |
+| `logout` | Clear the cached token |
 | `list-teams` | List the Teams the app has access to (to find team IDs) |
 | `list-channels` | List channels in a team (to find channel IDs) |
+| `send-channel-message` | Send a plain-text or markdown message to a channel |
+| `send-adaptive-card` | Send an Adaptive Card (built-in release templates or raw card JSON) |
+| `get-channel-messages` | Read recent channel messages (default 20, newest first, replies excluded) |
+| `get-message-replies` | Read the replies to one channel message |
+| `reply-to-message` | Post a reply into an existing channel thread |
+| `list-chats` | List the signed-in user's chats (1:1, group, meeting) |
+| `get-chat-messages` | Read recent messages in a chat (default 20, newest first) |
+| `send-chat-message` | Send a message to an existing chat |
+| `mark-chat-read` | Clear a chat's unread state for the signed-in user |
 
 ## Configuration
 
@@ -34,7 +44,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
         "TEAMS_TENANT_ID": "op://Work/Teams-App-Registration/tenantid",
         "TEAMS_CLIENT_ID": "op://Work/Teams-App-Registration/username",
         "TEAMS_AUTH_MODE": "device-code",
-        "TEAMS_CLIENT_SECRET": "op://Work/Teams-App-Registration/password",
+        "TEAMS_CLIENT_SECRET": "",
         "TEAMS_DEFAULT_TEAM_ID": "",
         "TEAMS_DEFAULT_CHANNEL_ID": ""
       }
@@ -96,6 +106,13 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 ## Notable Behavior
 
 - **`TEAMS_CLIENT_ID` is always required** — both device-code and client-credentials modes require your own Azure AD app registration.
-- **Device-code flow:** Call the `authenticate` tool first to get a URL and one-time code, complete sign-in in a browser. The token is cached at `~/.mcp-consultant-tools/teams-auth.json` for reuse across sessions.
+- **Device-code mode needs no client secret.** Leave `TEAMS_CLIENT_SECRET` empty and enable "Allow public client flows" on the registration. A registration used only in device-code mode holds no standing credential, which is the point — actions run solely in the signed-in user's context.
+- **Delegated permissions required (device-code mode).** Grant admin consent for all eight, or reads will fail with 403: `User.Read`, `Team.ReadBasic.All`, `Channel.ReadBasic.All`, `ChannelMessage.Read.All`, `ChannelMessage.Send`, `Chat.ReadWrite`, `Group.Read.All`, `offline_access`.
+- **Device-code flow:** Call the `authenticate` tool first to get a URL and one-time code, complete sign-in in a browser. Sign-in is then persistent — see token caching below.
+- **Silent token refresh.** The MSAL token cache is stored encrypted (AES-256-GCM, machine-derived key, mode 0600) at `~/.mcp-consultant-tools/teams-token-cache-{clientId}.enc`. Because `offline_access` is requested, an expired access token is renewed from the cached refresh token without user interaction, so you are not sent back to the device-code flow every hour. Clear it with `logout`.
+- **Upgrading from an earlier version:** the previous plaintext token file `~/.mcp-consultant-tools/teams-auth.json` carried a narrower scope set and no refresh token. It is deleted automatically on first run — authenticate once more to get a token with the full scope set.
+- **Reads are bounded by default.** `get-channel-messages` and `get-chat-messages` return the 20 most recent messages; use `top` (max 50, the Graph limit) plus `since`/`until` to widen or narrow. Channel reads deliberately exclude thread replies so a wide skim stays cheap — pass a returned message ID to `get-message-replies` for those. Message bodies are rendered as plain text with the HTML stripped, and each message shows its ID because that is what `reply-to-message` needs.
+- **Date filtering differs by surface.** Chat reads filter server-side on `lastModifiedDateTime`. Channel reads filter client-side over the fetched page, because the Graph channel-messages endpoint supports neither `$filter` nor `$orderby` — widen `top` if a range returns fewer messages than expected.
 - **Default team/channel:** Set `TEAMS_DEFAULT_TEAM_ID` and `TEAMS_DEFAULT_CHANNEL_ID` to avoid passing IDs on every tool call.
 - **Adaptive Card templates:** `send-adaptive-card` supports three built-in templates (`release-announcement`, `beta-release`, `hotfix`) designed for release workflow announcements.
+- **Not supported by design:** no team or channel administration (no creating channels, managing members, or changing team settings), no directory search (so @-mentions cannot be resolved by name), and no reactions. Chat creation is also unavailable — `send-chat-message` requires a chat that already exists.

@@ -102,7 +102,7 @@ export function registerAuthStatusTool(
     { readOnlyHint: true },
     async () => {
       try {
-        const status = ctx.teams.getAuthStatus();
+        const status = await ctx.teams.getAuthStatus();
 
         const emoji =
           status.status === "authenticated"
@@ -158,7 +158,7 @@ export function registerLogoutTool(
     { readOnlyHint: false, destructiveHint: false },
     async () => {
       try {
-        ctx.teams.logout();
+        await ctx.teams.logout();
 
         return {
           content: [

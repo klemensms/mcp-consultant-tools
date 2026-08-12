@@ -24,15 +24,24 @@ packages/teams/src/
   types.ts                    # TypeScript interfaces (TeamsConfig, AdaptiveCard, etc.)
   tool-examples.ts            # descWithExamples() + domain-specific example arrays
   cli.ts                      # CLI entry point (Commander.js)
+  message-content.ts          # markdownToHtml / sanitizeHtml / htmlToText / truncateText
+  auth/
+    token-cache.ts            # MSAL ICachePlugin, AES-256-GCM encrypted at rest
   services/
     index.ts                  # Barrel export
-    teams-service.ts          # TeamsService class (auth + Graph API operations)
+    teams-service.ts          # TeamsService class (auth + discovery + channel sends)
+    message-service.ts        # MessageService class (message reads, replies, chats)
+    __tests__/
+      message-service.test.ts # Stubbed-Graph tests: endpoint paths + response mapping
   tools/
     index.ts                  # registerAllTools() aggregator
     authenticate.ts           # authenticate, auth-status, logout tools
     send-message.ts           # send-channel-message tool
     send-card.ts              # send-adaptive-card tool
     list-channels.ts          # list-teams, list-channels tools
+    read-channel.ts           # get-channel-messages, get-message-replies, reply-to-message
+    chats.ts                  # list-chats, get-chat-messages, send-chat-message, mark-chat-read
+    format-messages.ts        # Shared reader-facing rendering for messages and chats
   cards/
     templates.ts              # Adaptive Card template builders
   cli/
@@ -41,7 +50,10 @@ packages/teams/src/
       index.ts                # registerAllCommands() aggregator
       auth-commands.ts        # auth login/status/logout
       message-commands.ts     # list-teams, list-channels, send-message, send-card
+      read-commands.ts        # the 7 read/reply/chat commands (CLI parity)
 ```
+
+**Service split.** `MessageService` takes `TeamsService` in its constructor and calls `teams.getGraphClient()`, so auth, the token cache and the sign-in are owned in exactly one place. `TeamsService` exposes `getGraphClient()`, `getTeamId()`, `getChannelId()`, `getMe()` and `getTenantId()` for that purpose. The split exists to keep each service near the repo's <500-line target rather than pushing `teams-service.ts` toward the 1,000-line hard limit.
 
 ## ServiceContext
 
@@ -78,19 +90,27 @@ Validation occurs in `createServiceContext()` when the service is first accessed
 
 ### Device Code Flow
 
-**Scopes requested:**
+**Scopes requested** (`DEVICE_CODE_SCOPES` in `services/teams-service.ts`):
 - `User.Read`
 - `Team.ReadBasic.All`
 - `Channel.ReadBasic.All`
+- `ChannelMessage.Read.All`
 - `ChannelMessage.Send`
+- `Chat.ReadWrite`
 - `Group.Read.All`
+- `offline_access`
+
+> **Do not add an unconsented scope to this array.** In a tenant where only `User.Read`, `email`, `openid` and `profile` are classified low impact, an unconsented scope cannot be self-consented — it fails at *sign-in*, taking the whole server down rather than degrading the one tool that needed it. A capability requiring a ninth scope should be raised, not implemented.
+
+`offline_access` is what enables silent renewal. Listing it explicitly is safe for cache matching: `OIDC_DEFAULT_SCOPES` in `@azure/msal-common` includes it, and `ScopeSet.createSearchScopes()` strips OIDC scopes before cache lookups, so it cannot cause an `acquireTokenSilent` miss.
 
 **Required Azure AD App Registration settings:**
 1. Go to https://entra.microsoft.com → App registrations → New registration
 2. Supported account types: Single tenant (or multi-tenant if needed)
 3. In Authentication → enable **"Allow public client flows"**
-4. In API permissions → Microsoft Graph → **Delegated** permissions: add all 5 scopes above
+4. In API permissions → Microsoft Graph → **Delegated** permissions: add all 8 scopes above
 5. Grant admin consent
+6. Add **no** client secret and no certificate — device-code mode holds no standing credential
 
 **Flow mechanics:**
 
@@ -107,28 +127,34 @@ interface PendingAuth {
 }
 ```
 
-When any other tool (e.g., `send-channel-message`) calls `getAccessToken()`, it checks:
+When any other tool (e.g., `get-channel-messages`) calls `getAccessToken()`, it checks:
 1. In-memory token — use if valid
-2. Disk token at `~/.mcp-consultant-tools/teams-auth.json` — load if valid and matches clientId
+2. **Silent refresh** — `getAllAccounts()`, then `acquireTokenSilent({ account, scopes })`. This is the path that normally succeeds after the access token expires
 3. `pendingAuth` — race against a 2-second timeout; if still pending, throw a helpful error with the URL/code
 4. No token and no pending auth — throw "Not authenticated" error directing user to call `authenticate`
 
+`InteractionRequiredAuthError` from step 2 means the refresh token itself has expired or been revoked, so the method returns null and falls through to step 3. Any other error propagates rather than being swallowed into a misleading "not authenticated".
+
 **Token persistence:**
 
-```typescript
-// Storage location
-~/.mcp-consultant-tools/teams-auth.json
-
-// File format (mode 0o600, directory mode 0o700)
-interface StoredToken {
-  accessToken: string;
-  expiresAt: string;       // ISO 8601
-  clientId: string;        // Validated against current config before use
-  authenticatedAt: string; // ISO 8601
-}
+```
+~/.mcp-consultant-tools/teams-token-cache-{clientId}.enc
 ```
 
-A 5-minute buffer is applied: `tokenExpirationTime = expiresAt - 5 * 60 * 1000`. Tokens are validated against the current `clientId` — tokens from a different app registration are ignored.
+`auth/token-cache.ts` registers an MSAL `ICachePlugin` on the `PublicClientApplication`, so MSAL persists the whole serialized token cache — access token *and* refresh token — automatically:
+
+- `beforeCacheAccess` → decrypt file → `context.tokenCache.deserialize()`
+- `afterCacheAccess` → if `context.cacheHasChanged` → `serialize()` → encrypt → write
+
+Encryption is AES-256-GCM (`IV[16] + authTag[16] + ciphertext`) under `scryptSync(hostname + username, 'mcp-teams-auth', 32)`, written at mode 0600 in a 0700 directory. The machine-derived key means a copied cache file is useless elsewhere; a decrypt failure is logged and treated as an empty cache so MSAL falls back to device code.
+
+A 5-minute expiry buffer is applied via `applyToken()`: `tokenExpirationTime = expiresOn - 5 * 60 * 1000`. Per-clientId filenames replace the old in-file `clientId` check.
+
+**Legacy token migration (v35).**
+
+The pre-v35 format was a plaintext `~/.mcp-consultant-tools/teams-auth.json` holding a bare access token with five scopes and no refresh token. `discardLegacyToken()` deletes it on construction rather than migrating it — a narrower token reused silently 403s on every read tool with no visible cause. `logout()` also removes the MSAL account from the in-memory cache, so a logout followed by an `auth-status` in the same process reports `not_authenticated` instead of resurrecting the cached account.
+
+**403 diagnosis.** `MessageService` wraps 403 responses with an explicit instruction to run `logout` then `authenticate`, because a stale narrow scope set is indistinguishable from a genuine authorization failure in the raw Graph error text.
 
 </auth-mode>
 
@@ -212,7 +238,7 @@ The authentication will complete automatically once you sign in.
 
 #### auth-status
 
-Returns the current authentication state without side effects. Reads from in-memory token, then `pendingAuth`, then disk token file.
+Returns the current authentication state. Reads the in-memory token, then `pendingAuth`, then **attempts a silent refresh** from the cached refresh token — so an expired access token backed by a live refresh token reports `authenticated` rather than sending the user back to the device-code flow. Reports `expired` only when a cache file exists but the refresh token is no longer usable. Not strictly side-effect-free: a successful silent refresh updates the in-memory token and the cache file.
 
 **Parameters:** None
 
@@ -224,9 +250,11 @@ Returns the current authentication state without side effects. Reads from in-mem
 
 #### logout
 
-Clears all authentication state:
-- Sets `accessToken = null`, `tokenExpirationTime = 0`, `pendingAuth = null`
-- Deletes `~/.mcp-consultant-tools/teams-auth.json` if it exists
+Clears all authentication state. Async as of v35, because removing the MSAL account is an async cache operation:
+- Sets `accessToken = null`, `tokenExpirationTime = 0`, `pendingAuth = null`, `me = null`
+- Calls `removeAccount()` for every account in the MSAL token cache — without this, a logout followed by an `auth-status` in the same process would silently resurrect the cached account via silent refresh
+- Deletes the encrypted cache file `~/.mcp-consultant-tools/teams-token-cache-{clientId}.enc`
+- Deletes the pre-v35 plaintext `~/.mcp-consultant-tools/teams-auth.json` if it exists
 
 Note: Clearing `pendingAuth` does not cancel the background MSAL polling — if the user completes sign-in after logout, the polling promise resolves but the token is no longer stored (since `pendingAuth` is null when the callback fires).
 
@@ -401,6 +429,149 @@ ChannelInfo[] = Array<{
 </tool>
 
 </tool-group>
+
+<tool-group name="message-read">
+
+### Message Read Tools
+
+Output volume is the primary design constraint: a busy channel will exhaust a context window. All reads default to 20 messages and clamp to Graph's maximum of 50 (`clampTop()`). Bodies are flattened to plain text by `htmlToText()` and capped per message at 1,500 characters by `truncateText()`.
+
+Every rendered message carries its ID, because that ID is the required input to `reply-to-message` and `get-message-replies`.
+
+**Shared response shape** (`MessageInfo`):
+
+```typescript
+{
+  id: string;                     // Required by reply/reaction calls
+  createdDateTime: string;
+  lastModifiedDateTime?: string;
+  authorName: string;             // Falls back to bot name, then "System"
+  authorId?: string;              // AAD user id - the only usable @-mention source
+  text: string;                   // HTML stripped, <at> rendered as @Name
+  replyCount?: number;
+  importance?: string;
+  messageType?: string;           // "message", "systemEventMessage", ...
+  webUrl?: string;
+  isDeleted?: boolean;
+}
+```
+
+<tool name="get-channel-messages">
+
+#### get-channel-messages
+
+`GET /teams/{teamId}/channels/{channelId}/messages` — delegated `ChannelMessage.Read.All`.
+
+**Parameters:** `teamId?`, `channelId?`, `top?` (1-50, default 20), `since?`, `until?` (ISO-8601)
+
+Returns root messages only. Replies are deliberately **not** expanded (`$expand=replies` would pull up to 200 replies per message), keeping a wide skim cheap; use `get-message-replies` on a returned ID instead.
+
+**Date filtering is client-side here.** The Graph channel-messages endpoint supports only `$top` and `$expand` — not `$filter` or `$orderby` — so `since`/`until` are applied over the fetched page by `applyDateRange()`. A range narrower than expected usually means `top` needs widening. Graph also sorts channel messages by last-modified date of the whole reply chain, not of the root message.
+
+</tool>
+
+<tool name="get-message-replies">
+
+#### get-message-replies
+
+`GET /teams/{teamId}/channels/{channelId}/messages/{messageId}/replies` — delegated `ChannelMessage.Read.All`.
+
+**Parameters:** `messageId` (required), `teamId?`, `channelId?`, `top?` (1-50, default 20)
+
+</tool>
+
+<tool name="reply-to-message">
+
+#### reply-to-message
+
+`POST /teams/{teamId}/channels/{channelId}/messages/{messageId}/replies` — delegated `ChannelMessage.Send`.
+
+**Parameters:** `messageId` (required), `message` (required), `teamId?`, `channelId?`, `format?` (`"text"` | `"markdown"`, default `"markdown"`)
+
+Markdown is converted and sanitized by `markdownToHtml()` before it reaches Graph. Returns the new reply's ID and `webUrl`.
+
+</tool>
+
+</tool-group>
+
+<tool-group name="chats">
+
+### Chat Tools
+
+All four operate on the delegated `Chat.ReadWrite` scope.
+
+<tool name="list-chats">
+
+#### list-chats
+
+`GET /me/chats` — least privilege `Chat.ReadBasic`; `Chat.ReadWrite` is higher and sufficient.
+
+**Parameters:** `top?` (1-50, default 20), `includeMembers?` (boolean)
+
+Ordered by `lastMessagePreview/createdDateTime desc` (descending only — Graph does not support ascending here). `includeMembers` adds `$expand=members`; Graph caps expanded members at **25 per chat regardless of `$top`**, so member lists on large group chats may be partial.
+
+**Response shape** (`ChatInfo`): `id`, `topic?`, `chatType`, `memberNames?`, `lastUpdatedDateTime?`, `webUrl?`. One-on-one chats have no topic — the renderer substitutes member names when available.
+
+</tool>
+
+<tool name="get-chat-messages">
+
+#### get-chat-messages
+
+`GET /chats/{chatId}/messages` — least privilege `Chat.Read`; `Chat.ReadWrite` is higher and sufficient.
+
+**Parameters:** `chatId` (required), `top?` (1-50, default 20), `since?`, `until?` (ISO-8601)
+
+**Date filtering is server-side here**, unlike channel reads. Graph only honours `$filter` when `$orderby` names the same property, so both are set to `lastModifiedDateTime` — the one property accepting both `gt` and `lt` (`createdDateTime` supports `lt` only). Requests without a range send neither parameter.
+
+</tool>
+
+<tool name="send-chat-message">
+
+#### send-chat-message
+
+`POST /chats/{chatId}/messages` — least privilege `ChatMessage.Send`; `Chat.ReadWrite` is higher and sufficient.
+
+**Parameters:** `chatId` (required), `message` (required), `format?` (`"text"` | `"markdown"`, default `"markdown"`)
+
+Cannot create a chat — Graph requires an existing chat ID, and this registration cannot search the directory to assemble participants. Use `list-chats` first.
+
+</tool>
+
+<tool name="mark-chat-read">
+
+#### mark-chat-read
+
+`POST /chats/{chatId}/markChatReadForUser` — delegated `Chat.ReadWrite` (the only permission Graph lists for this action).
+
+**Parameters:** `chatId` (required)
+
+Graph requires a `teamworkUserIdentity` body identifying the user to mark read:
+
+```json
+{ "user": { "id": "<signed-in user AAD id>", "tenantId": "<tenant id>" } }
+```
+
+The ID comes from `TeamsService.getMe()` (`GET /me`, `User.Read`, cached for the process lifetime) and the tenant from config — which is why `User.Read` is a required scope rather than incidental. Returns `204 No Content`.
+
+</tool>
+
+</tool-group>
+
+<unsupported-operations>
+
+## Deliberately Unsupported
+
+| Operation | Reason |
+|-----------|--------|
+| `search-messages` (`POST /search/query`, `entityTypes: ["chatMessage"]`) | Graph search lists `Chat.Read` and **not** `Chat.ReadWrite` in its delegated permissions, and enforces that list literally rather than treating ReadWrite as a superset. Expected to 403; would need `Chat.Read` as a ninth scope. Also requires `Prefer: include-unknown-enum-members` since `chatMessage` is an evolvable-enum member. |
+| Channel messages `delta` | No delegated channel-message delta endpoint is documented in v1.0 or beta. The surviving `chatmessage-delta` reference covers `/users/{id}/chats/getAllMessages/delta`, which is application-permission only ("Delegated: Not supported"). |
+| Reactions (`setReaction`) | Permitted by the current scope set — channel needs `ChannelMessage.Send`, chat needs `Chat.ReadWrite`, both consented — but not implemented. Cheap to add. |
+| @-mentions | Require the target's AAD user id in the payload. Only ids already present in read data are available (`MessageInfo.authorId`, `ChatInfo` members); this registration cannot resolve a name to an id. No directory-lookup tool should be added. |
+| Team/channel administration | Out of scope by design: no creating channels, no managing members, no changing team settings. |
+| Chat creation | Graph's send endpoint cannot create a chat, and participant selection would need directory search. |
+
+</unsupported-operations>
 
 </tool-reference>
 

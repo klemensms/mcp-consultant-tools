@@ -4,32 +4,12 @@
 
 import { readFileSync } from 'node:fs';
 import type { Command } from 'commander';
-import { JSDOM } from 'jsdom';
-import DOMPurify from 'dompurify';
-import { marked } from 'marked';
 import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../context-factory.js';
 import type { AdaptiveCard, ReleaseTemplateData, CardTemplate } from '../../types.js';
 import { getCardFromTemplate, AVAILABLE_TEMPLATES } from '../../cards/templates.js';
+import { markdownToHtml } from '../../message-content.js';
 import { outputResult } from '../output.js';
-
-/**
- * Convert markdown to sanitized HTML for Teams (mirrors send-message tool logic)
- */
-function markdownToHtml(markdown: string): string {
-  const window = new JSDOM('').window;
-  const purify = DOMPurify(window as any);
-  const rawHtml = marked.parse(markdown, { async: false }) as string;
-  return purify.sanitize(rawHtml, {
-    ALLOWED_TAGS: [
-      'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike',
-      'code', 'pre', 'blockquote', 'ul', 'ol', 'li', 'a',
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-      'table', 'thead', 'tbody', 'tr', 'th', 'td',
-    ],
-    ALLOWED_ATTR: ['href', 'target'],
-  });
-}
 
 export function registerMessageCommands(program: Command, ctx: ServiceContext): void {
   // ── list-teams ──────────────────────────────────────────────

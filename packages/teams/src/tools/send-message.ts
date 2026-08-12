@@ -5,10 +5,8 @@
  */
 
 import { z } from "zod";
-import { JSDOM } from "jsdom";
-import DOMPurify from "dompurify";
-import { marked } from "marked";
 import type { ServiceContext } from "../types.js";
+import { markdownToHtml } from "../message-content.js";
 import {
   descWithExamples,
   MESSAGE_FORMAT_EXAMPLES,
@@ -38,55 +36,6 @@ export const sendMessageSchema = {
     .default("normal")
     .describe(descWithExamples("Message importance level", IMPORTANCE_EXAMPLES)),
 };
-
-/**
- * Convert markdown to sanitized HTML for Teams
- */
-function markdownToHtml(markdown: string): string {
-  // Create a DOM for DOMPurify (use any to avoid complex type mismatch with JSDOM)
-  const window = new JSDOM("").window;
-  const purify = DOMPurify(window as any);
-
-  // Convert markdown to HTML
-  const rawHtml = marked.parse(markdown, { async: false }) as string;
-
-  // Sanitize HTML (whitelist safe tags)
-  const sanitizedHtml = purify.sanitize(rawHtml, {
-    ALLOWED_TAGS: [
-      "p",
-      "br",
-      "strong",
-      "b",
-      "em",
-      "i",
-      "u",
-      "s",
-      "strike",
-      "code",
-      "pre",
-      "blockquote",
-      "ul",
-      "ol",
-      "li",
-      "a",
-      "h1",
-      "h2",
-      "h3",
-      "h4",
-      "h5",
-      "h6",
-      "table",
-      "thead",
-      "tbody",
-      "tr",
-      "th",
-      "td",
-    ],
-    ALLOWED_ATTR: ["href", "target"],
-  });
-
-  return sanitizedHtml;
-}
 
 /**
  * Register the send-channel-message tool

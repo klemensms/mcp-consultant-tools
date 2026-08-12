@@ -6,6 +6,17 @@ import { registerAuthenticateTool, registerAuthStatusTool, registerLogoutTool } 
 import { registerSendMessageTool } from './send-message.js';
 import { registerSendCardTool } from './send-card.js';
 import { registerListChannelsTool, registerListTeamsTool } from './list-channels.js';
+import {
+  registerGetChannelMessagesTool,
+  registerGetMessageRepliesTool,
+  registerReplyToMessageTool,
+} from './read-channel.js';
+import {
+  registerListChatsTool,
+  registerGetChatMessagesTool,
+  registerSendChatMessageTool,
+  registerMarkChatReadTool,
+} from './chats.js';
 
 export function registerAllTools(server: any, ctx: ServiceContext): void {
   // Authentication tools
@@ -13,16 +24,38 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerAuthStatusTool(server, ctx);
   registerLogoutTool(server, ctx);
 
-  // Messaging tools
-  registerSendMessageTool(server, ctx);
-  registerSendCardTool(server, ctx);
+  // Discovery tools
   registerListChannelsTool(server, ctx);
   registerListTeamsTool(server, ctx);
 
-  console.error("teams tools registered: 7 tools");
+  // Channel messaging tools
+  registerSendMessageTool(server, ctx);
+  registerSendCardTool(server, ctx);
+  registerGetChannelMessagesTool(server, ctx);
+  registerGetMessageRepliesTool(server, ctx);
+  registerReplyToMessageTool(server, ctx);
+
+  // Chat tools
+  registerListChatsTool(server, ctx);
+  registerGetChatMessagesTool(server, ctx);
+  registerSendChatMessageTool(server, ctx);
+  registerMarkChatReadTool(server, ctx);
+
+  console.error("teams tools registered: 14 tools");
 }
 
 export { registerAuthenticateTool, registerAuthStatusTool, registerLogoutTool } from './authenticate.js';
 export { registerSendMessageTool } from './send-message.js';
 export { registerSendCardTool } from './send-card.js';
 export { registerListChannelsTool, registerListTeamsTool } from './list-channels.js';
+export {
+  registerGetChannelMessagesTool,
+  registerGetMessageRepliesTool,
+  registerReplyToMessageTool,
+} from './read-channel.js';
+export {
+  registerListChatsTool,
+  registerGetChatMessagesTool,
+  registerSendChatMessageTool,
+  registerMarkChatReadTool,
+} from './chats.js';

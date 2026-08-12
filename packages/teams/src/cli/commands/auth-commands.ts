@@ -28,7 +28,7 @@ export function registerAuthCommands(program: Command, ctx: ServiceContext): voi
     .description('Check current Teams authentication status')
     .action(async () => {
       try {
-        const status = ctx.teams.getAuthStatus();
+        const status = await ctx.teams.getAuthStatus();
         outputResult(
           { fileName: 'auth-status', data: status, summary: `Auth status: ${status.status} (${status.authMode}) - ${status.message}` },
           getGlobalFlags(program)
@@ -41,7 +41,7 @@ export function registerAuthCommands(program: Command, ctx: ServiceContext): voi
     .description('Clear cached Teams authentication tokens')
     .action(async () => {
       try {
-        ctx.teams.logout();
+        await ctx.teams.logout();
         outputResult(
           { fileName: 'auth-logout', data: { status: 'logged_out' }, summary: 'Teams authentication cleared.' },
           getGlobalFlags(program)

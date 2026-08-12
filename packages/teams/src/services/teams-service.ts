@@ -9,11 +9,16 @@
  * the URL and code for the user to complete authentication.
  */
 
-import { ConfidentialClientApplication, PublicClientApplication } from "@azure/msal-node";
+import {
+  ConfidentialClientApplication,
+  PublicClientApplication,
+  InteractionRequiredAuthError,
+} from "@azure/msal-node";
 import { Client } from "@microsoft/microsoft-graph-client";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import { TokenCache } from "../auth/token-cache.js";
 import type {
   TeamsConfig,
   AdaptiveCard,
@@ -25,18 +30,41 @@ import type {
   AuthStatusResponse,
   DeviceCodeResponse,
   AuthResult,
+  MeInfo,
 } from "../types.js";
 
-// Token storage path for device code flow
 const TOKEN_DIR = path.join(os.homedir(), ".mcp-consultant-tools");
-const TOKEN_FILE = path.join(TOKEN_DIR, "teams-auth.json");
 
-interface StoredToken {
-  accessToken: string;
-  expiresAt: string;
-  clientId: string;
-  authenticatedAt: string;
-}
+/**
+ * Pre-v35 device-code builds persisted a bare access token here: five scopes, no
+ * refresh token. Reusing it silently produces 403s on every read tool with no
+ * visible cause, so it is discarded rather than migrated.
+ */
+const LEGACY_TOKEN_FILE = path.join(TOKEN_DIR, "teams-auth.json");
+
+/**
+ * The delegated scopes consented tenant-wide for this app registration.
+ *
+ * Do not add a scope that is not consented - an unconsented scope cannot be
+ * self-consented in this tenant, so it fails at sign-in rather than degrading.
+ *
+ * offline_access is what makes silent renewal possible. MSAL strips OIDC scopes
+ * (openid/profile/offline_access/email) from cache-matching scope sets, so listing
+ * it here does not interfere with acquireTokenSilent lookups.
+ */
+const DEVICE_CODE_SCOPES = [
+  "User.Read",
+  "Team.ReadBasic.All",
+  "Channel.ReadBasic.All",
+  "ChannelMessage.Read.All",
+  "ChannelMessage.Send",
+  "Chat.ReadWrite",
+  "Group.Read.All",
+  "offline_access",
+];
+
+/** Treat a token as expired this long before its real expiry. */
+const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
 interface PendingAuth {
   userCode: string;
@@ -53,6 +81,8 @@ export class TeamsService {
   private accessToken: string | null = null;
   private tokenExpirationTime: number = 0;
   private pendingAuth: PendingAuth | null = null;
+  private tokenCache: TokenCache | null = null;
+  private me: MeInfo | null = null;
 
   constructor(config: TeamsConfig) {
     this.config = config;
@@ -70,66 +100,82 @@ export class TeamsService {
       });
       console.error("Teams service created (client-credentials mode)");
     } else {
-      // Device code flow uses PublicClientApplication
+      // Device code flow uses PublicClientApplication, with an encrypted on-disk
+      // cache so the refresh token survives process restarts.
+      this.tokenCache = new TokenCache(config.clientId);
       this.msalPublicClient = new PublicClientApplication({
         auth: {
           clientId: config.clientId,
           authority: `https://login.microsoftonline.com/${config.tenantId}`,
         },
+        cache: {
+          cachePlugin: this.tokenCache.createPlugin(),
+        },
       });
       console.error("Teams service created (device-code mode)");
 
-      // Try to load existing token
-      this.loadStoredToken();
+      this.discardLegacyToken();
     }
   }
 
   /**
-   * Load stored token from disk (device-code mode)
+   * Remove the pre-v35 plaintext token file if present.
    */
-  private loadStoredToken(): void {
+  private discardLegacyToken(): void {
     try {
-      if (fs.existsSync(TOKEN_FILE)) {
-        const data = fs.readFileSync(TOKEN_FILE, "utf8");
-        const stored: StoredToken = JSON.parse(data);
-
-        // Check if token matches current client and hasn't expired
-        if (stored.clientId === this.config.clientId) {
-          const expiresAt = new Date(stored.expiresAt).getTime();
-          if (expiresAt > Date.now()) {
-            this.accessToken = stored.accessToken;
-            this.tokenExpirationTime = expiresAt - 5 * 60 * 1000; // 5 min buffer
-            console.error("Loaded existing Teams token (expires: " + stored.expiresAt + ")");
-          } else {
-            console.error("Stored Teams token has expired, will need to re-authenticate");
-          }
-        }
+      if (fs.existsSync(LEGACY_TOKEN_FILE)) {
+        fs.unlinkSync(LEGACY_TOKEN_FILE);
+        console.error(
+          "Discarded pre-v35 Teams token file (narrower scope set, no refresh token) - re-authentication required once"
+        );
       }
     } catch (error) {
-      console.error("Could not load stored token:", error);
+      console.error("Could not remove legacy Teams token file:", (error as Error).message);
     }
   }
 
   /**
-   * Save token to disk (device-code mode)
+   * Record a freshly acquired token in memory.
    */
-  private saveToken(token: string, expiresAt: Date): void {
+  private applyToken(token: string, expiresOn: Date | null | undefined): void {
+    this.accessToken = token;
+    const expiresAt = expiresOn ?? new Date(Date.now() + 60 * 60 * 1000);
+    this.tokenExpirationTime = expiresAt.getTime() - TOKEN_EXPIRY_BUFFER_MS;
+  }
+
+  /**
+   * Renew the access token from the cached refresh token, without user interaction.
+   * Returns null when there is nothing cached, or when the refresh token itself has
+   * expired or been revoked and a fresh device-code sign-in is required.
+   */
+  private async acquireTokenSilentIfPossible(): Promise<string | null> {
+    if (!this.msalPublicClient) {
+      return null;
+    }
+
+    const accounts = await this.msalPublicClient.getTokenCache().getAllAccounts();
+    if (accounts.length === 0) {
+      return null;
+    }
+
     try {
-      if (!fs.existsSync(TOKEN_DIR)) {
-        fs.mkdirSync(TOKEN_DIR, { recursive: true, mode: 0o700 });
+      const result = await this.msalPublicClient.acquireTokenSilent({
+        account: accounts[0],
+        scopes: DEVICE_CODE_SCOPES,
+      });
+
+      if (!result?.accessToken) {
+        return null;
       }
 
-      const stored: StoredToken = {
-        accessToken: token,
-        expiresAt: expiresAt.toISOString(),
-        clientId: this.config.clientId,
-        authenticatedAt: new Date().toISOString(),
-      };
-
-      fs.writeFileSync(TOKEN_FILE, JSON.stringify(stored, null, 2), { mode: 0o600 });
-      console.error("Teams token saved to " + TOKEN_FILE);
+      this.applyToken(result.accessToken, result.expiresOn);
+      return result.accessToken;
     } catch (error) {
-      console.error("Could not save token:", error);
+      if (error instanceof InteractionRequiredAuthError) {
+        console.error("Teams refresh token expired or revoked - device-code sign-in required");
+        return null;
+      }
+      throw error;
     }
   }
 
@@ -168,13 +214,10 @@ export class TeamsService {
         throw new Error("Failed to acquire access token from Azure AD");
       }
 
-      this.accessToken = result.accessToken;
-      this.tokenExpirationTime = result.expiresOn
-        ? result.expiresOn.getTime() - 5 * 60 * 1000
-        : Date.now() + 55 * 60 * 1000;
+      this.applyToken(result.accessToken, result.expiresOn);
 
       console.error("Teams access token acquired (client-credentials)");
-      return this.accessToken;
+      return result.accessToken;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to get Teams access token: ${message}`);
@@ -182,9 +225,10 @@ export class TeamsService {
   }
 
   /**
-   * Get token using device code flow
-   * This method checks for existing/cached tokens or waits for pending auth.
-   * It does NOT start a new auth flow - use startAuthentication() for that.
+   * Get token using device code flow.
+   * Uses the in-memory token, then a silent refresh from the cached refresh token,
+   * then any pending interactive auth. It does NOT start a new auth flow - use
+   * startAuthentication() for that.
    */
   private async getTokenDeviceCode(): Promise<string> {
     if (!this.msalPublicClient) {
@@ -196,10 +240,10 @@ export class TeamsService {
       return this.accessToken;
     }
 
-    // Try to load stored token
-    this.loadStoredToken();
-    if (this.accessToken && this.tokenExpirationTime > Date.now()) {
-      return this.accessToken;
+    // Renew silently from the cached refresh token
+    const refreshed = await this.acquireTokenSilentIfPossible();
+    if (refreshed) {
+      return refreshed;
     }
 
     // Check if there's a pending authentication
@@ -243,9 +287,11 @@ export class TeamsService {
   }
 
   /**
-   * Get current authentication status
+   * Get current authentication status.
+   * Attempts a silent refresh so an expired access token backed by a live refresh
+   * token reports as authenticated rather than sending the user to sign in again.
    */
-  getAuthStatus(): AuthStatusResponse {
+  async getAuthStatus(): Promise<AuthStatusResponse> {
     // Client credentials mode is always ready (auth happens on first call)
     if (this.config.authMode === "client-credentials") {
       return {
@@ -273,33 +319,26 @@ export class TeamsService {
       };
     }
 
-    // Check for stored token
-    if (fs.existsSync(TOKEN_FILE)) {
-      try {
-        const data = fs.readFileSync(TOKEN_FILE, "utf8");
-        const stored: StoredToken = JSON.parse(data);
-        if (stored.clientId === this.config.clientId) {
-          const expiresAt = new Date(stored.expiresAt).getTime();
-          if (expiresAt > Date.now()) {
-            // Load the token
-            this.accessToken = stored.accessToken;
-            this.tokenExpirationTime = expiresAt - 5 * 60 * 1000;
-            return {
-              status: "authenticated",
-              authMode: "device-code",
-              expiresAt: stored.expiresAt,
-              message: "Authenticated (from cached token). Valid until " + new Date(expiresAt).toLocaleString(),
-            };
-          }
-          return {
-            status: "expired",
-            authMode: "device-code",
-            message: "Token has expired. Please re-authenticate.",
-          };
-        }
-      } catch {
-        // Ignore errors reading stored token
-      }
+    // Renew silently from the cached refresh token
+    const refreshed = await this.acquireTokenSilentIfPossible();
+    if (refreshed) {
+      return {
+        status: "authenticated",
+        authMode: "device-code",
+        expiresAt: new Date(this.tokenExpirationTime).toISOString(),
+        message:
+          "Authenticated (renewed silently from cached refresh token). Token valid until " +
+          new Date(this.tokenExpirationTime).toLocaleString(),
+      };
+    }
+
+    if (this.tokenCache?.exists()) {
+      return {
+        status: "expired",
+        authMode: "device-code",
+        message:
+          "Cached credentials are no longer usable (refresh token expired or revoked). Please re-authenticate.",
+      };
     }
 
     return {
@@ -343,6 +382,17 @@ export class TeamsService {
       };
     }
 
+    // Cached refresh token may still be good - avoid an unnecessary device-code prompt
+    if (await this.acquireTokenSilentIfPossible()) {
+      return {
+        status: "authenticated",
+        message:
+          "Already authenticated (renewed silently from cached refresh token). Token valid until " +
+          new Date(this.tokenExpirationTime).toLocaleString(),
+        expiresAt: new Date(this.tokenExpirationTime).toISOString(),
+      };
+    }
+
     // Check if auth is already pending
     if (this.pendingAuth && this.pendingAuth.expiresAt > Date.now()) {
       return {
@@ -359,26 +409,10 @@ export class TeamsService {
       throw new Error("MSAL client not initialized for device-code mode");
     }
 
-    const scopes = [
-      "User.Read",
-      "Team.ReadBasic.All",
-      "Channel.ReadBasic.All",
-      "ChannelMessage.Send",
-      "Group.Read.All",
-    ];
-
     return new Promise((resolve) => {
-      let deviceCodeInfo: { userCode: string; verificationUri: string; expiresIn: number } | null = null;
-
       const authPromise = this.msalPublicClient!.acquireTokenByDeviceCode({
-        scopes,
+        scopes: DEVICE_CODE_SCOPES,
         deviceCodeCallback: (response) => {
-          deviceCodeInfo = {
-            userCode: response.userCode,
-            verificationUri: response.verificationUri,
-            expiresIn: response.expiresIn || 900, // Default 15 minutes
-          };
-
           // Store pending auth state
           this.pendingAuth = {
             userCode: response.userCode,
@@ -387,15 +421,13 @@ export class TeamsService {
             promise: authPromise.then(
               (result) => {
                 if (result && result.accessToken) {
-                  this.accessToken = result.accessToken;
-                  const expiresAt = result.expiresOn || new Date(Date.now() + 60 * 60 * 1000);
-                  this.tokenExpirationTime = expiresAt.getTime() - 5 * 60 * 1000;
-                  this.saveToken(result.accessToken, expiresAt);
+                  // The MSAL cache plugin persists the refresh token to disk here.
+                  this.applyToken(result.accessToken, result.expiresOn);
                   this.pendingAuth = null;
                   return {
                     status: "authenticated" as const,
                     message: "Authentication successful!",
-                    expiresAt: expiresAt.toISOString(),
+                    expiresAt: new Date(this.tokenExpirationTime).toISOString(),
                   };
                 }
                 this.pendingAuth = null;
@@ -486,8 +518,8 @@ export class TeamsService {
    * Require authentication before proceeding
    * Throws a helpful error if not authenticated
    */
-  requireAuth(): void {
-    const status = this.getAuthStatus();
+  async requireAuth(): Promise<void> {
+    const status = await this.getAuthStatus();
     if (status.status === "authenticated") {
       return;
     }
@@ -509,27 +541,37 @@ export class TeamsService {
   }
 
   /**
-   * Clear stored authentication (device-code mode)
+   * Clear stored authentication (device-code mode).
+   * Removes the account from MSAL's in-memory cache as well as the encrypted file,
+   * so a logout followed by an auth-status check in the same process reports
+   * not_authenticated rather than resurrecting the cached account.
    */
-  logout(): void {
+  async logout(): Promise<void> {
     this.accessToken = null;
     this.tokenExpirationTime = 0;
     this.pendingAuth = null;
+    this.me = null;
 
     try {
-      if (fs.existsSync(TOKEN_FILE)) {
-        fs.unlinkSync(TOKEN_FILE);
-        console.error("Teams authentication cleared");
+      if (this.msalPublicClient) {
+        const msalCache = this.msalPublicClient.getTokenCache();
+        for (const account of await msalCache.getAllAccounts()) {
+          await msalCache.removeAccount(account);
+        }
       }
+      this.tokenCache?.clear();
+      this.discardLegacyToken();
+      console.error("Teams authentication cleared");
     } catch (error) {
-      console.error("Could not clear token file:", error);
+      console.error("Could not clear Teams token cache:", (error as Error).message);
     }
   }
 
   /**
-   * Get or create Graph client with current access token
+   * Get or create Graph client with current access token.
+   * Public so MessageService can share this service's authenticated client.
    */
-  private async getGraphClient(): Promise<Client> {
+  async getGraphClient(): Promise<Client> {
     const token = await this.getAccessToken();
 
     this.graphClient = Client.initWithMiddleware({
@@ -544,7 +586,7 @@ export class TeamsService {
   /**
    * Get the effective team ID (from parameter or default)
    */
-  private getTeamId(teamId?: string): string {
+  getTeamId(teamId?: string): string {
     const effectiveTeamId = teamId || this.config.defaultTeamId;
     if (!effectiveTeamId) {
       throw new Error(
@@ -557,7 +599,7 @@ export class TeamsService {
   /**
    * Get the effective channel ID (from parameter or default)
    */
-  private getChannelId(channelId?: string): string {
+  getChannelId(channelId?: string): string {
     const effectiveChannelId = channelId || this.config.defaultChannelId;
     if (!effectiveChannelId) {
       throw new Error(
@@ -565,6 +607,39 @@ export class TeamsService {
       );
     }
     return effectiveChannelId;
+  }
+
+  /**
+   * Get the signed-in user (User.Read). Cached for the process lifetime.
+   * markChatReadForUser needs the caller's own AAD id in the request body.
+   */
+  async getMe(): Promise<MeInfo> {
+    if (this.me) {
+      return this.me;
+    }
+
+    const client = await this.getGraphClient();
+
+    try {
+      const response = await client.api("/me").select("id,displayName,userPrincipalName").get();
+      this.me = {
+        id: response.id,
+        displayName: response.displayName,
+        userPrincipalName: response.userPrincipalName,
+      };
+      return this.me;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get signed-in user: ${message}`);
+    }
+  }
+
+  /**
+   * The tenant this service is configured against - needed alongside the user id
+   * in teamworkUserIdentity payloads.
+   */
+  getTenantId(): string {
+    return this.config.tenantId;
   }
 
   /**

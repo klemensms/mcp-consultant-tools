@@ -18,7 +18,8 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf build *.tsbuildinfo",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "vitest run"
   },
   "keywords": [
     "mcp",
@@ -53,7 +54,8 @@
     "@types/dompurify": "^3.0.5",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.10.5",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^2.1.9"
   },
   "bin": {
     "mcp-teams": "build/index.js",
