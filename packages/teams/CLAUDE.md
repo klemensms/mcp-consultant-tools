@@ -4,7 +4,7 @@
 
 Microsoft Teams integration for reading, sending and managing channel messages and chats. Originally built for automated release announcements; extended in v35 so an agent can read and act on Teams on the user's behalf.
 
-- **Tools:** 14 tools
+- **Tools:** 16 tools
 - **Authentication:** Device Code (default, personal credentials) or Client Credentials (app-only)
 - **Services:** `TeamsService` (auth, discovery, channel sends) and `MessageService` (message reads, replies, chats). `MessageService` shares `TeamsService`'s authenticated Graph client rather than owning auth, so there is one token cache and one sign-in for the package.
 
@@ -35,11 +35,13 @@ Verified against the Graph v1.0 permission tables, these are reachable on the se
 
 Deliberately **not** implemented, and why:
 
-- **`search-messages`** (`POST /search/query` with `entityTypes: ["chatMessage"]`) — the delegated permission list names `Chat.Read`, *not* `Chat.ReadWrite`. Graph search enforces its literal list rather than treating ReadWrite as a superset of Read, so this is expected to 403 on the current scope set. Would need `Chat.Read` as a ninth scope.
-- **Channel messages `delta`** — no delegated channel-message delta endpoint is documented in v1.0 or beta. The surviving `chatmessage-delta` reference covers `/users/{id}/chats/getAllMessages/delta`, which is application-permission only.
-- **Reactions** — permitted by the scope set (see table), but not built. Cheap to add if wanted.
 - **@-mentions** — possible only for AAD user ids already present in data that has been read (`authorId` is returned on every message). This registration cannot search the directory by name, and no directory-lookup tool should be added.
 - **Team/channel administration** — out of scope entirely: no creating channels, no managing members, no changing team settings.
+
+Not built yet, but **proven viable** — both were previously written up here as blocked, and live testing on 2026-08-12 disproved both on the current eight scopes:
+
+- **`search-messages`** (`POST /v1.0/search/query`, `entityTypes: ["chatMessage"]`, header `Prefer: include-unknown-enum-members`) — returns 200 with real hits on `Chat.ReadWrite`, **without** `Chat.Read`; Graph does not enforce its documented permission list literally. It spans channels as well as chats (hits carry `channelIdentity.teamId`/`channelIdentity.channelId`), so one tool covers both. Caveat for whoever builds it: hits deliver the sender as `from.emailAddress.name`/`.address`, not the `from.user.displayName` shape `toMessageInfo()` expects — they need their own mapping path.
+- **Channel messages `delta`** (`GET /v1.0/teams/{teamId}/channels/{channelId}/messages/delta`) — returns 200 with delegated permissions; `/beta/` also works and adds `hasReplies`. Pages via `@odata.nextLink`. `$deltatoken=latest` is **not** honoured, so a client must page to the end of history once before it gets its first `deltaLink`. The v1.0 response is undocumented but real — code defensively.
 
 ## Authentication Modes
 
@@ -279,6 +281,29 @@ Cannot create a chat — use `list-chats` to find an existing one.
 
 Posts the signed-in user's own AAD identity (resolved via `User.Read`), which the Graph action requires.
 
+### Reaction Tools
+
+Both post as the signed-in user and return `204 No Content`. `reactionType` is required by Graph even when removing, since a user may hold one reaction of each type on a message.
+
+#### react-to-channel-message
+
+```typescript
+{
+  messageId: string,
+  replyId?: string,     // react to a reply within the thread instead of the parent
+  teamId?: string,
+  channelId?: string,
+  reactionType?: "like" | "angry" | "sad" | "laugh" | "heart" | "surprised",  // default "like"
+  action?: "add" | "remove"  // default "add"
+}
+```
+
+#### react-to-chat-message
+
+```typescript
+{ chatId: string, messageId: string, reactionType?: ..., action?: ... }
+```
+
 ## Typical Usage Flow
 
 ### Device Code (Personal Credentials)
@@ -334,6 +359,8 @@ Date ranges behave differently per surface, and this is a Graph constraint rathe
 
 `npm run test --workspace=packages/teams` (vitest). `src/services/__tests__/message-service.test.ts` stubs the fluent Graph chain and asserts the exact path/query that would go on the wire, using **real response payloads copied from the Graph v1.0 reference** for each endpoint. This exists because the two failure classes here — wrong endpoint path/query and mishandled response shape — are catchable without credentials, while permission failures are not.
 
+**Assert what a query must NOT contain, not only what it does.** `listTeams` sent `$top` on `/me/joinedTeams` for several releases; Graph rejects that with `Query option 'Top' is not allowed`, so every device-code call 400'd. A stub-based test asserting "the built query matches expectations" would have passed on the broken code, because the expectation *was* the broken query. `teams-service.test.ts` asserts `.top()` is never called on that endpoint. When adding an endpoint, ask which query options it rejects and pin those as absences.
+
 ## Reference
 
 See `docs/plans/teams-mcp-server.md` for full design documentation.
@@ -366,6 +393,11 @@ mcp-teams-cli list-chats --members
 mcp-teams-cli get-chat-messages <chatId> --top 10
 mcp-teams-cli send-chat-message <chatId> "On my way"
 mcp-teams-cli mark-chat-read <chatId>
+
+# Reactions
+mcp-teams-cli react-to-channel-message <messageId> --type heart
+mcp-teams-cli react-to-channel-message <messageId> -r <replyId>
+mcp-teams-cli react-to-chat-message <chatId> <messageId> --remove
 ```
 
 Add `--json` for raw JSON. Full responses are also written to `.context/.mcp-teams-cache/`.

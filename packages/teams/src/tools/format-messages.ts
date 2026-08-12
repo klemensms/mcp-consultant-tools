@@ -36,7 +36,12 @@ export function formatMessages(messages: MessageInfo[], options: FormatOptions):
     if (message.importance && message.importance !== "normal") {
       flags.push(message.importance);
     }
-    if (message.messageType && message.messageType !== "message") {
+    // Graph types some system events as the enum placeholder "unknownFutureValue"
+    // and describes them in eventDetail instead. Showing the placeholder tells a
+    // reader nothing - the body already renders as [system message].
+    const placeholderType = message.messageType === "unknownFutureValue" && message.hasEventDetail;
+
+    if (message.messageType && message.messageType !== "message" && !placeholderType) {
       flags.push(message.messageType);
     }
     if (message.isDeleted) {

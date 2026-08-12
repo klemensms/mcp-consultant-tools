@@ -191,7 +191,17 @@ export interface MessageInfo {
   webUrl?: string;
   /** Set when the message was deleted; body will be empty. */
   isDeleted?: boolean;
+  /**
+   * Graph sent an eventDetail for this message, i.e. it is a system event.
+   * Used to suppress the placeholder messageType Graph pairs with those.
+   */
+  hasEventDetail?: boolean;
 }
+
+/**
+ * Reaction types accepted by Graph v1.0 setReaction/unsetReaction.
+ */
+export type ReactionType = "like" | "angry" | "sad" | "laugh" | "heart" | "surprised";
 
 /**
  * A chat (1:1, group, or meeting) the signed-in user is part of

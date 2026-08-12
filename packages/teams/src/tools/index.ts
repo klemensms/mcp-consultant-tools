@@ -17,6 +17,10 @@ import {
   registerSendChatMessageTool,
   registerMarkChatReadTool,
 } from './chats.js';
+import {
+  registerReactToChannelMessageTool,
+  registerReactToChatMessageTool,
+} from './reactions.js';
 
 export function registerAllTools(server: any, ctx: ServiceContext): void {
   // Authentication tools
@@ -41,7 +45,11 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerSendChatMessageTool(server, ctx);
   registerMarkChatReadTool(server, ctx);
 
-  console.error("teams tools registered: 14 tools");
+  // Reaction tools
+  registerReactToChannelMessageTool(server, ctx);
+  registerReactToChatMessageTool(server, ctx);
+
+  console.error("teams tools registered: 16 tools");
 }
 
 export { registerAuthenticateTool, registerAuthStatusTool, registerLogoutTool } from './authenticate.js';
@@ -59,3 +67,7 @@ export {
   registerSendChatMessageTool,
   registerMarkChatReadTool,
 } from './chats.js';
+export {
+  registerReactToChannelMessageTool,
+  registerReactToChatMessageTool,
+} from './reactions.js';

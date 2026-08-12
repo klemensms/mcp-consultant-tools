@@ -1,8 +1,10 @@
 /**
- * Read CLI Commands - 7 commands mapping to the message-read, reply and chat MCP tools
+ * Read CLI Commands - 9 commands mapping to the message-read, reply, chat and
+ * reaction MCP tools
  *
  * CLI parity: get-channel-messages, get-message-replies, reply-to-message,
- * list-chats, get-chat-messages, send-chat-message, mark-chat-read.
+ * list-chats, get-chat-messages, send-chat-message, mark-chat-read,
+ * react-to-channel-message, react-to-chat-message.
  */
 
 import type { Command } from 'commander';
@@ -176,5 +178,63 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'mark chat as read'); }
+    });
+
+  // ── react-to-channel-message ────────────────────────────────
+  program
+    .command('react-to-channel-message')
+    .description('Add or remove an emoji reaction on a Teams channel message or thread reply')
+    .argument('<messageId>', 'ID of the channel message')
+    .option('-t, --team-id <id>', 'Team ID (uses TEAMS_DEFAULT_TEAM_ID if not set)')
+    .option('-c, --channel-id <id>', 'Channel ID (uses TEAMS_DEFAULT_CHANNEL_ID if not set)')
+    .option('-r, --reply-id <id>', 'React to this reply within the message thread instead of the parent')
+    .option('--type <reaction>', 'Reaction: like, angry, sad, laugh, heart or surprised', 'like')
+    .option('--remove', 'Remove the reaction instead of adding it')
+    .action(async (messageId: string, opts: any) => {
+      try {
+        const action = opts.remove ? 'remove' : 'add';
+        await ctx.messages.reactToChannelMessage(messageId, {
+          teamId: opts.teamId,
+          channelId: opts.channelId,
+          replyId: opts.replyId,
+          reactionType: opts.type,
+          action,
+        });
+        const target = opts.replyId ? `reply ${opts.replyId}` : `message ${messageId}`;
+        outputResult(
+          {
+            fileName: 'react-to-channel-message',
+            data: { messageId, replyId: opts.replyId, reactionType: opts.type, action },
+            summary: `${action === 'remove' ? 'Removed' : 'Added'} ${opts.type} reaction on ${target}.`,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'react to channel message'); }
+    });
+
+  // ── react-to-chat-message ───────────────────────────────────
+  program
+    .command('react-to-chat-message')
+    .description('Add or remove an emoji reaction on a Teams chat message')
+    .argument('<chatId>', 'Chat ID (use list-chats to find it)')
+    .argument('<messageId>', 'ID of the chat message')
+    .option('--type <reaction>', 'Reaction: like, angry, sad, laugh, heart or surprised', 'like')
+    .option('--remove', 'Remove the reaction instead of adding it')
+    .action(async (chatId: string, messageId: string, opts: any) => {
+      try {
+        const action = opts.remove ? 'remove' : 'add';
+        await ctx.messages.reactToChatMessage(chatId, messageId, {
+          reactionType: opts.type,
+          action,
+        });
+        outputResult(
+          {
+            fileName: 'react-to-chat-message',
+            data: { chatId, messageId, reactionType: opts.type, action },
+            summary: `${action === 'remove' ? 'Removed' : 'Added'} ${opts.type} reaction on chat message ${messageId}.`,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'react to chat message'); }
     });
 }

@@ -13,6 +13,8 @@
  *   chat messages               -> Chat.Read      (Chat.ReadWrite is higher)
  *   send chat message           -> ChatMessage.Send (Chat.ReadWrite is higher)
  *   markChatReadForUser         -> Chat.ReadWrite (only listed permission)
+ *   channel message reactions   -> ChannelMessage.Send
+ *   chat message reactions      -> Chat.ReadWrite
  */
 
 import type { TeamsService } from "./teams-service.js";
@@ -21,6 +23,7 @@ import type {
   ChatInfo,
   MessageInfo,
   MessageReadOptions,
+  ReactionType,
   SendMessageResult,
 } from "../types.js";
 
@@ -208,6 +211,66 @@ export class MessageService {
   }
 
   /**
+   * Add or remove a reaction on a channel message, or on one reply within its
+   * thread. Both actions run on ChannelMessage.Send and share the message path.
+   */
+  async reactToChannelMessage(
+    messageId: string,
+    options: {
+      teamId?: string;
+      channelId?: string;
+      replyId?: string;
+      reactionType?: ReactionType;
+      action?: "add" | "remove";
+    } = {}
+  ): Promise<void> {
+    const client = await this.teams.getGraphClient();
+    const teamId = this.teams.getTeamId(options.teamId);
+    const channelId = this.teams.getChannelId(options.channelId);
+    const reactionType = options.reactionType ?? "like";
+    const remove = options.action === "remove";
+
+    const messagePath = options.replyId
+      ? `/teams/${teamId}/channels/${channelId}/messages/${messageId}/replies/${options.replyId}`
+      : `/teams/${teamId}/channels/${channelId}/messages/${messageId}`;
+
+    try {
+      await client
+        .api(`${messagePath}/${remove ? "unsetReaction" : "setReaction"}`)
+        .post({ reactionType });
+    } catch (error) {
+      throw wrapGraphError(
+        error,
+        `${remove ? "remove" : "add"} ${reactionType} reaction on message ${options.replyId ?? messageId}`
+      );
+    }
+  }
+
+  /**
+   * Add or remove a reaction on a chat message. Runs on Chat.ReadWrite.
+   */
+  async reactToChatMessage(
+    chatId: string,
+    messageId: string,
+    options: { reactionType?: ReactionType; action?: "add" | "remove" } = {}
+  ): Promise<void> {
+    const client = await this.teams.getGraphClient();
+    const reactionType = options.reactionType ?? "like";
+    const remove = options.action === "remove";
+
+    try {
+      await client
+        .api(`/chats/${chatId}/messages/${messageId}/${remove ? "unsetReaction" : "setReaction"}`)
+        .post({ reactionType });
+    } catch (error) {
+      throw wrapGraphError(
+        error,
+        `${remove ? "remove" : "add"} ${reactionType} reaction on chat message ${messageId}`
+      );
+    }
+  }
+
+  /**
    * Mark a chat as read for the signed-in user.
    * Graph requires the caller's own AAD id and tenant in the body.
    */
@@ -278,6 +341,7 @@ function toMessageInfo(message: any): MessageInfo {
     messageType: message.messageType ?? undefined,
     webUrl: message.webUrl ?? undefined,
     isDeleted: message.deletedDateTime ? true : undefined,
+    hasEventDetail: message.eventDetail ? true : undefined,
   };
 }
 

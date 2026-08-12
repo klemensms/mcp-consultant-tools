@@ -153,6 +153,23 @@ describe('MessageService.getChannelMessages', () => {
     expect(message.text).toBe('[system message]');
   });
 
+  it('records that Graph supplied an eventDetail, so the renderer can drop the placeholder type', async () => {
+    stub.setGet({
+      value: [
+        {
+          ...SYSTEM_MESSAGE,
+          messageType: 'unknownFutureValue',
+          eventDetail: { '@odata.type': '#microsoft.graph.membersAddedEventMessageDetail' },
+        },
+      ],
+    });
+    const service = createService(stub);
+
+    const [message] = await service.getChannelMessages();
+
+    expect(message.hasEventDetail).toBe(true);
+  });
+
   it('flags deleted messages', async () => {
     stub.setGet({ value: [{ ...CHANNEL_MESSAGE, deletedDateTime: '2021-04-01T00:00:00Z', body: { contentType: 'html', content: '' } }] });
     const service = createService(stub);
@@ -364,6 +381,65 @@ describe('MessageService.sendChatMessage', () => {
     expect(stub.calls.postBody.body.contentType).toBe('html');
     expect(stub.calls.postBody.body.content).toContain('<em>there</em>');
     expect(result.messageId).toBe('1616991463150');
+  });
+});
+
+describe('MessageService reactions', () => {
+  it('posts setReaction on the parent message path', async () => {
+    const stub = createGraphStub();
+    const service = createService(stub);
+
+    await service.reactToChannelMessage('1616965872395', { reactionType: 'heart' });
+
+    expect(stub.calls.path).toBe(
+      `/teams/${TEAM_ID}/channels/${CHANNEL_ID}/messages/1616965872395/setReaction`
+    );
+    expect(stub.calls.postBody).toEqual({ reactionType: 'heart' });
+  });
+
+  it('targets the reply path when a replyId is given', async () => {
+    const stub = createGraphStub();
+    const service = createService(stub);
+
+    await service.reactToChannelMessage('1616965872395', { replyId: '1616991463150' });
+
+    expect(stub.calls.path).toBe(
+      `/teams/${TEAM_ID}/channels/${CHANNEL_ID}/messages/1616965872395/replies/1616991463150/setReaction`
+    );
+    // Graph requires a reactionType even to remove; 'like' is the default.
+    expect(stub.calls.postBody).toEqual({ reactionType: 'like' });
+  });
+
+  it('switches to unsetReaction when removing', async () => {
+    const stub = createGraphStub();
+    const service = createService(stub);
+
+    await service.reactToChannelMessage('1616965872395', { action: 'remove', reactionType: 'laugh' });
+
+    expect(stub.calls.path).toBe(
+      `/teams/${TEAM_ID}/channels/${CHANNEL_ID}/messages/1616965872395/unsetReaction`
+    );
+    expect(stub.calls.postBody).toEqual({ reactionType: 'laugh' });
+  });
+
+  it('posts chat reactions on the chat message path', async () => {
+    const stub = createGraphStub();
+    const service = createService(stub);
+
+    await service.reactToChatMessage(CHAT_ID, '1616991463150', { reactionType: 'surprised' });
+
+    expect(stub.calls.path).toBe(`/chats/${CHAT_ID}/messages/1616991463150/setReaction`);
+    expect(stub.calls.postBody).toEqual({ reactionType: 'surprised' });
+  });
+
+  it('explains a 403 on a reaction as a stale-scope problem', async () => {
+    const stub = createGraphStub();
+    stub.setThrow(Object.assign(new Error('Forbidden'), { statusCode: 403 }));
+    const service = createService(stub);
+
+    await expect(service.reactToChatMessage(CHAT_ID, '1616991463150')).rejects.toThrow(
+      /logout' then 'authenticate/
+    );
   });
 });
 

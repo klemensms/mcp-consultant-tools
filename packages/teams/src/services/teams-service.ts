@@ -650,15 +650,22 @@ export class TeamsService {
 
     try {
       // For user auth, use /me/joinedTeams; for app auth, use /groups filter
-      const endpoint = this.config.authMode === "device-code"
+      const isDeviceCode = this.config.authMode === "device-code";
+      const endpoint = isDeviceCode
         ? "/me/joinedTeams"
         : "/groups?$filter=resourceProvisioningOptions/Any(x:x eq 'Team')";
 
-      const response = await client
-        .api(endpoint)
-        .select("id,displayName,description")
-        .top(100)
-        .get();
+      let request = client.api(endpoint).select("id,displayName,description");
+
+      // $top is only valid on the /groups path. /me/joinedTeams rejects it outright
+      // with "Query option 'Top' is not allowed", failing every call in device-code
+      // mode. No result bound is applied there - what that endpoint does for a user
+      // in very many teams is untested.
+      if (!isDeviceCode) {
+        request = request.top(100);
+      }
+
+      const response = await request.get();
 
       return (response.value || []).map((team: any) => ({
         id: team.id,

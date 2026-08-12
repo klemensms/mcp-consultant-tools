@@ -25,6 +25,8 @@ Read, send and manage Microsoft Teams channel messages and chats via the Microso
 | `get-chat-messages` | Read recent messages in a chat (default 20, newest first) |
 | `send-chat-message` | Send a message to an existing chat |
 | `mark-chat-read` | Clear a chat's unread state for the signed-in user |
+| `react-to-channel-message` | Add or remove an emoji reaction on a channel message or thread reply |
+| `react-to-chat-message` | Add or remove an emoji reaction on a chat message |
 
 ## Configuration
 
@@ -115,4 +117,6 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 - **Date filtering differs by surface.** Chat reads filter server-side on `lastModifiedDateTime`. Channel reads filter client-side over the fetched page, because the Graph channel-messages endpoint supports neither `$filter` nor `$orderby` — widen `top` if a range returns fewer messages than expected.
 - **Default team/channel:** Set `TEAMS_DEFAULT_TEAM_ID` and `TEAMS_DEFAULT_CHANNEL_ID` to avoid passing IDs on every tool call.
 - **Adaptive Card templates:** `send-adaptive-card` supports three built-in templates (`release-announcement`, `beta-release`, `hotfix`) designed for release workflow announcements.
-- **Not supported by design:** no team or channel administration (no creating channels, managing members, or changing team settings), no directory search (so @-mentions cannot be resolved by name), and no reactions. Chat creation is also unavailable — `send-chat-message` requires a chat that already exists.
+- **Reactions** are posted as the signed-in user. `reactionType` accepts the six Graph v1.0 values (`like`, `angry`, `sad`, `laugh`, `heart`, `surprised`); pass `action: "remove"` to clear one you previously set. Channel reactions can target a thread reply via `replyId`.
+- **Not supported by design:** no team or channel administration (no creating channels, managing members, or changing team settings), and no directory search (so @-mentions cannot be resolved by name). Chat creation is also unavailable — `send-chat-message` requires a chat that already exists.
+- **Message search and channel-message delta are not built yet, but both are viable** — live testing confirmed `POST /search/query` (`entityTypes: ["chatMessage"]`, header `Prefer: include-unknown-enum-members`) and `GET /teams/{id}/channels/{id}/messages/delta` both return 200 on the eight consented scopes. They are candidates for a future release, not permanent exclusions.

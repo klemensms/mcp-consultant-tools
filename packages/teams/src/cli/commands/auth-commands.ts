@@ -16,8 +16,26 @@ export function registerAuthCommands(program: Command, ctx: ServiceContext): voi
     .action(async () => {
       try {
         const result = await ctx.teams.startAuthentication();
+
+        // startAuthentication resolves as soon as the device code is issued. The MCP
+        // server can return there and pick the outcome up later via auth-status, but a
+        // CLI that did the same would exit 0 whether or not sign-in ever completed.
+        if (result.status === 'pending' && 'userCode' in result) {
+          console.error('\nWaiting for sign-in to complete (the code above expires in ' +
+            `${Math.floor(result.expiresInSeconds / 60)} minutes)...`);
+
+          const final = await ctx.teams.waitForAuthentication(result.expiresInSeconds * 1000);
+          outputResult(
+            { fileName: 'auth-login', data: final, summary: `Authentication status: ${final.status} - ${final.message}` },
+            getGlobalFlags(program)
+          );
+          // MSAL's device-code poll and the wait timeout both keep the event loop
+          // alive well past the point the answer is known.
+          process.exit(final.status === 'authenticated' ? 0 : 1);
+        }
+
         outputResult(
-          { fileName: 'auth-login', data: result, summary: `Authentication status: ${result.status}` },
+          { fileName: 'auth-login', data: result, summary: `Authentication status: ${result.status} - ${result.message}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'authenticate'); }

@@ -9,7 +9,7 @@ The Teams integration sends messages and Adaptive Cards to Microsoft Teams chann
 
 **Package:** `@mcp-consultant-tools/teams`
 **Binaries:** `mcp-teams` (MCP server), `mcp-teams-cli` (CLI)
-**Tools:** 7 total (3 auth + 4 messaging)
+**Tools:** 16 total (3 auth + 2 discovery + 2 channel sends + 3 channel reads/reply + 4 chats + 2 reactions)
 
 </overview>
 
@@ -33,6 +33,7 @@ packages/teams/src/
     message-service.ts        # MessageService class (message reads, replies, chats)
     __tests__/
       message-service.test.ts # Stubbed-Graph tests: endpoint paths + response mapping
+      teams-service.test.ts   # Discovery queries, incl. what must NOT be sent
   tools/
     index.ts                  # registerAllTools() aggregator
     authenticate.ts           # authenticate, auth-status, logout tools
@@ -41,7 +42,10 @@ packages/teams/src/
     list-channels.ts          # list-teams, list-channels tools
     read-channel.ts           # get-channel-messages, get-message-replies, reply-to-message
     chats.ts                  # list-chats, get-chat-messages, send-chat-message, mark-chat-read
+    reactions.ts              # react-to-channel-message, react-to-chat-message
     format-messages.ts        # Shared reader-facing rendering for messages and chats
+    __tests__/
+      format-messages.test.ts # Flag rendering, incl. suppressed enum placeholders
   cards/
     templates.ts              # Adaptive Card template builders
   cli/
@@ -50,7 +54,7 @@ packages/teams/src/
       index.ts                # registerAllCommands() aggregator
       auth-commands.ts        # auth login/status/logout
       message-commands.ts     # list-teams, list-channels, send-message, send-card
-      read-commands.ts        # the 7 read/reply/chat commands (CLI parity)
+      read-commands.ts        # the 9 read/reply/chat/reaction commands (CLI parity)
 ```
 
 **Service split.** `MessageService` takes `TeamsService` in its constructor and calls `teams.getGraphClient()`, so auth, the token cache and the sign-in are owned in exactly one place. `TeamsService` exposes `getGraphClient()`, `getTeamId()`, `getChannelId()`, `getMe()` and `getTenantId()` for that purpose. The split exists to keep each service near the repo's <500-line target rather than pushing `teams-service.ts` toward the 1,000-line hard limit.
@@ -556,20 +560,52 @@ The ID comes from `TeamsService.getMe()` (`GET /me`, `User.Read`, cached for the
 
 </tool>
 
+<tool name="react-to-channel-message">
+
+#### react-to-channel-message
+
+`POST /teams/{teamId}/channels/{channelId}/messages/{messageId}/setReaction` (or `/unsetReaction`) — delegated `ChannelMessage.Send`. With `replyId`, the path becomes `.../messages/{messageId}/replies/{replyId}/setReaction`; same permission.
+
+**Parameters:** `messageId` (required), `replyId?`, `teamId?`, `channelId?`, `reactionType?` (`like` | `angry` | `sad` | `laugh` | `heart` | `surprised`, default `like`), `action?` (`add` | `remove`, default `add`)
+
+Body is `{ "reactionType": "<type>" }` for both actions — `unsetReaction` also requires the type, since a user may hold only one reaction of each type on a message. The reaction is attributed to the signed-in user; in client-credentials mode there is no user identity to attribute it to. Returns `204 No Content`.
+
+</tool>
+
+<tool name="react-to-chat-message">
+
+#### react-to-chat-message
+
+`POST /chats/{chatId}/messages/{messageId}/setReaction` (or `/unsetReaction`) — delegated `Chat.ReadWrite`.
+
+**Parameters:** `chatId` (required), `messageId` (required), `reactionType?` (default `like`), `action?` (default `add`)
+
+Same body and semantics as the channel variant. Returns `204 No Content`.
+
+</tool>
+
 </tool-group>
 
 <unsupported-operations>
 
-## Deliberately Unsupported
+## Not Implemented
+
+### Permanent exclusions
 
 | Operation | Reason |
 |-----------|--------|
-| `search-messages` (`POST /search/query`, `entityTypes: ["chatMessage"]`) | Graph search lists `Chat.Read` and **not** `Chat.ReadWrite` in its delegated permissions, and enforces that list literally rather than treating ReadWrite as a superset. Expected to 403; would need `Chat.Read` as a ninth scope. Also requires `Prefer: include-unknown-enum-members` since `chatMessage` is an evolvable-enum member. |
-| Channel messages `delta` | No delegated channel-message delta endpoint is documented in v1.0 or beta. The surviving `chatmessage-delta` reference covers `/users/{id}/chats/getAllMessages/delta`, which is application-permission only ("Delegated: Not supported"). |
-| Reactions (`setReaction`) | Permitted by the current scope set — channel needs `ChannelMessage.Send`, chat needs `Chat.ReadWrite`, both consented — but not implemented. Cheap to add. |
 | @-mentions | Require the target's AAD user id in the payload. Only ids already present in read data are available (`MessageInfo.authorId`, `ChatInfo` members); this registration cannot resolve a name to an id. No directory-lookup tool should be added. |
 | Team/channel administration | Out of scope by design: no creating channels, no managing members, no changing team settings. |
 | Chat creation | Graph's send endpoint cannot create a chat, and participant selection would need directory search. |
+
+### Viable, not yet built
+
+Both were previously documented as blocked on permissions or on a missing endpoint. **Live testing on 2026-08-12 disproved both**, on the current eight consented scopes with no ninth scope. They are candidates for a future release; nothing about the scope set stands in the way.
+
+| Operation | Live finding |
+|-----------|--------------|
+| `search-messages` (`POST /v1.0/search/query`, `entityTypes: ["chatMessage"]`, header `Prefer: include-unknown-enum-members`) | Returns **200 with real hits on `Chat.ReadWrite`, without `Chat.Read`** — Graph does not enforce its documented permission list as literally as assumed. Covers channel posts as well as chats: hits from a channel carry `channelIdentity.teamId` and `channelIdentity.channelId`, so one tool would serve both surfaces. Each hit carries the message id, `chatId`, `webLink`, sender, `createdDateTime` and a highlighted summary. **Renderer caveat:** search hits deliver the sender as `from.emailAddress.name`/`.address`, not the `from.user.displayName` shape `toMessageInfo()` expects — they need their own mapping path. |
+| Channel messages `delta` (`GET /v1.0/teams/{teamId}/channels/{channelId}/messages/delta`) | Returns **200 with delegated permissions**; `/beta/` also returns 200 and additionally exposes `hasReplies` per message. Pages via `@odata.nextLink`. **`$deltatoken=latest` is not honoured**, so a client must page to the end of history once before it receives its first `deltaLink`. The v1.0 response is undocumented but real — treat the shape as unstable and code defensively. |
 
 </unsupported-operations>
 
@@ -783,6 +819,7 @@ packages/teams/src/
       index.ts                # registerAllCommands() aggregator
       auth-commands.ts        # auth login/status/logout
       message-commands.ts     # list-teams, list-channels, send-message, send-card
+      read-commands.ts        # reads, replies, chats, reactions
 ```
 
 ### Command Groups
@@ -794,6 +831,17 @@ packages/teams/src/
 | (root) | `list-channels <teamId>` | `list-channels` |
 | (root) | `send-message <message>` | `send-channel-message` |
 | (root) | `send-card` | `send-adaptive-card` |
+| (root) | `get-channel-messages` | `get-channel-messages` |
+| (root) | `get-message-replies <messageId>` | `get-message-replies` |
+| (root) | `reply-to-message <messageId> <message>` | `reply-to-message` |
+| (root) | `list-chats` | `list-chats` |
+| (root) | `get-chat-messages <chatId>` | `get-chat-messages` |
+| (root) | `send-chat-message <chatId> <message>` | `send-chat-message` |
+| (root) | `mark-chat-read <chatId>` | `mark-chat-read` |
+| (root) | `react-to-channel-message <messageId>` | `react-to-channel-message` |
+| (root) | `react-to-chat-message <chatId> <messageId>` | `react-to-chat-message` |
+
+`auth login` blocks until the device-code sign-in resolves and exits non-zero if it does not complete — unlike the MCP `authenticate` tool, which returns as soon as the code is issued and lets a later `auth-status` pick up the outcome. A CLI that returned early would exit 0 whether or not sign-in ever happened.
 
 ### Tool-to-CLI Parameter Mapping
 
@@ -854,6 +902,13 @@ mcp-teams-cli send-card \
 
 # Send raw Adaptive Card from file
 mcp-teams-cli send-card --card-file ./my-card.json
+
+# React to a channel message, and to a reply within its thread
+mcp-teams-cli react-to-channel-message 1616965872395 --type heart
+mcp-teams-cli react-to-channel-message 1616965872395 -r 1616991463150
+
+# Remove a reaction from a chat message
+mcp-teams-cli react-to-chat-message 19:561082c0f3f847a58069deb8eb300807@thread.v2 1616991463150 --remove
 
 # JSON output (bypasses summary, writes raw JSON)
 mcp-teams-cli --json list-teams
