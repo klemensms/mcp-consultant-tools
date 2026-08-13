@@ -120,6 +120,35 @@ export function describeCloneAuthFailure(
   return `The Azure DevOps PAT was rejected for this repository. Check that it is current and carries the Code (read) scope for organization '${organization ?? 'unknown'}'.`;
 }
 
+/**
+ * SAML SSO authorization and the "Settings > Developer settings" page are GitHub concepts. Sent to
+ * someone on the Azure DevOps provider they name a page that does not exist for them, so the reader
+ * spends their time in the wrong product — a confidently wrong hint costs more than no hint. Branch
+ * both of these on the provider actually in use.
+ */
+export function notFoundHint(provider: string, organization?: string): string {
+  if (provider === 'azure-devops') {
+    return (
+      'Check the project and repository names — an Azure DevOps project name taken from a clone URL or an ' +
+      `older document is often stale. Run cr-list-repos with no --project to see the projects organization ` +
+      `'${organization ?? 'unknown'}' actually holds.`
+    );
+  }
+  return (
+    'Check the name; for a GitHub org the token may also need SAML SSO authorization ' +
+    '(Settings > Developer settings > Personal access tokens > Configure SSO).'
+  );
+}
+
+export function forbiddenHint(provider: string, authMethod?: 'pat' | 'entra-id'): string {
+  if (provider === 'azure-devops') {
+    return authMethod === 'entra-id'
+      ? 'The Entra service principal is authenticated but not authorized for this resource. It needs at least Code (read) on the project, granted under Project settings > Repositories > Security.'
+      : "The Azure DevOps PAT lacks the required scope. It needs at least Code (read), and a PAT is scoped per organization — check it was issued for this one.";
+  }
+  return `The ${provider} token lacks the required scope/permission (or is rate-limited, or needs SAML SSO authorization).`;
+}
+
 export class CodeReviewClient {
   private readonly config: CodeReviewConfig;
   private readonly httpClient: AxiosInstance;
@@ -377,14 +406,10 @@ export class CodeReviewClient {
         throw new Error(`Authentication failed while ${context} (401). The ${provider} token is missing, invalid, or expired.`);
       }
       if (status === 403) {
-        throw new Error(
-          `Forbidden while ${context} (403). The ${provider} token lacks the required scope/permission (or is rate-limited, or needs SAML SSO authorization).`,
-        );
+        throw new Error(`Forbidden while ${context} (403). ${forbiddenHint(provider, this.config.azdoAuthMethod)}`);
       }
       if (status === 404) {
-        throw new Error(
-          `Not found while ${context} (404). Check the name; for a GitHub org the token may also need SAML SSO authorization (Settings > Developer settings > Personal access tokens > Configure SSO).`,
-        );
+        throw new Error(`Not found while ${context} (404). ${notFoundHint(provider, this.config.azdoOrganization)}`);
       }
       throw new Error(`Request failed while ${context} (${status}).`);
     }

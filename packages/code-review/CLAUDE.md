@@ -166,6 +166,30 @@ scope/expiry hint under `pat`). Without it, anyone whose first command happens t
 git error with no route to the fix. It returns null for non-auth clone failures, so a genuine
 "repository not found" is never buried under an authentication guess.
 
+**The clone must run non-interactively, or that hint silently disappears.** Left to itself, git
+answers a rejected credential by falling back to an interactive prompt; on a machine with a
+controlling terminal it then blocks until the 120s timeout kills it, and a killed git has printed
+only `Cloning into '<dir>'...`. The authentication text is never emitted, so
+`describeCloneAuthFailure()` matches nothing and the membership hint vanishes — which is exactly how
+it was reported from the live tenant: "the hint never shows and the error says less than it used
+to". `NON_INTERACTIVE_GIT_ENV` (`GIT_TERMINAL_PROMPT=0` plus both askpass escapes) and
+`-c credential.helper=` keep the failure fast and identical every time. **Do not remove either**, and
+do not trust a passing test as proof: a test runner's worker has no controlling terminal, so git
+declines to prompt there whether the fix is present or not — verified by inversion, not assumed. The
+assertions that actually invert are the ones on `NON_INTERACTIVE_GIT_ENV` and `buildCloneArgs`; the
+live-git test covers only the join between git's wording and the matcher.
+
+**Hints must name the provider in use.** A 404 under `azure-devops` used to answer with GitHub SAML
+SSO guidance, pointing at a "Settings > Developer settings" page that does not exist for that
+reader — reported from a live run where the real cause was a stale project name. `notFoundHint()`
+and `forbiddenHint()` branch on provider. A confidently wrong hint costs more than no hint, because
+it sends someone into the wrong product before they think to doubt it.
+
+**A project name taken from a clone remote can be stale, and the resulting 404 looks exactly like a
+package defect.** Measured on the live tenant: a locally cloned repository's git remote named a
+project the organisation no longer holds. `cr-list-repos` with no `--project` lists what is actually
+there, which is why the 404 hint now says so.
+
 **Never build the message from the whole axios error on the token path.** The outbound form body on
 `error.config.data` contains the client secret; `describeTokenError()` reads the response body only.
 

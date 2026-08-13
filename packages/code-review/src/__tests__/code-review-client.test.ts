@@ -5,7 +5,44 @@ import {
   normalizeGheApiBase,
   describeUnprovisionedPrincipal,
   describeCloneAuthFailure,
+  notFoundHint,
+  forbiddenHint,
 } from '../code-review-client.js';
+
+/**
+ * A 404 under the Azure DevOps provider was answering with GitHub SAML SSO guidance, naming a
+ * "Settings > Developer settings" page that does not exist for that reader — reported from a live
+ * run where the real cause was a stale project name. A confidently wrong hint costs more than no
+ * hint, because it sends someone into the wrong product before they doubt it.
+ */
+describe('status hints name the provider actually in use', () => {
+  it('does not send an Azure DevOps 404 to GitHub SAML settings', () => {
+    const hint = notFoundHint('azure-devops', 'Contoso');
+    expect(hint).not.toMatch(/SAML|Developer settings|GitHub/i);
+    expect(hint).toContain('Contoso');
+    // The measured cause: a project name carried over from a clone remote that no longer exists.
+    expect(hint).toContain('cr-list-repos');
+  });
+
+  it('keeps the SAML guidance for the GitHub providers, where it is correct', () => {
+    expect(notFoundHint('github-enterprise')).toMatch(/SAML SSO/);
+    expect(notFoundHint('github-app')).toMatch(/SAML SSO/);
+  });
+
+  it('does not send an Azure DevOps 403 to GitHub SAML settings either', () => {
+    expect(forbiddenHint('azure-devops', 'entra-id')).not.toMatch(/SAML|GitHub/i);
+    expect(forbiddenHint('azure-devops', 'pat')).not.toMatch(/SAML|GitHub/i);
+  });
+
+  it('distinguishes the two Azure DevOps auth methods on a 403, which need different fixes', () => {
+    expect(forbiddenHint('azure-devops', 'entra-id')).toMatch(/service principal/i);
+    expect(forbiddenHint('azure-devops', 'pat')).toMatch(/PAT/);
+  });
+
+  it('keeps the SAML guidance on a GHE 403', () => {
+    expect(forbiddenHint('github-enterprise')).toMatch(/SAML SSO/);
+  });
+});
 
 describe('parseNextLink', () => {
   it('extracts the rel="next" URL from a Link header', () => {

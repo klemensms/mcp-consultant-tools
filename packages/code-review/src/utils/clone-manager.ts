@@ -52,28 +52,77 @@ export function redactCloneSecret(message: string, cloneUrl: string): string {
   return redacted;
 }
 
+/**
+ * True when the child was killed rather than exiting on its own — the shape `execFile` reports for
+ * its `timeout` option firing. Node sets `killed` and a `signal`; there is no dedicated error code.
+ */
+export function isTimeoutKill(error: unknown): boolean {
+  const e = error as { killed?: unknown; signal?: unknown } | null;
+  return Boolean(e && e.killed === true && typeof e.signal === 'string');
+}
+
+/**
+ * Environment overrides that force `git` to run unattended.
+ *
+ * A clone here has no user in front of it. Left alone, git answers a rejected credential by falling
+ * back to an interactive prompt, and on a machine with a controlling terminal it then blocks until
+ * the timeout kills it. A killed git has printed only `Cloning into '<dir>'...` — so the caller gets
+ * a truncated error carrying none of the authentication text needed to explain the failure, and
+ * which message it gets depends on whether a credential happened to be cached. Refusing the prompt
+ * makes git fail immediately and identically every time, with
+ * `fatal: could not read Username for '<url>': terminal prompts disabled`.
+ *
+ * `GIT_ASKPASS`/`SSH_ASKPASS` would route the prompt to a GUI helper instead, re-opening the hole
+ * `GIT_TERMINAL_PROMPT` closes; an empty value disables them.
+ *
+ * Exported because this is the whole fix, and it cannot be proven from a test process — a test
+ * runner's worker has no controlling terminal, so git declines to prompt there whatever this says.
+ * Asserting the configuration is the only check that actually inverts.
+ */
+export const NON_INTERACTIVE_GIT_ENV: Readonly<Record<string, string>> = {
+  GIT_TERMINAL_PROMPT: '0',
+  GIT_ASKPASS: '',
+  SSH_ASKPASS: '',
+};
+
+/**
+ * Build git's argv for a clone. Exported for the same reason as the env above: the `-c` flags are
+ * the behaviour, and asserting them is the only test that fails when they are removed.
+ */
+export function buildCloneArgs(cloneUrl: string, localPath: string, options?: CloneOptions): string[] {
+  const args: string[] = [];
+  if (options?.bearerToken) {
+    // `-c` must precede the subcommand. Entra access tokens authenticate Git over HTTPS through
+    // the Authorization header, not through URL userinfo — the form Microsoft documents for
+    // Azure DevOps — which also keeps the token out of the clone URL entirely.
+    args.push('-c', `http.extraHeader=Authorization: Bearer ${options.bearerToken}`);
+  }
+  // Neutralise any credential helper configured on the machine (osxkeychain is the macOS default).
+  // Every path here supplies its own credential explicitly — in the URL or in the header — so a
+  // helper can only do two things, both bad: answer with a *stale cached* credential, making the
+  // outcome depend on machine state rather than on the configured identity, or answer with a
+  // *different person's* credential, which would have the run silently review a repository as
+  // somebody else.
+  args.push('-c', 'credential.helper=');
+  args.push('clone', '--depth=1');
+  if (options?.branch) {
+    args.push('--branch', options.branch);
+  }
+  args.push(cloneUrl, localPath);
+  return args;
+}
+
 export class CloneManager {
   private static readonly DEFAULT_TIMEOUT_MS = 120_000;
 
   async clone(cloneUrl: string, options?: CloneOptions): Promise<CloneResult> {
     const localPath = await mkdtemp(join(tmpdir(), 'mcp-cr-'));
-
-    const args: string[] = [];
-    if (options?.bearerToken) {
-      // `-c` must precede the subcommand. Entra access tokens authenticate Git over HTTPS through
-      // the Authorization header, not through URL userinfo — the form Microsoft documents for
-      // Azure DevOps — which also keeps the token out of the clone URL entirely.
-      args.push('-c', `http.extraHeader=Authorization: Bearer ${options.bearerToken}`);
-    }
-    args.push('clone', '--depth=1');
-    if (options?.branch) {
-      args.push('--branch', options.branch);
-    }
-    args.push(cloneUrl, localPath);
+    const args = buildCloneArgs(cloneUrl, localPath, options);
 
     try {
       await execFileAsync('git', args, {
         timeout: options?.timeoutMs ?? CloneManager.DEFAULT_TIMEOUT_MS,
+        env: { ...process.env, ...NON_INTERACTIVE_GIT_ENV },
       });
     } catch (error) {
       // Guaranteed cleanup of the temp dir even when the clone throws.
@@ -83,6 +132,12 @@ export class CloneManager {
       // token which git echoes back as part of the `-c http.extraHeader=...` argument.
       let message = redactCloneSecret(raw, cloneUrl);
       if (options?.bearerToken) message = redactSecret(message, options.bearerToken);
+      // A killed process reports whatever git managed to print before the signal, which reads as
+      // a bare, inexplicable failure. Name the timeout so it is not mistaken for one.
+      if (isTimeoutKill(error)) {
+        const seconds = Math.round((options?.timeoutMs ?? CloneManager.DEFAULT_TIMEOUT_MS) / 1000);
+        message += `\n\n(git was terminated after ${seconds}s without completing. The output above is only what it had printed by then.)`;
+      }
       throw new Error(`Git clone failed: ${message}`);
     }
 
