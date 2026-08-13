@@ -7,14 +7,18 @@
  * Reuses the same ServiceContext and services as the MCP server.
  */
 
+import { createRequire } from 'node:module';
 import { createCliProgram, loadEnvAndResolve } from '@mcp-consultant-tools/core';
 import { createServiceContext } from './context-factory.js';
 import { registerAllCommands } from './cli/commands/index.js';
 
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
+
 const program = createCliProgram({
   name: 'mcp-fabric-cli',
   description: 'Microsoft Fabric CLI - workspaces, capacities, items, shortcuts, domains, admin',
-  version: '31.0.0-beta.4',
+  version: pkg.version,
 });
 
 // Load env before parsing. The built-in createCliProgram preAction hook handles

@@ -7,6 +7,7 @@
  * Entry point: MCP server startup + backward-compatible registerAzureManagementTools().
  */
 
+import { createRequire } from 'node:module';
 import { realpathSync } from 'fs';
 import { pathToFileURL } from 'url';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -15,6 +16,9 @@ import { AzureManagementService, type AzureManagementConfig } from './AzureManag
 import type { ServiceContext } from './types.js';
 import { registerAllTools } from './tools/index.js';
 import { registerAllPrompts } from './prompts/index.js';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
 
 // Re-export for use in meta package
 export { AzureManagementService, type AzureManagementConfig };
@@ -95,7 +99,7 @@ if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
 
   const server = createMcpServer({
     name: 'mcp-azure-management',
-    version: '1.0.0',
+    version: pkg.version,
     capabilities: {
       tools: {},
       prompts: {},

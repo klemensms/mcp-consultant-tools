@@ -7,6 +7,7 @@
  * Entry point: MCP server startup + registerRestApiTools().
  */
 
+import { createRequire } from 'node:module';
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { pathToFileURL } from "node:url";
 import { realpathSync } from "node:fs";
@@ -15,6 +16,9 @@ import { createMcpServer, createEnvLoader, resolveSecrets } from "@mcp-consultan
 import { createServiceContext } from './context-factory.js';
 import { registerAllTools } from './tools/index.js';
 import { registerAllPrompts } from './prompts/index.js';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
 
 /**
  * Register REST API tools and prompts to an MCP server.
@@ -50,7 +54,7 @@ if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
 
   const server = createMcpServer({
     name: "@mcp-consultant-tools/rest-api",
-    version: "1.0.0",
+    version: pkg.version,
     capabilities: {
       tools: {},
       prompts: {},

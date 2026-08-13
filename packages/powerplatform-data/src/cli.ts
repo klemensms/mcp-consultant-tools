@@ -7,15 +7,19 @@
  * Reuses the same ServiceContext and services as the MCP server.
  */
 
+import { createRequire } from 'node:module';
 import { createCliProgram, bootstrapCliEnv } from '@mcp-consultant-tools/core';
 import { createServiceContext } from './context-factory.js';
 import type { ServiceContext } from './types.js';
 import { registerAllCommands } from './cli/commands/index.js';
 
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
+
 const program = createCliProgram({
   name: 'mcp-pp-data-cli',
   description: 'PowerPlatform Data CLI - records, metadata, flows',
-  version: '32.0.0-beta.1',
+  version: pkg.version,
 });
 
 // Bootstrap env BEFORE service-context construction. Top-level await is

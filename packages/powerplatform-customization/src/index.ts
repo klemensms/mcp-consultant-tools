@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createRequire } from 'node:module';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { pathToFileURL } from 'node:url';
 import { realpathSync } from 'node:fs';
@@ -7,6 +8,9 @@ import { PowerPlatformService, PowerPlatformConfig } from './PowerPlatformServic
 import { initializePublisherPrefix } from '@mcp-consultant-tools/powerplatform-core';
 import type { ServiceContext } from './types.js';
 import { registerAllTools } from './tools/index.js';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
 
 /**
  * Create service context with lazy initialization.
@@ -72,7 +76,7 @@ if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
 
   const server = createMcpServer({
     name: '@mcp-consultant-tools/powerplatform-customization',
-    version: '1.0.0',
+    version: pkg.version,
     capabilities: { tools: {}, prompts: {} }
   });
 

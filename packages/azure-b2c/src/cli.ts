@@ -7,15 +7,19 @@
  * Reuses the same ServiceContext and services as the MCP server.
  */
 
+import { createRequire } from 'node:module';
 import type { Command } from 'commander';
 import { createCliProgram, loadEnvAndResolve } from '@mcp-consultant-tools/core';
 import { createServiceContext } from './context-factory.js';
 import { registerAllCommands } from './cli/commands/index.js';
 
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
+
 const program = createCliProgram({
   name: 'mcp-azure-b2c-cli',
   description: 'Azure AD B2C CLI - users, groups, passwords, tenant management',
-  version: '27.0.0',
+  version: pkg.version,
 });
 
 // Load env before parsing (--env-file handled by commander hook)

@@ -7,6 +7,7 @@
  * Entry point: MCP server startup + backward-compatible registerAzureSqlTools().
  */
 
+import { createRequire } from 'node:module';
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { pathToFileURL } from "node:url";
 import { realpathSync } from "node:fs";
@@ -23,6 +24,9 @@ import type { AzureSqlConfig } from './services/connection-service.js';
 import type { ServiceContext } from './types.js';
 import { registerAllTools } from './tools/index.js';
 import { registerAllPrompts } from './prompts/index.js';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
 
 /**
  * Build a ServiceContext from environment variables (lazy service initialization).
@@ -191,7 +195,7 @@ if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
 
   const server = createMcpServer({
     name: "mcp-azure-sql",
-    version: "1.0.0",
+    version: pkg.version,
     capabilities: { tools: {}, prompts: {} }
   });
 

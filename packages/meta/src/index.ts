@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createRequire } from 'node:module';
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { pathToFileURL } from "node:url";
 import { realpathSync } from "node:fs";
@@ -28,6 +29,9 @@ import { registerAzureStorageTools } from "@mcp-consultant-tools/azure-storage";
 import { registerOnePasswordTools } from "@mcp-consultant-tools/1password";
 import { registerRestApiTools } from "@mcp-consultant-tools/rest-api";
 import { registerFabricTools } from "@mcp-consultant-tools/fabric";
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
 
 /**
  * Register all MCP Consultant Tools
@@ -191,7 +195,7 @@ if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
 
   const server = createMcpServer({
     name: "mcp-consultant-tools",
-    version: "15.0.0",
+    version: pkg.version,
     capabilities: { tools: {}, prompts: {} }
   });
 

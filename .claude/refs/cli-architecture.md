@@ -57,6 +57,19 @@ CLI is a first-class citizen alongside MCP tools. Maintaining parity is non-nego
 - **CLI commands are thin wrappers** — ~5–15 lines: parse args, call service, format output. Complexity belongs in services.
 - **Always wrap `.action()` in try/catch with `handleCliError(error, 'command-name')`.**
 - **Output:** `outputResult()` for everything. Summary → stdout, full JSON → `.context/.mcp-{abbrev}-cache/`. `--json` flag outputs raw JSON only.
+- **Never hardcode a version.** Both `createMcpServer` and `createCliProgram` take a `version`, and it must come from the package's own `package.json`:
+
+  ```typescript
+  import { createRequire } from 'node:module';
+  const require = createRequire(import.meta.url);
+  const pkg = require('../package.json');   // build/ is flat, so ../ is the package root
+  ```
+
+  A string literal there goes stale silently and nothing fails when it does. Before v35 beta.13, 19 CLIs reported versions as old as `27.0.0`, and **every** server reported `1.0.0` (meta said `15.0.0`) in the MCP initialize handshake — the version an MCP client displays. It survived eight major releases because a wrong version breaks nothing; it only misinforms.
+
+  **`resolvePackageVersion()` in core does not save you.** It walks up from `process.argv[1]`, which finds the right `package.json` when a build is executed directly but **not under `npx`**, where the bin shim sits in a different tree. Under npx the hardcoded fallback is exactly what the user sees — and npx is how these packages are actually consumed. `createRequire(import.meta.url)` resolves against the module itself and works in both.
+
+  A guard test in `packages/meta/src/__tests__/entrypoint-versions.test.ts` scans every `src/index.ts` and `src/cli.ts` in the monorepo and fails on any literal, naming the offending file.
 - **Write commands must pass `persist: false`.** Reads cache by default — an agent greps that JSON instead of re-running the call, which is the whole point of the cache. A write's cached payload is only an echo of the arguments, so it has nothing worth grepping, while creating `.context/` in whatever directory the command happened to be run from is a surprise. This was found in the field: a reaction command created a `.context/` inside a cloud-synced folder, which then synced.
 
   **Classification rule:** a command is a write if it changes remote or local state — `create`, `update`, `delete`, `send`, `upload`, `set`, `start`/`stop`, `cancel`, `approve`, `import`, `deploy`, `clear-cache`, and so on. Judge it by what the command *does*, not by its prefix: `runs`, `run-details`, `run-saved-query`, `run-results`, `deployments` and `publishers` all read despite write-sounding names, and all of them keep their cache.
@@ -79,7 +92,7 @@ CLI is a first-class citizen alongside MCP tools. Maintaining parity is non-nego
 
 | Helper | Purpose |
 |--------|---------|
-| `createCliProgram({ name, description, version })` | Commander program with `--json`, `--no-cache`, `--env-file` options |
+| `createCliProgram({ name, description, version })` | Commander program with `--json`, `--no-cache`, `--env-file` options. **`version` must be `pkg.version`, never a literal — see below.** |
 | `loadEnvForCli(envFilePath?)` | Loads `.env` (CLI only — MCP servers don't need this) |
 | `getGlobalFlags(program)` | Extracts `{ json, cache }` from Commander opts |
 | `outputResult({ fileName, data, summary, cacheDir, persist? }, flags)` | Writes summary + caches JSON. `persist: false` on write commands skips the cache entirely — no file, no `.context/` directory. |

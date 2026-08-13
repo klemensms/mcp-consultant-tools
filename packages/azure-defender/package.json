@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/azure-defender",
-  "version": "35.0.0-beta.1",
+  "version": "35.0.0-beta.2",
   "description": "MCP server for Microsoft Defender for Cloud - secure score, security assessments, regulatory compliance, and attack paths",
   "type": "module",
   "main": "./build/index.js",

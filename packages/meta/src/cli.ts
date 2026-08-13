@@ -8,7 +8,11 @@
  * users find the right CLI for their integration.
  */
 
+import { createRequire } from 'node:module';
 import { createCliProgram } from '@mcp-consultant-tools/core';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
 
 interface ServiceCliInfo {
   package: string;
@@ -138,7 +142,7 @@ const program = createCliProgram({
   name: 'mcp-tools-cli',
   description:
     'MCP Consultant Tools - discovery CLI for all available service packages',
-  version: '28.0.0-beta.8',
+  version: pkg.version,
 });
 
 program

@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/message-center",
-  "version": "35.0.0-beta.1",
+  "version": "35.0.0-beta.2",
   "description": "MCP server for Microsoft 365 Service Health and Message Center - service health overviews, issues, post-incident reviews, and Message Center posts",
   "type": "module",
   "main": "./build/index.js",

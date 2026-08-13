@@ -7,12 +7,16 @@
  * Entry point: MCP server startup + backward-compatible registerOnePasswordTools().
  */
 
+import { createRequire } from 'node:module';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { pathToFileURL } from 'node:url';
 import { realpathSync } from 'node:fs';
 import { createMcpServer, createEnvLoader, resolveSecrets } from '@mcp-consultant-tools/core';
 import { registerAllTools } from './tools/index.js';
 import { createServiceContext } from './context-factory.js';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
 
 /**
  * Register onepassword tools with an MCP server.
@@ -37,7 +41,7 @@ if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
 
   const server = createMcpServer({
     name: '@mcp-consultant-tools/1password',
-    version: '29.0.0-beta.2',
+    version: pkg.version,
     capabilities: { tools: {} },
   });
 

@@ -8,6 +8,7 @@
  * Entry point: MCP server startup + backward-compatible registerAzureDevOpsAdminTools().
  */
 
+import { createRequire } from 'node:module';
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { pathToFileURL } from "node:url";
 import { realpathSync } from "node:fs";
@@ -26,6 +27,9 @@ import { ProjectService } from './services/project-service.js';
 import type { ServiceContext, AzureDevOpsAdminConfig, TierFlags } from './types.js';
 import { registerAllTools } from './tools/index.js';
 import { resolveAuthConfig } from './ado-auth-provider.js';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
 
 /**
  * Build a ServiceContext from environment variables (lazy service initialization).
@@ -140,7 +144,7 @@ if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
 
   const server = createMcpServer({
     name: "@mcp-consultant-tools/azure-devops-admin",
-    version: "1.0.0",
+    version: pkg.version,
     capabilities: {
       tools: {},
     },

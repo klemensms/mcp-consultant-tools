@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/entra-id",
-  "version": "35.0.0-beta.1",
+  "version": "35.0.0-beta.2",
   "description": "MCP server for Microsoft Entra ID - app registration audit, client secret and certificate expiry",
   "type": "module",
   "main": "./build/index.js",

@@ -7,6 +7,7 @@
  * Entry point: MCP server startup + backward-compatible registerPowerPlatformTools().
  */
 
+import { createRequire } from 'node:module';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { pathToFileURL } from 'node:url';
 import { realpathSync } from 'node:fs';
@@ -16,6 +17,9 @@ import { TokenCache } from '@mcp-consultant-tools/powerplatform-core';
 import type { ServiceContext } from './types.js';
 import { registerAllTools } from './tools/index.js';
 import { registerAllPrompts } from './prompts/index.js';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
 
 const POWERPLATFORM_DEFAULT_SOLUTION = process.env.POWERPLATFORM_DEFAULT_SOLUTION || "";
 
@@ -147,7 +151,7 @@ EXAMPLES:
   // Start MCP server
   const server = createMcpServer({
     name: '@mcp-consultant-tools/powerplatform',
-    version: '1.0.0',
+    version: pkg.version,
     capabilities: { tools: {}, prompts: {} }
   });
 

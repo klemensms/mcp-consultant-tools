@@ -7,6 +7,7 @@
  * Entry point: MCP server startup + backward-compatible registerTeamsTools().
  */
 
+import { createRequire } from 'node:module';
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { pathToFileURL } from "node:url";
 import { realpathSync } from "node:fs";
@@ -14,6 +15,9 @@ import { createMcpServer, createEnvLoader, resolveSecrets } from "@mcp-consultan
 
 import { createServiceContext } from './context-factory.js';
 import { registerAllTools } from './tools/index.js';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
 
 /**
  * Register Teams tools to an MCP server.
@@ -42,7 +46,7 @@ if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
 
   const server = createMcpServer({
     name: "@mcp-consultant-tools/teams",
-    version: "1.0.0",
+    version: pkg.version,
     capabilities: {
       tools: {},
       prompts: {},

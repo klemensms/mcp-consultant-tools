@@ -7,6 +7,7 @@
  * Entry point: MCP server startup + backward-compatible registerAzureDevOpsTools().
  */
 
+import { createRequire } from 'node:module';
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { registerAppResource, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { pathToFileURL } from "node:url";
@@ -18,6 +19,9 @@ import { createMcpServer, createEnvLoader, resolveSecrets } from "@mcp-consultan
 import { createServiceContext } from './context-factory.js';
 import { registerAllTools } from './tools/index.js';
 import { registerAllPrompts } from './prompts/index.js';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
 
 /**
  * Register UI resources (MCP Apps) for interactive views.
@@ -82,7 +86,7 @@ if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
 
   const server = createMcpServer({
     name: "@mcp-consultant-tools/azure-devops",
-    version: "1.0.0",
+    version: pkg.version,
     capabilities: {
       tools: {},
       prompts: {},
