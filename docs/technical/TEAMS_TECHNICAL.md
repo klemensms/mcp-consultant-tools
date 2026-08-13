@@ -568,7 +568,20 @@ The ID comes from `TeamsService.getMe()` (`GET /me`, `User.Read`, cached for the
 
 **Parameters:** `messageId` (required), `replyId?`, `teamId?`, `channelId?`, `reactionType?` (`like` | `angry` | `sad` | `laugh` | `heart` | `surprised`, default `like`), `action?` (`add` | `remove`, default `add`)
 
-Body is `{ "reactionType": "<type>" }` for both actions — `unsetReaction` also requires the type, since a user may hold only one reaction of each type on a message. The reaction is attributed to the signed-in user; in client-credentials mode there is no user identity to attribute it to. Returns `204 No Content`.
+Body is `{ "reactionType": "<emoji>" }` for both actions — `unsetReaction` also requires the type, since a user may hold only one reaction of each type on a message. The reaction is attributed to the signed-in user; in client-credentials mode there is no user identity to attribute it to. Returns `204 No Content`.
+
+**The wire value is the Unicode emoji character, not the friendly name.** Graph rejects the name with HTTP 400 `BadRequest` — *"Unicode 'like' in the payload is not supported"* — on both `v1.0` and `beta`, and on both `setReaction` and `unsetReaction`. Callers always use the friendly names; `REACTION_EMOJI` in `services/message-service.ts` maps name → emoji immediately before the `.post()`. The mapping below is confirmed against a live tenant, not inferred from the Graph reference (which documents the names):
+
+| Friendly name | Wire value | `displayName` Graph stores |
+|---------------|-----------|----------------------------|
+| `like` | 👍 | Like |
+| `angry` | 😠 | Angry |
+| `sad` | 😢 | Crying |
+| `laugh` | 😆 | Laugh |
+| `heart` | ❤️ (U+2764 U+FE0F) | Heart |
+| `surprised` | 😮 | Surprised |
+
+`❤️` is two code points; the variation selector is part of the confirmed value. Graph also accepts 😡, 😂 and 😲 as *distinct* reactions, so the enum could widen later.
 
 </tool>
 
@@ -580,7 +593,7 @@ Body is `{ "reactionType": "<type>" }` for both actions — `unsetReaction` also
 
 **Parameters:** `chatId` (required), `messageId` (required), `reactionType?` (default `like`), `action?` (default `add`)
 
-Same body and semantics as the channel variant. Returns `204 No Content`.
+Same body and semantics as the channel variant, including the name → emoji mapping. Returns `204 No Content`.
 
 </tool>
 

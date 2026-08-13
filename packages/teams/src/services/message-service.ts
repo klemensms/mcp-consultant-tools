@@ -27,6 +27,24 @@ import type {
   SendMessageResult,
 } from "../types.js";
 
+/**
+ * setReaction/unsetReaction want the Unicode emoji character in reactionType,
+ * not the friendly name - posting the name returns HTTP 400 "Unicode 'like' in
+ * the payload is not supported". Callers keep the names everywhere else (tool
+ * schema, CLI --type, error text); they are mapped here, immediately before the
+ * wire. These values are confirmed against a live tenant, not inferred from the
+ * Graph reference, which documents the names. ❤️ is two code points
+ * (U+2764 U+FE0F) and the variation selector is part of what was confirmed.
+ */
+const REACTION_EMOJI: Record<ReactionType, string> = {
+  like: "👍",
+  angry: "😠",
+  sad: "😢",
+  laugh: "😆",
+  heart: "❤️",
+  surprised: "😮",
+};
+
 /** Default page size for message reads - a busy channel will exhaust a context window. */
 const DEFAULT_TOP = 20;
 
@@ -237,7 +255,7 @@ export class MessageService {
     try {
       await client
         .api(`${messagePath}/${remove ? "unsetReaction" : "setReaction"}`)
-        .post({ reactionType });
+        .post({ reactionType: REACTION_EMOJI[reactionType] });
     } catch (error) {
       throw wrapGraphError(
         error,
@@ -261,7 +279,7 @@ export class MessageService {
     try {
       await client
         .api(`/chats/${chatId}/messages/${messageId}/${remove ? "unsetReaction" : "setReaction"}`)
-        .post({ reactionType });
+        .post({ reactionType: REACTION_EMOJI[reactionType] });
     } catch (error) {
       throw wrapGraphError(
         error,

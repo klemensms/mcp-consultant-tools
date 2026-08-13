@@ -394,7 +394,7 @@ describe('MessageService reactions', () => {
     expect(stub.calls.path).toBe(
       `/teams/${TEAM_ID}/channels/${CHANNEL_ID}/messages/1616965872395/setReaction`
     );
-    expect(stub.calls.postBody).toEqual({ reactionType: 'heart' });
+    expect(stub.calls.postBody).toEqual({ reactionType: '❤️' });
   });
 
   it('targets the reply path when a replyId is given', async () => {
@@ -407,7 +407,7 @@ describe('MessageService reactions', () => {
       `/teams/${TEAM_ID}/channels/${CHANNEL_ID}/messages/1616965872395/replies/1616991463150/setReaction`
     );
     // Graph requires a reactionType even to remove; 'like' is the default.
-    expect(stub.calls.postBody).toEqual({ reactionType: 'like' });
+    expect(stub.calls.postBody).toEqual({ reactionType: '👍' });
   });
 
   it('switches to unsetReaction when removing', async () => {
@@ -419,7 +419,7 @@ describe('MessageService reactions', () => {
     expect(stub.calls.path).toBe(
       `/teams/${TEAM_ID}/channels/${CHANNEL_ID}/messages/1616965872395/unsetReaction`
     );
-    expect(stub.calls.postBody).toEqual({ reactionType: 'laugh' });
+    expect(stub.calls.postBody).toEqual({ reactionType: '😆' });
   });
 
   it('posts chat reactions on the chat message path', async () => {
@@ -429,7 +429,24 @@ describe('MessageService reactions', () => {
     await service.reactToChatMessage(CHAT_ID, '1616991463150', { reactionType: 'surprised' });
 
     expect(stub.calls.path).toBe(`/chats/${CHAT_ID}/messages/1616991463150/setReaction`);
-    expect(stub.calls.postBody).toEqual({ reactionType: 'surprised' });
+    expect(stub.calls.postBody).toEqual({ reactionType: '😮' });
+  });
+
+  // Graph rejects the friendly name with "Unicode 'like' in the payload is not
+  // supported". Assert the absence, not only the expected value: the previous
+  // tests asserted the name and stayed green while every live call 400'd.
+  it('never sends a friendly name on the wire, for any reaction type', async () => {
+    const types = ['like', 'angry', 'sad', 'laugh', 'heart', 'surprised'] as const;
+
+    for (const reactionType of types) {
+      const stub = createGraphStub();
+      const service = createService(stub);
+
+      await service.reactToChannelMessage('1616965872395', { reactionType });
+
+      expect(stub.calls.postBody.reactionType).not.toMatch(/^[a-z]+$/);
+      expect(stub.calls.postBody.reactionType).not.toBe(reactionType);
+    }
   });
 
   it('explains a 403 on a reaction as a stale-scope problem', async () => {

@@ -285,6 +285,8 @@ Posts the signed-in user's own AAD identity (resolved via `User.Read`), which th
 
 Both post as the signed-in user and return `204 No Content`. `reactionType` is required by Graph even when removing, since a user may hold one reaction of each type on a message.
 
+**Names are mapped to Unicode emoji at the wire.** `setReaction`/`unsetReaction` want the emoji character in the body, not the friendly name — posting the name returns HTTP 400 *"Unicode 'like' in the payload is not supported"*, on `v1.0` and `beta` alike. The tool schema and CLI `--type` keep the friendly names; `REACTION_EMOJI` in `services/message-service.ts` converts immediately before the `.post()`. `like` → 👍, `angry` → 😠, `sad` → 😢 (Graph stores it as "Crying"), `laugh` → 😆, `heart` → ❤️, `surprised` → 😮. Confirmed live against a tenant, not read off the Graph reference, which documents the names. `❤️` is two code points (U+2764 U+FE0F) — keep the variation selector.
+
 #### react-to-channel-message
 
 ```typescript
@@ -360,6 +362,8 @@ Date ranges behave differently per surface, and this is a Graph constraint rathe
 `npm run test --workspace=packages/teams` (vitest). `src/services/__tests__/message-service.test.ts` stubs the fluent Graph chain and asserts the exact path/query that would go on the wire, using **real response payloads copied from the Graph v1.0 reference** for each endpoint. This exists because the two failure classes here — wrong endpoint path/query and mishandled response shape — are catchable without credentials, while permission failures are not.
 
 **Assert what a query must NOT contain, not only what it does.** `listTeams` sent `$top` on `/me/joinedTeams` for several releases; Graph rejects that with `Query option 'Top' is not allowed`, so every device-code call 400'd. A stub-based test asserting "the built query matches expectations" would have passed on the broken code, because the expectation *was* the broken query. `teams-service.test.ts` asserts `.top()` is never called on that endpoint. When adding an endpoint, ask which query options it rejects and pin those as absences.
+
+**The same failure has now happened twice — the second time on a request body.** The reaction tools shipped in `35.0.0-beta.3` posting the friendly name as `reactionType`; Graph wants the emoji, so every reaction 400'd while four unit tests asserting `{ reactionType: 'heart' }` stayed green. A stub can only ever prove the code agrees with itself; it cannot prove the server accepts the payload. So: `message-service.test.ts` now also asserts no posted `reactionType` matches `/^[a-z]+$/`, and **where a change touches the shape or value of a Graph request body, get one live confirmation before release or state plainly in the release notes that the payload is unverified.**
 
 ## Reference
 
