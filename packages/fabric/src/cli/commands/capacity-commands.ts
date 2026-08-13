@@ -59,7 +59,7 @@ export function registerCapacityCommands(program: Command, ctx: ServiceContext):
       try {
         const result = await ctx.capacities.unassignWorkspaceFromCapacity(workspaceId);
         outputResult(
-          { fileName: `capacity-unassign-${workspaceId}`, data: result, summary: `Unassigned workspace '${workspaceId}' from its capacity` },
+          { persist: false, fileName: `capacity-unassign-${workspaceId}`, data: result, summary: `Unassigned workspace '${workspaceId}' from its capacity` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'unassign workspace from capacity'); }

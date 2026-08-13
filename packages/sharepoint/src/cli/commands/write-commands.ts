@@ -122,7 +122,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
           opts.targetParentPath,
           opts.newName
         );
-        outputResult({
+        outputResult({ persist: false,
           fileName: `copy-${opts.itemId}`,
           data: result,
           summary: `Copy initiated: ${(result as any).name}\n${(result as any).message || ''}`,

@@ -145,7 +145,7 @@ export function registerQueueCommands(program: Command, ctx: ServiceContext): vo
           visibilityTimeout: opts.visibilityTimeout ? parseInt(opts.visibilityTimeout) : undefined,
         });
         outputResult(
-          { fileName: `receive-${queueName}`, data: result, summary: `Received ${result.length} message(s) from '${queueName}'` },
+          { persist: false, fileName: `receive-${queueName}`, data: result, summary: `Received ${result.length} message(s) from '${queueName}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'receive messages'); }

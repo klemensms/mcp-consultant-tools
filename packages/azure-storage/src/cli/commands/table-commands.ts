@@ -121,7 +121,7 @@ export function registerTableCommands(program: Command, ctx: ServiceContext): vo
         const entityObj = JSON.parse(entity);
         const result = await tableSvc.insertEntity(tableName, entityObj);
         outputResult(
-          { fileName: `insert-entity-${tableName}`, data: result, summary: `Entity inserted into '${tableName}': ${result.success}` },
+          { persist: false, fileName: `insert-entity-${tableName}`, data: result, summary: `Entity inserted into '${tableName}': ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'insert entity'); }
@@ -165,7 +165,7 @@ export function registerTableCommands(program: Command, ctx: ServiceContext): vo
         const entityObj = JSON.parse(entity);
         const result = await tableSvc.upsertEntity(tableName, entityObj, opts.mode);
         outputResult(
-          { fileName: `upsert-entity-${tableName}`, data: result, summary: `Entity upserted in '${tableName}': ${result.success}` },
+          { persist: false, fileName: `upsert-entity-${tableName}`, data: result, summary: `Entity upserted in '${tableName}': ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'upsert entity'); }
@@ -212,7 +212,7 @@ export function registerTableCommands(program: Command, ctx: ServiceContext): vo
         const tableSvc = ctx.storage.getTableService(accountId);
         const result = await tableSvc.batchOperation(tableName, ops);
         outputResult(
-          { fileName: `batch-${tableName}`, data: result, summary: `Batch on '${tableName}': ${result.success ? 'succeeded' : 'failed'}` },
+          { persist: false, fileName: `batch-${tableName}`, data: result, summary: `Batch on '${tableName}': ${result.success ? 'succeeded' : 'failed'}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'batch operation'); }

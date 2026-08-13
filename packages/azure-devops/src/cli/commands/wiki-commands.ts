@@ -131,7 +131,7 @@ export function registerWikiCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.wiki.strReplaceWikiPage(project, wikiId, pagePath, opts.old, opts.new, opts.replaceAll, opts.description);
         outputResult(
-          { fileName: `wiki-replace-${pagePath.replace(/\//g, '-')}`, data: result, summary: `Replaced text in '${pagePath}' (${result.occurrences} occurrence(s))` },
+          { persist: false, fileName: `wiki-replace-${pagePath.replace(/\//g, '-')}`, data: result, summary: `Replaced text in '${pagePath}' (${result.occurrences} occurrence(s))` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'replace wiki text'); }

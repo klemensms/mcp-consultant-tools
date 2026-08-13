@@ -64,7 +64,7 @@ export function registerViewCommands(program: Command, ctx: ServiceContext): voi
         const resolvedDatabase = ctx.connection.resolveDatabase(resolvedServerId, opts.database);
         const result = await ctx.write.dropView(resolvedServerId, resolvedDatabase, schemaName, viewName);
         outputResult(
-          { fileName: `sql-view-drop-${schemaName}-${viewName}`, data: result, summary: result.message },
+          { persist: false, fileName: `sql-view-drop-${schemaName}-${viewName}`, data: result, summary: result.message },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'drop view'); }

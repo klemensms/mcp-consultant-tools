@@ -242,7 +242,7 @@ export function registerBlobCommands(program: Command, ctx: ServiceContext): voi
           overwrite: opts.overwrite,
         });
         outputResult(
-          { fileName: `copy-blob`, data: result, summary: `Copy blob: ${result.success}` },
+          { persist: false, fileName: `copy-blob`, data: result, summary: `Copy blob: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'copy blob'); }

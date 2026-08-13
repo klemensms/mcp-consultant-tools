@@ -196,7 +196,7 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
         const parameters = opts.parameters ? JSON.parse(opts.parameters) : undefined;
         const result = await ctx.pipelines.queueBuild(project, parseInt(definitionId), opts.branch, variables, parameters, opts.sourceVersion);
         outputResult(
-          { fileName: `pipeline-queued-${definitionId}`, data: result, summary: `Queued build for pipeline #${definitionId}` },
+          { persist: false, fileName: `pipeline-queued-${definitionId}`, data: result, summary: `Queued build for pipeline #${definitionId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'queue build'); }

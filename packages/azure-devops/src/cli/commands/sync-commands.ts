@@ -48,7 +48,7 @@ export function registerSyncCommands(program: Command, ctx: ServiceContext): voi
         if (result.pushed.length > 0) summary.push(`Updated ${result.pushed.length}`);
         if (result.failed.length > 0) summary.push(`Failed ${result.failed.length}`);
         outputResult(
-          { fileName: `sync-push-${project}`, data: result, summary: summary.join(', ') || 'No changes pushed' },
+          { persist: false, fileName: `sync-push-${project}`, data: result, summary: summary.join(', ') || 'No changes pushed' },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'sync work items from file'); }
@@ -148,7 +148,7 @@ export function registerSyncCommands(program: Command, ctx: ServiceContext): voi
         const ids = parentIds.map(id => parseInt(id, 10));
         const result = await ctx.sync.syncTasksFromFile(project, ids, opts.folder, opts.skipAutoConvert);
         outputResult(
-          { fileName: `sync-push-tasks`, data: result, summary: `Pushed tasks (${result.updated?.length || 0} updated, ${result.created?.length || 0} created)` },
+          { persist: false, fileName: `sync-push-tasks`, data: result, summary: `Pushed tasks (${result.updated?.length || 0} updated, ${result.created?.length || 0} created)` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'sync tasks from file'); }

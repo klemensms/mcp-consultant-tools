@@ -212,7 +212,7 @@ export function registerDataCommands(program: Command, ctx: ServiceContext): voi
         ctx.checkDeleteEnabled();
         await ctx.pp.disassociateRecords(entityNamePlural, recordId, navigationProperty, targetRecordId);
         outputResult(
-          {
+          { persist: false,
             fileName: `disassociate-${entityNamePlural}-${recordId}`,
             data: { source: `${entityNamePlural}(${recordId})`, targetRecordId, navigationProperty, disassociated: true },
             summary: `Records disassociated: ${entityNamePlural}(${recordId}) -> ${targetRecordId} via ${navigationProperty}`,

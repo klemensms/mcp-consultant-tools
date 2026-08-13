@@ -61,7 +61,7 @@ export function registerDomainCommands(program: Command, ctx: ServiceContext): v
       try {
         const result = await ctx.domains.unassignWorkspaces(domainId, workspaceIds);
         outputResult(
-          { fileName: `domain-unassign-${domainId}`, data: result, summary: `Unassigned ${workspaceIds.length} workspace(s) from domain '${domainId}'` },
+          { persist: false, fileName: `domain-unassign-${domainId}`, data: result, summary: `Unassigned ${workspaceIds.length} workspace(s) from domain '${domainId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'unassign workspaces from domain'); }

@@ -23,7 +23,7 @@ export function registerCrudCommands(program: Command, ctx: ServiceContext): voi
         const resolvedDatabase = ctx.connection.resolveDatabase(resolvedServerId, opts.database);
         const result = await ctx.write.executeInsert(resolvedServerId, resolvedDatabase, query);
         outputResult(
-          { fileName: 'sql-crud-insert', data: result, summary: result.message },
+          { persist: false, fileName: 'sql-crud-insert', data: result, summary: result.message },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'insert'); }

@@ -280,7 +280,7 @@ export function registerPullRequestCommands(program: Command, ctx: ServiceContex
           project, repositoryId, parseInt(pullRequestId), vote as any, opts.reviewerId
         );
         outputResult(
-          { fileName: `pr-${pullRequestId}-vote`, data: result, summary: `Voted '${vote}' on PR #${pullRequestId}` },
+          { persist: false, fileName: `pr-${pullRequestId}-vote`, data: result, summary: `Voted '${vote}' on PR #${pullRequestId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'vote on PR'); }

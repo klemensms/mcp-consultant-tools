@@ -254,7 +254,7 @@ export function registerFileCommands(program: Command, ctx: ServiceContext): voi
           opts.overwrite
         );
         outputResult(
-          { fileName: `copy-file`, data: result, summary: `Copy file: ${result.success}` },
+          { persist: false, fileName: `copy-file`, data: result, summary: `Copy file: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'copy file'); }

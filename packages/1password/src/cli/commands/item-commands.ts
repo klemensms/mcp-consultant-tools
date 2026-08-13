@@ -180,7 +180,7 @@ export function registerItemCommands(program: Command, ctx: ServiceContext): voi
         ctx.checkDeleteEnabled();
         await ctx.items.archiveItem(vaultId, itemId);
         outputResult(
-          {
+          { persist: false,
             fileName: `archived-item-${vaultId}-${itemId}`,
             data: { vaultId, itemId, archived: true },
             summary: `Item '${itemId}' archived in vault '${vaultId}'`,
@@ -201,7 +201,7 @@ export function registerItemCommands(program: Command, ctx: ServiceContext): voi
         const items = JSON.parse(itemsJson);
         const result = await ctx.items.batchCreateItems(vaultId, items);
         outputResult(
-          {
+          { persist: false,
             fileName: `batch-created-items-${vaultId}`,
             data: result,
             summary: `Batch created ${items.length} item(s) in vault '${vaultId}'`,
@@ -232,7 +232,7 @@ export function registerItemCommands(program: Command, ctx: ServiceContext): voi
         }
         await ctx.items.batchDeleteItems(vaultId, itemIds);
         outputResult(
-          {
+          { persist: false,
             fileName: `batch-deleted-items-${vaultId}`,
             data: { vaultId, itemIds, deleted: true },
             summary: `Deleted ${itemIds.length} item(s) from vault '${vaultId}'`,

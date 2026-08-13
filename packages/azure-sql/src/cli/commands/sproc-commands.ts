@@ -64,7 +64,7 @@ export function registerSprocCommands(program: Command, ctx: ServiceContext): vo
         const resolvedDatabase = ctx.connection.resolveDatabase(resolvedServerId, opts.database);
         const result = await ctx.write.dropSproc(resolvedServerId, resolvedDatabase, schemaName, sprocName);
         outputResult(
-          { fileName: `sql-sproc-drop-${schemaName}-${sprocName}`, data: result, summary: result.message },
+          { persist: false, fileName: `sql-sproc-drop-${schemaName}-${sprocName}`, data: result, summary: result.message },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'drop sproc'); }
