@@ -49,7 +49,11 @@ GitHub Apps cannot authenticate to the GitHub Packages API (a GitHub-confirmed 4
 |----------|----------|:---:|---------|
 | `CODE_REVIEW_PROVIDER` | all | ✅ | `azure-devops` \| `github-enterprise` \| `github-app` |
 | `CODE_REVIEW_AZDO_ORGANIZATION` | azure-devops | ✅ | Organization name |
-| `CODE_REVIEW_AZDO_PAT` | azure-devops | ✅ | Personal access token |
+| `CODE_REVIEW_AZDO_AUTH_METHOD` | azure-devops | optional | `pat` (default) \| `entra-id` |
+| `CODE_REVIEW_AZDO_PAT` | azure-devops + `pat` | ✅ | Personal access token, **Code (read)** |
+| `CODE_REVIEW_AZDO_CLIENT_ID` | azure-devops + `entra-id` | ✅ | Application (client) ID |
+| `CODE_REVIEW_AZDO_CLIENT_SECRET` | azure-devops + `entra-id` | ✅ | Client secret |
+| `CODE_REVIEW_AZDO_TENANT_ID` | azure-devops + `entra-id` | ✅ | Directory (tenant) ID |
 | `CODE_REVIEW_AZDO_PROJECT` | azure-devops | optional | Default project (fallback for `--project`) |
 | `CODE_REVIEW_GHE_BASE_URL` | ghe / ghe-app | ✅ | GHE host, e.g. `https://your-ghe-host` |
 | `CODE_REVIEW_GHE_TOKEN` | github-enterprise | ✅ | Classic PAT (`read:packages` for Packages tools) |
@@ -59,7 +63,33 @@ GitHub Apps cannot authenticate to the GitHub Packages API (a GitHub-confirmed 4
 | `CODE_REVIEW_GHE_PRIVATE_KEY` | github-app | one of | Inline PEM (`\n` newlines) |
 | `CODE_REVIEW_ALLOWED_REPOSITORIES` | all | optional | Comma-separated repo allowlist |
 
-A missing variable produces a structured error naming every missing variable for the chosen provider.
+A missing variable produces a structured error naming every missing variable for the chosen provider
+and auth method — never an empty result.
+
+### Azure DevOps service-principal auth
+
+`CODE_REVIEW_AZDO_AUTH_METHOD=entra-id` replaces the person-owned PAT with a client-credentials
+token, so an unattended run authenticates as a service identity that does not expire on a personal
+schedule. Absent, the variable defaults to `pat` and every pre-existing configuration is unaffected.
+
+- **Token.** `POST https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token`,
+  `grant_type=client_credentials`, scope `499b84ac-1321-427f-aa17-267ca6975798/.default` (the Azure
+  DevOps first-party application ID). Cached in-process and refreshed five minutes before expiry.
+- **REST.** Sent as `Authorization: Bearer <token>` in place of PAT basic auth.
+- **Clone.** Eight of the ten tools clone the repository. Under `entra-id` the clone URL carries no
+  credential; the token is passed as `git -c http.extraHeader=Authorization: Bearer <token>`. That
+  header is part of git's argv and git echoes argv back on failure, so the bearer token is redacted
+  from clone errors alongside the URL userinfo.
+- **Membership prerequisite.** A token issued for a principal that is not a member of the
+  organisation is answered `401 TF401444`. This is an identity-provisioning problem, not a bad
+  credential, so it is mapped to a named error carrying the principal's object id rather than a
+  generic 401. Resolve it under **Organization settings > Users**.
+- **Redirects.** Azure DevOps answers a rejected credential with a `302` to a sign-in page rather
+  than a `401`. The Azure DevOps HTTP client sets `maxRedirects: 0` and maps `302`/`203` to an
+  authentication error; following the redirect would yield HTML with no `value` array and surface an
+  auth failure as an `undefined.map` crash.
+- **Secret hygiene.** The token-error message is built from the response body only. An axios error
+  carries the outbound form body — including the client secret — on `error.config.data`.
 
 </configuration>
 
@@ -124,7 +154,8 @@ Latest STABLE release version of a GitHub Enterprise package (pre-release/featur
 
 ## Known limitations
 
-- **Not verified against a live Azure DevOps organization, GitHub Enterprise instance, or authenticated NuGet feed.** No AzDO org, GHE org, or private NuGet feed was available during development. Every REST path, API version, NuGet registration shape, GitHub App JWT flow, and clone-URL construction is verified against the vendors' published documentation and exercised with unit tests against injected stubs — but no call in `CodeReviewClient`, `GheAppAuth`, or the NuGet fetcher has run against a real endpoint. The clone path (`git clone`) has not been run against a real repository.
+- **Not verified against a live Azure DevOps organization, GitHub Enterprise instance, or authenticated NuGet feed.** No AzDO org, GHE org, or private NuGet feed was available during development. Every REST path, API version, NuGet registration shape, GitHub App JWT flow, and clone-URL construction is verified against the vendors' published documentation and exercised with unit tests against injected stubs — but almost no call in `CodeReviewClient`, `GheAppAuth`, or the NuGet fetcher has run against a real endpoint. The clone path (`git clone`) has not been run against a real repository. Two exceptions, both unauthenticated probes taken while adding `entra-id`: the Entra token endpoint (confirming the client-credentials request shape, via an `AADSTS90002` for a placeholder tenant) and `dev.azure.com` REST (confirming the `302`-to-sign-in behaviour that `maxRedirects: 0` exists to catch).
+- **The `entra-id` path has never authenticated successfully.** No service principal is yet a member of an Azure DevOps organization, so an *accepted* token, the `TF401444` response body (mapped from the message quoted in the originating feature request, not from a captured response), and every clone under `entra-id` remain unverified end-to-end.
 - **Cyclomatic complexity is a regex-based estimate, not an AST measurement.** Known heuristic ceilings: a `case` or operator inside a string literal can be over-counted; a C# nullable-type declaration (`int?`) can register as a ternary; and decision points inside a nested lambda are counted for both the nested and enclosing method. Reports carry a `methodology` note; treat values as approximate. Upgrade path: a real C#/TS parser if exactness is required.
 - **.NET EOL dates are a maintained table** (dates only; `isEol` is computed at runtime). The dates were verified against Microsoft's lifecycle pages and `dotnet/core` in 2026-07; a newly announced date change would need a table edit. Frameworks with no fixed EOL (.NET Framework 4.7.x/4.8/4.8.1, OS-tied) are never flagged.
 - **NuGet lookups target nuget.org only.** Packages on a private feed return empty version data (reported as `unknown`), not an error.
@@ -144,7 +175,7 @@ GitHub repository, package, and version listings follow the `Link: rel="next"` h
 
 ## Error handling
 
-`CodeReviewClient` translates axios errors for every GHE/AzDO call: 401 → auth failure, 403 → missing scope / SSO / rate limit, 404 → not found (with the SAML-SSO hint for org endpoints). The GitHub Packages provider guard throws before any request when the provider cannot use the Packages API. Every MCP tool returns `isError: true` with a message on failure.
+`CodeReviewClient` translates axios errors for every GHE/AzDO call: 302/203 → Azure DevOps redirected to sign-in, i.e. the credential was rejected; 401 → auth failure, or the named `TF401444` service-principal-not-in-organization error when the body carries it; 403 → missing scope / SSO / rate limit; 404 → not found (with the SAML-SSO hint for org endpoints). The GitHub Packages provider guard throws before any request when the provider cannot use the Packages API. Every MCP tool returns `isError: true` with a message on failure.
 
 </error-handling>
 
@@ -153,6 +184,8 @@ GitHub repository, package, and version listings follow the `Link: rel="next"` h
 ## Security
 
 - The clone URL embeds the PAT/installation token. On a failed clone the credential is redacted from the thrown message (`redactCloneSecret`), and it is never logged. The temp directory is removed in a `finally` block even when analysis throws.
+- Under `entra-id` the clone URL carries no credential at all: the token travels in `git -c http.extraHeader`. Because git echoes its full argv back in a failed-clone message, the bearer token is redacted from that message too (`redactSecret`).
+- The Entra token-request error message is built from the response body only. The outbound form body, which contains the client secret, is reachable on `error.config.data` and must never be stringified into a message.
 - Tokens, organization names, and base URLs are never logged.
 - `CODE_REVIEW_ALLOWED_REPOSITORIES` scopes clones and listings to a named set.
 

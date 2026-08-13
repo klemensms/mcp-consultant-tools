@@ -7,7 +7,7 @@ Enterprise**: .NET target-framework end-of-life scanning, NuGet package auditing
 API), a cyclomatic-complexity **estimate**, a consolidated single-clone review, and a GitHub
 Packages inventory.
 
-**Tools:** 10 (all read-only) | **Prompts:** 2 | **Auth:** provider-selected (AzDO PAT / GHE PAT / GHE App)
+**Tools:** 10 (all read-only) | **Prompts:** 2 | **Auth:** provider-selected (AzDO PAT or Entra service principal / GHE PAT / GHE App)
 
 There are no write operations and no feature flags. It shallow-clones a repo, analyses it, and
 deletes the clone.
@@ -19,8 +19,16 @@ CODE_REVIEW_PROVIDER=azure-devops   # azure-devops | github-enterprise | github-
 
 # azure-devops
 CODE_REVIEW_AZDO_ORGANIZATION=your-azdo-organization
-CODE_REVIEW_AZDO_PAT=your-azure-devops-pat
+CODE_REVIEW_AZDO_AUTH_METHOD=pat            # pat (default) | entra-id
 CODE_REVIEW_AZDO_PROJECT=MyProject          # optional --project fallback
+
+# azure-devops + auth method pat
+CODE_REVIEW_AZDO_PAT=your-azure-devops-pat
+
+# azure-devops + auth method entra-id (service principal; no PAT needed)
+CODE_REVIEW_AZDO_CLIENT_ID=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+CODE_REVIEW_AZDO_CLIENT_SECRET=your-client-secret
+CODE_REVIEW_AZDO_TENANT_ID=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
 
 # github-enterprise (PAT needs read:packages for the Packages tools)
 CODE_REVIEW_GHE_BASE_URL=https://your-ghe-host
@@ -94,16 +102,52 @@ keep it green.
 
 No Azure DevOps org, GitHub Enterprise instance, or authenticated NuGet feed was available. Every
 REST path, API version, NuGet registration shape, GitHub App JWT flow, and clone-URL construction is
-verified against the vendors' published docs and unit-tested against stubs — but **not one call in
+verified against the vendors' published docs and unit-tested against stubs — but **almost no call in
 `CodeReviewClient`, `GheAppAuth`, or the NuGet fetcher has run against a real endpoint**, and the
 `git clone` path has not run against a real repository. Recorded in `<known-limitations>` of the
 technical doc.
 
+Two exceptions, both unauthenticated probes done while adding `entra-id` (2026-08-13):
+- `login.microsoftonline.com` token endpoint — reached live; a placeholder tenant returns AADSTS90002
+  through `describeTokenError()`. The client-credentials request shape is confirmed.
+- `dev.azure.com` REST — reached live with a rejected credential; confirmed it answers **302 to
+  sign-in**, which is what `maxRedirects: 0` exists to catch.
+
+Still unverified: an *accepted* Azure DevOps token, the `TF401444` body shape (mapped from the
+message quoted in the feature request, not from a captured response), and every clone.
+
+## Azure DevOps service-principal auth (`entra-id`)
+
+`CODE_REVIEW_AZDO_AUTH_METHOD=entra-id` swaps the person-owned PAT for a client-credentials token
+against the Azure DevOps first-party resource (`499b84ac-.../.default`). Absent, the variable
+defaults to `pat`, so every pre-existing configuration keeps working untouched.
+
+**The token has to reach `git clone`, not just REST.** Eight of the ten tools clone. Under
+`entra-id` the clone URL carries no credential at all — the token goes in
+`git -c http.extraHeader=Authorization: Bearer …` (the form Microsoft documents for Azure DevOps).
+That header is part of git's argv, and git echoes argv back in a failed-clone message, so
+`CloneManager` redacts the bearer token as well as the URL userinfo. There is a test that plants a
+token and asserts it survives into no error output — keep it green.
+
+**Membership is a prerequisite, and it is not a code problem.** A valid token for a principal that
+is not a member of the organisation gets `401 TF401444`. `describeUnprovisionedPrincipal()` maps
+that to a named error carrying the principal's object id, because a bare 401 reads as "wrong
+secret" and sends the reader to the wrong fix. An org administrator must add the principal under
+Organization settings > Users.
+
+**Never build the message from the whole axios error on the token path.** The outbound form body on
+`error.config.data` contains the client secret; `describeTokenError()` reads the response body only.
+
 ## Architecture Notes
 
 - Auth is provider-selected in `context-factory.ts` (the single `createServiceContext()` used by both
-  `index.ts` and `cli.ts`). The GitHub App auth is NOT hoisted to `core` — following the per-package
-  precedent (entra-id, azure-defender, message-center each keep their own).
+  `index.ts` and `cli.ts`). The GitHub App auth and the Azure DevOps Entra auth are NOT hoisted to
+  `core` — following the per-package precedent (entra-id, azure-defender, message-center each keep
+  their own).
+- **Azure DevOps redirects rather than 401s.** An unauthenticated REST call gets a 302 to a sign-in
+  page; followed, it yields HTML with no `value` array and the caller dies on `undefined.map` — an
+  auth failure disguised as a parse crash. The Azure DevOps axios instance sets `maxRedirects: 0`
+  and `raiseGitError` maps 302/203 to an authentication error. Do not re-enable redirects.
 - NuGet is decoupled from the provider: a plain `fetchJson` (axios) against public nuget.org.
 - Prompts are STATIC guidance templates (like message-center), not executable — a deliberate
   divergence from the source, which ran analysis inside the prompt.
@@ -112,7 +156,7 @@ technical doc.
 
 ```bash
 npm run build --workspace=packages/code-review
-npm test --workspace=packages/code-review   # 80 tests, no live API
+npm test --workspace=packages/code-review   # 98 tests, no live API
 ```
 
 ## Reference

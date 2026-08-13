@@ -11,7 +11,9 @@ Provider-agnostic repository code review across **Azure DevOps** and **GitHub En
 
 Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key.
 
-`CODE_REVIEW_PROVIDER` selects the source and its auth mode: `azure-devops` (PAT), `github-enterprise` (PAT), or `github-app` (installation token). Set only the variables for your chosen provider. NuGet lookups use the public nuget.org API and need no credential.
+`CODE_REVIEW_PROVIDER` selects the source and its auth mode: `azure-devops` (PAT **or** an Entra service principal), `github-enterprise` (PAT), or `github-app` (installation token). Set only the variables for your chosen provider. NuGet lookups use the public nuget.org API and need no credential.
+
+For `azure-devops`, `CODE_REVIEW_AZDO_AUTH_METHOD` picks the credential: `pat` (the default when the variable is absent) or `entra-id`, which authenticates as a service principal with the same client ID / secret / tenant ID used elsewhere. Prefer `entra-id` for unattended or scheduled runs — a PAT is issued against a person and expires on a fixed schedule.
 
 ```json
 {
@@ -23,7 +25,12 @@ Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a to
         "CODE_REVIEW_PROVIDER": "azure-devops",
         "CODE_REVIEW_AZDO_ORGANIZATION": "your-azdo-organization",
         "CODE_REVIEW_AZDO_PROJECT": "MyProject",
+        "CODE_REVIEW_AZDO_AUTH_METHOD": "pat",
         "CODE_REVIEW_AZDO_PAT": "your-azure-devops-pat",
+
+        "CODE_REVIEW_AZDO_CLIENT_ID": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "CODE_REVIEW_AZDO_CLIENT_SECRET": "your-client-secret",
+        "CODE_REVIEW_AZDO_TENANT_ID": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
 
         "CODE_REVIEW_GHE_BASE_URL": "https://your-ghe-host",
         "CODE_REVIEW_GHE_TOKEN": "your-ghe-pat",
@@ -39,7 +46,9 @@ Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a to
 }
 ```
 
-Only the variables for the selected `CODE_REVIEW_PROVIDER` are required. `CODE_REVIEW_ALLOWED_REPOSITORIES` is an optional comma-separated allowlist that scopes every clone/list. For `github-app` you may inline the key as `CODE_REVIEW_GHE_PRIVATE_KEY` (with `\n` newlines) instead of a path.
+Only the variables for the selected `CODE_REVIEW_PROVIDER` are required — and for `azure-devops`, only those for the selected `CODE_REVIEW_AZDO_AUTH_METHOD`: set either `CODE_REVIEW_AZDO_PAT`, or the client ID / secret / tenant ID trio, not both. `CODE_REVIEW_ALLOWED_REPOSITORIES` is an optional comma-separated allowlist that scopes every clone/list. For `github-app` you may inline the key as `CODE_REVIEW_GHE_PRIVATE_KEY` (with `\n` newlines) instead of a path.
+
+**`entra-id` has a prerequisite you cannot satisfy from config:** the service principal must be a member of the Azure DevOps organisation. Azure DevOps issues and accepts the token regardless, then rejects the *identity* with `401 TF401444` — the server maps that to a named error carrying the principal's object id. An organisation administrator adds it under **Organization settings > Users**, then grants it access to the project.
 
 ## Prompts
 

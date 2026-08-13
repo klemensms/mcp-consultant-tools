@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CodeReviewClient, parseNextLink, normalizeGheApiBase } from '../code-review-client.js';
+import { CodeReviewClient, parseNextLink, normalizeGheApiBase, describeUnprovisionedPrincipal } from '../code-review-client.js';
 
 describe('parseNextLink', () => {
   it('extracts the rel="next" URL from a Link header', () => {
@@ -29,6 +29,51 @@ describe('constructor config validation', () => {
   });
   it('rejects github-enterprise without base URL/token', () => {
     expect(() => new CodeReviewClient({ provider: 'github-enterprise' })).toThrow(/GHE_BASE_URL|GHE_TOKEN/);
+  });
+  it('rejects azure-devops entra-id when no token source was supplied', () => {
+    expect(
+      () => new CodeReviewClient({ provider: 'azure-devops', azdoAuthMethod: 'entra-id', azdoOrganization: 'contoso' }),
+    ).toThrow(/AZDO_CLIENT_ID|AZDO_CLIENT_SECRET|AZDO_TENANT_ID/);
+  });
+  it('accepts azure-devops entra-id with a token source and no PAT', () => {
+    expect(
+      () =>
+        new CodeReviewClient(
+          { provider: 'azure-devops', azdoAuthMethod: 'entra-id', azdoOrganization: 'contoso' },
+          undefined,
+          { getToken: async () => 'tok' } as any,
+        ),
+    ).not.toThrow();
+  });
+});
+
+describe('describeUnprovisionedPrincipal — TF401444 is an identity problem, not a bad credential', () => {
+  const OBJECT_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+  const body = {
+    message: `TF401444: Please sign-in at least once as tenant\\tenant\\${OBJECT_ID} in a web browser to enable access to the service.`,
+    typeKey: 'UnauthorizedRequestException',
+  };
+
+  it('names the membership prerequisite, the organization, and the principal object id', () => {
+    const described = describeUnprovisionedPrincipal('contoso', body);
+    expect(described).toContain('TF401444');
+    expect(described).toContain(OBJECT_ID);
+    expect(described).toContain('contoso');
+    expect(described).toMatch(/not a member/i);
+    // The reader must not be sent off to check the secret — that is the wrong fix.
+    expect(described).toMatch(/issued and accepted/i);
+  });
+
+  it('still works when the message carries no object id', () => {
+    const described = describeUnprovisionedPrincipal('contoso', { message: 'TF401444: Please sign-in at least once.' });
+    expect(described).toContain('TF401444');
+    expect(described).toContain('contoso');
+  });
+
+  it('returns null for any other 401 body, leaving the generic handling in place', () => {
+    expect(describeUnprovisionedPrincipal('contoso', { message: 'TF400813: user is not authorized' })).toBeNull();
+    expect(describeUnprovisionedPrincipal('contoso', undefined)).toBeNull();
+    expect(describeUnprovisionedPrincipal('contoso', 'plain text body')).toBeNull();
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CloneManager, redactCloneSecret } from '../clone-manager.js';
+import { CloneManager, redactCloneSecret, redactSecret } from '../clone-manager.js';
 
 // Distinctive low-entropy placeholders (readable, hyphenated) so the redaction assertions have
 // something unmistakable to look for without embedding a credential-shaped string in the repo.
@@ -13,6 +13,12 @@ describe('clone URL builders', () => {
     expect(cm.buildAzdoCloneUrl('contoso', 'MyProject', 'repo', AZDO_PAT)).toBe(
       `https://${AZDO_PAT}@dev.azure.com/contoso/MyProject/_git/repo`,
     );
+  });
+
+  it('builds a credential-free Azure DevOps clone URL for the Entra bearer path', () => {
+    const url = cm.buildAzdoBearerCloneUrl('contoso', 'MyProject', 'repo');
+    expect(url).toBe('https://dev.azure.com/contoso/MyProject/_git/repo');
+    expect(url).not.toContain('@');
   });
 
   it('builds a GHE PAT clone URL', () => {
@@ -60,5 +66,34 @@ describe('redactCloneSecret — the embedded credential must never survive into 
   it('leaves a message with no credential untouched', () => {
     const msg = 'Command failed: git clone --depth=1 https://ghe.example.com/contoso/repo.git /tmp/x';
     expect(redactCloneSecret(msg, 'https://ghe.example.com/contoso/repo.git')).toBe(msg);
+  });
+});
+
+describe('redactSecret', () => {
+  it('replaces every occurrence', () => {
+    expect(redactSecret(`a ${AZDO_PAT} b ${AZDO_PAT}`, AZDO_PAT)).toBe('a *** b ***');
+  });
+
+  it('is a no-op for an empty secret', () => {
+    expect(redactSecret('unchanged', '')).toBe('unchanged');
+  });
+});
+
+describe('bearer-token clone — the token is an argument git echoes back, so it must be redacted too', () => {
+  const BEARER = 'planted-entra-value-do-not-log';
+
+  it('strips the bearer token from a failed clone, and never embeds it in the URL', async () => {
+    const cm = new CloneManager();
+    // A local path that cannot exist: git fails immediately, offline, echoing its full argv.
+    const cloneUrl = '/nonexistent-repo-for-redaction-test.git';
+
+    const error = await cm.clone(cloneUrl, { bearerToken: BEARER }).then(
+      () => null,
+      (e: Error) => e,
+    );
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error!.message).toContain('Git clone failed');
+    expect(error!.message).not.toContain(BEARER);
   });
 });

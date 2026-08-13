@@ -14,6 +14,17 @@ export interface CloneResult {
 export interface CloneOptions {
   branch?: string;
   timeoutMs?: number;
+  /**
+   * Bearer token sent via `git -c http.extraHeader`, for credentials that authenticate by header
+   * rather than by URL userinfo (an Entra access token against Azure DevOps). Mutually exclusive
+   * in practice with a credential embedded in `cloneUrl`.
+   */
+  bearerToken?: string;
+}
+
+/** Replace every occurrence of `secret` with `***`. No-op for an empty secret. */
+export function redactSecret(message: string, secret: string): string {
+  return secret ? message.split(secret).join('***') : message;
 }
 
 /**
@@ -31,13 +42,12 @@ export function redactCloneSecret(message: string, cloneUrl: string): string {
   const userinfo = cloneUrl.substring(schemeEnd + 3, at); // e.g. "token" or "x-access-token:token"
   if (!userinfo) return message;
 
-  let redacted = message.split(userinfo).join('***');
+  let redacted = redactSecret(message, userinfo);
   // When userinfo is "x-access-token:<value>", also redact the bare value on its own, in case a
   // downstream formatter prints just that trailing segment.
   const colon = userinfo.indexOf(':');
   if (colon !== -1) {
-    const token = userinfo.substring(colon + 1);
-    if (token) redacted = redacted.split(token).join('***');
+    redacted = redactSecret(redacted, userinfo.substring(colon + 1));
   }
   return redacted;
 }
@@ -48,7 +58,14 @@ export class CloneManager {
   async clone(cloneUrl: string, options?: CloneOptions): Promise<CloneResult> {
     const localPath = await mkdtemp(join(tmpdir(), 'mcp-cr-'));
 
-    const args = ['clone', '--depth=1'];
+    const args: string[] = [];
+    if (options?.bearerToken) {
+      // `-c` must precede the subcommand. Entra access tokens authenticate Git over HTTPS through
+      // the Authorization header, not through URL userinfo — the form Microsoft documents for
+      // Azure DevOps — which also keeps the token out of the clone URL entirely.
+      args.push('-c', `http.extraHeader=Authorization: Bearer ${options.bearerToken}`);
+    }
+    args.push('clone', '--depth=1');
     if (options?.branch) {
       args.push('--branch', options.branch);
     }
@@ -62,8 +79,11 @@ export class CloneManager {
       // Guaranteed cleanup of the temp dir even when the clone throws.
       await rm(localPath, { recursive: true, force: true }).catch(() => {});
       const raw = error instanceof Error ? error.message : String(error);
-      // Never let the embedded credential survive into the thrown message.
-      throw new Error(`Git clone failed: ${redactCloneSecret(raw, cloneUrl)}`);
+      // Never let a credential survive into the thrown message — the URL userinfo, and the bearer
+      // token which git echoes back as part of the `-c http.extraHeader=...` argument.
+      let message = redactCloneSecret(raw, cloneUrl);
+      if (options?.bearerToken) message = redactSecret(message, options.bearerToken);
+      throw new Error(`Git clone failed: ${message}`);
     }
 
     return {
@@ -76,6 +96,11 @@ export class CloneManager {
 
   buildAzdoCloneUrl(organization: string, project: string, repo: string, pat: string): string {
     return `https://${pat}@dev.azure.com/${organization}/${project}/_git/${repo}`;
+  }
+
+  /** Credential-free Azure DevOps clone URL — the Entra token travels in `http.extraHeader`. */
+  buildAzdoBearerCloneUrl(organization: string, project: string, repo: string): string {
+    return `https://dev.azure.com/${organization}/${project}/_git/${repo}`;
   }
 
   buildGheCloneUrl(gheBaseUrl: string, owner: string, repo: string, token: string): string {

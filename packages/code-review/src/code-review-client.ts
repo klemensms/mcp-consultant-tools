@@ -3,13 +3,19 @@ import type { AxiosInstance } from 'axios';
 import { CloneManager } from './utils/clone-manager.js';
 import type { CloneResult } from './utils/clone-manager.js';
 import type { GheAppAuth } from './utils/ghe-app-auth.js';
+import type { AzdoEntraAuth } from './utils/azdo-entra-auth.js';
 import type { GhePackage, GhePackageVersion, PaginatedResult } from './models/index.js';
 
 export interface CodeReviewConfig {
   provider: 'azure-devops' | 'github-enterprise' | 'github-app';
+  /** Defaults to 'pat' when absent, so every existing configuration keeps working untouched. */
+  azdoAuthMethod?: 'pat' | 'entra-id';
   azdoOrganization?: string;
   azdoProject?: string;
   azdoPat?: string;
+  azdoClientId?: string;
+  azdoClientSecret?: string;
+  azdoTenantId?: string;
   gheBaseUrl?: string;
   gheToken?: string;
   gheAppId?: string;
@@ -47,28 +53,75 @@ export function normalizeGheApiBase(gheBaseUrl: string): string {
   return gheBaseUrl.endsWith('/api/v3') ? gheBaseUrl : `${gheBaseUrl}/api/v3`;
 }
 
+/**
+ * Azure DevOps answers a *valid* service-principal token with 401/TF401444 when the principal is
+ * not a member of the organisation — an identity-provisioning problem, not a bad credential.
+ * Surfaced as a bare 401 it reads as "wrong secret" and sends the reader to the wrong fix, so name
+ * it and carry the principal's object id through from the response.
+ *
+ * Returns null when the body is not a TF401444, leaving the generic 401 handling in place.
+ */
+export function describeUnprovisionedPrincipal(organization: string | undefined, body: unknown): string | null {
+  const message = (body as { message?: unknown } | undefined)?.message;
+  if (typeof message !== 'string' || !message.includes('TF401444')) return null;
+
+  const objectId = message.match(/[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}/i)?.[0];
+  return (
+    'Azure DevOps rejected the identity, not the credential (TF401444). The token was issued and accepted, but the ' +
+    `service principal${objectId ? ` (object id ${objectId})` : ''} is not a member of organization ` +
+    `'${organization ?? 'unknown'}'. An Azure DevOps organization administrator must add it under ` +
+    'Organization settings > Users and grant it access to the project.'
+  );
+}
+
 export class CodeReviewClient {
   private readonly config: CodeReviewConfig;
   private readonly httpClient: AxiosInstance;
   private readonly cloneManager: CloneManager;
   private readonly gheAppAuth?: GheAppAuth;
+  private readonly azdoEntraAuth?: AzdoEntraAuth;
 
-  constructor(config: CodeReviewConfig, gheAppAuth?: GheAppAuth) {
+  constructor(config: CodeReviewConfig, gheAppAuth?: GheAppAuth, azdoEntraAuth?: AzdoEntraAuth) {
     this.config = config;
     this.cloneManager = new CloneManager();
     this.gheAppAuth = gheAppAuth;
+    this.azdoEntraAuth = config.azdoAuthMethod === 'entra-id' ? azdoEntraAuth : undefined;
 
     if (config.provider === 'azure-devops') {
-      if (!config.azdoOrganization || !config.azdoPat) {
-        throw new Error('Azure DevOps requires AZDO_ORGANIZATION and AZDO_PAT');
+      if (!config.azdoOrganization) {
+        throw new Error('Azure DevOps requires AZDO_ORGANIZATION');
       }
-      this.httpClient = axios.create({
+      const azdoAxios = {
         baseURL: `https://dev.azure.com/${config.azdoOrganization}`,
-        headers: {
-          Authorization: `Basic ${Buffer.from(`:${config.azdoPat}`).toString('base64')}`,
-        },
         params: { 'api-version': '7.1' },
-      });
+        // Azure DevOps answers an unauthenticated REST call with a 302 to a sign-in page rather
+        // than a 401. Followed, that yields an HTML body with no `value` array and the caller dies
+        // on `undefined.map` — an auth failure disguised as a parse crash. Refuse the redirect so
+        // it surfaces as the authentication error it is.
+        maxRedirects: 0,
+      };
+      if (config.azdoAuthMethod === 'entra-id') {
+        if (!azdoEntraAuth) {
+          throw new Error(
+            'Azure DevOps entra-id auth requires AZDO_CLIENT_ID, AZDO_CLIENT_SECRET, and AZDO_TENANT_ID',
+          );
+        }
+        this.httpClient = axios.create(azdoAxios);
+        this.httpClient.interceptors.request.use(async (reqConfig) => {
+          reqConfig.headers.Authorization = `Bearer ${await azdoEntraAuth.getToken()}`;
+          return reqConfig;
+        });
+      } else {
+        if (!config.azdoPat) {
+          throw new Error('Azure DevOps requires AZDO_ORGANIZATION and AZDO_PAT');
+        }
+        this.httpClient = axios.create({
+          ...azdoAxios,
+          headers: {
+            Authorization: `Basic ${Buffer.from(`:${config.azdoPat}`).toString('base64')}`,
+          },
+        });
+      }
     } else if (config.provider === 'github-app') {
       if (!config.gheBaseUrl || !gheAppAuth) {
         throw new Error('GitHub App requires GHE_BASE_URL and a configured GitHub App (GHE_APP_ID, GHE_INSTALLATION_ID, GHE_PRIVATE_KEY[_PATH])');
@@ -119,15 +172,23 @@ export class CodeReviewClient {
 
   async cloneRepository(project: string, repo: string, branch?: string): Promise<CloneResult> {
     let cloneUrl: string;
+    // Set only for the Azure DevOps entra-id path, where the credential travels in a git header
+    // instead of the clone URL. Every other provider keeps embedding its token as URL userinfo.
+    let bearerToken: string | undefined;
     if (this.config.provider === 'azure-devops') {
-      cloneUrl = this.cloneManager.buildAzdoCloneUrl(this.config.azdoOrganization!, project, repo, this.config.azdoPat!);
+      if (this.azdoEntraAuth) {
+        bearerToken = await this.azdoEntraAuth.getToken();
+        cloneUrl = this.cloneManager.buildAzdoBearerCloneUrl(this.config.azdoOrganization!, project, repo);
+      } else {
+        cloneUrl = this.cloneManager.buildAzdoCloneUrl(this.config.azdoOrganization!, project, repo, this.config.azdoPat!);
+      }
     } else if (this.config.provider === 'github-app') {
       const token = await this.gheAppAuth!.getToken();
       cloneUrl = this.cloneManager.buildGheAppCloneUrl(this.config.gheBaseUrl!, project, repo, token);
     } else {
       cloneUrl = this.cloneManager.buildGheCloneUrl(this.config.gheBaseUrl!, project, repo, this.config.gheToken!);
     }
-    return this.cloneManager.clone(cloneUrl, { branch });
+    return this.cloneManager.clone(cloneUrl, { branch, bearerToken });
   }
 
   async listOrgPackages(org: string, packageType: string = 'npm'): Promise<PaginatedResult<GhePackage>> {
@@ -250,7 +311,18 @@ export class CodeReviewClient {
     if (axios.isAxiosError(error) && error.response) {
       const status = error.response.status;
       const provider = this.config.provider;
+      // Azure DevOps redirects to sign-in instead of answering 401 when the credential is rejected.
+      if (status === 302 || status === 203) {
+        throw new Error(
+          `Authentication failed while ${context} (${status}: Azure DevOps redirected to sign-in). ` +
+            `The ${this.config.azdoAuthMethod === 'entra-id' ? 'Entra access token' : 'PAT'} was rejected — check the credential and the organization name.`,
+        );
+      }
       if (status === 401) {
+        const unprovisioned = describeUnprovisionedPrincipal(this.config.azdoOrganization, error.response.data);
+        if (unprovisioned) {
+          throw new Error(`${unprovisioned} (while ${context})`);
+        }
         throw new Error(`Authentication failed while ${context} (401). The ${provider} token is missing, invalid, or expired.`);
       }
       if (status === 403) {
