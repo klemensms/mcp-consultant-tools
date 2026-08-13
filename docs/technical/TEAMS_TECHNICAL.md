@@ -96,15 +96,19 @@ Validation occurs in `createServiceContext()` when the service is first accessed
 
 **Scopes requested** (`DEVICE_CODE_SCOPES` in `services/teams-service.ts`):
 - `User.Read`
+- `User.ReadBasic.All`
 - `Team.ReadBasic.All`
 - `Channel.ReadBasic.All`
 - `ChannelMessage.Read.All`
 - `ChannelMessage.Send`
 - `Chat.ReadWrite`
+- `Chat.Create`
 - `Group.Read.All`
 - `offline_access`
 
-> **Do not add an unconsented scope to this array.** In a tenant where only `User.Read`, `email`, `openid` and `profile` are classified low impact, an unconsented scope cannot be self-consented — it fails at *sign-in*, taking the whole server down rather than degrading the one tool that needed it. A capability requiring a ninth scope should be raised, not implemented.
+> **Do not add an unconsented scope to this array.** In a tenant where only `User.Read`, `email`, `openid` and `profile` are classified low impact, an unconsented scope cannot be self-consented — it fails at *sign-in*, taking the whole server down rather than degrading the one tool that needed it. A capability requiring an eleventh scope should be raised, not implemented.
+
+> **`ChannelMessage.Edit` is deliberately absent even where it is consented.** No published Graph method accepts it. Editing a channel message's content is `PATCH /teams/{teamId}/channels/{channelId}/messages/{messageId}`, whose delegated permission is `ChannelMessage.ReadWrite` or `Group.ReadWrite.All`. Requesting `ChannelMessage.Edit` widens the token without enabling a single call, so there is no `edit-channel-message` tool.
 
 `offline_access` is what enables silent renewal. Listing it explicitly is safe for cache matching: `OIDC_DEFAULT_SCOPES` in `@azure/msal-common` includes it, and `ScopeSet.createSearchScopes()` strips OIDC scopes before cache lookups, so it cannot cause an `acquireTokenSilent` miss.
 

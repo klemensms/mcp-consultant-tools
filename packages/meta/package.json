@@ -1,6 +1,6 @@
 {
   "name": "mcp-consultant-tools",
-  "version": "35.0.0-beta.14",
+  "version": "35.0.0-beta.15",
   "description": "Complete MCP Consultant Tools package with all integrations: PowerPlatform, Azure DevOps, Azure Management, Figma, Application Insights, Log Analytics, Azure SQL, Service Bus, SharePoint, GitHub Enterprise, and Azure AD B2C",
   "type": "module",
   "main": "./build/index.js",
@@ -82,7 +82,7 @@
     "@mcp-consultant-tools/rest-api": "35.0.0-beta.3",
     "@mcp-consultant-tools/service-bus": "35.0.0-beta.2",
     "@mcp-consultant-tools/sharepoint": "35.0.0-beta.5",
-    "@mcp-consultant-tools/teams": "35.0.0-beta.7",
+    "@mcp-consultant-tools/teams": "35.0.0-beta.8",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "commander": "^14.0.3"
   },

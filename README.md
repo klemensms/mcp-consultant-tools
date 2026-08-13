@@ -47,7 +47,7 @@ MCP Consultant Tools is a **modular monorepo** with **22 independently published
 | **azure-data-factory** | Azure Data Factory | 24 | `mcp-adf-cli` | [Setup & Usage](docs/documentation/azure-data-factory.md) |
 | **fabric** | Microsoft Fabric (Workspaces, Capacities, Items, Shortcuts, Domains, Admin) | 27 | `mcp-fabric-cli` | [Setup & Usage](docs/documentation/FABRIC.md) |
 | **rest-api** | Generic REST API (OAuth2) | 4 | `mcp-rest-api-cli` | [Setup & Usage](docs/documentation/REST_API.md) |
-| **teams** | Microsoft Teams messaging & reading | 16 | `mcp-teams-cli` | [Setup & Usage](docs/documentation/TEAMS.md) |
+| **teams** | Microsoft Teams messaging & reading | 20 | `mcp-teams-cli` | [Setup & Usage](docs/documentation/TEAMS.md) |
 
 ### Meta-Package
 | Package | Description |
