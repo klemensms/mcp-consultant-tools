@@ -12,7 +12,8 @@
  */
 
 import type { TeamsService } from "./teams-service.js";
-import { buildMessageBody, wrapGraphError } from "./message-service.js";
+import { wrapGraphError } from "./message-service.js";
+import { buildOutboundMessage } from "../mentions.js";
 import type { DirectMessageResult, UserInfo } from "../types.js";
 
 /** Directory results to return by default. Enough to disambiguate, not to flood. */
@@ -48,23 +49,7 @@ export class PeopleService {
    */
   async findUsers(query: string, options: { top?: number } = {}): Promise<UserInfo[]> {
     const client = await this.teams.getGraphClient();
-    const term = sanitizeSearchTerm(query);
-    const top = clampUserTop(options.top);
-
-    try {
-      const response = await client
-        .api("/users")
-        .header("ConsistencyLevel", "eventual")
-        .count(true)
-        .search(`"displayName:${term}" OR "mail:${term}" OR "userPrincipalName:${term}"`)
-        .select(USER_SELECT)
-        .top(top)
-        .get();
-
-      return (response.value ?? []).map(toUserInfo);
-    } catch (error) {
-      throw wrapGraphError(error, `find users matching "${query}"`);
-    }
+    return searchDirectoryUsers(client, query, options.top);
   }
 
   /**
@@ -76,40 +61,8 @@ export class PeopleService {
    * partial hits, so "jane.doe@contoso.com" resolves even when several Janes exist.
    */
   async resolveUser(nameOrEmail: string): Promise<UserInfo> {
-    const matches = await this.findUsers(nameOrEmail, { top: MAX_USER_TOP });
-
-    if (matches.length === 0) {
-      throw new Error(
-        `No user found matching "${nameOrEmail}". Try a full display name, email address ` +
-          `or user principal name, or run find-user to see what the directory returns.`
-      );
-    }
-
-    if (matches.length === 1) {
-      return matches[0];
-    }
-
-    const needle = nameOrEmail.trim().toLowerCase();
-    const exact = matches.filter(
-      (user) =>
-        user.mail?.toLowerCase() === needle ||
-        user.userPrincipalName?.toLowerCase() === needle ||
-        user.displayName?.toLowerCase() === needle
-    );
-
-    if (exact.length === 1) {
-      return exact[0];
-    }
-
-    const candidates = matches
-      .slice(0, 10)
-      .map((user) => `  - ${user.displayName} <${user.mail ?? user.userPrincipalName ?? user.id}>`)
-      .join("\n");
-
-    throw new Error(
-      `"${nameOrEmail}" matches ${matches.length} users. Re-run with the exact email ` +
-        `address to say which one you mean:\n${candidates}`
-    );
+    const client = await this.teams.getGraphClient();
+    return resolveDirectoryUser(client, nameOrEmail);
   }
 
   /**
@@ -212,9 +165,11 @@ export class PeopleService {
     const client = await this.teams.getGraphClient();
 
     try {
+      const outbound = await buildOutboundMessage(client, content, options.format);
+
       const result = await client
         .api(`/chats/${chatId}/messages`)
-        .post({ body: buildMessageBody(content, options.format) });
+        .post({ body: outbound.body, ...(outbound.mentions ? { mentions: outbound.mentions } : {}) });
 
       return {
         messageId: result.id,
@@ -227,6 +182,81 @@ export class PeopleService {
       throw wrapGraphError(error, `send a direct message to ${recipient.displayName}`);
     }
   }
+}
+
+/**
+ * Find directory users by name, email or UPN.
+ *
+ * Module-level rather than a method because the mention builder needs the same
+ * lookup, and it cannot reach PeopleService: PeopleService depends on TeamsService,
+ * and TeamsService owns one of the four outbound paths that can carry a mention.
+ * Routing both through this keeps one set of resolution semantics.
+ */
+export async function searchDirectoryUsers(
+  client: any,
+  query: string,
+  top?: number
+): Promise<UserInfo[]> {
+  const term = sanitizeSearchTerm(query);
+
+  try {
+    const response = await client
+      .api("/users")
+      .header("ConsistencyLevel", "eventual")
+      .count(true)
+      .search(`"displayName:${term}" OR "mail:${term}" OR "userPrincipalName:${term}"`)
+      .select(USER_SELECT)
+      .top(clampUserTop(top))
+      .get();
+
+    return (response.value ?? []).map(toUserInfo);
+  } catch (error) {
+    throw wrapGraphError(error, `find users matching "${query}"`);
+  }
+}
+
+/**
+ * Resolve a name or email to exactly one user, or explain why it could not.
+ *
+ * An ambiguous name is never resolved by picking the first hit - messaging or
+ * mentioning the wrong colleague is not a recoverable mistake. An exact match on
+ * email, UPN or full display name wins over partial hits.
+ */
+export async function resolveDirectoryUser(client: any, nameOrEmail: string): Promise<UserInfo> {
+  const matches = await searchDirectoryUsers(client, nameOrEmail, MAX_USER_TOP);
+
+  if (matches.length === 0) {
+    throw new Error(
+      `No user found matching "${nameOrEmail}". Try a full display name, email address ` +
+        `or user principal name, or run find-user to see what the directory returns.`
+    );
+  }
+
+  if (matches.length === 1) {
+    return matches[0];
+  }
+
+  const needle = nameOrEmail.trim().toLowerCase();
+  const exact = matches.filter(
+    (user) =>
+      user.mail?.toLowerCase() === needle ||
+      user.userPrincipalName?.toLowerCase() === needle ||
+      user.displayName?.toLowerCase() === needle
+  );
+
+  if (exact.length === 1) {
+    return exact[0];
+  }
+
+  const candidates = matches
+    .slice(0, 10)
+    .map((user) => `  - ${user.displayName} <${user.mail ?? user.userPrincipalName ?? user.id}>`)
+    .join("\n");
+
+  throw new Error(
+    `"${nameOrEmail}" matches ${matches.length} users. Re-run with the exact email ` +
+      `address to say which one you mean:\n${candidates}`
+  );
 }
 
 /** Clamp a caller-supplied directory page size. */

@@ -6,12 +6,12 @@
 
 import { z } from "zod";
 import type { ServiceContext } from "../types.js";
-import { markdownToHtml } from "../message-content.js";
 import {
   descWithExamples,
   MESSAGE_FORMAT_EXAMPLES,
   IMPORTANCE_EXAMPLES,
   MESSAGE_CONTENT_EXAMPLES,
+  MENTION_SYNTAX_HINT,
 } from "../tool-examples.js";
 
 // Input schema for send-channel-message
@@ -24,7 +24,7 @@ export const sendMessageSchema = {
     .string()
     .optional()
     .describe("Channel ID (optional if TEAMS_DEFAULT_CHANNEL_ID is set)"),
-  message: z.string().describe(descWithExamples("Message content (text or markdown)", MESSAGE_CONTENT_EXAMPLES)),
+  message: z.string().describe(descWithExamples("Message content (text or markdown)." + MENTION_SYNTAX_HINT, MESSAGE_CONTENT_EXAMPLES)),
   format: z
     .enum(["text", "markdown"])
     .optional()
@@ -63,24 +63,12 @@ export function registerSendMessageTool(
       importance?: "normal" | "high" | "urgent";
     }) => {
       try {
-        const service = ctx.teams;
-
-        // Convert markdown to HTML if needed
-        let content: string;
-        let contentType: "text" | "html";
-
-        if (format === "markdown") {
-          content = markdownToHtml(message);
-          contentType = "html";
-        } else {
-          content = message;
-          contentType = "text";
-        }
-
-        const result = await service.sendChannelMessage(content, {
+        // Conversion, sanitisation and @-mention resolution all happen in the
+        // service, so this tool and the CLI cannot diverge on any of them.
+        const result = await ctx.teams.sendChannelMessage(message, {
           teamId,
           channelId,
-          contentType,
+          format,
           importance,
         });
 

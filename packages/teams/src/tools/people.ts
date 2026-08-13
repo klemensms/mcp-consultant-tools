@@ -16,6 +16,7 @@ import {
   USER_QUERY_EXAMPLES,
   MESSAGE_FORMAT_EXAMPLES,
   MESSAGE_CONTENT_EXAMPLES,
+  MENTION_SYNTAX_HINT,
 } from "../tool-examples.js";
 import { formatUsers } from "./format-messages.js";
 
@@ -48,7 +49,7 @@ export const sendDirectMessageSchema = {
     ),
   message: z
     .string()
-    .describe(descWithExamples("Message content (text or markdown)", MESSAGE_CONTENT_EXAMPLES)),
+    .describe(descWithExamples("Message content (text or markdown)." + MENTION_SYNTAX_HINT, MESSAGE_CONTENT_EXAMPLES)),
   format: z
     .enum(["text", "markdown"])
     .optional()

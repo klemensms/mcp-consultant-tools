@@ -8,7 +8,6 @@ import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../context-factory.js';
 import type { AdaptiveCard, ReleaseTemplateData, CardTemplate } from '../../types.js';
 import { getCardFromTemplate, AVAILABLE_TEMPLATES } from '../../cards/templates.js';
-import { markdownToHtml } from '../../message-content.js';
 import { outputResult } from '../output.js';
 
 export function registerMessageCommands(program: Command, ctx: ServiceContext): void {
@@ -51,28 +50,19 @@ export function registerMessageCommands(program: Command, ctx: ServiceContext): 
   program
     .command('send-message')
     .description('Send a message to a Microsoft Teams channel')
-    .argument('<message>', 'Message content (text or markdown)')
+    .argument('<message>', 'Message content (text or markdown). Use @[Name or email] inline to @-mention someone.')
     .option('-t, --team-id <id>', 'Team ID (uses TEAMS_DEFAULT_TEAM_ID if not set)')
     .option('-c, --channel-id <id>', 'Channel ID (uses TEAMS_DEFAULT_CHANNEL_ID if not set)')
     .option('-f, --format <format>', 'Message format: text or markdown', 'markdown')
     .option('-i, --importance <level>', 'Importance: normal, high, or urgent', 'normal')
     .action(async (message: string, opts: any) => {
       try {
-        let content: string;
-        let contentType: 'text' | 'html';
-
-        if (opts.format === 'markdown') {
-          content = markdownToHtml(message);
-          contentType = 'html';
-        } else {
-          content = message;
-          contentType = 'text';
-        }
-
-        const result = await ctx.teams.sendChannelMessage(content, {
+        // Conversion, sanitisation and @-mention resolution all happen in the
+        // service, so this command and the MCP tool cannot diverge on any of them.
+        const result = await ctx.teams.sendChannelMessage(message, {
           teamId: opts.teamId,
           channelId: opts.channelId,
-          contentType,
+          format: opts.format,
           importance: opts.importance,
         });
 

@@ -125,7 +125,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
     .command('reply-to-message')
     .description('Post a reply to an existing Teams channel message')
     .argument('<messageId>', 'ID of the message to reply to')
-    .argument('<message>', 'Reply content (text or markdown)')
+    .argument('<message>', 'Reply content (text or markdown). Use @[Name or email] inline to @-mention someone.')
     .option('-t, --team-id <id>', 'Team ID (uses TEAMS_DEFAULT_TEAM_ID if not set)')
     .option('-c, --channel-id <id>', 'Channel ID (uses TEAMS_DEFAULT_CHANNEL_ID if not set)')
     .option('-f, --format <format>', 'Reply format: text or markdown', 'markdown')
@@ -195,7 +195,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
     .command('send-chat-message')
     .description('Send a message to an existing Teams chat')
     .argument('<chatId>', 'Chat ID (use list-chats to find it)')
-    .argument('<message>', 'Message content (text or markdown)')
+    .argument('<message>', 'Message content (text or markdown). Use @[Name or email] inline to @-mention someone.')
     .option('-f, --format <format>', 'Message format: text or markdown', 'markdown')
     .action(async (chatId: string, message: string, opts: any) => {
       try {

@@ -44,7 +44,6 @@ Verified against the Graph v1.0 permission tables, these are reachable on the se
 Deliberately **not** implemented, and why:
 
 - **`edit-channel-message`** — needs `ChannelMessage.ReadWrite`, which is not consented. See the Scope Boundary note above: the consented `ChannelMessage.Edit` has no published Graph method. Do not route around it.
-- **@-mentions** — now *possible*: `find-user` resolves a name to the AAD id a mention payload needs. Not built, because a mention is not just a lookup — it needs `<at id="n">` markup in the body paired with a matching `mentions[]` array, on every outbound path (`send-channel-message`, `reply-to-message`, `send-chat-message`, `send-direct-message`). Build it across all four at once or not at all; a half-built version posts literal `<at>` tags into a channel.
 - **Team/channel administration** — out of scope entirely: no creating channels, no managing members, no changing team settings.
 
 **Search permission note.** The Graph reference lists `Chat.Read` for `entityTypes: ["chatMessage"]`, which is *not* consented. Graph does not enforce that list literally — live testing on 2026-08-12 returned 200 with real hits on `Chat.ReadWrite` alone. `search-messages` is built on that observed behaviour rather than the documented table, so if Graph ever tightens enforcement this is the first tool to break, and the fix is a scope request, not a code change.
@@ -167,7 +166,7 @@ Clear cached authentication tokens.
 
 #### send-channel-message
 
-Send text or markdown messages to a Teams channel.
+Send text or markdown messages to a Teams channel. Supports `@[Name or email]` mentions — see the @-mentions section.
 
 ```typescript
 {
@@ -403,6 +402,22 @@ Pattern follows `packages/powerplatform-core/src/auth/token-cache.ts`. It is **n
 
 **403 handling.** `MessageService` wraps 403s with an explicit "run logout then authenticate" hint, because a stale narrow scope set is invisible from the raw Graph error text.
 
+### @-mentions
+
+Callers write `@[Name or email]` inline in the message. `src/mentions.ts` resolves each marker and returns the paired body + `mentions[]`.
+
+**Both halves or neither.** Graph needs an `<at id="N">` element in the body AND a `mentions[]` entry with the same `id` carrying the resolved AAD user id. An `<at>` with no matching entry renders as a literal tag in the Teams client; an entry with no `<at>` notifies nobody. `buildOutboundMessage()` is the only thing that builds either, so they cannot drift.
+
+**All four outbound paths go through it** — `send-channel-message`, `reply-to-message`, `send-chat-message`, `send-direct-message`. This is why `TeamsService.sendChannelMessage()` now takes raw content plus `format` instead of pre-converted HTML: the MCP tool and the CLI were each calling `markdownToHtml` themselves, so wiring mentions in one and not the other was the likely bug. `src/services/__tests__/outbound-mentions.test.ts` enumerates the four paths in a `describe.each` table for exactly that reason — **if a fifth send path is added, add it there**, because a per-service test cannot catch "works everywhere except reply-to-message".
+
+**Resolution is the same code as `send-direct-message`** — `resolveDirectoryUser()`, module-level in `people-service.ts` rather than a method, because `PeopleService` depends on `TeamsService` and `TeamsService` owns one of the four send paths; a method would be a cycle. So an ambiguous mention behaves like an ambiguous DM recipient: reported with candidates, **message not sent**. An unresolvable marker names itself in the error (`Could not resolve the mention @[Ghost Person]`).
+
+**Ordering: markers become placeholders, not `<at>` elements, before conversion.** The body goes marker → plain alphanumeric placeholder → markdown/escape → sanitise → `<at>`. Injecting `<at>` earlier would mean either widening the DOMPurify tag allowlist or watching the sanitizer strip the markup that was just added. The consequence is that the `<at>` fragment is the one thing NOT sanitised, so the display name is HTML-escaped explicitly — a directory display name can contain anything.
+
+Other behaviour worth knowing: the same person mentioned twice resolves once and reuses one id (two entries render as a duplicate mention); a `format: "text"` message carrying a mention is promoted to HTML with its text escaped, since a mention cannot render from plain text, while still not interpreting markdown; and a message with no markers makes **no directory call at all**, so the common path still works on a token without `User.ReadBasic.All`.
+
+Square brackets are required. A bare `@Jane` is sent as plain text — there is no way to know where the name ends, and guessing would either mention the wrong person or swallow the next word.
+
 ### Message Content Conversion
 
 `src/message-content.ts` is the single place message content is converted, in both directions:
@@ -416,7 +431,7 @@ Pattern follows `packages/powerplatform-core/src/auth/token-cache.ts`. It is **n
   `<emoji>` elements carry the character in `alt` and have no text content, so without an explicit branch every emoji silently vanishes from a message body.
 - `truncateText()` — caps each rendered body so one wide read cannot exhaust a context window.
 
-This function was previously duplicated as a private `markdownToHtml` in both `tools/send-message.ts` and `cli/commands/message-commands.ts`; both now import it.
+This function was previously duplicated as a private `markdownToHtml` in both `tools/send-message.ts` and `cli/commands/message-commands.ts`. Neither calls it now: both pass raw content and a `format` to the service, and `buildOutboundMessage()` in `src/mentions.ts` is the single entry point that converts, sanitises and resolves mentions. Call that rather than `markdownToHtml` directly on any new send path — it is what keeps the body and the `mentions[]` array in step.
 
 ### Read Tool Design
 
@@ -457,7 +472,8 @@ mcp-teams-cli get-message-replies <messageId>
 
 # Channel writes
 mcp-teams-cli send-message "Hello from CLI!"
-mcp-teams-cli reply-to-message <messageId> "Thanks, looking now"
+mcp-teams-cli send-message "@[jdoe@example.com] can you review this?"
+mcp-teams-cli reply-to-message <messageId> "Thanks @[Jane Doe], looking now"
 
 # Chats
 mcp-teams-cli list-chats --members

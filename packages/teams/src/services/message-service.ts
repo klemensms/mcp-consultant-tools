@@ -18,7 +18,8 @@
  */
 
 import type { TeamsService } from "./teams-service.js";
-import { htmlToText, markdownToHtml, sanitizeHtml } from "../message-content.js";
+import { htmlToText } from "../message-content.js";
+import { buildOutboundMessage } from "../mentions.js";
 import type {
   ChannelDeltaResult,
   ChatInfo,
@@ -199,9 +200,11 @@ export class MessageService {
     const channelId = this.teams.getChannelId(options.channelId);
 
     try {
+      const outbound = await buildOutboundMessage(client, content, options.format);
+
       const result = await client
         .api(`/teams/${teamId}/channels/${channelId}/messages/${messageId}/replies`)
-        .post({ body: buildMessageBody(content, options.format) });
+        .post({ body: outbound.body, ...(outbound.mentions ? { mentions: outbound.mentions } : {}) });
 
       return { messageId: result.id, webUrl: result.webUrl };
     } catch (error) {
@@ -297,9 +300,11 @@ export class MessageService {
     const client = await this.teams.getGraphClient();
 
     try {
+      const outbound = await buildOutboundMessage(client, content, options.format);
+
       const result = await client
         .api(`/chats/${chatId}/messages`)
-        .post({ body: buildMessageBody(content, options.format) });
+        .post({ body: outbound.body, ...(outbound.mentions ? { mentions: outbound.mentions } : {}) });
 
       return { messageId: result.id, webUrl: result.webUrl };
     } catch (error) {
@@ -400,20 +405,6 @@ function toGraphDate(value: string): string {
     throw new Error(`Invalid date "${value}". Use an ISO-8601 timestamp, e.g. 2026-08-01T00:00:00Z`);
   }
   return parsed.toISOString();
-}
-
-/**
- * Build a chatMessage body, routing markdown through the shared sanitizer.
- * Model-generated HTML is never handed to Graph unsanitized.
- */
-export function buildMessageBody(content: string, format?: "text" | "markdown") {
-  if (format === "text") {
-    return { contentType: "text", content };
-  }
-  if (format === "markdown" || format === undefined) {
-    return { contentType: "html", content: markdownToHtml(content) };
-  }
-  return { contentType: "html", content: sanitizeHtml(content) };
 }
 
 /** Map a Graph chatMessage onto the reader-facing shape. */

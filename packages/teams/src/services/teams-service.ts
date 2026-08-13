@@ -19,6 +19,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { TokenCache } from "../auth/token-cache.js";
+import { buildOutboundMessage } from "../mentions.js";
 import type {
   TeamsConfig,
   AdaptiveCard,
@@ -717,14 +718,19 @@ export class TeamsService {
   }
 
   /**
-   * Send a text or HTML message to a channel
+   * Send a message to a channel.
+   *
+   * Takes raw content plus a format rather than pre-converted HTML: conversion,
+   * sanitisation and @-mention resolution all happen in buildOutboundMessage, so
+   * the MCP tool and the CLI cannot drift apart on any of the three. Both used to
+   * call markdownToHtml themselves.
    */
   async sendChannelMessage(
     content: string,
     options: {
       teamId?: string;
       channelId?: string;
-      contentType?: "text" | "html";
+      format?: "text" | "markdown";
       importance?: MessageImportance;
     } = {}
   ): Promise<SendMessageResult> {
@@ -732,12 +738,13 @@ export class TeamsService {
     const effectiveTeamId = this.getTeamId(options.teamId);
     const effectiveChannelId = this.getChannelId(options.channelId);
 
-    const messagePayload: any = {
-      body: {
-        content,
-        contentType: options.contentType || "html",
-      },
-    };
+    const outbound = await buildOutboundMessage(client, content, options.format);
+
+    const messagePayload: any = { body: outbound.body };
+
+    if (outbound.mentions) {
+      messagePayload.mentions = outbound.mentions;
+    }
 
     if (options.importance && options.importance !== "normal") {
       messagePayload.importance = options.importance;

@@ -20,6 +20,7 @@ import {
   MESSAGE_DATE_EXAMPLES,
   MESSAGE_FORMAT_EXAMPLES,
   MESSAGE_CONTENT_EXAMPLES,
+  MENTION_SYNTAX_HINT,
 } from "../tool-examples.js";
 import { formatChats, formatMessages } from "./format-messages.js";
 
@@ -62,7 +63,7 @@ export const getChatMessagesSchema = {
 
 export const sendChatMessageSchema = {
   chatId: chatIdParam,
-  message: z.string().describe(descWithExamples("Message content (text or markdown)", MESSAGE_CONTENT_EXAMPLES)),
+  message: z.string().describe(descWithExamples("Message content (text or markdown)." + MENTION_SYNTAX_HINT, MESSAGE_CONTENT_EXAMPLES)),
   format: z
     .enum(["text", "markdown"])
     .optional()

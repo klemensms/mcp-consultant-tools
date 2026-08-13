@@ -19,6 +19,7 @@ import {
   MESSAGE_ID_EXAMPLES,
   MESSAGE_FORMAT_EXAMPLES,
   MESSAGE_CONTENT_EXAMPLES,
+  MENTION_SYNTAX_HINT,
 } from "../tool-examples.js";
 import { formatMessages } from "./format-messages.js";
 
@@ -57,7 +58,7 @@ export const getMessageRepliesSchema = {
 
 export const replyToMessageSchema = {
   messageId: z.string().describe(descWithExamples("ID of the message to reply to. Get it from get-channel-messages.", MESSAGE_ID_EXAMPLES)),
-  message: z.string().describe(descWithExamples("Reply content (text or markdown)", MESSAGE_CONTENT_EXAMPLES)),
+  message: z.string().describe(descWithExamples("Reply content (text or markdown)." + MENTION_SYNTAX_HINT, MESSAGE_CONTENT_EXAMPLES)),
   teamId: z.string().optional().describe("Team ID (optional if TEAMS_DEFAULT_TEAM_ID is set)"),
   channelId: z.string().optional().describe("Channel ID (optional if TEAMS_DEFAULT_CHANNEL_ID is set)"),
   format: z

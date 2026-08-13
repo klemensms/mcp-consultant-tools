@@ -46,7 +46,7 @@ export function registerPeopleCommands(program: Command, ctx: ServiceContext): v
     .command('send-direct-message')
     .description('Send a direct message to a person by name or email (reuses the existing 1:1 chat)')
     .argument('<to>', 'Name, email address or user principal name of the recipient')
-    .argument('<message>', 'Message content (text or markdown)')
+    .argument('<message>', 'Message content (text or markdown). Use @[Name or email] inline to @-mention someone.')
     .option('-f, --format <format>', 'Message format: text or markdown', 'markdown')
     .action(async (to: string, message: string, opts: any) => {
       try {

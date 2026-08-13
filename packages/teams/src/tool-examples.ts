@@ -52,7 +52,20 @@ export const MESSAGE_CONTENT_EXAMPLES = [
   { label: "Simple text", value: "Build succeeded for release/28.0" },
   { label: "Markdown with list", value: "## Release Notes\\n- Fixed auth bug\\n- Added new tools" },
   { label: "Status update", value: "Deployment to production completed successfully." },
+  { label: "With an @-mention", value: "@[jdoe@example.com] can you review this?" },
+  { label: "Mentioning by display name", value: "Thanks @[Jane Doe], merged." },
 ];
+
+/**
+ * Appended to every outbound message parameter, so the mention syntax is stated
+ * identically on all four send paths.
+ */
+export const MENTION_SYNTAX_HINT =
+  " To @-mention someone, write @[Name or email] inline, e.g. '@[Jane Doe] please review' or " +
+  "'@[jdoe@example.com] please review'. Each marker is resolved against the directory and sent " +
+  "as a real Teams mention that notifies them. An email address is unambiguous; a name that " +
+  "matches several people is reported back with the candidates rather than guessed at, and the " +
+  "message is not sent. Square brackets are required - a bare '@Jane' is sent as plain text.";
 
 // ========================================
 // Message Read Examples
