@@ -220,4 +220,39 @@ describe('buildOutboundMessage with mentions', () => {
       /matches 2 users/
     );
   });
+
+  // Mentions run on the same resolver as send-direct-message, so they carry the
+  // same exposure: @[Sam] in a channel post notifies a guest and hands them the
+  // thread. The guard has to hold on this path too, not only on DMs.
+  it('refuses to mention a guest named by name', async () => {
+    const { client } = createClient({
+      'sam': [
+        {
+          id: 'id-guest',
+          displayName: 'Sam Vendor',
+          mail: 'svendor@contoso.com',
+          userPrincipalName: 'svendor_contoso.com#EXT#@yourtenant.onmicrosoft.com',
+        },
+      ],
+    });
+
+    await expect(buildOutboundMessage(client, '@[sam] hi', 'markdown')).rejects.toThrow(/guest/);
+  });
+
+  it('mentions that same guest when named by their exact address', async () => {
+    const { client } = createClient({
+      'svendor@contoso.com': [
+        {
+          id: 'id-guest',
+          displayName: 'Sam Vendor',
+          mail: 'svendor@contoso.com',
+          userPrincipalName: 'svendor_contoso.com#EXT#@yourtenant.onmicrosoft.com',
+        },
+      ],
+    });
+
+    const out = await buildOutboundMessage(client, '@[svendor@contoso.com] hi', 'markdown');
+
+    expect(out.mentions?.[0].mentioned.user.id).toBe('id-guest');
+  });
 });

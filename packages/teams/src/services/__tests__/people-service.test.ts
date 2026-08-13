@@ -85,6 +85,23 @@ function user(id: string, displayName: string, mail: string) {
   return { id, displayName, mail, userPrincipalName: mail, jobTitle: 'Consultant' };
 }
 
+/**
+ * A guest, as Entra stores one: their real address in `mail`, and a UPN carrying
+ * the #EXT# marker. A tenant directory is full of these - suppliers, client
+ * contacts, personal addresses invited to a channel - and `$search` returns them
+ * beside colleagues with nothing to tell them apart at a glance.
+ */
+function guest(id: string, displayName: string, mail: string) {
+  const [local, domain] = mail.split('@');
+  return {
+    id,
+    displayName,
+    mail,
+    userPrincipalName: `${local}_${domain}#EXT#@yourtenant.onmicrosoft.com`,
+    jobTitle: null,
+  };
+}
+
 /** Real chat payload shape from the Graph "List chats" reference, $expand=members. */
 function oneOnOneChat(id: string, memberUserIds: string[]) {
   return {
@@ -211,6 +228,68 @@ describe('PeopleService.resolveUser', () => {
   });
 });
 
+/**
+ * The ambiguity rule does not cover this on its own. A first name matching exactly
+ * one supplier and no colleague is unambiguous, so it resolved cleanly and a message
+ * left the organisation with nothing said about it - the same unrecoverable mistake
+ * the ambiguity rule exists to prevent, in the case a caller least expects.
+ */
+describe('PeopleService.resolveUser reaching outside the organisation', () => {
+  const GUEST = guest('id-guest', 'Sam Vendor', 'svendor@contoso.com');
+
+  it('refuses a guest named by name, even when they are the only match', async () => {
+    const { service } = createService(() => ({ value: [GUEST] }));
+
+    await expect(service.resolveUser('Sam')).rejects.toThrow(/guest in the directory/);
+  });
+
+  it('names the address to re-run with, so the refusal is actionable', async () => {
+    const { service } = createService(() => ({ value: [GUEST] }));
+
+    await expect(service.resolveUser('Sam')).rejects.toThrow(/svendor@contoso.com/);
+  });
+
+  it('resolves that same guest from their exact email address', async () => {
+    const { service } = createService(() => ({ value: [GUEST] }));
+
+    const resolved = await service.resolveUser('svendor@contoso.com');
+
+    expect(resolved.id).toBe('id-guest');
+  });
+
+  it('resolves a guest from their #EXT# UPN too, which is also an address', async () => {
+    const { service } = createService(() => ({ value: [GUEST] }));
+
+    const resolved = await service.resolveUser('svendor_contoso.com#EXT#@yourtenant.onmicrosoft.com');
+
+    expect(resolved.id).toBe('id-guest');
+  });
+
+  it('does not accept a guest\'s full display name as consent - a name is not an address', async () => {
+    const { service } = createService(() => ({
+      value: [GUEST, user('id-2', 'Sam Vendorson', 'svendorson@example.com')],
+    }));
+
+    await expect(service.resolveUser('Sam Vendor')).rejects.toThrow(/guest in the directory/);
+  });
+
+  it('leaves colleagues alone - a bare first name still resolves one', async () => {
+    const { service } = createService(() => ({
+      value: [user(THEIR_USER_ID, 'Peter Parker', 'pparker@example.com')],
+    }));
+
+    expect((await service.resolveUser('Peter')).id).toBe(THEIR_USER_ID);
+  });
+
+  it('says which candidates are guests when reporting an ambiguous name', async () => {
+    const { service } = createService(() => ({
+      value: [user('id-1', 'Sam Colleague', 'scolleague@example.com'), GUEST],
+    }));
+
+    await expect(service.resolveUser('Sam')).rejects.toThrow(/Sam Vendor.*\(guest/s);
+  });
+});
+
 describe('PeopleService.findOneOnOneChat', () => {
   it('filters to one-on-one chats and expands members - the ids are only in the expansion', async () => {
     const { service, requests } = createService(() => ({ value: [] }));
@@ -323,6 +402,16 @@ describe('PeopleService.sendDirectMessage', () => {
 
     const post = requests.find((r) => r.path === `/chats/${ONE_ON_ONE_CHAT_ID}/messages`);
     expect(post!.body.body).toEqual({ contentType: 'text', content: '**bold**' });
+  });
+
+  it('does not send anything when a bare name resolves to a guest', async () => {
+    const { service, requests } = createService(() => ({
+      value: [guest('id-guest', 'Sam Vendor', 'svendor@contoso.com')],
+    }));
+
+    await expect(service.sendDirectMessage('Sam', 'Hello')).rejects.toThrow(/guest/);
+
+    expect(requests.every((r) => r.method !== 'post')).toBe(true);
   });
 
   it('does not send anything when the recipient is ambiguous', async () => {

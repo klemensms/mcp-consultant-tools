@@ -37,6 +37,31 @@ const CHAT_LOOKUP_MAX_PAGES = 5;
 /** Fields worth returning from a directory hit. */
 const USER_SELECT = "id,displayName,userPrincipalName,mail,jobTitle";
 
+/**
+ * The marker Entra puts in a guest's user principal name:
+ * `jane_contoso.com#EXT#@yourtenant.onmicrosoft.com`.
+ *
+ * A tenant directory holds far more than colleagues - suppliers, client contacts
+ * and personal addresses invited to a channel all sit in `/users` and come back
+ * from `$search` alongside staff. `userType` would say so outright, but reading it
+ * needs `User.Read.All`, which is not consented and is not worth requesting for a
+ * label; the guest UPN carries the same fact on the scope already held.
+ *
+ * ceiling: keys on the B2B guest marker, so someone genuinely external who was
+ * given a full member account reads as a colleague. `userType` if that ever matters.
+ */
+const GUEST_UPN_MARKER = "#EXT#";
+
+/** True when this directory entry is a guest rather than a member of the tenant. */
+export function isExternalUser(user: UserInfo): boolean {
+  return (user.userPrincipalName ?? "").toUpperCase().includes(GUEST_UPN_MARKER);
+}
+
+/** The best address to show a reader for a directory entry. */
+function addressOf(user: UserInfo): string {
+  return user.mail ?? user.userPrincipalName ?? user.id;
+}
+
 export class PeopleService {
   constructor(private teams: TeamsService) {}
 
@@ -221,6 +246,12 @@ export async function searchDirectoryUsers(
  * An ambiguous name is never resolved by picking the first hit - messaging or
  * mentioning the wrong colleague is not a recoverable mistake. An exact match on
  * email, UPN or full display name wins over partial hits.
+ *
+ * A guest is only ever resolved from their exact address, never from a name. The
+ * ambiguity rule alone does not cover this: a first name that happens to match one
+ * supplier and no colleague is unambiguous, and would otherwise message a stranger
+ * at another company with nothing said about it. Same unrecoverable mistake, and it
+ * is the case a caller is least likely to be expecting.
  */
 export async function resolveDirectoryUser(client: any, nameOrEmail: string): Promise<UserInfo> {
   const matches = await searchDirectoryUsers(client, nameOrEmail, MAX_USER_TOP);
@@ -232,30 +263,55 @@ export async function resolveDirectoryUser(client: any, nameOrEmail: string): Pr
     );
   }
 
+  const needle = nameOrEmail.trim().toLowerCase();
+  // Addressed, NOT merely matched: a full display name is enough to pick one person
+  // out of several, but it is not the deliberate act that reaching outside the
+  // organisation should take.
+  const addressed = (user: UserInfo) =>
+    user.mail?.toLowerCase() === needle || user.userPrincipalName?.toLowerCase() === needle;
+
   if (matches.length === 1) {
-    return matches[0];
+    return guardExternal(matches[0], nameOrEmail, addressed(matches[0]));
   }
 
-  const needle = nameOrEmail.trim().toLowerCase();
   const exact = matches.filter(
-    (user) =>
-      user.mail?.toLowerCase() === needle ||
-      user.userPrincipalName?.toLowerCase() === needle ||
-      user.displayName?.toLowerCase() === needle
+    (user) => addressed(user) || user.displayName?.toLowerCase() === needle
   );
 
   if (exact.length === 1) {
-    return exact[0];
+    return guardExternal(exact[0], nameOrEmail, addressed(exact[0]));
   }
 
-  const candidates = matches
-    .slice(0, 10)
-    .map((user) => `  - ${user.displayName} <${user.mail ?? user.userPrincipalName ?? user.id}>`)
-    .join("\n");
+  const candidates = matches.slice(0, 10).map(describeCandidate).join("\n");
 
   throw new Error(
     `"${nameOrEmail}" matches ${matches.length} users. Re-run with the exact email ` +
       `address to say which one you mean:\n${candidates}`
+  );
+}
+
+/** One line per candidate, saying plainly which of them are not colleagues. */
+function describeCandidate(user: UserInfo): string {
+  const guest = isExternalUser(user) ? " (guest - outside the organisation)" : "";
+  return `  - ${user.displayName} <${addressOf(user)}>${guest}`;
+}
+
+/**
+ * Refuse a guest resolved from anything other than their exact address.
+ *
+ * Deliberately an error rather than a warning: the caller here is usually an agent,
+ * and a warning it prints after the message has gone is not a guard.
+ */
+function guardExternal(user: UserInfo, typed: string, byAddress: boolean): UserInfo {
+  if (byAddress || !isExternalUser(user)) {
+    return user;
+  }
+
+  const address = addressOf(user);
+  throw new Error(
+    `"${typed}" resolves to ${user.displayName} <${address}>, a guest in the directory ` +
+      `rather than a colleague - messaging them sends outside the organisation. ` +
+      `Re-run with "${address}" to confirm that is who you mean.`
   );
 }
 

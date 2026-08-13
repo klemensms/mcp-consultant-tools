@@ -609,6 +609,102 @@ Same body and semantics as the channel variant, including the name → emoji map
 
 </tool-group>
 
+<tool-group name="people">
+
+### People Tools
+
+`PeopleService` (`src/services/people-service.ts`) shares `TeamsService`'s authenticated Graph client. The resolver is module-level rather than a method, because `src/mentions.ts` needs the same lookup and cannot reach the class: `PeopleService` depends on `TeamsService`, which owns one of the four outbound paths that can carry a mention.
+
+**A tenant directory is not a staff list.** `$search` on `/users` returns guests — suppliers, client contacts, personal addresses invited to a channel — beside colleagues, and an email domain is easy to skim past. Both tools distinguish them; `resolveDirectoryUser()` refuses to act on one named by anything other than their exact address. See the resolution contract below.
+
+<tool name="find-user">
+
+#### find-user
+
+`GET /users?$search=...` — delegated `User.ReadBasic.All`.
+
+**Parameters:** `query` (required), `top?` (1–25, default 10)
+
+Searches `displayName`, `mail` and `userPrincipalName` in one call, and returns each match's name, email, job title, guest status and **AAD user id** — the id an @-mention payload needs.
+
+**`$search` on `/users` is an advanced query.** Graph rejects it without **both** the `ConsistencyLevel: eventual` header and `$count=true`, and the resulting error names neither. Both are sent unconditionally.
+
+**The term is interpolated into quoted `"field:term"` clauses**, so `"` and `\` are stripped before it goes on the wire. A stray quote splits one clause into several and Graph answers with a parse error rather than a result.
+
+**Guest detection reads the UPN, not `userType`.** A guest's user principal name carries the Entra marker `#EXT#` (`jane_contoso.com#EXT#@yourtenant.onmicrosoft.com`). `userType` states it outright but requires `User.Read.All`, which is not consented and is not worth a scope request for a label — live testing on 2026-08-13 confirmed it comes back `null` for every user on the current scope set. *Ceiling: someone genuinely external holding a full member account reads as a colleague.*
+
+</tool>
+
+<tool name="send-direct-message">
+
+#### send-direct-message
+
+Three Graph calls behind one tool: `GET /users?$search=` (`User.ReadBasic.All`) → `GET /me/chats?$filter=chatType eq 'oneOnOne'&$expand=members` (`Chat.ReadBasic`) → `POST /chats` only if needed (`Chat.Create`) → `POST /chats/{id}/messages` (`ChatMessage.Send`).
+
+**Parameters:** `to` (required — name or email), `message` (required), `format?` (default `markdown`)
+
+The three steps are deliberately not exposed separately: splitting them puts the burden of not creating duplicate threads on the caller.
+
+**Resolution contract** — `resolveDirectoryUser()`, shared with @-mentions:
+
+| Input resolves to | Behaviour |
+|-------------------|-----------|
+| No match | Error naming the query, suggesting a full name, email or UPN |
+| One colleague | Resolved |
+| Several, one exact on `mail`, `userPrincipalName` or full `displayName` | The exact match wins |
+| Several, no single exact match | Error listing up to 10 candidates, each marked when it is a guest. **Nothing is sent.** |
+| One guest, named by anything but their address | **Error. Nothing is sent.** Re-run with the exact `mail` or `#EXT#` UPN. |
+| One guest, named by their exact address | Resolved |
+
+The guest rule is separate from the ambiguity rule and does not follow from it: a first name matching exactly one supplier and no colleague *is* unambiguous, so before `beta.9` it resolved cleanly and sent a message to a stranger at another company with nothing said about it. It is an error rather than a warning because the caller is usually an agent, and a warning printed after the message has gone is not a guard.
+
+**Two guards against duplicate chats.** The lookup runs first so the result can honestly report `chatExisted`. The backstop is Graph: only one one-on-one chat can exist between two people, and `POST /chats` returns the existing one rather than creating a second. A missed lookup therefore costs an inaccurate `chatExisted` label, never a duplicate thread — which is why the walk is bounded at `CHAT_LOOKUP_MAX_PAGES` (5) × `CHAT_PAGE_SIZE` (50) = 250 chats.
+
+</tool>
+
+</tool-group>
+
+<tool-group name="search-and-delta">
+
+### Search and Delta Tools
+
+<tool name="search-messages">
+
+#### search-messages
+
+`POST /search/query`, `entityTypes: ["chatMessage"]`, header `Prefer: include-unknown-enum-members`.
+
+**Parameters:** `query` (required), `top?` (1–50, default 20), `from?` (zero-based offset)
+
+Spans channel messages **and** chat messages in one call. Four shape traps, all pinned by tests in `src/services/__tests__/search-service.test.ts`:
+
+1. **`chatMessage` is not in the v1.0 `entityType` enum.** Without the `Prefer` header Graph rejects the request outright rather than treating the value as a forward-compatible member.
+2. **Hits deliver the sender as `from.emailAddress.name`/`.address`**, not the `from.user.displayName` shape the message endpoints use. Passing a hit through `toMessageInfo()` renders every result as an unattributed "Unknown", which reads like a permission failure rather than a mapping bug. `SearchService` has its own mapping path.
+3. **A hit's deep link is `webLink`, not `webUrl`.** Every other message endpoint in Graph says `webUrl`; a search hit does not. Reading the wrong property is silent — it is simply absent — so through `beta.8` every hit came back linkless with nothing to say why, and the renderer did not print the field at all. Both halves fixed in `beta.9`; `webUrl` is retained as a fallback.
+4. **`channelIdentity.teamId` is not always the group id the read endpoints accept.** A private-channel hit carries that channel's own backing group, and `GET /teams/{that}` answers `Group ID '...' is not found` — an error that reads like a permission or deletion problem rather than a wrong argument. `confirmChannelTeams()` checks each channel hit's team against `/me/joinedTeams` (one call, settles the ordinary case) and only walks channels for a hit that fails it, stopping as soon as every unplaced channel is found. A hit that still cannot be placed **loses the field** rather than keeping a value no read will accept. *Ceiling: `MAX_TEAM_SCAN` (20) teams walked.*
+
+**Permission note.** The Graph reference lists `Chat.Read` for this entity type, which is *not* consented. Graph does not enforce that list literally — live testing on 2026-08-12 returned 200 with real hits on `Chat.ReadWrite` alone. This tool is built on the observed behaviour rather than the documented table, so if Graph ever tightens enforcement it is the first tool to break, and the fix is a scope request, not a code change.
+
+`total` is Graph's estimate over the whole matching set, so output reads "20 of about 340" rather than implying the page is the answer. `<c0>` hit-highlight markers are stripped from summaries. The tool parameter is `top` for consistency with every other read in the package; the wire field stays `size`, which is what `/search/query` accepts.
+
+</tool>
+
+<tool name="get-channel-messages-delta">
+
+#### get-channel-messages-delta
+
+`GET /teams/{teamId}/channels/{channelId}/messages/delta` — delegated `ChannelMessage.Read.All`.
+
+**Parameters:** `teamId?`, `channelId?`, `deltaLink?`, `maxPages?` (default 10)
+
+**A cold start is expensive, and that is a Graph constraint rather than a choice.** `$deltatoken=latest` is not honoured on this endpoint, so the only route to a usable `deltaLink` is to page to the end of the channel's history once. `maxPages` bounds that walk, and a truncated walk returns **no deltaLink at all** — one taken from a partial walk would silently skip every message beyond the cut, which is worse than having none. Truncation is stated in the output rather than hidden.
+
+`/beta/` also returns 200 and additionally exposes `hasReplies`. The v1.0 response is undocumented but real, so it is read defensively. Verified live 2026-08-13: a cold start returned a `deltaLink`, and replaying it after one new post returned exactly that message and nothing else.
+
+</tool>
+
+</tool-group>
+
 <unsupported-operations>
 
 ## Not Implemented
@@ -617,18 +713,9 @@ Same body and semantics as the channel variant, including the name → emoji map
 
 | Operation | Reason |
 |-----------|--------|
-| @-mentions | Require the target's AAD user id in the payload. Only ids already present in read data are available (`MessageInfo.authorId`, `ChatInfo` members); this registration cannot resolve a name to an id. No directory-lookup tool should be added. |
+| `edit-channel-message` | Editing a channel message's content is `PATCH /teams/{t}/channels/{c}/messages/{m}`, whose delegated permission is `ChannelMessage.ReadWrite` or `Group.ReadWrite.All` — neither consented. The consented `ChannelMessage.Edit` has no published Graph method, so requesting it would widen the token without buying a capability. |
+| Message deletion | No delete or soft-delete tool on any surface. Nothing this package writes can be removed by it. |
 | Team/channel administration | Out of scope by design: no creating channels, no managing members, no changing team settings. |
-| Chat creation | Graph's send endpoint cannot create a chat, and participant selection would need directory search. |
-
-### Viable, not yet built
-
-Both were previously documented as blocked on permissions or on a missing endpoint. **Live testing on 2026-08-12 disproved both**, on the current eight consented scopes with no ninth scope. They are candidates for a future release; nothing about the scope set stands in the way.
-
-| Operation | Live finding |
-|-----------|--------------|
-| `search-messages` (`POST /v1.0/search/query`, `entityTypes: ["chatMessage"]`, header `Prefer: include-unknown-enum-members`) | Returns **200 with real hits on `Chat.ReadWrite`, without `Chat.Read`** — Graph does not enforce its documented permission list as literally as assumed. Covers channel posts as well as chats: hits from a channel carry `channelIdentity.teamId` and `channelIdentity.channelId`, so one tool would serve both surfaces. Each hit carries the message id, `chatId`, `webLink`, sender, `createdDateTime` and a highlighted summary. **Renderer caveat:** search hits deliver the sender as `from.emailAddress.name`/`.address`, not the `from.user.displayName` shape `toMessageInfo()` expects — they need their own mapping path. |
-| Channel messages `delta` (`GET /v1.0/teams/{teamId}/channels/{channelId}/messages/delta`) | Returns **200 with delegated permissions**; `/beta/` also returns 200 and additionally exposes `hasReplies` per message. Pages via `@odata.nextLink`. **`$deltatoken=latest` is not honoured**, so a client must page to the end of history once before it receives its first `deltaLink`. The v1.0 response is undocumented but real — treat the shape as unstable and code defensively. |
 
 </unsupported-operations>
 
@@ -863,6 +950,10 @@ packages/teams/src/
 | (root) | `mark-chat-read <chatId>` | `mark-chat-read` |
 | (root) | `react-to-channel-message <messageId>` | `react-to-channel-message` |
 | (root) | `react-to-chat-message <chatId> <messageId>` | `react-to-chat-message` |
+| (root) | `find-user <query>` | `find-user` |
+| (root) | `send-direct-message <to> <message>` | `send-direct-message` |
+| (root) | `search-messages <query>` | `search-messages` |
+| (root) | `get-channel-messages-delta` | `get-channel-messages-delta` |
 
 `auth login` blocks until the device-code sign-in resolves and exits non-zero if it does not complete — unlike the MCP `authenticate` tool, which returns as soon as the code is issued and lets a later `auth-status` pick up the outcome. A CLI that returned early would exit 0 whether or not sign-in ever happened.
 

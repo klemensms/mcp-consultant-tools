@@ -27,7 +27,7 @@ export const searchMessagesSchema = {
         SEARCH_QUERY_EXAMPLES
       )
     ),
-  size: z
+  top: z
     .number()
     .int()
     .min(1)
@@ -81,10 +81,10 @@ export function registerSearchMessagesTool(server: any, ctx: ServiceContext): vo
     "Search Microsoft Teams messages by keyword across both channels and chats in one call. Use this to find where something was discussed without knowing which team, channel or chat to look in. Each hit shows the author, timestamp, matching text, message ID, and the team/channel or chat IDs needed to read the surrounding thread.",
     searchMessagesSchema,
     { readOnlyHint: true, openWorldHint: true },
-    async (args: { query: string; size?: number; from?: number }) => {
+    async (args: { query: string; top?: number; from?: number }) => {
       try {
         const result: MessageSearchResult = await ctx.search.searchMessages(args.query, {
-          size: args.size,
+          top: args.top,
           from: args.from,
         });
         return {

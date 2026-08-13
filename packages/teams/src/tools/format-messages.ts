@@ -10,6 +10,7 @@
  */
 
 import { truncateText } from "../message-content.js";
+import { isExternalUser } from "../services/people-service.js";
 import type {
   ChannelDeltaResult,
   ChatInfo,
@@ -109,18 +110,33 @@ export function formatUsers(users: UserInfo[]): string {
   const lines: string[] = [
     "## Users",
     "",
-    "| Name | Email | Job title | ID |",
-    "|------|-------|-----------|----|",
+    "| Name | Email | Job title | In org | ID |",
+    "|------|-------|-----------|--------|----|",
   ];
+
+  let guests = 0;
 
   for (const user of users) {
     const email = user.mail ?? user.userPrincipalName ?? "-";
+    // A directory search reaches guests as readily as colleagues, and an email
+    // domain is easy to skim past. Say which is which in its own column.
+    const external = isExternalUser(user);
+    if (external) {
+      guests++;
+    }
     lines.push(
-      `| ${escapeCell(user.displayName)} | ${escapeCell(email)} | ${escapeCell(user.jobTitle ?? "-")} | \`${user.id}\` |`
+      `| ${escapeCell(user.displayName)} | ${escapeCell(email)} | ${escapeCell(user.jobTitle ?? "-")} | ${external ? "guest" : "yes"} | \`${user.id}\` |`
     );
   }
 
   lines.push("", `**Total:** ${users.length} user(s)`);
+  if (guests > 0) {
+    lines.push(
+      "",
+      `${guests === 1 ? "One of these is a guest" : `${guests} of these are guests`}, outside the organisation. ` +
+        `Guests can only be messaged or mentioned by their exact email address, never by name.`
+    );
+  }
 
   return lines.join("\n");
 }
@@ -136,6 +152,11 @@ export function formatSearchResults(result: MessageSearchResult, query: string):
     const timestamp = hit.createdDateTime ? formatTimestamp(hit.createdDateTime) : "unknown time";
     lines.push(`**${hit.authorName}** · ${timestamp} · \`${hit.id}\`${describeHitLocation(hit)}`);
     lines.push(hit.text || hit.summary || "_(no text content)_");
+    // The whole point of a hit is getting back to the message. The ids do that for a
+    // follow-up read; the deep link does it for a person.
+    if (hit.webUrl) {
+      lines.push(`View: ${hit.webUrl}`);
+    }
     lines.push("");
   }
 
@@ -148,7 +169,7 @@ export function formatSearchResults(result: MessageSearchResult, query: string):
 
   lines.push(`**Showing:** ${shown}`);
   if (result.moreResultsAvailable) {
-    lines.push("More results are available - raise `size`, or page with `from`.");
+    lines.push("More results are available - raise `top`, or page with `from`.");
   }
 
   return lines.join("\n");
@@ -157,10 +178,16 @@ export function formatSearchResults(result: MessageSearchResult, query: string):
 /**
  * Say where a hit came from, and carry the ids a follow-up read needs.
  * A channel hit needs teamId + channelId; a chat hit needs chatId.
+ *
+ * A channel hit can arrive with no usable team id - see confirmChannelTeams in
+ * search-service. Say so rather than omitting the location, so the reader knows
+ * the message is in a channel and why they cannot read it straight from here.
  */
 function describeHitLocation(hit: MessageSearchHit): string {
-  if (hit.teamId && hit.channelId) {
-    return `  _(channel — team \`${hit.teamId}\`, channel \`${hit.channelId}\`)_`;
+  if (hit.channelId) {
+    return hit.teamId
+      ? `  _(channel — team \`${hit.teamId}\`, channel \`${hit.channelId}\`)_`
+      : `  _(channel \`${hit.channelId}\` — team could not be identified, open the link to read it)_`;
   }
   if (hit.chatId) {
     return `  _(chat \`${hit.chatId}\`)_`;

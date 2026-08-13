@@ -27,12 +27,12 @@ export function registerSearchCommands(program: Command, ctx: ServiceContext): v
     .command('search-messages')
     .description('Search Teams messages by keyword across both channels and chats')
     .argument('<query>', 'Keyword or phrase (KQL: quote a phrase, or scope with from:)')
-    .option('-n, --size <count>', 'Number of hits to return (default 20, max 50)')
+    .option('-n, --top <count>', 'Number of hits to return (default 20, max 50)')
     .option('--from <offset>', 'Zero-based offset into the result set, for paging')
     .action(async (query: string, opts: any) => {
       try {
         const result = await ctx.search.searchMessages(query, {
-          size: parseCount(opts.size, '--size'),
+          top: parseCount(opts.top, '--top'),
           from: parseCount(opts.from, '--from'),
         });
         const total = result.totalMatches && result.totalMatches > result.hits.length

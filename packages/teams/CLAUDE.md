@@ -300,7 +300,9 @@ Posts the signed-in user's own AAD identity (resolved via `User.Read`), which th
 { query: string, top?: number }   // top: 1-25, default 10
 ```
 
-Searches display name, `mail` and `userPrincipalName`. Returns each match's name, email, job title and **AAD user ID** — the id an @-mention payload needs.
+Searches display name, `mail` and `userPrincipalName`. Returns each match's name, email, job title, guest status and **AAD user ID** — the id an @-mention payload needs.
+
+**A tenant directory is not a staff list.** `$search` on `/users` returns guests beside colleagues — suppliers, client contacts, personal addresses invited to a channel — and live testing on 2026-08-13 had a single first name return four outsiders among six hits. The output marks them, because an email domain is easy to skim past. Detection reads the `#EXT#` marker in the UPN, not `userType`: `userType` states it outright but needs `User.Read.All`, which is not consented, and comes back `null` for every user on the current scope set. *Ceiling: someone genuinely external holding a full member account reads as a colleague.*
 
 `$search` on `/users` is an *advanced* query: Graph rejects it without **both** the `ConsistencyLevel: eventual` header and `$count=true`, and the resulting error mentions neither. Both are sent unconditionally. The term is interpolated into quoted `"field:term"` clauses, so quotes and backslashes are stripped before it goes on the wire — a stray quote splits one clause into several and Graph answers with a parse error rather than a result.
 
@@ -314,23 +316,31 @@ Searches display name, `mail` and `userPrincipalName`. Returns each match's name
 
 **Ambiguity is never resolved by guessing.** One match wins; several matches are reported back with the candidates so the caller can re-run with an exact email. An exact match on email, UPN or full display name beats partial hits, so `jdoe@example.com` resolves even when several people share a first name. Messaging the wrong colleague is not recoverable, which is why this is an error and not a heuristic.
 
-**Two guards against duplicate chats, not one.** The lookup (`/me/chats?$filter=chatType eq 'oneOnOne'&$expand=members`, matched on member `userId`) runs first so the result can honestly report `chatExisted` — whether the message landed in your existing thread or opened a new one. The backstop is Graph itself: it documents that only one one-on-one chat can exist between two people and that `POST /chats` **returns the existing chat rather than creating a second one**. So a missed lookup costs an inaccurate `chatExisted` label, never a duplicate thread. The lookup is bounded at 5 pages for that reason.
+**A guest is only ever resolved from their exact address, and the ambiguity rule does not cover this.** A first name matching exactly one supplier and no colleague *is* unambiguous — so through `beta.8` it resolved cleanly and sent a message to a stranger at another company with nothing said about it. Same unrecoverable mistake, no guard, and the case a caller is least likely to expect. `guardExternal()` refuses a guest named by anything other than their `mail` or `#EXT#` UPN, and names the address to re-run with; **a full display name does not count** — it is enough to pick one person out of several, but it is not the deliberate act reaching outside the organisation should take. An error rather than a warning because the caller is usually an agent, and a warning printed after the message has gone is not a guard.
+
+**The guard covers @-mentions too**, since they share `resolveDirectoryUser()` — `@[Sam]` in a channel post notifies a guest and hands them the thread, which is the same exposure as a DM. `src/__tests__/mentions.test.ts` pins it on that path rather than trusting the shared resolver alone.
+
+**Two guards against duplicate chats, not one.** The lookup (`/me/chats?$filter=chatType eq 'oneOnOne'&$expand=members`, matched on member `userId`) runs first so the result can honestly report `chatExisted` — whether the message landed in your existing thread or opened a new one. The backstop is Graph itself: it documents that only one one-on-one chat can exist between two people and that `POST /chats` **returns the existing chat rather than creating a second one**. So a missed lookup costs an inaccurate `chatExisted` label, never a duplicate thread. The lookup is bounded at 5 pages for that reason — `CHAT_LOOKUP_MAX_PAGES` (5) × `CHAT_PAGE_SIZE` (50) = **250 chats**, past which `chatExisted` starts reading `false` for threads that exist.
 
 ### Search and Delta Tools
 
 #### search-messages
 
 ```typescript
-{ query: string, size?: number, from?: number }   // size: 1-50, default 20
+{ query: string, top?: number, from?: number }   // top: 1-50, default 20
 ```
 
 Spans channel messages **and** chat messages in one call — usually the cheapest way to answer "where was X discussed" without knowing which team, channel or chat to look in. Each hit carries the ids a follow-up read needs: `teamId`+`channelId` for a channel hit, `chatId` for a chat hit.
 
-Two shape traps, both pinned by tests:
+The parameter is `top` for consistency with the other five reads in the package; **the wire field stays `size`**, which is what `/search/query` accepts. It was `size` on both surfaces through `beta.8` — the lone outlier of the six, and one a caller reliably guessed wrong.
+
+Four shape traps, all pinned by tests:
 - `chatMessage` is not in the v1.0 `entityType` enum, so the request **must** send `Prefer: include-unknown-enum-members` or Graph rejects it outright.
 - Hits deliver the sender as `from.emailAddress.name`/`.address`, **not** the `from.user.displayName` shape the message endpoints use. Passing a hit through `toMessageInfo()` renders every result as an unattributed "Unknown", which reads like a permission failure rather than a mapping bug. `SearchService` has its own mapping path.
+- **A hit's deep link is `webLink`, not the `webUrl` every other message endpoint returns.** Reading the wrong property is silent — it is simply absent — so through `beta.8` every hit came back linkless, and `formatSearchResults` did not print the field anyway. Both halves are fixed; `webUrl` stays as a fallback. Note the technical doc had recorded `webLink` correctly from the 2026-08-12 research and the code read the other one, so a fixture copied from the Graph reference is not evidence.
+- **`channelIdentity.teamId` is not always the group id the read endpoints accept.** A private-channel hit carries that channel's own backing group; `GET /teams/{that}` answers `Group ID '...' is not found`, which reads like a permission or deletion problem rather than a wrong argument. `confirmChannelTeams()` checks each channel hit against `/me/joinedTeams` — one call, and it settles the ordinary case — and only walks channels for a hit that fails it, stopping as soon as every unplaced channel is found. A hit that cannot be placed **loses the field**: the whole point of returning ids is that a follow-up read can use them. *Ceiling: `MAX_TEAM_SCAN` (20) teams.*
 
-Graph's `total` is an estimate over the whole matching set, so output says "20 of about 340" rather than implying the page is the answer. `<c0>` hit-highlight markers are stripped from summaries.
+Graph's `total` is an estimate over the whole matching set, so output says "20 of about 340" rather than implying the page is the answer. `<c0>` hit-highlight markers are stripped from summaries, and each hit prints its deep link.
 
 #### get-channel-messages-delta
 
@@ -447,6 +457,8 @@ Date ranges behave differently per surface, and this is a Graph constraint rathe
 
 **The same failure has now happened twice — the second time on a request body.** The reaction tools shipped in `35.0.0-beta.3` posting the friendly name as `reactionType`; Graph wants the emoji, so every reaction 400'd while four unit tests asserting `{ reactionType: 'heart' }` stayed green. A stub can only ever prove the code agrees with itself; it cannot prove the server accepts the payload. So: `message-service.test.ts` now also asserts no posted `reactionType` matches `/^[a-z]+$/`, and **where a change touches the shape or value of a Graph request body, get one live confirmation before release or state plainly in the release notes that the payload is unverified.**
 
+**Three times now, and the third was a response shape.** `search-service.test.ts` asserted against a `channelHit()` fixture carrying `webUrl`, copied from the Graph reference; a live hit carries `webLink`, so the mapper read a property that does not exist and every hit came back without its deep link, silently, under green tests. Two lessons beyond the one above. **A fixture copied from documentation is not evidence** — it proves the code matches the docs, and the docs were wrong here while this repo's own `TEAMS_TECHNICAL.md` had recorded `webLink` correctly from live research. And **an optional field that is always absent looks exactly like an optional field that is absent this time**: where a response property is worth mapping at all, assert it is populated from a fixture captured live, not merely that the mapping compiles.
+
 ## Reference
 
 See `docs/plans/teams-mcp-server.md` for full design documentation.
@@ -487,7 +499,7 @@ mcp-teams-cli find-user jdoe@example.com --top 5
 mcp-teams-cli send-direct-message jdoe@example.com "Running five minutes late"
 
 # Search and delta
-mcp-teams-cli search-messages "release notes" --size 10
+mcp-teams-cli search-messages "release notes" --top 10
 mcp-teams-cli search-messages '"budget review"' --from 20
 mcp-teams-cli get-channel-messages-delta --max-pages 20
 mcp-teams-cli get-channel-messages-delta --delta-link "<deltaLink from the previous run>"

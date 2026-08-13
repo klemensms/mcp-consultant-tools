@@ -27,6 +27,10 @@ Read, send and manage Microsoft Teams channel messages and chats via the Microso
 | `mark-chat-read` | Clear a chat's unread state for the signed-in user |
 | `react-to-channel-message` | Add or remove an emoji reaction on a channel message or thread reply |
 | `react-to-chat-message` | Add or remove an emoji reaction on a chat message |
+| `find-user` | Find people in the directory by name, email or UPN (returns the AAD id an @-mention needs) |
+| `send-direct-message` | DM a person by name or email, without needing a chat ID |
+| `search-messages` | Keyword search across channel and chat messages at once |
+| `get-channel-messages-delta` | Read only what changed in a channel since a previous call |
 
 ## Configuration
 
@@ -120,5 +124,9 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 - **Default team/channel:** Set `TEAMS_DEFAULT_TEAM_ID` and `TEAMS_DEFAULT_CHANNEL_ID` to avoid passing IDs on every tool call.
 - **Adaptive Card templates:** `send-adaptive-card` supports three built-in templates (`release-announcement`, `beta-release`, `hotfix`) designed for release workflow announcements.
 - **Reactions** are posted as the signed-in user. `reactionType` accepts the six Graph v1.0 values (`like`, `angry`, `sad`, `laugh`, `heart`, `surprised`); pass `action: "remove"` to clear one you previously set. Channel reactions can target a thread reply via `replyId`. The CLI accepts either `--remove` or `--action remove`.
-- **Not supported by design:** no team or channel administration (no creating channels, managing members, or changing team settings), and no directory search (so @-mentions cannot be resolved by name). Chat creation is also unavailable — `send-chat-message` requires a chat that already exists.
-- **Message search and channel-message delta are not built yet, but both are viable** — live testing confirmed `POST /search/query` (`entityTypes: ["chatMessage"]`, header `Prefer: include-unknown-enum-members`) and `GET /teams/{id}/channels/{id}/messages/delta` both return 200 on the eight consented scopes. They are candidates for a future release, not permanent exclusions.
+- **@-mentions:** write `@[Jane Doe]` or `@[jdoe@example.com]` inline in any message — `send-channel-message`, `reply-to-message`, `send-chat-message` and `send-direct-message` all resolve them. The square brackets are required; a bare `@Jane` is sent as plain text, because there is no way to know where the name ends.
+- **A name that is not a colleague will not be messaged.** Your directory holds guests as well as staff — suppliers, client contacts, personal addresses invited to a channel — and `find-user` returns them, marked as guests. `send-direct-message` and @-mentions refuse to act on a guest identified by name alone, however unambiguous that name is, and tell you the address to re-run with. Naming their exact email address goes through. Without this, a first name matching one outsider and no colleague would quietly send outside the organisation.
+- **An ambiguous name is never guessed at.** Several matches are reported back with the candidates and nothing is sent; an exact email, UPN or full display name beats partial hits.
+- **`search-messages` covers channels and chats in one call**, and each hit carries the ids and a link for reading the surrounding thread. `total` is Graph's estimate over the whole matching set, so "20 of about 340" means you are looking at the first page. Widen with `top` (max 50) or page with `from`.
+- **A cold `get-channel-messages-delta` is expensive.** Graph does not honour "give me a token from here", so the first call must page to the end of the channel's history to earn a `deltaLink`. `maxPages` (default 10) bounds that, and a walk that stops early returns **no** deltaLink rather than one that would silently skip everything past the cut. For a one-off skim, `get-channel-messages` is cheaper.
+- **Not supported by design:** no team or channel administration (no creating channels, managing members, or changing team settings), and no editing or deleting of messages — nothing this server posts can be removed by it.
