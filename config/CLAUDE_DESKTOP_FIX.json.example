@@ -6,7 +6,7 @@
     "args": ["-y", "mcp-consultant-tools"],
     "env": {
       "_COMMENT_POWERPLATFORM": "PowerPlatform Configuration - ADD THESE",
-      "POWERPLATFORM_URL": "https://yourorg.crm11.dynamics.com",
+      "POWERPLATFORM_URL": "https://yourorg.crm.dynamics.com",
       "POWERPLATFORM_CLIENT_ID": "your-client-id-here",
       "POWERPLATFORM_CLIENT_SECRET": "your-client-secret-here",
       "POWERPLATFORM_TENANT_ID": "your-tenant-id-here",
