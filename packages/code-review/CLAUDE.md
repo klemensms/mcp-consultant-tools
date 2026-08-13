@@ -89,6 +89,14 @@ every hop in this chain has found. The fixes, each covered by a test:
   `methodology` note; the C# nullable-`?` and nested-lambda false positives remain as documented
   heuristic ceilings.
 
+**A PAT goes in the clone URL's PASSWORD position, never its username.** `buildAzdoCloneUrl` shipped
+as `https://<pat>@dev.azure.com/...` from the package's first release, which leaves git with a
+username and *no password* — it prompts, then dies with `could not read Password` before ever
+reaching Azure DevOps, valid PAT or not. It is now `https://:<pat>@...`, matching the empty-username
+basic auth the REST path already builds. `buildGheCloneUrl` still carries the original shape
+(`https://<token>@host`); that is the widely-used GitHub idiom and has not been disproven, but it
+has also never been run against a real GHE host — check it before trusting it.
+
 **The clone URL embeds a credential — never let it leak.** `clone-manager.ts` builds
 `https://<token>@host/...`. A failed `git clone` throws an Error echoing the whole command line;
 `redactCloneSecret` strips the credential from that message. The temp dir is removed in a `finally`.
@@ -107,14 +115,23 @@ verified against the vendors' published docs and unit-tested against stubs — b
 `git clone` path has not run against a real repository. Recorded in `<known-limitations>` of the
 technical doc.
 
-Two exceptions, both unauthenticated probes done while adding `entra-id` (2026-08-13):
+Exceptions, from probes and one live tenant run (2026-08-13):
 - `login.microsoftonline.com` token endpoint — reached live; a placeholder tenant returns AADSTS90002
   through `describeTokenError()`. The client-credentials request shape is confirmed.
 - `dev.azure.com` REST — reached live with a rejected credential; confirmed it answers **302 to
   sign-in**, which is what `maxRedirects: 0` exists to catch.
+- **Live tenant run of beta.2** confirmed the `entra-id` path end to end up to the identity check:
+  the token is issued, sent and *accepted*, and Azure DevOps rejects the identity with `TF401444`.
+  Auth-method selection, loud REST failure (exit 1, no empty result set), and bearer-token redaction
+  in the clone command line were all confirmed. It also found the object-id parsing bug and the
+  missing clone-path mapping, both fixed in beta.3.
+- The corrected `https://:<pat>@` clone URL reaches Azure DevOps and gets a genuine
+  `Authentication failed` (credential sent and rejected) rather than a local password prompt.
 
-Still unverified: an *accepted* Azure DevOps token, the `TF401444` body shape (mapped from the
-message quoted in the feature request, not from a captured response), and every clone.
+Still unverified: an *accepted* Azure DevOps identity — no service principal is a member of an
+organisation yet — so no clone has ever succeeded, `cr-review` has never run end to end, and the
+"unreadable repository fails loudly rather than returning an empty result" criterion is untestable
+until there is a readable repository to contrast against.
 
 ## Azure DevOps service-principal auth (`entra-id`)
 
@@ -134,6 +151,20 @@ is not a member of the organisation gets `401 TF401444`. `describeUnprovisionedP
 that to a named error carrying the principal's object id, because a bare 401 reads as "wrong
 secret" and sends the reader to the wrong fix. An org administrator must add the principal under
 Organization settings > Users.
+
+**The TF401444 identity is `tenant\tenant\principal` — take the LAST segment.** All three segments
+are GUIDs on a real response. Reading the first one hands an administrator the *tenant* id labelled
+as the object id, and a Users search for it finds nothing: confident, well-formed and wrong. This
+shipped in beta.2 and was caught only by a live run, because the unit fixture used the literal word
+`tenant` for the first two segments — so "first GUID in the message" accidentally matched. The
+fixture now mirrors the measured shape. **When a fixture stands in for a vendor response, copy the
+real shape, not a readable approximation of it.**
+
+**A clone failure gets no TF401444 body — only `fatal: Authentication failed`.** Git cannot report
+why, so `describeCloneAuthFailure()` attaches the membership explanation under `entra-id` (and a
+scope/expiry hint under `pat`). Without it, anyone whose first command happens to clone gets a raw
+git error with no route to the fix. It returns null for non-auth clone failures, so a genuine
+"repository not found" is never buried under an authentication guess.
 
 **Never build the message from the whole axios error on the token path.** The outbound form body on
 `error.config.data` contains the client secret; `describeTokenError()` reads the response body only.
@@ -156,7 +187,7 @@ Organization settings > Users.
 
 ```bash
 npm run build --workspace=packages/code-review
-npm test --workspace=packages/code-review   # 98 tests, no live API
+npm test --workspace=packages/code-review   # 104 tests, no live API
 ```
 
 ## Reference

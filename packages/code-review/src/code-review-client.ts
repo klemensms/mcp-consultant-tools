@@ -53,6 +53,25 @@ export function normalizeGheApiBase(gheBaseUrl: string): string {
   return gheBaseUrl.endsWith('/api/v3') ? gheBaseUrl : `${gheBaseUrl}/api/v3`;
 }
 
+const GUID = '[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}';
+
+/**
+ * Azure DevOps names the rejected identity as a backslash triple — `tenant\tenant\principal` — so
+ * the principal's object id is the LAST segment, not the first. Taking the first GUID hands an
+ * administrator the tenant id labelled as the object id, and a Users search for it finds nothing:
+ * a confident, well-formed, wrong answer. Measured against a live tenant 2026-08-13.
+ */
+function extractPrincipalObjectId(message: string): string | undefined {
+  const identity = message.match(new RegExp(`(?:[^\\s\\\\]*\\\\)+[^\\s\\\\]*`))?.[0];
+  const lastSegment = identity?.split('\\').filter(Boolean).pop();
+  const fromIdentity = lastSegment?.match(new RegExp(GUID, 'i'))?.[0];
+  if (fromIdentity) return fromIdentity;
+
+  // No backslash form, or it carried no GUID: the object id is the last GUID in the message.
+  const all = message.match(new RegExp(GUID, 'gi'));
+  return all?.[all.length - 1];
+}
+
 /**
  * Azure DevOps answers a *valid* service-principal token with 401/TF401444 when the principal is
  * not a member of the organisation — an identity-provisioning problem, not a bad credential.
@@ -65,13 +84,40 @@ export function describeUnprovisionedPrincipal(organization: string | undefined,
   const message = (body as { message?: unknown } | undefined)?.message;
   if (typeof message !== 'string' || !message.includes('TF401444')) return null;
 
-  const objectId = message.match(/[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}/i)?.[0];
+  const objectId = extractPrincipalObjectId(message);
   return (
     'Azure DevOps rejected the identity, not the credential (TF401444). The token was issued and accepted, but the ' +
     `service principal${objectId ? ` (object id ${objectId})` : ''} is not a member of organization ` +
     `'${organization ?? 'unknown'}'. An Azure DevOps organization administrator must add it under ` +
     'Organization settings > Users and grant it access to the project.'
   );
+}
+
+/**
+ * A clone authenticates separately from REST and gets no `TF401444` body to read — git only ever
+ * reports `fatal: Authentication failed`. Whoever's first command happens to clone would otherwise
+ * be handed a raw git error with nothing pointing at organisation membership, so attach the same
+ * explanation the REST path gives. Returns null for a non-auth clone failure, so a genuine error
+ * (missing repo, bad branch) is never buried under an authentication guess.
+ */
+export function describeCloneAuthFailure(
+  organization: string | undefined,
+  authMethod: 'pat' | 'entra-id' | undefined,
+  message: string,
+): string | null {
+  // git reports a rejected credential as "Authentication failed", and a *missing* one as
+  // "could not read Username/Password ... terminal prompts disabled". Both are auth failures here.
+  if (!/Authentication failed|could not read (Username|Password)|invalid credentials/i.test(message)) return null;
+
+  if (authMethod === 'entra-id') {
+    return (
+      'The Entra token was rejected for this repository. Git cannot report why, but the usual cause is the one the ' +
+      `REST API names explicitly as TF401444: the service principal is not a member of organization ` +
+      `'${organization ?? 'unknown'}'. An Azure DevOps organization administrator must add it under Organization ` +
+      'settings > Users and grant it access to the project. Run cr-list-repos to get the principal object id to quote.'
+    );
+  }
+  return `The Azure DevOps PAT was rejected for this repository. Check that it is current and carries the Code (read) scope for organization '${organization ?? 'unknown'}'.`;
 }
 
 export class CodeReviewClient {
@@ -188,7 +234,12 @@ export class CodeReviewClient {
     } else {
       cloneUrl = this.cloneManager.buildGheCloneUrl(this.config.gheBaseUrl!, project, repo, this.config.gheToken!);
     }
-    return this.cloneManager.clone(cloneUrl, { branch, bearerToken });
+    return this.cloneManager.clone(cloneUrl, { branch, bearerToken }).catch((error: unknown) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      if (this.config.provider !== 'azure-devops') throw err;
+      const hint = describeCloneAuthFailure(this.config.azdoOrganization, this.config.azdoAuthMethod, err.message);
+      throw hint ? new Error(`${err.message}\n\n${hint}`) : err;
+    });
   }
 
   async listOrgPackages(org: string, packageType: string = 'npm'): Promise<PaginatedResult<GhePackage>> {

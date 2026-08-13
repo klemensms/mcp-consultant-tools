@@ -83,7 +83,13 @@ schedule. Absent, the variable defaults to `pat` and every pre-existing configur
 - **Membership prerequisite.** A token issued for a principal that is not a member of the
   organisation is answered `401 TF401444`. This is an identity-provisioning problem, not a bad
   credential, so it is mapped to a named error carrying the principal's object id rather than a
-  generic 401. Resolve it under **Organization settings > Users**.
+  generic 401. Resolve it under **Organization settings > Users**. The identity in that response is
+  a backslash triple (`tenant\tenant\principal`), so the object id is the **last** segment — the
+  first two are the tenant id, which finds nothing in a Users search.
+- **Clone failures carry the same explanation.** A clone authenticates separately and receives no
+  `TF401444` body — git reports only `fatal: Authentication failed`. Under `entra-id` the membership
+  prerequisite is appended to that error; under `pat`, a scope/expiry hint. A non-auth clone failure
+  (repository not found, bad branch) is passed through untouched.
 - **Redirects.** Azure DevOps answers a rejected credential with a `302` to a sign-in page rather
   than a `401`. The Azure DevOps HTTP client sets `maxRedirects: 0` and maps `302`/`203` to an
   authentication error; following the redirect would yield HTML with no `value` array and surface an
@@ -155,7 +161,8 @@ Latest STABLE release version of a GitHub Enterprise package (pre-release/featur
 ## Known limitations
 
 - **Not verified against a live Azure DevOps organization, GitHub Enterprise instance, or authenticated NuGet feed.** No AzDO org, GHE org, or private NuGet feed was available during development. Every REST path, API version, NuGet registration shape, GitHub App JWT flow, and clone-URL construction is verified against the vendors' published documentation and exercised with unit tests against injected stubs — but almost no call in `CodeReviewClient`, `GheAppAuth`, or the NuGet fetcher has run against a real endpoint. The clone path (`git clone`) has not been run against a real repository. Two exceptions, both unauthenticated probes taken while adding `entra-id`: the Entra token endpoint (confirming the client-credentials request shape, via an `AADSTS90002` for a placeholder tenant) and `dev.azure.com` REST (confirming the `302`-to-sign-in behaviour that `maxRedirects: 0` exists to catch).
-- **The `entra-id` path has never authenticated successfully.** No service principal is yet a member of an Azure DevOps organization, so an *accepted* token, the `TF401444` response body (mapped from the message quoted in the originating feature request, not from a captured response), and every clone under `entra-id` remain unverified end-to-end.
+- **The `entra-id` path has never authenticated to an *accepted* identity.** A live tenant run (2026-08-13) confirmed the token is issued, sent and accepted, and that Azure DevOps rejects the identity with `TF401444` — but no service principal is yet a member of an Azure DevOps organization, so no clone has ever succeeded, `cr-review` has never run end to end, and the "an unreadable repository fails loudly rather than returning an empty result" criterion is untestable while *every* repository is unreadable (there is no readable case to contrast against).
+- **The Azure DevOps PAT clone path was broken from the package's first release until beta.3** — the PAT went in the clone URL's username position, leaving git with no password, so it prompted and died with `could not read Password` before reaching Azure DevOps regardless of PAT validity. Fixed to the empty-username form. **`buildGheCloneUrl` still uses `https://<token>@host`**: that is the common GitHub idiom and has not been disproven, but no clone has ever been run against a real GitHub Enterprise host, so it is unverified.
 - **Cyclomatic complexity is a regex-based estimate, not an AST measurement.** Known heuristic ceilings: a `case` or operator inside a string literal can be over-counted; a C# nullable-type declaration (`int?`) can register as a ternary; and decision points inside a nested lambda are counted for both the nested and enclosing method. Reports carry a `methodology` note; treat values as approximate. Upgrade path: a real C#/TS parser if exactness is required.
 - **.NET EOL dates are a maintained table** (dates only; `isEol` is computed at runtime). The dates were verified against Microsoft's lifecycle pages and `dotnet/core` in 2026-07; a newly announced date change would need a table edit. Frameworks with no fixed EOL (.NET Framework 4.7.x/4.8/4.8.1, OS-tied) are never flagged.
 - **NuGet lookups target nuget.org only.** Packages on a private feed return empty version data (reported as `unknown`), not an error.

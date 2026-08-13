@@ -94,8 +94,15 @@ export class CloneManager {
     };
   }
 
+  /**
+   * The PAT is the *password*, with an empty username — matching the basic-auth header the REST
+   * path builds (`Buffer.from(':' + pat)`) and the form Microsoft documents. Putting the PAT in the
+   * username position instead leaves git with no password at all, so it prompts for one and dies
+   * with `could not read Password` before ever reaching Azure DevOps — regardless of whether the
+   * PAT is valid. Verified 2026-08-13.
+   */
   buildAzdoCloneUrl(organization: string, project: string, repo: string, pat: string): string {
-    return `https://${pat}@dev.azure.com/${organization}/${project}/_git/${repo}`;
+    return `https://:${pat}@dev.azure.com/${organization}/${project}/_git/${repo}`;
   }
 
   /** Credential-free Azure DevOps clone URL — the Entra token travels in `http.extraHeader`. */

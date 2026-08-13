@@ -9,10 +9,12 @@ const AZDO_PAT = 'planted-azdo-value-do-not-log';
 describe('clone URL builders', () => {
   const cm = new CloneManager();
 
-  it('builds an Azure DevOps clone URL with the PAT as userinfo', () => {
-    expect(cm.buildAzdoCloneUrl('contoso', 'MyProject', 'repo', AZDO_PAT)).toBe(
-      `https://${AZDO_PAT}@dev.azure.com/contoso/MyProject/_git/repo`,
-    );
+  it('builds an Azure DevOps clone URL with the PAT as the PASSWORD, not the username', () => {
+    const url = cm.buildAzdoCloneUrl('contoso', 'MyProject', 'repo', AZDO_PAT);
+    expect(url).toBe(`https://:${AZDO_PAT}@dev.azure.com/contoso/MyProject/_git/repo`);
+    // PAT-as-username leaves git with no password: it prompts, then dies with
+    // "could not read Password" before reaching Azure DevOps, valid PAT or not.
+    expect(url).not.toBe(`https://${AZDO_PAT}@dev.azure.com/contoso/MyProject/_git/repo`);
   });
 
   it('builds a credential-free Azure DevOps clone URL for the Entra bearer path', () => {

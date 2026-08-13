@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { CodeReviewClient, parseNextLink, normalizeGheApiBase, describeUnprovisionedPrincipal } from '../code-review-client.js';
+import {
+  CodeReviewClient,
+  parseNextLink,
+  normalizeGheApiBase,
+  describeUnprovisionedPrincipal,
+  describeCloneAuthFailure,
+} from '../code-review-client.js';
 
 describe('parseNextLink', () => {
   it('extracts the rel="next" URL from a Link header', () => {
@@ -48,16 +54,27 @@ describe('constructor config validation', () => {
 });
 
 describe('describeUnprovisionedPrincipal — TF401444 is an identity problem, not a bad credential', () => {
+  // Azure DevOps names the identity as a backslash triple: tenant\tenant\principal. All three
+  // segments are GUIDs on a real response — which is what the original fixture got wrong (it used
+  // the literal word "tenant" for the first two, so "first GUID in the message" accidentally
+  // matched). Measured against a live tenant 2026-08-13.
+  const TENANT_ID = 'aaaaaaaa-bbbb-cccc-dddd-ffffffffffff';
   const OBJECT_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
   const body = {
-    message: `TF401444: Please sign-in at least once as tenant\\tenant\\${OBJECT_ID} in a web browser to enable access to the service.`,
+    message: `TF401444: Please sign-in at least once as ${TENANT_ID}\\${TENANT_ID}\\${OBJECT_ID} in a web browser to enable access to the service.`,
     typeKey: 'UnauthorizedRequestException',
   };
 
-  it('names the membership prerequisite, the organization, and the principal object id', () => {
+  it('quotes the PRINCIPAL object id, never the tenant id that precedes it', () => {
+    const described = describeUnprovisionedPrincipal('contoso', body);
+    expect(described).toContain(OBJECT_ID);
+    // The whole point: an admin searching Users for the tenant id finds nothing.
+    expect(described).not.toContain(TENANT_ID);
+  });
+
+  it('names the membership prerequisite and the organization', () => {
     const described = describeUnprovisionedPrincipal('contoso', body);
     expect(described).toContain('TF401444');
-    expect(described).toContain(OBJECT_ID);
     expect(described).toContain('contoso');
     expect(described).toMatch(/not a member/i);
     // The reader must not be sent off to check the secret — that is the wrong fix.
@@ -70,10 +87,45 @@ describe('describeUnprovisionedPrincipal — TF401444 is an identity problem, no
     expect(described).toContain('contoso');
   });
 
+  it('falls back to the last GUID when the identity is not backslash-separated', () => {
+    const described = describeUnprovisionedPrincipal('contoso', {
+      message: `TF401444: Please sign-in at least once as ${OBJECT_ID} in a web browser.`,
+    });
+    expect(described).toContain(OBJECT_ID);
+  });
+
   it('returns null for any other 401 body, leaving the generic handling in place', () => {
     expect(describeUnprovisionedPrincipal('contoso', { message: 'TF400813: user is not authorized' })).toBeNull();
     expect(describeUnprovisionedPrincipal('contoso', undefined)).toBeNull();
     expect(describeUnprovisionedPrincipal('contoso', 'plain text body')).toBeNull();
+  });
+});
+
+describe('describeCloneAuthFailure — a clone gets no TF401444 body, only "Authentication failed"', () => {
+  const gitFailure =
+    "Git clone failed: Command failed: git -c http.extraHeader=Authorization: Bearer *** clone --depth=1 https://dev.azure.com/contoso/MyProject/_git/MyRepo /tmp/mcp-cr-x\nfatal: Authentication failed for 'https://dev.azure.com/contoso/MyProject/_git/MyRepo/'";
+
+  it('names the membership prerequisite under entra-id, so a clone-first user has a route to the fix', () => {
+    const hint = describeCloneAuthFailure('contoso', 'entra-id', gitFailure);
+    expect(hint).toContain('TF401444');
+    expect(hint).toMatch(/not a member/i);
+    expect(hint).toContain('contoso');
+  });
+
+  it('points at the credential under pat, not at organization membership', () => {
+    const hint = describeCloneAuthFailure('contoso', 'pat', gitFailure);
+    expect(hint).toMatch(/PAT/);
+    expect(hint).not.toMatch(/not a member/i);
+  });
+
+  it('also matches the terminal-prompts-disabled form git uses when it wants a username', () => {
+    const prompts = "Git clone failed: fatal: could not read Username for 'https://dev.azure.com': terminal prompts disabled";
+    expect(describeCloneAuthFailure('contoso', 'entra-id', prompts)).toMatch(/not a member/i);
+  });
+
+  it('returns null for a non-auth clone failure, so a real error is not buried under an auth guess', () => {
+    expect(describeCloneAuthFailure('contoso', 'entra-id', 'Git clone failed: fatal: repository not found')).toBeNull();
+    expect(describeCloneAuthFailure('contoso', 'entra-id', 'Git clone failed: fatal: reference is not a tree')).toBeNull();
   });
 });
 
