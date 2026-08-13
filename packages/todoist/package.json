@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/todoist",
-  "version": "35.0.0-beta.1",
+  "version": "35.0.0-beta.2",
   "description": "MCP server and CLI for Todoist - projects and task CRUD",
   "type": "module",
   "main": "./build/index.js",

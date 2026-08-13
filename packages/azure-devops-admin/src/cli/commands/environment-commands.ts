@@ -80,7 +80,7 @@ export function registerEnvironmentCommands(program: Command, ctx: ServiceContex
       try {
         const result = await ctx.environments.createEnvironment(project, name, opts.description);
         outputResult(
-          { fileName: `env-created-${name}`, data: result, summary: `Created environment '${name}'` },
+          { persist: false, fileName: `env-created-${name}`, data: result, summary: `Created environment '${name}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create environment'); }
@@ -100,7 +100,7 @@ export function registerEnvironmentCommands(program: Command, ctx: ServiceContex
         if (opts.description) updates.description = opts.description;
         const result = await ctx.environments.updateEnvironment(project, parseInt(envId), updates);
         outputResult(
-          { fileName: `env-updated-${envId}`, data: result, summary: `Updated environment #${envId}` },
+          { persist: false, fileName: `env-updated-${envId}`, data: result, summary: `Updated environment #${envId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update environment'); }
@@ -115,7 +115,7 @@ export function registerEnvironmentCommands(program: Command, ctx: ServiceContex
       try {
         const result = await ctx.environments.deleteEnvironment(project, parseInt(envId));
         outputResult(
-          { fileName: `env-deleted-${envId}`, data: result, summary: `Deleted environment #${envId}` },
+          { persist: false, fileName: `env-deleted-${envId}`, data: result, summary: `Deleted environment #${envId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete environment'); }
@@ -136,7 +136,7 @@ export function registerEnvironmentCommands(program: Command, ctx: ServiceContex
         if (opts.timeout) config.timeout = parseInt(opts.timeout);
         const result = await ctx.environments.addEnvironmentCheck(project, parseInt(envId), type, config);
         outputResult(
-          { fileName: `env-check-added-${envId}`, data: result, summary: `Added ${type} check to environment #${envId}` },
+          { persist: false, fileName: `env-check-added-${envId}`, data: result, summary: `Added ${type} check to environment #${envId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'add environment check'); }
@@ -156,7 +156,7 @@ export function registerEnvironmentCommands(program: Command, ctx: ServiceContex
         if (opts.timeout) updates.timeout = parseInt(opts.timeout);
         const result = await ctx.environments.updateEnvironmentCheck(project, parseInt(checkId), updates);
         outputResult(
-          { fileName: `env-check-updated-${checkId}`, data: result, summary: `Updated check #${checkId}` },
+          { persist: false, fileName: `env-check-updated-${checkId}`, data: result, summary: `Updated check #${checkId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update environment check'); }
@@ -171,7 +171,7 @@ export function registerEnvironmentCommands(program: Command, ctx: ServiceContex
       try {
         const result = await ctx.environments.removeEnvironmentCheck(project, parseInt(checkId));
         outputResult(
-          { fileName: `env-check-deleted-${checkId}`, data: result, summary: `Deleted check #${checkId}` },
+          { persist: false, fileName: `env-check-deleted-${checkId}`, data: result, summary: `Deleted check #${checkId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete environment check'); }

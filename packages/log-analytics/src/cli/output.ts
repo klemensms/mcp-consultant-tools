@@ -8,8 +8,26 @@ import { outputResult as coreOutputResult, type GlobalFlags } from '@mcp-consult
 const CACHE_DIR = '.mcp-loganalytics-cache';
 
 export function outputResult(
-  opts: { fileName: string; data: unknown; summary: string },
+  opts: {
+    fileName: string;
+    data: unknown;
+    summary: string;
+    /**
+     * Whether to write the response cache under `.context/` in the caller's
+     * working directory. Reads default to true - the cached JSON is the point,
+     * since an agent greps it instead of re-running the call. Writes pass
+     * false: their payload is only an echo of the arguments, so the file has
+     * no value to grep, and creating `.context/` wherever the command happened
+     * to be run is a surprise (a cloud-synced folder, say).
+     */
+    persist?: boolean;
+  },
   flags: GlobalFlags
 ): void {
-  coreOutputResult({ ...opts, cacheDir: CACHE_DIR }, flags);
+  const { persist = true, ...rest } = opts;
+
+  coreOutputResult(
+    { ...rest, cacheDir: CACHE_DIR },
+    persist ? flags : { ...flags, cache: false }
+  );
 }

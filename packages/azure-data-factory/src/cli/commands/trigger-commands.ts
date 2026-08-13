@@ -57,7 +57,7 @@ export function registerTriggerCommands(program: Command, ctx: ServiceContext): 
         await ctx.adf.startTrigger(name, opts.factoryId);
         const data = { message: `Trigger '${name}' start initiated`, note: 'The trigger may take a moment to fully start' };
         outputResult(
-          { fileName: `trigger-start-${name}`, data, summary: `Trigger '${name}' start initiated` },
+          { persist: false, fileName: `trigger-start-${name}`, data, summary: `Trigger '${name}' start initiated` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'start trigger'); }
@@ -73,7 +73,7 @@ export function registerTriggerCommands(program: Command, ctx: ServiceContext): 
         await ctx.adf.stopTrigger(name, opts.factoryId);
         const data = { message: `Trigger '${name}' stop initiated`, note: 'The trigger may take a moment to fully stop' };
         outputResult(
-          { fileName: `trigger-stop-${name}`, data, summary: `Trigger '${name}' stop initiated` },
+          { persist: false, fileName: `trigger-stop-${name}`, data, summary: `Trigger '${name}' stop initiated` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'stop trigger'); }

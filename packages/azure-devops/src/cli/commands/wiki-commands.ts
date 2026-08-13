@@ -93,7 +93,7 @@ export function registerWikiCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.wiki.createWikiPage(project, wikiId, pagePath, content);
         outputResult(
-          { fileName: `wiki-created-${pagePath.replace(/\//g, '-')}`, data: result, summary: `Created wiki page '${pagePath}'` },
+          { persist: false, fileName: `wiki-created-${pagePath.replace(/\//g, '-')}`, data: result, summary: `Created wiki page '${pagePath}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create wiki page'); }
@@ -111,7 +111,7 @@ export function registerWikiCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.wiki.updateWikiPage(project, wikiId, pagePath, content, opts.version);
         outputResult(
-          { fileName: `wiki-updated-${pagePath.replace(/\//g, '-')}`, data: result, summary: `Updated wiki page '${pagePath}'` },
+          { persist: false, fileName: `wiki-updated-${pagePath.replace(/\//g, '-')}`, data: result, summary: `Updated wiki page '${pagePath}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update wiki page'); }
@@ -147,7 +147,7 @@ export function registerWikiCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.wiki.deleteWikiPage(project, wikiId, pagePath);
         outputResult(
-          { fileName: `wiki-deleted-${pagePath.replace(/\//g, '-')}`, data: result, summary: `Deleted wiki page '${pagePath}'` },
+          { persist: false, fileName: `wiki-deleted-${pagePath.replace(/\//g, '-')}`, data: result, summary: `Deleted wiki page '${pagePath}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete wiki page'); }
@@ -224,7 +224,7 @@ export function registerWikiCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.wiki.uploadWikiPageFromFile(filePath);
         outputResult(
-          { fileName: `wiki-uploaded-${result.pagePath.replace(/\//g, '-')}`, data: result, summary: `Uploaded '${filePath}' to wiki page '${result.pagePath}'` },
+          { persist: false, fileName: `wiki-uploaded-${result.pagePath.replace(/\//g, '-')}`, data: result, summary: `Uploaded '${filePath}' to wiki page '${result.pagePath}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'upload wiki page from file'); }

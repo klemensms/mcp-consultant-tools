@@ -100,7 +100,7 @@ export function registerIndexCommands(program: Command, ctx: ServiceContext): vo
         const { serverId, database } = resolveTarget(opts);
         const result = await ctx.index.createFkIndexes(serverId, database);
         outputResult(
-          {
+          { persist: false,
             fileName: `sql-create-fk-indexes-${serverId}-${database}`,
             data: result,
             summary: [

@@ -44,7 +44,7 @@ export function registerViewCommands(program: Command, ctx: ServiceContext): voi
         const resolvedDatabase = ctx.connection.resolveDatabase(resolvedServerId, opts.database);
         const result = await ctx.write.deployViewFromFile(resolvedServerId, resolvedDatabase, filePath);
         outputResult(
-          { fileName: `sql-view-deploy-${filePath.replace(/[^a-zA-Z0-9]/g, '_')}`, data: result, summary: result.message },
+          { persist: false, fileName: `sql-view-deploy-${filePath.replace(/[^a-zA-Z0-9]/g, '_')}`, data: result, summary: result.message },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'deploy view from file'); }

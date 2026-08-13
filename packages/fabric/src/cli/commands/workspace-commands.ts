@@ -50,7 +50,7 @@ export function registerWorkspaceCommands(program: Command, ctx: ServiceContext)
           capacityId: opts.capacityId,
         });
         outputResult(
-          { fileName: `workspace-created`, data: result, summary: `Created workspace '${displayName}'` },
+          { persist: false, fileName: `workspace-created`, data: result, summary: `Created workspace '${displayName}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'create workspace'); }
@@ -69,7 +69,7 @@ export function registerWorkspaceCommands(program: Command, ctx: ServiceContext)
           description: opts.description,
         });
         outputResult(
-          { fileName: `workspace-updated-${workspaceId}`, data: result, summary: `Updated workspace '${workspaceId}'` },
+          { persist: false, fileName: `workspace-updated-${workspaceId}`, data: result, summary: `Updated workspace '${workspaceId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'update workspace'); }
@@ -83,7 +83,7 @@ export function registerWorkspaceCommands(program: Command, ctx: ServiceContext)
       try {
         const result = await ctx.workspaces.deleteWorkspace(workspaceId);
         outputResult(
-          { fileName: `workspace-deleted-${workspaceId}`, data: result, summary: `Deleted workspace '${workspaceId}'` },
+          { persist: false, fileName: `workspace-deleted-${workspaceId}`, data: result, summary: `Deleted workspace '${workspaceId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'delete workspace'); }
@@ -118,7 +118,7 @@ export function registerWorkspaceCommands(program: Command, ctx: ServiceContext)
           role: opts.role,
         });
         outputResult(
-          { fileName: `workspace-role-added-${workspaceId}`, data: result, summary: `Granted ${opts.role} to ${opts.principalId} on '${workspaceId}'` },
+          { persist: false, fileName: `workspace-role-added-${workspaceId}`, data: result, summary: `Granted ${opts.role} to ${opts.principalId} on '${workspaceId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'add workspace role assignment'); }
@@ -133,7 +133,7 @@ export function registerWorkspaceCommands(program: Command, ctx: ServiceContext)
       try {
         const result = await ctx.workspaces.removeRoleAssignment(workspaceId, principalId);
         outputResult(
-          { fileName: `workspace-role-removed-${workspaceId}`, data: result, summary: `Removed ${principalId} from '${workspaceId}'` },
+          { persist: false, fileName: `workspace-role-removed-${workspaceId}`, data: result, summary: `Removed ${principalId} from '${workspaceId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'remove workspace role assignment'); }

@@ -58,7 +58,7 @@ export function registerClassificationCommands(program: Command, ctx: ServiceCon
           project, 'iterations', name, opts.parentPath, Object.keys(attrs).length > 0 ? attrs : undefined
         );
         outputResult(
-          { fileName: `iteration-created-${name}`, data: result, summary: `Created iteration '${name}'` },
+          { persist: false, fileName: `iteration-created-${name}`, data: result, summary: `Created iteration '${name}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create iteration'); }
@@ -80,7 +80,7 @@ export function registerClassificationCommands(program: Command, ctx: ServiceCon
         if (opts.finishDate) updates.finishDate = opts.finishDate;
         const result = await ctx.classification.updateClassificationNode(project, 'iterations', path, updates);
         outputResult(
-          { fileName: `iteration-updated-${path.replace(/\\/g, '-')}`, data: result, summary: `Updated iteration '${path}'` },
+          { persist: false, fileName: `iteration-updated-${path.replace(/\\/g, '-')}`, data: result, summary: `Updated iteration '${path}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update iteration'); }
@@ -96,7 +96,7 @@ export function registerClassificationCommands(program: Command, ctx: ServiceCon
       try {
         const result = await ctx.classification.deleteClassificationNode(project, 'iterations', path, parseInt(reclassifyId));
         outputResult(
-          { fileName: `iteration-deleted-${path.replace(/\\/g, '-')}`, data: result, summary: `Deleted iteration '${path}'` },
+          { persist: false, fileName: `iteration-deleted-${path.replace(/\\/g, '-')}`, data: result, summary: `Deleted iteration '${path}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete iteration'); }
@@ -112,7 +112,7 @@ export function registerClassificationCommands(program: Command, ctx: ServiceCon
       try {
         const result = await ctx.classification.addIterationToTeam(project, team, iterationId);
         outputResult(
-          { fileName: `iteration-team-${team}-${iterationId}`, data: result, summary: `Added iteration to team '${team}'` },
+          { persist: false, fileName: `iteration-team-${team}-${iterationId}`, data: result, summary: `Added iteration to team '${team}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'add iteration to team'); }
@@ -161,7 +161,7 @@ export function registerClassificationCommands(program: Command, ctx: ServiceCon
       try {
         const result = await ctx.classification.createClassificationNode(project, 'areas', name, opts.parentPath);
         outputResult(
-          { fileName: `area-created-${name}`, data: result, summary: `Created area '${name}'` },
+          { persist: false, fileName: `area-created-${name}`, data: result, summary: `Created area '${name}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create area'); }
@@ -179,7 +179,7 @@ export function registerClassificationCommands(program: Command, ctx: ServiceCon
         if (opts.name) updates.name = opts.name;
         const result = await ctx.classification.updateClassificationNode(project, 'areas', path, updates);
         outputResult(
-          { fileName: `area-updated-${path.replace(/\\/g, '-')}`, data: result, summary: `Updated area '${path}'` },
+          { persist: false, fileName: `area-updated-${path.replace(/\\/g, '-')}`, data: result, summary: `Updated area '${path}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update area'); }
@@ -195,7 +195,7 @@ export function registerClassificationCommands(program: Command, ctx: ServiceCon
       try {
         const result = await ctx.classification.deleteClassificationNode(project, 'areas', path, parseInt(reclassifyId));
         outputResult(
-          { fileName: `area-deleted-${path.replace(/\\/g, '-')}`, data: result, summary: `Deleted area '${path}'` },
+          { persist: false, fileName: `area-deleted-${path.replace(/\\/g, '-')}`, data: result, summary: `Deleted area '${path}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete area'); }

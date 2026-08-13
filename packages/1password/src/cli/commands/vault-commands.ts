@@ -60,7 +60,7 @@ export function registerVaultCommands(program: Command, ctx: ServiceContext): vo
         ctx.checkVaultAdminEnabled();
         const result = await ctx.vaults.createVault(name, opts.description);
         outputResult(
-          {
+          { persist: false,
             fileName: `created-vault`,
             data: result,
             summary: `Vault '${name}' created successfully`,
@@ -85,7 +85,7 @@ export function registerVaultCommands(program: Command, ctx: ServiceContext): vo
         if (opts.description) changes.description = opts.description;
         const result = await ctx.vaults.updateVault(vaultId, changes);
         outputResult(
-          {
+          { persist: false,
             fileName: `updated-vault-${vaultId}`,
             data: result,
             summary: `Vault '${vaultId}' updated`,
@@ -115,7 +115,7 @@ export function registerVaultCommands(program: Command, ctx: ServiceContext): vo
         }
         await ctx.vaults.deleteVault(vaultId);
         outputResult(
-          {
+          { persist: false,
             fileName: `deleted-vault-${vaultId}`,
             data: { vaultId, deleted: true },
             summary: `Vault '${vaultId}' deleted`,
@@ -140,7 +140,7 @@ export function registerVaultCommands(program: Command, ctx: ServiceContext): vo
         const groupPermissions = JSON.parse(grantsJson);
         await ctx.vaults.grantPermissions(vaultId, groupPermissions);
         outputResult(
-          {
+          { persist: false,
             fileName: `grant-permissions-${vaultId}`,
             data: { vaultId, groupPermissions, granted: true },
             summary: `Permissions granted on vault '${vaultId}' for ${groupPermissions.length} group(s)`,
@@ -165,7 +165,7 @@ export function registerVaultCommands(program: Command, ctx: ServiceContext): vo
         const groupPermissions = JSON.parse(updatesJson);
         await ctx.vaults.updatePermissions(groupPermissions);
         outputResult(
-          {
+          { persist: false,
             fileName: `update-permissions`,
             data: { groupPermissions, updated: true },
             summary: `Permissions updated for ${groupPermissions.length} vault/group combination(s)`,
@@ -186,7 +186,7 @@ export function registerVaultCommands(program: Command, ctx: ServiceContext): vo
         ctx.checkVaultAdminEnabled();
         await ctx.vaults.revokePermissions(vaultId, groupIds);
         outputResult(
-          {
+          { persist: false,
             fileName: `revoke-permissions-${vaultId}`,
             data: { vaultId, groupIds, revoked: true },
             summary: `Permissions revoked for ${groupIds.length} group(s) on vault '${vaultId}'`,

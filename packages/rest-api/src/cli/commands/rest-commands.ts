@@ -96,7 +96,7 @@ export function registerRestCommands(program: Command, ctx: ServiceContext): voi
 
         ctx.restApi.clearTokenCache();
         outputResult(
-          {
+          { persist: false,
             fileName: 'refresh-token',
             data: { message: 'OAuth2 token cache cleared. A new token will be acquired on the next request.' },
             summary: 'OAuth2 token cache cleared successfully.',

@@ -103,7 +103,7 @@ export function registerWorkItemCommands(program: Command, ctx: ServiceContext):
         const workItemId = parseInt(id, 10);
         const result = await ctx.workItem.addWorkItemComment(project, workItemId, text);
         outputResult(
-          { fileName: `work-item-${workItemId}-comment-added`, data: result, summary: `Added comment to work item #${workItemId}` },
+          { persist: false, fileName: `work-item-${workItemId}-comment-added`, data: result, summary: `Added comment to work item #${workItemId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'add work item comment'); }
@@ -120,7 +120,7 @@ export function registerWorkItemCommands(program: Command, ctx: ServiceContext):
       try {
         const result = await ctx.workItem.updateWorkItemComment(project, parseInt(workItemId, 10), parseInt(commentId, 10), text);
         outputResult(
-          { fileName: `work-item-${workItemId}-comment-${commentId}-updated`, data: result, summary: `Updated comment #${commentId} on work item #${workItemId}` },
+          { persist: false, fileName: `work-item-${workItemId}-comment-${commentId}-updated`, data: result, summary: `Updated comment #${commentId} on work item #${workItemId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update work item comment'); }
@@ -139,7 +139,7 @@ export function registerWorkItemCommands(program: Command, ctx: ServiceContext):
         const operations = JSON.parse(patchOps);
         const result = await ctx.workItem.updateWorkItem(project, workItemId, operations);
         outputResult(
-          { fileName: `work-item-${workItemId}-updated`, data: result, summary: `Updated work item #${workItemId}` },
+          { persist: false, fileName: `work-item-${workItemId}-updated`, data: result, summary: `Updated work item #${workItemId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update work item'); }
@@ -158,7 +158,7 @@ export function registerWorkItemCommands(program: Command, ctx: ServiceContext):
         const parentId = opts.parentId ? parseInt(opts.parentId, 10) : undefined;
         const result = await ctx.workItem.createWorkItem(project, type, fields, parentId);
         outputResult(
-          { fileName: `work-item-created`, data: result, summary: `Created ${type} work item` },
+          { persist: false, fileName: `work-item-created`, data: result, summary: `Created ${type} work item` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create work item'); }
@@ -190,7 +190,7 @@ export function registerWorkItemCommands(program: Command, ctx: ServiceContext):
         }
 
         outputResult(
-          {
+          { persist: false,
             fileName: `attachment-uploaded-${result.id}`,
             data: { ...result, embedUrl },
             summary: `Uploaded ${result.fileName} (${result.size} bytes) — embed via: ${embedUrl}`,
@@ -210,7 +210,7 @@ export function registerWorkItemCommands(program: Command, ctx: ServiceContext):
         const workItemId = parseInt(id, 10);
         const result = await ctx.workItem.deleteWorkItem(project, workItemId);
         outputResult(
-          { fileName: `work-item-${workItemId}-deleted`, data: result, summary: `Deleted work item #${workItemId}` },
+          { persist: false, fileName: `work-item-${workItemId}-deleted`, data: result, summary: `Deleted work item #${workItemId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete work item'); }

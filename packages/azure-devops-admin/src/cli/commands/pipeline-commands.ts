@@ -120,7 +120,7 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
           opts.folder, opts.repoType, opts.repoUrl, opts.defaultBranch, opts.serviceConnectionId
         );
         outputResult(
-          { fileName: `pipeline-created-${name}`, data: result, summary: `Created pipeline '${name}'` },
+          { persist: false, fileName: `pipeline-created-${name}`, data: result, summary: `Created pipeline '${name}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create pipeline'); }
@@ -144,7 +144,7 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
         if (opts.variables) updates.variables = JSON.parse(opts.variables);
         const result = await ctx.pipelines.updatePipelineDefinition(project, parseInt(definitionId), updates);
         outputResult(
-          { fileName: `pipeline-updated-${definitionId}`, data: result, summary: `Updated pipeline #${definitionId}` },
+          { persist: false, fileName: `pipeline-updated-${definitionId}`, data: result, summary: `Updated pipeline #${definitionId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update pipeline'); }
@@ -160,7 +160,7 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
       try {
         const result = await ctx.pipelines.renamePipelineDefinition(project, parseInt(definitionId), newName);
         outputResult(
-          { fileName: `pipeline-renamed-${definitionId}`, data: result, summary: `Renamed pipeline #${definitionId} to '${newName}'` },
+          { persist: false, fileName: `pipeline-renamed-${definitionId}`, data: result, summary: `Renamed pipeline #${definitionId} to '${newName}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'rename pipeline'); }
@@ -175,7 +175,7 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
       try {
         const result = await ctx.pipelines.deletePipelineDefinition(project, parseInt(definitionId));
         outputResult(
-          { fileName: `pipeline-deleted-${definitionId}`, data: result, summary: `Deleted pipeline #${definitionId}` },
+          { persist: false, fileName: `pipeline-deleted-${definitionId}`, data: result, summary: `Deleted pipeline #${definitionId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete pipeline'); }
@@ -268,7 +268,7 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
       try {
         const result = await ctx.pipelines.cancelBuild(project, parseInt(buildId));
         outputResult(
-          { fileName: `build-cancelled-${buildId}`, data: result, summary: `Cancelled build #${buildId}` },
+          { persist: false, fileName: `build-cancelled-${buildId}`, data: result, summary: `Cancelled build #${buildId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'cancel build'); }
@@ -283,7 +283,7 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
       try {
         const result = await ctx.pipelines.retryBuild(project, parseInt(buildId));
         outputResult(
-          { fileName: `build-retried-${buildId}`, data: result, summary: `Retried build #${buildId}` },
+          { persist: false, fileName: `build-retried-${buildId}`, data: result, summary: `Retried build #${buildId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'retry build'); }
@@ -300,7 +300,7 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
       try {
         const result = await ctx.pipelines.approveStage(project, approvalId, status as any, opts.comment);
         outputResult(
-          { fileName: `approval-${approvalId}`, data: result, summary: `Stage ${status}` },
+          { persist: false, fileName: `approval-${approvalId}`, data: result, summary: `Stage ${status}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, `${status} stage`); }

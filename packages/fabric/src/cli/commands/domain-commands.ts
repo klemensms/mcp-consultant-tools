@@ -46,7 +46,7 @@ export function registerDomainCommands(program: Command, ctx: ServiceContext): v
       try {
         const result = await ctx.domains.assignWorkspaces(domainId, workspaceIds);
         outputResult(
-          { fileName: `domain-assign-${domainId}`, data: result, summary: `Assigned ${workspaceIds.length} workspace(s) to domain '${domainId}'` },
+          { persist: false, fileName: `domain-assign-${domainId}`, data: result, summary: `Assigned ${workspaceIds.length} workspace(s) to domain '${domainId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'assign workspaces to domain'); }

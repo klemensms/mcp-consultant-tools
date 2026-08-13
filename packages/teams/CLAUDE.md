@@ -415,4 +415,6 @@ Add `--json` for raw JSON. **Read** responses are also written to `.context/.mcp
 
 **Write commands persist nothing** (`persist: false` on the `outputResult` wrapper in `cli/output.ts`). Their payload is only an echo of the arguments, so the file has no grep value, and creating `.context/` in whatever directory the command was run from is a surprise — on a real machine that meant a new directory inside a cloud-synced folder, which then synced. A test asserts the *absence* of both the file and the directory.
 
-This is fixed in `teams` only. **Every other package's CLI still caches write commands into the caller's cwd** — the wrapper is per-package, and doing this repo-wide means editing ~20 packages plus a `core` change, which belongs in its own wave rather than a Teams one.
+This convention is now repo-wide — see [`.claude/refs/cli-architecture.md`](../../.claude/refs/cli-architecture.md) for the full list of packages and the classification rule.
+
+`--type` is validated in the CLI too. An unknown reaction name has no emoji mapping, so it reached Graph as an empty `reactionType` and came back as *"ReactionType cannot be null or whitespace"* — an error pointing at the wrong thing, since the user typed a word rather than leaving it blank. The MCP tools were never affected: their zod enum rejects it first.

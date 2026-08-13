@@ -109,7 +109,7 @@ export function registerItemCommands(program: Command, ctx: ServiceContext): voi
         const itemData = JSON.parse(itemJson);
         const result = await ctx.items.createItem(vaultId, itemData);
         outputResult(
-          {
+          { persist: false,
             fileName: `created-item-${vaultId}`,
             data: result,
             summary: `Item created successfully in vault '${vaultId}'`,
@@ -130,7 +130,7 @@ export function registerItemCommands(program: Command, ctx: ServiceContext): voi
         const changes = JSON.parse(changesJson);
         const result = await ctx.items.updateItem(vaultId, itemId, changes);
         outputResult(
-          {
+          { persist: false,
             fileName: `updated-item-${vaultId}-${itemId}`,
             data: result,
             summary: `Item '${itemId}' updated in vault '${vaultId}'`,
@@ -160,7 +160,7 @@ export function registerItemCommands(program: Command, ctx: ServiceContext): voi
         }
         await ctx.items.deleteItem(vaultId, itemId);
         outputResult(
-          {
+          { persist: false,
             fileName: `deleted-item-${vaultId}-${itemId}`,
             data: { vaultId, itemId, deleted: true },
             summary: `Item '${itemId}' deleted from vault '${vaultId}'`,

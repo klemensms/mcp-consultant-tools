@@ -42,7 +42,7 @@ export function registerCrudCommands(program: Command, ctx: ServiceContext): voi
         const resolvedDatabase = ctx.connection.resolveDatabase(resolvedServerId, opts.database);
         const result = await ctx.write.executeUpdate(resolvedServerId, resolvedDatabase, query);
         outputResult(
-          { fileName: 'sql-crud-update', data: result, summary: result.message },
+          { persist: false, fileName: 'sql-crud-update', data: result, summary: result.message },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update'); }
@@ -61,7 +61,7 @@ export function registerCrudCommands(program: Command, ctx: ServiceContext): voi
         const resolvedDatabase = ctx.connection.resolveDatabase(resolvedServerId, opts.database);
         const result = await ctx.write.executeDelete(resolvedServerId, resolvedDatabase, query);
         outputResult(
-          { fileName: 'sql-crud-delete', data: result, summary: result.message },
+          { persist: false, fileName: 'sql-crud-delete', data: result, summary: result.message },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete'); }

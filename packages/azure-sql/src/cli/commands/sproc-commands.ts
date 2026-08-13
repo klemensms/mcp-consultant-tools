@@ -44,7 +44,7 @@ export function registerSprocCommands(program: Command, ctx: ServiceContext): vo
         const resolvedDatabase = ctx.connection.resolveDatabase(resolvedServerId, opts.database);
         const result = await ctx.write.deploySprocFromFile(resolvedServerId, resolvedDatabase, filePath);
         outputResult(
-          { fileName: `sql-sproc-deploy-${filePath.replace(/[^a-zA-Z0-9]/g, '_')}`, data: result, summary: result.message },
+          { persist: false, fileName: `sql-sproc-deploy-${filePath.replace(/[^a-zA-Z0-9]/g, '_')}`, data: result, summary: result.message },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'deploy sproc from file'); }

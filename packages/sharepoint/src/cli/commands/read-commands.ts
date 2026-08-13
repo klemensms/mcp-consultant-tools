@@ -111,7 +111,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
     .action(async (opts: any) => {
       try {
         const clearedCount = ctx.sharepoint.clearCache(opts.pattern, opts.siteId);
-        outputResult({
+        outputResult({ persist: false,
           fileName: 'clear-cache',
           data: { clearedCount },
           summary: `Cleared ${clearedCount} cache entries`,

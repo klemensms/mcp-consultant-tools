@@ -87,7 +87,7 @@ export function registerBlobCommands(program: Command, ctx: ServiceContext): voi
         const metadata = opts.metadata ? JSON.parse(opts.metadata) : undefined;
         const result = await blobSvc.createContainer(containerName, metadata, opts.publicAccess);
         outputResult(
-          { fileName: `create-container-${containerName}`, data: result, summary: `Container '${containerName}' created: ${result.success}` },
+          { persist: false, fileName: `create-container-${containerName}`, data: result, summary: `Container '${containerName}' created: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create container'); }
@@ -106,7 +106,7 @@ export function registerBlobCommands(program: Command, ctx: ServiceContext): voi
         const blobSvc = ctx.storage.getBlobService(accountId);
         const result = await blobSvc.deleteContainer(containerName);
         outputResult(
-          { fileName: `delete-container-${containerName}`, data: result, summary: `Container '${containerName}' deleted: ${result.success}` },
+          { persist: false, fileName: `delete-container-${containerName}`, data: result, summary: `Container '${containerName}' deleted: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete container'); }
@@ -195,7 +195,7 @@ export function registerBlobCommands(program: Command, ctx: ServiceContext): voi
           overwrite: opts.overwrite,
         });
         outputResult(
-          { fileName: `upload-${blobName.replace(/\//g, '-')}`, data: result, summary: `Upload '${blobName}': ${result.success}` },
+          { persist: false, fileName: `upload-${blobName.replace(/\//g, '-')}`, data: result, summary: `Upload '${blobName}': ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'upload blob'); }
@@ -215,7 +215,7 @@ export function registerBlobCommands(program: Command, ctx: ServiceContext): voi
         const blobSvc = ctx.storage.getBlobService(accountId);
         const result = await blobSvc.deleteBlob(containerName, blobName);
         outputResult(
-          { fileName: `delete-blob-${blobName.replace(/\//g, '-')}`, data: result, summary: `Blob '${blobName}' deleted: ${result.success}` },
+          { persist: false, fileName: `delete-blob-${blobName.replace(/\//g, '-')}`, data: result, summary: `Blob '${blobName}' deleted: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete blob'); }
@@ -263,7 +263,7 @@ export function registerBlobCommands(program: Command, ctx: ServiceContext): voi
         const blobSvc = ctx.storage.getBlobService(accountId);
         const result = await blobSvc.setMetadata(containerName, blobName, JSON.parse(metadata));
         outputResult(
-          { fileName: `set-metadata-${blobName.replace(/\//g, '-')}`, data: result, summary: `Metadata set for '${blobName}': ${result.success}` },
+          { persist: false, fileName: `set-metadata-${blobName.replace(/\//g, '-')}`, data: result, summary: `Metadata set for '${blobName}': ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'set blob metadata'); }
@@ -284,7 +284,7 @@ export function registerBlobCommands(program: Command, ctx: ServiceContext): voi
         const blobSvc = ctx.storage.getBlobService(accountId);
         const result = await blobSvc.setTags(containerName, blobName, JSON.parse(tags));
         outputResult(
-          { fileName: `set-tags-${blobName.replace(/\//g, '-')}`, data: result, summary: `Tags set for '${blobName}': ${result.success}` },
+          { persist: false, fileName: `set-tags-${blobName.replace(/\//g, '-')}`, data: result, summary: `Tags set for '${blobName}': ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'set blob tags'); }

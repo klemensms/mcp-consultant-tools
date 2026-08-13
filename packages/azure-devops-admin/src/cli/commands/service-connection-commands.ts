@@ -71,7 +71,7 @@ export function registerServiceConnectionCommands(program: Command, ctx: Service
         if (opts.data) config.data = JSON.parse(opts.data);
         const result = await ctx.serviceConnections.createServiceConnection(project, name, type, config);
         outputResult(
-          { fileName: `svc-conn-created-${name}`, data: result, summary: `Created service connection '${name}'` },
+          { persist: false, fileName: `svc-conn-created-${name}`, data: result, summary: `Created service connection '${name}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create service connection'); }
@@ -95,7 +95,7 @@ export function registerServiceConnectionCommands(program: Command, ctx: Service
         if (opts.data) updates.data = JSON.parse(opts.data);
         const result = await ctx.serviceConnections.updateServiceConnection(project, connectionId, updates);
         outputResult(
-          { fileName: `svc-conn-updated-${connectionId}`, data: result, summary: `Updated service connection '${connectionId}'` },
+          { persist: false, fileName: `svc-conn-updated-${connectionId}`, data: result, summary: `Updated service connection '${connectionId}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update service connection'); }
@@ -125,7 +125,7 @@ export function registerServiceConnectionCommands(program: Command, ctx: Service
       try {
         const result = await ctx.serviceConnections.deleteServiceConnection(project, connectionId);
         outputResult(
-          { fileName: `svc-conn-deleted-${connectionId}`, data: result, summary: `Deleted service connection '${connectionId}'` },
+          { persist: false, fileName: `svc-conn-deleted-${connectionId}`, data: result, summary: `Deleted service connection '${connectionId}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete service connection'); }

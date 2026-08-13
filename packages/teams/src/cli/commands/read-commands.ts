@@ -24,6 +24,25 @@ function parseTop(value?: string): number | undefined {
   return parsed;
 }
 
+/** The reaction names the service knows how to map to an emoji. */
+const REACTION_TYPES = ['like', 'angry', 'sad', 'laugh', 'heart', 'surprised'] as const;
+
+/**
+ * Validate --type locally rather than letting an unknown name reach Graph.
+ *
+ * An unmapped name resolves to `undefined` in the emoji lookup, so Graph
+ * receives an empty reactionType and answers "ReactionType cannot be null or
+ * whitespace" - which points at the wrong thing entirely, since the user typed
+ * a word rather than leaving it blank. The MCP tools are unaffected: their zod
+ * enum rejects it before the service is called.
+ */
+function resolveReactionType(value: string): (typeof REACTION_TYPES)[number] {
+  if (!(REACTION_TYPES as readonly string[]).includes(value)) {
+    throw new Error(`--type must be one of ${REACTION_TYPES.join(', ')}, got "${value}"`);
+  }
+  return value as (typeof REACTION_TYPES)[number];
+}
+
 /**
  * Resolve the reaction action from either spelling.
  *
@@ -217,11 +236,12 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
     .action(async (messageId: string, opts: any) => {
       try {
         const action = resolveReactionAction(opts);
+        const reactionType = resolveReactionType(opts.type);
         await ctx.messages.reactToChannelMessage(messageId, {
           teamId: opts.teamId,
           channelId: opts.channelId,
           replyId: opts.replyId,
-          reactionType: opts.type,
+          reactionType,
           action,
         });
         const target = opts.replyId ? `reply ${opts.replyId}` : `message ${messageId}`;
@@ -249,8 +269,9 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
     .action(async (chatId: string, messageId: string, opts: any) => {
       try {
         const action = resolveReactionAction(opts);
+        const reactionType = resolveReactionType(opts.type);
         await ctx.messages.reactToChatMessage(chatId, messageId, {
-          reactionType: opts.type,
+          reactionType,
           action,
         });
         outputResult(

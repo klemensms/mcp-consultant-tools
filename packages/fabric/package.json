@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/fabric",
-  "version": "35.0.0-beta.1",
+  "version": "35.0.0-beta.2",
   "description": "MCP server for Microsoft Fabric - workspaces, capacities, items, shortcuts, domains, and admin",
   "type": "module",
   "main": "./build/index.js",

@@ -63,7 +63,7 @@ export function registerIterationCapacityCommands(program: Command, ctx: Service
           project, team, iterationId, member, capacityPerDay, opts.activity ?? '', daysOff,
         );
         outputResult(
-          { fileName: `capacity-set-${team}-${member}`, data: result, summary: `Set capacity for '${member}'` },
+          { persist: false, fileName: `capacity-set-${team}-${member}`, data: result, summary: `Set capacity for '${member}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'set team member capacity'); }
@@ -85,7 +85,7 @@ export function registerIterationCapacityCommands(program: Command, ctx: Service
         if (!Array.isArray(members)) throw new Error('members must be a JSON array of { member, capacityPerDay, activityName?, daysOff? }');
         const result = await ctx.iterationCapacity.setTeamCapacitiesBatch(project, team, iterationId, members);
         outputResult(
-          { fileName: `capacity-batch-${team}-${iterationId}`, data: result, summary: `Batch capacity set for team '${team}'` },
+          { persist: false, fileName: `capacity-batch-${team}-${iterationId}`, data: result, summary: `Batch capacity set for team '${team}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'set team capacities (batch)'); }

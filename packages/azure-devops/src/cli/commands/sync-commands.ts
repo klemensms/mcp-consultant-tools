@@ -96,7 +96,7 @@ export function registerSyncCommands(program: Command, ctx: ServiceContext): voi
         const parentId = opts.parentId ? parseInt(opts.parentId, 10) : undefined;
         const result = await ctx.sync.createWorkItemFile(project, parentId, opts.type, opts.folder);
         outputResult(
-          { fileName: `sync-create-file`, data: result, summary: `Created new ${opts.type} template` },
+          { persist: false, fileName: `sync-create-file`, data: result, summary: `Created new ${opts.type} template` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create work item file'); }
@@ -112,7 +112,7 @@ export function registerSyncCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.sync.createWorkItemFile(project, parseInt(parentId, 10), 'User Story', opts.folder);
         outputResult(
-          { fileName: `sync-create-user-story`, data: result, summary: `Created new User Story template` },
+          { persist: false, fileName: `sync-create-user-story`, data: result, summary: `Created new User Story template` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create user story file'); }

@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/azure-management",
-  "version": "35.0.0-beta.2",
+  "version": "35.0.0-beta.3",
   "description": "MCP server for Azure Resource Manager - read-only discovery and inspection of Azure infrastructure including Function Apps, App Services, Key Vaults, Storage, SQL, Monitoring, and more",
   "type": "module",
   "main": "./build/index.js",

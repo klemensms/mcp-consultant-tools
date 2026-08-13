@@ -52,7 +52,7 @@ export function registerProjectCommands(program: Command, ctx: ServiceContext): 
           view_style: opts.viewStyle,
         });
         outputResult(
-          { fileName: `create-project-${data.id}`, data, summary: `Created project "${data.name}" (id: ${data.id})` },
+          { persist: false, fileName: `create-project-${data.id}`, data, summary: `Created project "${data.name}" (id: ${data.id})` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create project'); }
@@ -74,7 +74,7 @@ export function registerProjectCommands(program: Command, ctx: ServiceContext): 
           view_style: opts.viewStyle,
         });
         outputResult(
-          { fileName: `update-project-${id}`, data, summary: `Updated project "${data.name}" (id: ${data.id})` },
+          { persist: false, fileName: `update-project-${id}`, data, summary: `Updated project "${data.name}" (id: ${data.id})` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update project'); }
@@ -87,7 +87,7 @@ export function registerProjectCommands(program: Command, ctx: ServiceContext): 
       try {
         await ctx.todoist.deleteProject(id);
         outputResult(
-          { fileName: `delete-project-${id}`, data: { id, deleted: true }, summary: `Deleted project ${id}` },
+          { persist: false, fileName: `delete-project-${id}`, data: { id, deleted: true }, summary: `Deleted project ${id}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete project'); }

@@ -57,6 +57,11 @@ CLI is a first-class citizen alongside MCP tools. Maintaining parity is non-nego
 - **CLI commands are thin wrappers** — ~5–15 lines: parse args, call service, format output. Complexity belongs in services.
 - **Always wrap `.action()` in try/catch with `handleCliError(error, 'command-name')`.**
 - **Output:** `outputResult()` for everything. Summary → stdout, full JSON → `.context/.mcp-{abbrev}-cache/`. `--json` flag outputs raw JSON only.
+- **Write commands must pass `persist: false`.** Reads cache by default — an agent greps that JSON instead of re-running the call, which is the whole point of the cache. A write's cached payload is only an echo of the arguments, so it has nothing worth grepping, while creating `.context/` in whatever directory the command happened to be run from is a surprise. This was found in the field: a reaction command created a `.context/` inside a cloud-synced folder, which then synced.
+
+  **Classification rule:** a command is a write if it changes remote or local state — `create`, `update`, `delete`, `send`, `upload`, `set`, `start`/`stop`, `cancel`, `approve`, `import`, `deploy`, `clear-cache`, and so on. Judge it by what the command *does*, not by its prefix: `runs`, `run-details`, `run-saved-query`, `run-results`, `deployments` and `publishers` all read despite write-sounding names, and all of them keep their cache.
+
+  Packages **not** following this convention, because they do not use the shared wrapper at all: `github-enterprise` and `powerplatform-customization` print with `console.log` and never cache anything. `sharepoint` has its own `outputResult` implementation which honours `persist` but ignores the global `--no-cache` flag entirely — a separate defect, recorded in the v35 known issues.
 
 ## Parameter Mapping Convention
 
@@ -77,7 +82,7 @@ CLI is a first-class citizen alongside MCP tools. Maintaining parity is non-nego
 | `createCliProgram({ name, description, version })` | Commander program with `--json`, `--no-cache`, `--env-file` options |
 | `loadEnvForCli(envFilePath?)` | Loads `.env` (CLI only — MCP servers don't need this) |
 | `getGlobalFlags(program)` | Extracts `{ json, cache }` from Commander opts |
-| `outputResult({ fileName, data, summary, cacheDir }, flags)` | Writes summary + caches JSON |
+| `outputResult({ fileName, data, summary, cacheDir, persist? }, flags)` | Writes summary + caches JSON. `persist: false` on write commands skips the cache entirely — no file, no `.context/` directory. |
 | `handleCliError(error, commandName)` | Formats error, exits code 1 |
 
 ## Verification After CLI Changes

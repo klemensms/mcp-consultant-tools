@@ -40,7 +40,7 @@ export function registerTableCommands(program: Command, ctx: ServiceContext): vo
         const tableSvc = ctx.storage.getTableService(accountId);
         const result = await tableSvc.createTable(tableName);
         outputResult(
-          { fileName: `create-table-${tableName}`, data: result, summary: `Table '${tableName}' created: ${result.success}` },
+          { persist: false, fileName: `create-table-${tableName}`, data: result, summary: `Table '${tableName}' created: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create table'); }
@@ -59,7 +59,7 @@ export function registerTableCommands(program: Command, ctx: ServiceContext): vo
         const tableSvc = ctx.storage.getTableService(accountId);
         const result = await tableSvc.deleteTable(tableName);
         outputResult(
-          { fileName: `delete-table-${tableName}`, data: result, summary: `Table '${tableName}' deleted: ${result.success}` },
+          { persist: false, fileName: `delete-table-${tableName}`, data: result, summary: `Table '${tableName}' deleted: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete table'); }
@@ -143,7 +143,7 @@ export function registerTableCommands(program: Command, ctx: ServiceContext): vo
         const entityObj = JSON.parse(entity);
         const result = await tableSvc.updateEntity(tableName, entityObj, opts.mode);
         outputResult(
-          { fileName: `update-entity-${tableName}`, data: result, summary: `Entity updated in '${tableName}': ${result.success}` },
+          { persist: false, fileName: `update-entity-${tableName}`, data: result, summary: `Entity updated in '${tableName}': ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update entity'); }
@@ -186,7 +186,7 @@ export function registerTableCommands(program: Command, ctx: ServiceContext): vo
         const tableSvc = ctx.storage.getTableService(accountId);
         const result = await tableSvc.deleteEntity(tableName, partitionKey, rowKey);
         outputResult(
-          { fileName: `delete-entity-${partitionKey}-${rowKey}`, data: result, summary: `Entity [${partitionKey}/${rowKey}] deleted: ${result.success}` },
+          { persist: false, fileName: `delete-entity-${partitionKey}-${rowKey}`, data: result, summary: `Entity [${partitionKey}/${rowKey}] deleted: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete entity'); }

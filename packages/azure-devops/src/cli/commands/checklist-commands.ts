@@ -77,7 +77,7 @@ export function registerChecklistCommands(program: Command, ctx: ServiceContext)
     .action(async (project: string, workItemId: string, itemId: string, state: string, opts: any) => {
       try {
         const result = await ctx.checklist.updateItemState(project, parseInt(workItemId), itemId, state as any, opts.completedBy);
-        outputResult({ fileName: `checklist-${workItemId}-updated`, data: result, summary: `Updated item '${itemId}' to '${state}'` }, getGlobalFlags(program));
+        outputResult({ persist: false, fileName: `checklist-${workItemId}-updated`, data: result, summary: `Updated item '${itemId}' to '${state}'` }, getGlobalFlags(program));
       } catch (error) { handleCliError(error, 'update checklist item'); }
     });
 
@@ -91,7 +91,7 @@ export function registerChecklistCommands(program: Command, ctx: ServiceContext)
     .action(async (project: string, workItemId: string, text: string, opts: any) => {
       try {
         const result = await ctx.checklist.addItem(project, parseInt(workItemId), text, opts.required || false);
-        outputResult({ fileName: `checklist-${workItemId}-added`, data: result, summary: `Added item to #${workItemId}` }, getGlobalFlags(program));
+        outputResult({ persist: false, fileName: `checklist-${workItemId}-added`, data: result, summary: `Added item to #${workItemId}` }, getGlobalFlags(program));
       } catch (error) { handleCliError(error, 'add checklist item'); }
     });
 
@@ -104,7 +104,7 @@ export function registerChecklistCommands(program: Command, ctx: ServiceContext)
     .action(async (project: string, workItemId: string, itemId: string) => {
       try {
         const result = await ctx.checklist.removeItem(project, parseInt(workItemId), itemId);
-        outputResult({ fileName: `checklist-${workItemId}-removed`, data: result, summary: `Removed item '${itemId}' from #${workItemId}` }, getGlobalFlags(program));
+        outputResult({ persist: false, fileName: `checklist-${workItemId}-removed`, data: result, summary: `Removed item '${itemId}' from #${workItemId}` }, getGlobalFlags(program));
       } catch (error) { handleCliError(error, 'remove checklist item'); }
     });
 
@@ -118,7 +118,7 @@ export function registerChecklistCommands(program: Command, ctx: ServiceContext)
       try {
         const parsedItems = JSON.parse(items);
         const result = await ctx.checklist.updateTemplate(project, workItemType, parsedItems);
-        outputResult({
+        outputResult({ persist: false,
           fileName: `checklist-template-${workItemType.replace(/\s+/g, '-').toLowerCase()}-updated`,
           data: result,
           summary: `Updated template for '${workItemType}' (${result.checklistItems.length} items)`

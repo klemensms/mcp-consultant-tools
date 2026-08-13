@@ -45,7 +45,7 @@ export function registerCapacityCommands(program: Command, ctx: ServiceContext):
       try {
         const result = await ctx.capacities.assignWorkspaceToCapacity(workspaceId, capacityId);
         outputResult(
-          { fileName: `capacity-assign-${workspaceId}`, data: result, summary: `Assigned workspace '${workspaceId}' to capacity '${capacityId}'` },
+          { persist: false, fileName: `capacity-assign-${workspaceId}`, data: result, summary: `Assigned workspace '${workspaceId}' to capacity '${capacityId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'assign workspace to capacity'); }

@@ -54,7 +54,7 @@ export function registerItemCommands(program: Command, ctx: ServiceContext): voi
           description: opts.description,
         });
         outputResult(
-          { fileName: `item-created`, data: result, summary: `Created ${opts.type} '${displayName}' in workspace '${workspaceId}'` },
+          { persist: false, fileName: `item-created`, data: result, summary: `Created ${opts.type} '${displayName}' in workspace '${workspaceId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'create item'); }
@@ -74,7 +74,7 @@ export function registerItemCommands(program: Command, ctx: ServiceContext): voi
           description: opts.description,
         });
         outputResult(
-          { fileName: `item-updated-${itemId}`, data: result, summary: `Updated item '${itemId}'` },
+          { persist: false, fileName: `item-updated-${itemId}`, data: result, summary: `Updated item '${itemId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'update item'); }
@@ -89,7 +89,7 @@ export function registerItemCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.items.deleteItem(workspaceId, itemId);
         outputResult(
-          { fileName: `item-deleted-${itemId}`, data: result, summary: `Deleted item '${itemId}'` },
+          { persist: false, fileName: `item-deleted-${itemId}`, data: result, summary: `Deleted item '${itemId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'delete item'); }
@@ -105,7 +105,7 @@ export function registerItemCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.items.createLakehouse(workspaceId, { displayName, description: opts.description });
         outputResult(
-          { fileName: `lakehouse-created`, data: result, summary: `Created lakehouse '${displayName}' in workspace '${workspaceId}'` },
+          { persist: false, fileName: `lakehouse-created`, data: result, summary: `Created lakehouse '${displayName}' in workspace '${workspaceId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'create lakehouse'); }
@@ -121,7 +121,7 @@ export function registerItemCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.items.createWarehouse(workspaceId, { displayName, description: opts.description });
         outputResult(
-          { fileName: `warehouse-created`, data: result, summary: `Created warehouse '${displayName}' in workspace '${workspaceId}'` },
+          { persist: false, fileName: `warehouse-created`, data: result, summary: `Created warehouse '${displayName}' in workspace '${workspaceId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'create warehouse'); }
@@ -137,7 +137,7 @@ export function registerItemCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.items.createNotebook(workspaceId, { displayName, description: opts.description });
         outputResult(
-          { fileName: `notebook-created`, data: result, summary: `Created notebook '${displayName}' in workspace '${workspaceId}'` },
+          { persist: false, fileName: `notebook-created`, data: result, summary: `Created notebook '${displayName}' in workspace '${workspaceId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'create notebook'); }

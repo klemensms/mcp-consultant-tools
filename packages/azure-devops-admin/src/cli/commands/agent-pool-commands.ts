@@ -85,7 +85,7 @@ export function registerAgentPoolCommands(program: Command, ctx: ServiceContext)
         if (opts.targetSize !== undefined) updates.targetSize = parseInt(opts.targetSize);
         const result = await ctx.agentPools.updateAgentPool(parseInt(poolId), updates);
         outputResult(
-          { fileName: `agent-pool-updated-${poolId}`, data: result, summary: `Updated agent pool #${poolId}` },
+          { persist: false, fileName: `agent-pool-updated-${poolId}`, data: result, summary: `Updated agent pool #${poolId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update agent pool'); }
@@ -100,7 +100,7 @@ export function registerAgentPoolCommands(program: Command, ctx: ServiceContext)
       try {
         const result = await ctx.agentPools.enableAgent(parseInt(poolId), parseInt(agentId));
         outputResult(
-          { fileName: `agent-enabled-${poolId}-${agentId}`, data: result, summary: `Enabled agent #${agentId} in pool #${poolId}` },
+          { persist: false, fileName: `agent-enabled-${poolId}-${agentId}`, data: result, summary: `Enabled agent #${agentId} in pool #${poolId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'enable agent'); }
@@ -115,7 +115,7 @@ export function registerAgentPoolCommands(program: Command, ctx: ServiceContext)
       try {
         const result = await ctx.agentPools.disableAgent(parseInt(poolId), parseInt(agentId));
         outputResult(
-          { fileName: `agent-disabled-${poolId}-${agentId}`, data: result, summary: `Disabled agent #${agentId} in pool #${poolId}` },
+          { persist: false, fileName: `agent-disabled-${poolId}-${agentId}`, data: result, summary: `Disabled agent #${agentId} in pool #${poolId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'disable agent'); }

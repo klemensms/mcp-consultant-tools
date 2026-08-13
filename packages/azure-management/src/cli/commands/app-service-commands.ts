@@ -113,7 +113,7 @@ export function registerAppServiceCommands(program: Command, ctx: ServiceContext
           resourceGroup: opts.resourceGroup,
         });
         outputResult(
-          { fileName: `app-service-restart-${name}`, data: result, summary: result.message },
+          { persist: false, fileName: `app-service-restart-${name}`, data: result, summary: result.message },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'restart app service'); }
@@ -131,7 +131,7 @@ export function registerAppServiceCommands(program: Command, ctx: ServiceContext
           resourceGroup: opts.resourceGroup,
         });
         outputResult(
-          { fileName: `app-service-stop-${name}`, data: result, summary: result.message },
+          { persist: false, fileName: `app-service-stop-${name}`, data: result, summary: result.message },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'stop app service'); }
@@ -149,7 +149,7 @@ export function registerAppServiceCommands(program: Command, ctx: ServiceContext
           resourceGroup: opts.resourceGroup,
         });
         outputResult(
-          { fileName: `app-service-start-${name}`, data: result, summary: result.message },
+          { persist: false, fileName: `app-service-start-${name}`, data: result, summary: result.message },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'start app service'); }
@@ -184,7 +184,7 @@ export function registerAppServiceCommands(program: Command, ctx: ServiceContext
         ];
 
         outputResult(
-          { fileName: `app-service-config-${name}`, data: result, summary: `Config updated for '${name}': ${changes.join('; ') || 'no changes'}` },
+          { persist: false, fileName: `app-service-config-${name}`, data: result, summary: `Config updated for '${name}': ${changes.join('; ') || 'no changes'}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'set app service config'); }

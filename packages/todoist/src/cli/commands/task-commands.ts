@@ -77,7 +77,7 @@ export function registerTaskCommands(program: Command, ctx: ServiceContext): voi
           due_datetime: opts.dueDatetime,
         });
         outputResult(
-          { fileName: `create-task-${data.id}`, data, summary: `Created task "${data.content}" (id: ${data.id})` },
+          { persist: false, fileName: `create-task-${data.id}`, data, summary: `Created task "${data.content}" (id: ${data.id})` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create task'); }
@@ -105,7 +105,7 @@ export function registerTaskCommands(program: Command, ctx: ServiceContext): voi
           due_datetime: opts.dueDatetime,
         });
         outputResult(
-          { fileName: `update-task-${id}`, data, summary: `Updated task "${data.content}" (id: ${data.id})` },
+          { persist: false, fileName: `update-task-${id}`, data, summary: `Updated task "${data.content}" (id: ${data.id})` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update task'); }
@@ -118,7 +118,7 @@ export function registerTaskCommands(program: Command, ctx: ServiceContext): voi
       try {
         await ctx.todoist.closeTask(id);
         outputResult(
-          { fileName: `complete-task-${id}`, data: { id, completed: true }, summary: `Completed task ${id}` },
+          { persist: false, fileName: `complete-task-${id}`, data: { id, completed: true }, summary: `Completed task ${id}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'complete task'); }
@@ -131,7 +131,7 @@ export function registerTaskCommands(program: Command, ctx: ServiceContext): voi
       try {
         await ctx.todoist.reopenTask(id);
         outputResult(
-          { fileName: `reopen-task-${id}`, data: { id, reopened: true }, summary: `Reopened task ${id}` },
+          { persist: false, fileName: `reopen-task-${id}`, data: { id, reopened: true }, summary: `Reopened task ${id}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'reopen task'); }
@@ -144,7 +144,7 @@ export function registerTaskCommands(program: Command, ctx: ServiceContext): voi
       try {
         await ctx.todoist.deleteTask(id);
         outputResult(
-          { fileName: `delete-task-${id}`, data: { id, deleted: true }, summary: `Deleted task ${id}` },
+          { persist: false, fileName: `delete-task-${id}`, data: { id, deleted: true }, summary: `Deleted task ${id}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete task'); }

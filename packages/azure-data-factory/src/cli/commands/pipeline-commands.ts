@@ -60,7 +60,7 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
           factory: factory.name,
         };
         outputResult(
-          { fileName: `pipeline-run-${result.runId}`, data, summary: `Pipeline '${name}' triggered. Run ID: ${result.runId}` },
+          { persist: false, fileName: `pipeline-run-${result.runId}`, data, summary: `Pipeline '${name}' triggered. Run ID: ${result.runId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'run pipeline'); }
@@ -91,7 +91,7 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
         await ctx.adf.cancelPipelineRun(runId, opts.factoryId);
         const data = { message: `Pipeline run '${runId}' cancellation initiated` };
         outputResult(
-          { fileName: `pipeline-cancel-${runId}`, data, summary: `Pipeline run '${runId}' cancellation initiated` },
+          { persist: false, fileName: `pipeline-cancel-${runId}`, data, summary: `Pipeline run '${runId}' cancellation initiated` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'cancel pipeline run'); }
@@ -221,7 +221,7 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
           startActivityName: opts.startActivity || 'Auto-detect failed activities',
         };
         outputResult(
-          { fileName: `pipeline-rerun-${result.runId}`, data, summary: `Rerun initiated for '${originalRun.pipelineName}'. New run ID: ${result.runId}` },
+          { persist: false, fileName: `pipeline-rerun-${result.runId}`, data, summary: `Rerun initiated for '${originalRun.pipelineName}'. New run ID: ${result.runId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'rerun pipeline'); }

@@ -26,7 +26,7 @@ export function registerTestCommands(program: Command, ctx: ServiceContext): voi
           buildId: opts.buildId,
         });
         outputResult(
-          { fileName: `test-run-${result.runId}`, data: result, summary: `Created test run #${result.runId}: ${result.name}\nURL: ${result.webAccessUrl}` },
+          { persist: false, fileName: `test-run-${result.runId}`, data: result, summary: `Created test run #${result.runId}: ${result.name}\nURL: ${result.webAccessUrl}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create test run'); }
@@ -43,7 +43,7 @@ export function registerTestCommands(program: Command, ctx: ServiceContext): voi
         const results = JSON.parse(resultsJson);
         const result = await ctx.test.addTestResults(project, parseInt(runId), results);
         outputResult(
-          { fileName: `test-results-run-${runId}`, data: result, summary: `Added ${result.count} result(s) to run #${runId}` },
+          { persist: false, fileName: `test-results-run-${runId}`, data: result, summary: `Added ${result.count} result(s) to run #${runId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'add test results'); }
@@ -59,7 +59,7 @@ export function registerTestCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.test.completeTestRun(project, parseInt(runId), opts.comment);
         outputResult(
-          { fileName: `test-run-${runId}-complete`, data: result, summary: `Run #${result.runId}: ${result.state} — ${result.passedTests}/${result.totalTests} passed` },
+          { persist: false, fileName: `test-run-${runId}-complete`, data: result, summary: `Run #${result.runId}: ${result.state} — ${result.passedTests}/${result.totalTests} passed` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'complete test run'); }
@@ -133,7 +133,7 @@ export function registerTestCommands(program: Command, ctx: ServiceContext): voi
           runSummary: opts.runSummary,
         });
         outputResult(
-          { fileName: `test-case-${testCaseId}-link`, data: result, summary: `Linked: ${result.linked.join(', ')}` },
+          { persist: false, fileName: `test-case-${testCaseId}-link`, data: result, summary: `Linked: ${result.linked.join(', ')}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'link test case'); }

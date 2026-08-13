@@ -46,7 +46,7 @@ export function registerShortcutCommands(program: Command, ctx: ServiceContext):
           target,
         });
         outputResult(
-          { fileName: `shortcut-created-${itemId}`, data: result, summary: `Created shortcut '${opts.name}' in item '${itemId}'` },
+          { persist: false, fileName: `shortcut-created-${itemId}`, data: result, summary: `Created shortcut '${opts.name}' in item '${itemId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'create shortcut'); }
@@ -63,7 +63,7 @@ export function registerShortcutCommands(program: Command, ctx: ServiceContext):
       try {
         const result = await ctx.shortcuts.deleteShortcut(workspaceId, itemId, shortcutPath, shortcutName);
         outputResult(
-          { fileName: `shortcut-deleted-${itemId}`, data: result, summary: `Deleted shortcut '${shortcutName}' from item '${itemId}'` },
+          { persist: false, fileName: `shortcut-deleted-${itemId}`, data: result, summary: `Deleted shortcut '${shortcutName}' from item '${itemId}'` },
           getGlobalFlags(program),
         );
       } catch (error) { handleCliError(error, 'delete shortcut'); }

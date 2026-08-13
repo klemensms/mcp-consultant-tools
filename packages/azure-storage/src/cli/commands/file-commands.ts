@@ -61,7 +61,7 @@ export function registerFileCommands(program: Command, ctx: ServiceContext): voi
         const metadata = opts.metadata ? JSON.parse(opts.metadata) : undefined;
         const result = await fileSvc.createShare(shareName, quota, metadata);
         outputResult(
-          { fileName: `create-share-${shareName}`, data: result, summary: `Share '${shareName}' created: ${result.success}` },
+          { persist: false, fileName: `create-share-${shareName}`, data: result, summary: `Share '${shareName}' created: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create share'); }
@@ -80,7 +80,7 @@ export function registerFileCommands(program: Command, ctx: ServiceContext): voi
         const fileSvc = ctx.storage.getFileService(accountId);
         const result = await fileSvc.deleteShare(shareName);
         outputResult(
-          { fileName: `delete-share-${shareName}`, data: result, summary: `Share '${shareName}' deleted: ${result.success}` },
+          { persist: false, fileName: `delete-share-${shareName}`, data: result, summary: `Share '${shareName}' deleted: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete share'); }
@@ -123,7 +123,7 @@ export function registerFileCommands(program: Command, ctx: ServiceContext): voi
         const metadata = opts.metadata ? JSON.parse(opts.metadata) : undefined;
         const result = await fileSvc.createDirectory(shareName, directoryPath, metadata);
         outputResult(
-          { fileName: `create-dir-${directoryPath.replace(/\//g, '-')}`, data: result, summary: `Directory '${directoryPath}' created: ${result.success}` },
+          { persist: false, fileName: `create-dir-${directoryPath.replace(/\//g, '-')}`, data: result, summary: `Directory '${directoryPath}' created: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create directory'); }
@@ -143,7 +143,7 @@ export function registerFileCommands(program: Command, ctx: ServiceContext): voi
         const fileSvc = ctx.storage.getFileService(accountId);
         const result = await fileSvc.deleteDirectory(shareName, directoryPath);
         outputResult(
-          { fileName: `delete-dir-${directoryPath.replace(/\//g, '-')}`, data: result, summary: `Directory '${directoryPath}' deleted: ${result.success}` },
+          { persist: false, fileName: `delete-dir-${directoryPath.replace(/\//g, '-')}`, data: result, summary: `Directory '${directoryPath}' deleted: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete directory'); }
@@ -205,7 +205,7 @@ export function registerFileCommands(program: Command, ctx: ServiceContext): voi
           overwrite: opts.overwrite,
         });
         outputResult(
-          { fileName: `upload-${filePath.replace(/\//g, '-')}`, data: result, summary: `Upload '${filePath}': ${result.success}` },
+          { persist: false, fileName: `upload-${filePath.replace(/\//g, '-')}`, data: result, summary: `Upload '${filePath}': ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'upload file'); }
@@ -225,7 +225,7 @@ export function registerFileCommands(program: Command, ctx: ServiceContext): voi
         const fileSvc = ctx.storage.getFileService(accountId);
         const result = await fileSvc.deleteFile(shareName, filePath);
         outputResult(
-          { fileName: `delete-file-${filePath.replace(/\//g, '-')}`, data: result, summary: `File '${filePath}' deleted: ${result.success}` },
+          { persist: false, fileName: `delete-file-${filePath.replace(/\//g, '-')}`, data: result, summary: `File '${filePath}' deleted: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete file'); }

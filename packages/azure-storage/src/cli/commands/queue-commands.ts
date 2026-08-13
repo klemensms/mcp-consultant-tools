@@ -59,7 +59,7 @@ export function registerQueueCommands(program: Command, ctx: ServiceContext): vo
         const metadata = opts.metadata ? JSON.parse(opts.metadata) : undefined;
         const result = await queueSvc.createQueue(queueName, metadata);
         outputResult(
-          { fileName: `create-queue-${queueName}`, data: result, summary: `Queue '${queueName}' created: ${result.success}` },
+          { persist: false, fileName: `create-queue-${queueName}`, data: result, summary: `Queue '${queueName}' created: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create queue'); }
@@ -78,7 +78,7 @@ export function registerQueueCommands(program: Command, ctx: ServiceContext): vo
         const queueSvc = ctx.storage.getQueueService(accountId);
         const result = await queueSvc.deleteQueue(queueName);
         outputResult(
-          { fileName: `delete-queue-${queueName}`, data: result, summary: `Queue '${queueName}' deleted: ${result.success}` },
+          { persist: false, fileName: `delete-queue-${queueName}`, data: result, summary: `Queue '${queueName}' deleted: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete queue'); }
@@ -103,7 +103,7 @@ export function registerQueueCommands(program: Command, ctx: ServiceContext): vo
           timeToLive: opts.timeToLive ? parseInt(opts.timeToLive) : undefined,
         });
         outputResult(
-          { fileName: `send-message-${queueName}`, data: result, summary: `Message sent to '${queueName}': ${result.success}` },
+          { persist: false, fileName: `send-message-${queueName}`, data: result, summary: `Message sent to '${queueName}': ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'send message'); }
@@ -166,7 +166,7 @@ export function registerQueueCommands(program: Command, ctx: ServiceContext): vo
         const queueSvc = ctx.storage.getQueueService(accountId);
         const result = await queueSvc.deleteMessage(queueName, messageId, popReceipt);
         outputResult(
-          { fileName: `delete-message-${messageId}`, data: result, summary: `Message '${messageId}' deleted: ${result.success}` },
+          { persist: false, fileName: `delete-message-${messageId}`, data: result, summary: `Message '${messageId}' deleted: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete message'); }
@@ -190,7 +190,7 @@ export function registerQueueCommands(program: Command, ctx: ServiceContext): vo
         const visibilityTimeout = opts.visibilityTimeout ? parseInt(opts.visibilityTimeout) : undefined;
         const result = await queueSvc.updateMessage(queueName, messageId, popReceipt, messageText, visibilityTimeout);
         outputResult(
-          { fileName: `update-message-${messageId}`, data: result, summary: `Message '${messageId}' updated: ${result.success}` },
+          { persist: false, fileName: `update-message-${messageId}`, data: result, summary: `Message '${messageId}' updated: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update message'); }
@@ -209,7 +209,7 @@ export function registerQueueCommands(program: Command, ctx: ServiceContext): vo
         const queueSvc = ctx.storage.getQueueService(accountId);
         const result = await queueSvc.clearMessages(queueName);
         outputResult(
-          { fileName: `clear-queue-${queueName}`, data: result, summary: `Queue '${queueName}' cleared: ${result.success}` },
+          { persist: false, fileName: `clear-queue-${queueName}`, data: result, summary: `Queue '${queueName}' cleared: ${result.success}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'clear messages'); }

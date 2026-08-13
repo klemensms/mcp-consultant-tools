@@ -72,7 +72,7 @@ export function registerProjectCommands(program: Command, ctx: ServiceContext): 
           name, opts.description, opts.visibility, opts.process, opts.vcs
         );
         outputResult(
-          { fileName: `project-created-${name}`, data: result, summary: `Created project '${name}'` },
+          { persist: false, fileName: `project-created-${name}`, data: result, summary: `Created project '${name}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create project'); }
@@ -91,7 +91,7 @@ export function registerProjectCommands(program: Command, ctx: ServiceContext): 
         if (opts.description) updates.description = opts.description;
         const result = await ctx.projects.updateProject(projectId, updates);
         outputResult(
-          { fileName: `project-updated-${projectId}`, data: result, summary: `Updated project '${projectId}'` },
+          { persist: false, fileName: `project-updated-${projectId}`, data: result, summary: `Updated project '${projectId}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update project'); }
@@ -105,7 +105,7 @@ export function registerProjectCommands(program: Command, ctx: ServiceContext): 
       try {
         const result = await ctx.projects.deleteProject(projectId);
         outputResult(
-          { fileName: `project-deleted-${projectId}`, data: result, summary: `Deleted project '${projectId}'` },
+          { persist: false, fileName: `project-deleted-${projectId}`, data: result, summary: `Deleted project '${projectId}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete project'); }

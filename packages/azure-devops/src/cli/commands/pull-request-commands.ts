@@ -168,7 +168,7 @@ export function registerPullRequestCommands(program: Command, ctx: ServiceContex
         const lineNumber = opts.lineNumber ? parseInt(opts.lineNumber) : undefined;
         const result = await ctx.pullRequest.addPullRequestThread(project, repositoryId, parseInt(pullRequestId), content, opts.filePath, lineNumber, opts.status);
         outputResult(
-          { fileName: `pr-${pullRequestId}-thread-added`, data: result, summary: `Added comment to PR #${pullRequestId}` },
+          { persist: false, fileName: `pr-${pullRequestId}-thread-added`, data: result, summary: `Added comment to PR #${pullRequestId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'add PR thread'); }
@@ -192,7 +192,7 @@ export function registerPullRequestCommands(program: Command, ctx: ServiceContex
           opts.description, opts.reviewers, opts.draft
         );
         outputResult(
-          { fileName: `pr-created`, data: result, summary: `Created PR #${(result as any)?.pullRequestId}` },
+          { persist: false, fileName: `pr-created`, data: result, summary: `Created PR #${(result as any)?.pullRequestId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create pull request'); }
@@ -216,7 +216,7 @@ export function registerPullRequestCommands(program: Command, ctx: ServiceContex
           { title: opts.title, description: opts.description, status: opts.status, isDraft }
         );
         outputResult(
-          { fileName: `pr-${pullRequestId}-updated`, data: result, summary: `Updated PR #${pullRequestId}` },
+          { persist: false, fileName: `pr-${pullRequestId}-updated`, data: result, summary: `Updated PR #${pullRequestId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update pull request'); }
@@ -239,7 +239,7 @@ export function registerPullRequestCommands(program: Command, ctx: ServiceContex
           opts.strategy, opts.deleteBranch ?? true, opts.transitionWorkItems ?? true, opts.commitMessage
         );
         outputResult(
-          { fileName: `pr-${pullRequestId}-completed`, data: result, summary: `Completed PR #${pullRequestId}` },
+          { persist: false, fileName: `pr-${pullRequestId}-completed`, data: result, summary: `Completed PR #${pullRequestId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'complete pull request'); }
@@ -260,7 +260,7 @@ export function registerPullRequestCommands(program: Command, ctx: ServiceContex
           project, repositoryId, parseInt(pullRequestId), reviewerId, opts.required, opts.remove
         );
         outputResult(
-          { fileName: `pr-${pullRequestId}-reviewer`, data: result, summary: `${opts.remove ? 'Removed' : 'Added'} reviewer on PR #${pullRequestId}` },
+          { persist: false, fileName: `pr-${pullRequestId}-reviewer`, data: result, summary: `${opts.remove ? 'Removed' : 'Added'} reviewer on PR #${pullRequestId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'manage PR reviewer'); }
@@ -301,7 +301,7 @@ export function registerPullRequestCommands(program: Command, ctx: ServiceContex
           project, repositoryId, parseInt(pullRequestId), parseInt(threadId), opts.content, opts.status
         );
         outputResult(
-          { fileName: `pr-${pullRequestId}-reply-${threadId}`, data: result, summary: `Replied to thread #${threadId} on PR #${pullRequestId}` },
+          { persist: false, fileName: `pr-${pullRequestId}-reply-${threadId}`, data: result, summary: `Replied to thread #${threadId} on PR #${pullRequestId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'reply to PR thread'); }

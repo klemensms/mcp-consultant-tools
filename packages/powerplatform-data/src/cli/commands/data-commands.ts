@@ -107,7 +107,7 @@ export function registerDataCommands(program: Command, ctx: ServiceContext): voi
         const data = JSON.parse(dataJson);
         const result = await ctx.pp.createRecord(entityNamePlural, data);
         outputResult(
-          {
+          { persist: false,
             fileName: `created-${entityNamePlural}`,
             data: result,
             summary: `Record created successfully in '${entityNamePlural}'`,
@@ -131,7 +131,7 @@ export function registerDataCommands(program: Command, ctx: ServiceContext): voi
         const data = JSON.parse(dataJson);
         const result = await ctx.pp.updateRecord(entityNamePlural, recordId, data);
         outputResult(
-          {
+          { persist: false,
             fileName: `updated-${entityNamePlural}-${recordId}`,
             data: result,
             summary: `Record '${recordId}' updated successfully in '${entityNamePlural}'`,
@@ -163,7 +163,7 @@ export function registerDataCommands(program: Command, ctx: ServiceContext): voi
         }
         await ctx.pp.deleteRecord(entityNamePlural, recordId);
         outputResult(
-          {
+          { persist: false,
             fileName: `deleted-${entityNamePlural}-${recordId}`,
             data: { entity: entityNamePlural, recordId, deleted: true },
             summary: `Record '${recordId}' deleted from '${entityNamePlural}'`,

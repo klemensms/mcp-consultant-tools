@@ -35,7 +35,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
           opts.encoding || 'utf-8',
           opts.overwrite || false
         );
-        outputResult({
+        outputResult({ persist: false,
           fileName: `upload-${(result as any).name || 'file'}`,
           data: result,
           summary: `Uploaded: ${(result as any).name}\nSize: ${(result as any).size} bytes\nURL: ${(result as any).webUrl || 'N/A'}`,
@@ -62,7 +62,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
           opts.parentPath,
           opts.folderName
         );
-        outputResult({
+        outputResult({ persist: false,
           fileName: `create-folder-${opts.folderName}`,
           data: result,
           summary: `Folder created: ${(result as any).name}\nURL: ${(result as any).webUrl || 'N/A'}`,
@@ -91,7 +91,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
           opts.targetDriveId,
           opts.targetParentPath
         );
-        outputResult({
+        outputResult({ persist: false,
           fileName: `move-${opts.itemId}`,
           data: result,
           summary: `Moved: ${(result as any).name}\n${(result as any).message || ''}`,
@@ -149,7 +149,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
           opts.itemId,
           opts.newName
         );
-        outputResult({
+        outputResult({ persist: false,
           fileName: `rename-${opts.itemId}`,
           data: result,
           summary: `Renamed to: ${(result as any).name}\n${(result as any).message || ''}`,
@@ -181,7 +181,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
           opts.driveId,
           opts.itemId
         );
-        outputResult({
+        outputResult({ persist: false,
           fileName: `delete-${opts.itemId}`,
           data: result,
           summary: `Deleted: ${(result as any).name}\n${(result as any).message || ''}`,

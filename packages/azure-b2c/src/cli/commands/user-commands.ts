@@ -104,7 +104,7 @@ export function registerUserCommands(program: Command, ctx: ServiceContext): voi
       try {
         await ctx.users.resetUserPassword(userId, newPassword, opts.forceChange);
         outputResult(
-          {
+          { persist: false,
             fileName: `b2c-reset-pwd-${userId}`,
             data: { success: true, message: `Password reset for user ${userId}`, forceChangeOnNextLogin: opts.forceChange },
             summary: `Password reset successfully for user ${userId}`,
@@ -181,7 +181,7 @@ export function registerUserCommands(program: Command, ctx: ServiceContext): voi
 
         const result = await ctx.users.createUser(request);
         outputResult(
-          {
+          { persist: false,
             fileName: `b2c-created-user`,
             data: { success: true, message: 'User created successfully', user: result },
             summary: `Created user '${opts.displayName}' (${(result as any).id})`,
@@ -224,7 +224,7 @@ export function registerUserCommands(program: Command, ctx: ServiceContext): voi
 
         const result = await ctx.users.updateUser(userId, updates);
         outputResult(
-          {
+          { persist: false,
             fileName: `b2c-updated-user-${userId}`,
             data: { success: true, message: 'User updated successfully', updatedFields: Object.keys(updates), user: result },
             summary: `Updated user ${userId} (fields: ${Object.keys(updates).join(', ')})`,
@@ -248,7 +248,7 @@ export function registerUserCommands(program: Command, ctx: ServiceContext): voi
 
         await ctx.users.deleteUser(userId);
         outputResult(
-          {
+          { persist: false,
             fileName: `b2c-deleted-user-${userId}`,
             data: { success: true, message: `User ${userId} has been permanently deleted`, warning: 'This action cannot be undone' },
             summary: `User ${userId} has been permanently deleted`,

@@ -51,7 +51,7 @@ export function registerVariableGroupCommands(program: Command, ctx: ServiceCont
         const variables = opts.variables ? JSON.parse(opts.variables) : undefined;
         const result = await ctx.variableGroups.createVariableGroup(project, name, opts.description, variables);
         outputResult(
-          { fileName: `var-group-created-${name}`, data: result, summary: `Created variable group '${name}'` },
+          { persist: false, fileName: `var-group-created-${name}`, data: result, summary: `Created variable group '${name}'` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'create variable group'); }
@@ -71,7 +71,7 @@ export function registerVariableGroupCommands(program: Command, ctx: ServiceCont
         if (opts.description) updates.description = opts.description;
         const result = await ctx.variableGroups.updateVariableGroupMetadata(project, parseInt(groupId), updates);
         outputResult(
-          { fileName: `var-group-updated-${groupId}`, data: result, summary: `Updated variable group #${groupId}` },
+          { persist: false, fileName: `var-group-updated-${groupId}`, data: result, summary: `Updated variable group #${groupId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'update variable group'); }
@@ -89,7 +89,7 @@ export function registerVariableGroupCommands(program: Command, ctx: ServiceCont
       try {
         const result = await ctx.variableGroups.setVariable(project, parseInt(groupId), varName, value, opts.secret || false);
         outputResult(
-          { fileName: `var-set-${groupId}-${varName}`, data: result, summary: `Set variable '${varName}' in group #${groupId}` },
+          { persist: false, fileName: `var-set-${groupId}-${varName}`, data: result, summary: `Set variable '${varName}' in group #${groupId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'set variable'); }
@@ -105,7 +105,7 @@ export function registerVariableGroupCommands(program: Command, ctx: ServiceCont
       try {
         const result = await ctx.variableGroups.removeVariable(project, parseInt(groupId), varName);
         outputResult(
-          { fileName: `var-removed-${groupId}-${varName}`, data: result, summary: `Removed variable '${varName}' from group #${groupId}` },
+          { persist: false, fileName: `var-removed-${groupId}-${varName}`, data: result, summary: `Removed variable '${varName}' from group #${groupId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'remove variable'); }
@@ -120,7 +120,7 @@ export function registerVariableGroupCommands(program: Command, ctx: ServiceCont
       try {
         const result = await ctx.variableGroups.deleteVariableGroup(project, parseInt(groupId));
         outputResult(
-          { fileName: `var-group-deleted-${groupId}`, data: result, summary: `Deleted variable group #${groupId}` },
+          { persist: false, fileName: `var-group-deleted-${groupId}`, data: result, summary: `Deleted variable group #${groupId}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'delete variable group'); }

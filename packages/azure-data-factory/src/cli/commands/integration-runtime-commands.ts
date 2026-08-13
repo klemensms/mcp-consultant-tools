@@ -57,7 +57,7 @@ export function registerIntegrationRuntimeCommands(program: Command, ctx: Servic
         await ctx.adf.startIntegrationRuntime(name, opts.factoryId);
         const data = { message: `Integration runtime '${name}' start initiated`, note: 'Managed IR startup can take 2-5 minutes' };
         outputResult(
-          { fileName: `ir-start-${name}`, data, summary: `Integration runtime '${name}' start initiated` },
+          { persist: false, fileName: `ir-start-${name}`, data, summary: `Integration runtime '${name}' start initiated` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'start integration runtime'); }
@@ -73,7 +73,7 @@ export function registerIntegrationRuntimeCommands(program: Command, ctx: Servic
         await ctx.adf.stopIntegrationRuntime(name, opts.factoryId);
         const data = { message: `Integration runtime '${name}' stop initiated`, note: 'The IR may take a moment to fully stop' };
         outputResult(
-          { fileName: `ir-stop-${name}`, data, summary: `Integration runtime '${name}' stop initiated` },
+          { persist: false, fileName: `ir-stop-${name}`, data, summary: `Integration runtime '${name}' stop initiated` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'stop integration runtime'); }
