@@ -142,6 +142,30 @@ describe('MessageService.getChannelMessages', () => {
     expect(message.createdDateTime).toBe('2021-03-28T21:11:12.395Z');
   });
 
+  // The renderer can only coalesce per-word mentions if the service actually
+  // hands it mentions[]. Testing the renderer alone would pass with the
+  // argument unplumbed, which is the whole failure this asserts against.
+  it('passes mentions[] to the renderer, so a multi-word mention arrives as one @tag', async () => {
+    stub.setGet({
+      value: [{
+        ...CHANNEL_MESSAGE,
+        body: {
+          contentType: 'html',
+          content: '<p>Thanks <at id="0">Jane</at>&nbsp;<at id="1">Doe</at>&nbsp;- noted.</p>',
+        },
+        mentions: [
+          { id: 0, mentionText: 'Jane', mentioned: { user: { id: 'aaaaaaaa-1111-2222-3333-444444444444' } } },
+          { id: 1, mentionText: 'Doe', mentioned: { user: { id: 'aaaaaaaa-1111-2222-3333-444444444444' } } },
+        ],
+      }],
+    });
+    const service = createService(stub);
+
+    const [message] = await service.getChannelMessages();
+
+    expect(message.text).toBe('Thanks @Jane Doe - noted.');
+  });
+
   it('labels a system message instead of throwing on from: null', async () => {
     stub.setGet({ value: [SYSTEM_MESSAGE] });
     const service = createService(stub);
@@ -292,10 +316,34 @@ describe('MessageService.listChats', () => {
 
     expect(stub.calls.path).toBe('/me/chats');
     expect(stub.calls.orderby).toBe('lastMessagePreview/createdDateTime desc');
-    expect(stub.calls.expand).toBeUndefined();
+    // Graph does not return lastMessagePreview unless it is expanded, even
+    // though it will happily order by it - so ordering silently worked while
+    // the timestamp behind the ordering was never in the response.
+    expect(stub.calls.expand).toBe('lastMessagePreview');
     expect(chat.topic).toBe('Group chat sample');
     expect(chat.chatType).toBe('group');
     expect(chat.memberNames).toBeUndefined();
+  });
+
+  it('reports the last message time, not the time the chat itself changed', async () => {
+    const stub = createGraphStub();
+    stub.setGet({
+      value: [{
+        ...CHAT,
+        lastUpdatedDateTime: '2026-07-01T10:44:15Z',
+        lastMessagePreview: {
+          id: '1622853091207',
+          createdDateTime: '2026-08-13T06:07:41Z',
+          body: { contentType: 'text', content: 'Testing unread read status' },
+        },
+      }],
+    });
+    const service = createService(stub);
+
+    const [chat] = await service.listChats();
+
+    expect(chat.lastMessageDateTime).toBe('2026-08-13T06:07:41Z');
+    expect(chat.lastUpdatedDateTime).toBe('2026-07-01T10:44:15Z');
   });
 
   it('expands members only when asked, and surfaces their display names', async () => {
@@ -315,7 +363,7 @@ describe('MessageService.listChats', () => {
 
     const [chat] = await service.listChats({ includeMembers: true });
 
-    expect(stub.calls.expand).toBe('members');
+    expect(stub.calls.expand).toBe('members,lastMessagePreview');
     expect(chat.memberNames).toEqual(['Tony Stark', 'Peter Parker']);
     expect(chat.topic).toBeUndefined();
   });

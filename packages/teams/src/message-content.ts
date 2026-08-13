@@ -53,13 +53,114 @@ const BLOCK_TAGS = new Set([
 ]);
 
 /**
+ * A Graph chatMessage mention. Only the fields needed to identify what a given
+ * <at> element points at - the entity a mention resolves to is a user, a
+ * conversation (channel/team tag), an application or a tag.
+ */
+export interface GraphMention {
+  id?: number;
+  mentionText?: string;
+  mentioned?: {
+    user?: { id?: string };
+    conversation?: { id?: string };
+    application?: { id?: string };
+    tag?: { id?: string };
+  };
+}
+
+/**
+ * The entity a given <at> element resolves to, or undefined when it cannot be
+ * resolved. Two <at> elements belong to the same mention only if this matches.
+ */
+function entityKeyFor(at: Element, mentions?: GraphMention[]): string | undefined {
+  if (!mentions?.length) {
+    return undefined;
+  }
+
+  const id = at.getAttribute("id");
+  if (id === null) {
+    return undefined;
+  }
+
+  const mentioned = mentions.find((m) => String(m.id) === id)?.mentioned;
+
+  return (
+    mentioned?.user?.id ??
+    mentioned?.conversation?.id ??
+    mentioned?.application?.id ??
+    mentioned?.tag?.id
+  );
+}
+
+/** True for a text node holding nothing but whitespace (&nbsp; counts). */
+function isBlankText(node: ChildNode | null): boolean {
+  return node !== null && node.nodeType === 3 && !(node.textContent ?? "").trim();
+}
+
+function isAtElement(node: ChildNode | null): node is Element {
+  return node !== null && node.nodeType === 1 && (node as Element).tagName.toLowerCase() === "at";
+}
+
+/**
+ * Replace each mention with a single "@Name", joining the per-word <at>
+ * elements Graph emits for one mention.
+ *
+ * Graph splits a multi-word mention across one <at> per word, each with its own
+ * mentions[] entry, all resolving to the same entity - so "Jane Doe" arrives as
+ * two elements and renders as "@Jane @Doe" if taken at face value. Runs are
+ * keyed on the resolved entity id and NOT on adjacency: two different people
+ * mentioned back to back are also adjacent, and merging those would invent a
+ * name that nobody wrote. Without a mentions array there is nothing to key on,
+ * so each element is rendered separately rather than guessed at.
+ */
+function renderMentions(document: Document, mentions?: GraphMention[]): void {
+  const consumed = new Set<Element>();
+
+  for (const at of Array.from(document.querySelectorAll("at"))) {
+    if (consumed.has(at)) {
+      continue;
+    }
+
+    const key = entityKeyFor(at, mentions);
+    const words = [at.textContent ?? ""];
+    let pendingBlanks: ChildNode[] = [];
+    let cursor: ChildNode | null = at.nextSibling;
+
+    while (key !== undefined && cursor !== null) {
+      if (isBlankText(cursor)) {
+        pendingBlanks.push(cursor);
+        cursor = cursor.nextSibling;
+        continue;
+      }
+
+      if (!isAtElement(cursor) || entityKeyFor(cursor, mentions) !== key) {
+        break;
+      }
+
+      words.push(cursor.textContent ?? "");
+      consumed.add(cursor);
+      for (const blank of pendingBlanks) {
+        blank.remove();
+      }
+      pendingBlanks = [];
+
+      const next: ChildNode | null = cursor.nextSibling;
+      cursor.remove();
+      cursor = next;
+    }
+
+    at.replaceWith(document.createTextNode(`@${words.join(" ").trim()}`));
+  }
+}
+
+/**
  * Flatten Teams message HTML to readable plain text.
  *
  * Keeps @-mentions as "@Name", marks images and attachments as placeholders
  * (their content is a Graph hostedContents URL, useless to a reader), and
  * collapses the div nesting Teams emits into ordinary line breaks.
  */
-export function htmlToText(html: string, contentType?: string): string {
+export function htmlToText(html: string, contentType?: string, mentions?: GraphMention[]): string {
   if (!html) {
     return "";
   }
@@ -72,9 +173,14 @@ export function htmlToText(html: string, contentType?: string): string {
   const dom = new JSDOM(`<body>${html}</body>`);
   const { document } = dom.window;
 
-  // <at id="0">Jane Doe</at> -> @Jane Doe
-  for (const at of Array.from(document.querySelectorAll("at"))) {
-    at.replaceWith(document.createTextNode(`@${at.textContent ?? ""}`));
+  // <at id="0">Jane</at>&nbsp;<at id="1">Doe</at> -> @Jane Doe
+  renderMentions(document, mentions);
+
+  // Teams carries the character itself in the alt attribute; the element has no
+  // text content, so without this every emoji vanishes from the rendered body.
+  for (const emoji of Array.from(document.querySelectorAll("emoji"))) {
+    const char = emoji.getAttribute("alt") ?? emoji.getAttribute("title") ?? "";
+    emoji.replaceWith(document.createTextNode(char));
   }
 
   for (const img of Array.from(document.querySelectorAll("img"))) {

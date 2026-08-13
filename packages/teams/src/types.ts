@@ -212,6 +212,16 @@ export interface ChatInfo {
   chatType: string;
   /** Display names of members, when expanded. Graph caps this at 25 per chat. */
   memberNames?: string[];
+  /**
+   * When the last message in the chat was sent. This is the property the list
+   * is ordered by, so it is the one worth showing a reader.
+   */
+  lastMessageDateTime?: string;
+  /**
+   * When the chat itself last changed (topic, membership) - NOT when anyone
+   * last spoke in it. Kept because it is real, but do not present it as
+   * activity: it can sit weeks behind lastMessageDateTime.
+   */
   lastUpdatedDateTime?: string;
   webUrl?: string;
 }

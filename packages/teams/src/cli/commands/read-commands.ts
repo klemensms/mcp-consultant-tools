@@ -24,6 +24,29 @@ function parseTop(value?: string): number | undefined {
   return parsed;
 }
 
+/**
+ * Resolve the reaction action from either spelling.
+ *
+ * The MCP tools take `action: "add" | "remove"` while the CLI grew a `--remove`
+ * flag, so the two surfaces read differently for the same operation and
+ * `--action remove` was rejected outright. Both are accepted now; `--remove`
+ * wins when they disagree, since a bare flag is the more explicit of the two.
+ */
+function resolveReactionAction(opts: { remove?: boolean; action?: string }): 'add' | 'remove' {
+  if (opts.remove) {
+    return 'remove';
+  }
+
+  if (opts.action !== undefined) {
+    if (opts.action !== 'add' && opts.action !== 'remove') {
+      throw new Error(`--action must be "add" or "remove", got "${opts.action}"`);
+    }
+    return opts.action;
+  }
+
+  return 'add';
+}
+
 export function registerReadCommands(program: Command, ctx: ServiceContext): void {
   // ── get-channel-messages ────────────────────────────────────
   program
@@ -95,7 +118,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
           format: opts.format,
         });
         outputResult(
-          { fileName: 'reply-to-message', data: result, summary: `Reply posted to ${messageId}. Reply ID: ${result.messageId}` },
+          { fileName: 'reply-to-message', data: result, summary: `Reply posted to ${messageId}. Reply ID: ${result.messageId}`, persist: false },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'post reply'); }
@@ -159,7 +182,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.messages.sendChatMessage(chatId, message, { format: opts.format });
         outputResult(
-          { fileName: 'send-chat-message', data: result, summary: `Message sent to chat. ID: ${result.messageId}` },
+          { fileName: 'send-chat-message', data: result, summary: `Message sent to chat. ID: ${result.messageId}`, persist: false },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'send chat message'); }
@@ -174,7 +197,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
       try {
         await ctx.messages.markChatRead(chatId);
         outputResult(
-          { fileName: 'mark-chat-read', data: { chatId, status: 'read' }, summary: `Chat ${chatId} marked as read.` },
+          { fileName: 'mark-chat-read', data: { chatId, status: 'read' }, summary: `Chat ${chatId} marked as read.`, persist: false },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'mark chat as read'); }
@@ -190,9 +213,10 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
     .option('-r, --reply-id <id>', 'React to this reply within the message thread instead of the parent')
     .option('--type <reaction>', 'Reaction: like, angry, sad, laugh, heart or surprised', 'like')
     .option('--remove', 'Remove the reaction instead of adding it')
+    .option('--action <action>', "'add' or 'remove' - the same as --remove, named to match the MCP tool")
     .action(async (messageId: string, opts: any) => {
       try {
-        const action = opts.remove ? 'remove' : 'add';
+        const action = resolveReactionAction(opts);
         await ctx.messages.reactToChannelMessage(messageId, {
           teamId: opts.teamId,
           channelId: opts.channelId,
@@ -206,6 +230,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
             fileName: 'react-to-channel-message',
             data: { messageId, replyId: opts.replyId, reactionType: opts.type, action },
             summary: `${action === 'remove' ? 'Removed' : 'Added'} ${opts.type} reaction on ${target}.`,
+            persist: false,
           },
           getGlobalFlags(program)
         );
@@ -220,9 +245,10 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
     .argument('<messageId>', 'ID of the chat message')
     .option('--type <reaction>', 'Reaction: like, angry, sad, laugh, heart or surprised', 'like')
     .option('--remove', 'Remove the reaction instead of adding it')
+    .option('--action <action>', "'add' or 'remove' - the same as --remove, named to match the MCP tool")
     .action(async (chatId: string, messageId: string, opts: any) => {
       try {
-        const action = opts.remove ? 'remove' : 'add';
+        const action = resolveReactionAction(opts);
         await ctx.messages.reactToChatMessage(chatId, messageId, {
           reactionType: opts.type,
           action,
@@ -232,6 +258,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
             fileName: 'react-to-chat-message',
             data: { chatId, messageId, reactionType: opts.type, action },
             summary: `${action === 'remove' ? 'Removed' : 'Added'} ${opts.type} reaction on chat message ${messageId}.`,
+            persist: false,
           },
           getGlobalFlags(program)
         );

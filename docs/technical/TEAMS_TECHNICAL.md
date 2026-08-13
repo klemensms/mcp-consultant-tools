@@ -440,6 +440,10 @@ ChannelInfo[] = Array<{
 
 Output volume is the primary design constraint: a busy channel will exhaust a context window. All reads default to 20 messages and clamp to Graph's maximum of 50 (`clampTop()`). Bodies are flattened to plain text by `htmlToText()` and capped per message at 1,500 characters by `truncateText()`.
 
+**Mentions arrive one `<at>` element per word.** Graph splits a multi-word mention across several `<at>` elements, each with its own `mentions[]` entry, all resolving to the same entity — so `Jane Doe` is emitted as `<at id="0">Jane</at>&nbsp;<at id="1">Doe</at>` and renders as `@Jane @Doe` if taken at face value. `htmlToText(html, contentType, mentions)` coalesces runs of `<at>` elements **keyed on the resolved entity id** — `mentioned.user.id`, falling back to `conversation`/`application`/`tag`. Keying on adjacency instead would fuse two different people mentioned back to back into one fabricated name. Without a `mentions[]` array there is nothing to key on, so elements render separately rather than being guessed at; `toMessageInfo()` therefore has to pass `message.mentions` through, and a service-level test asserts that plumbing rather than only testing the renderer.
+
+**`<emoji>` elements carry the character in `alt`** and have no text content, so without an explicit branch every emoji in every message body silently disappears on read. `htmlToText` substitutes `alt`, falling back to `title`.
+
 Every rendered message carries its ID, because that ID is the required input to `reply-to-message` and `get-message-replies`.
 
 **Shared response shape** (`MessageInfo`):
@@ -512,9 +516,11 @@ All four operate on the delegated `Chat.ReadWrite` scope.
 
 **Parameters:** `top?` (1-50, default 20), `includeMembers?` (boolean)
 
-Ordered by `lastMessagePreview/createdDateTime desc` (descending only — Graph does not support ascending here). `includeMembers` adds `$expand=members`; Graph caps expanded members at **25 per chat regardless of `$top`**, so member lists on large group chats may be partial.
+Ordered by `lastMessagePreview/createdDateTime desc` (descending only — Graph does not support ascending here). `includeMembers` adds `members` to the expand; Graph caps expanded members at **25 per chat regardless of `$top`**, so member lists on large group chats may be partial.
 
-**Response shape** (`ChatInfo`): `id`, `topic?`, `chatType`, `memberNames?`, `lastUpdatedDateTime?`, `webUrl?`. One-on-one chats have no topic — the renderer substitutes member names when available.
+**`lastMessagePreview` is always expanded** (`$expand=lastMessagePreview`, or `members,lastMessagePreview` with `includeMembers`). Graph will order by this property without it being expanded, but **does not return it** — so the list sorted correctly while the timestamp behind the sort was absent from every response. The rendered "Last activity" column then fell back to `lastUpdatedDateTime`, which tracks changes to the chat itself (topic, membership) rather than messages in it and can sit weeks behind: a chat whose last message arrived that morning displayed a six-week-old date.
+
+**Response shape** (`ChatInfo`): `id`, `topic?`, `chatType`, `memberNames?`, `lastMessageDateTime?`, `lastUpdatedDateTime?`, `webUrl?`. Present `lastMessageDateTime` as activity — it is the property the list is ordered by. `lastUpdatedDateTime` is retained because it is real data, but it is not activity. One-on-one chats have no topic — the renderer substitutes member names when available.
 
 </tool>
 
@@ -922,6 +928,7 @@ mcp-teams-cli react-to-channel-message 1616965872395 -r 1616991463150
 
 # Remove a reaction from a chat message
 mcp-teams-cli react-to-chat-message 19:561082c0f3f847a58069deb8eb300807@thread.v2 1616991463150 --remove
+mcp-teams-cli react-to-chat-message 19:561082c0f3f847a58069deb8eb300807@thread.v2 1616991463150 --action remove
 
 # JSON output (bypasses summary, writes raw JSON)
 mcp-teams-cli --json list-teams
@@ -938,7 +945,13 @@ mcp-teams-cli --env-file .env.prod list-teams
 | `--no-cache` | Skip writing JSON to cache directory |
 | `--env-file <path>` | Load environment from a custom .env file |
 
-Output: human-readable summary to stdout + full JSON cached to `.context/.mcp-teams-cache/`.
+Output: human-readable summary to stdout + full JSON cached to `.context/.mcp-teams-cache/`, **for read commands only**.
+
+**Write commands persist nothing.** `send-message`, `send-card`, `reply-to-message`, `send-chat-message`, `mark-chat-read`, both reaction commands and `auth login`/`logout` pass `persist: false` to the `outputResult` wrapper in `cli/output.ts`. Their cached payload was only an echo of the arguments, so it had no grep value, while creating `.context/` in whatever directory the command happened to run from is a surprise — observed on a real machine as a new directory inside a cloud-synced folder, which then synced. A test asserts the absence of both the file and the `.context/` directory. Read commands still cache, because an agent greps that JSON instead of re-running the call.
+
+This is fixed in `teams` only. The wrapper is per-package, so **every other package's CLI still caches write commands into the caller's working directory**; doing it repo-wide means editing ~20 packages and changing `core`, which warrants its own wave.
+
+**Both reaction commands accept `--action add|remove` as well as `--remove`.** The MCP tools take `action`, the CLI grew `--remove`, and `--action` was previously rejected outright with `error: unknown option`. `--remove` wins if both are given; an `--action` value that is neither `add` nor `remove` is rejected with a named error.
 
 </cli-architecture>
 

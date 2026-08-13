@@ -147,14 +147,18 @@ export class MessageService {
     const top = clampTop(options.top);
 
     try {
-      let request = client
+      // lastMessagePreview is the property this list is ordered by, but Graph
+      // does not return it unless it is expanded - so without this the caller
+      // sees no timestamp for the very thing determining the order.
+      const expand = options.includeMembers
+        ? "members,lastMessagePreview"
+        : "lastMessagePreview";
+
+      const request = client
         .api("/me/chats")
         .top(top)
-        .orderby("lastMessagePreview/createdDateTime desc");
-
-      if (options.includeMembers) {
-        request = request.expand("members");
-      }
+        .orderby("lastMessagePreview/createdDateTime desc")
+        .expand(expand);
 
       const response = await request.get();
 
@@ -165,6 +169,7 @@ export class MessageService {
         memberNames: chat.members
           ? chat.members.map((m: any) => m.displayName).filter(Boolean)
           : undefined,
+        lastMessageDateTime: chat.lastMessagePreview?.createdDateTime ?? undefined,
         lastUpdatedDateTime: chat.lastUpdatedDateTime ?? undefined,
         webUrl: chat.webUrl ?? undefined,
       }));
@@ -353,7 +358,7 @@ function toMessageInfo(message: any): MessageInfo {
     lastModifiedDateTime: message.lastModifiedDateTime ?? undefined,
     authorName,
     authorId: user?.id ?? undefined,
-    text: htmlToText(message.body?.content ?? "", message.body?.contentType),
+    text: htmlToText(message.body?.content ?? "", message.body?.contentType, message.mentions),
     replyCount: message["replies@odata.count"] ?? undefined,
     importance: message.importance ?? undefined,
     messageType: message.messageType ?? undefined,

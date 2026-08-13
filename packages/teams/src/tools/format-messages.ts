@@ -79,7 +79,11 @@ export function formatChats(chats: ChatInfo[]): string {
 
   for (const chat of chats) {
     const topic = chat.topic || describeUntitledChat(chat);
-    const lastActivity = chat.lastUpdatedDateTime ? formatTimestamp(chat.lastUpdatedDateTime) : "-";
+    // The list is ordered by the last message, so show that. lastUpdatedDateTime
+    // tracks changes to the chat rather than messages in it and can sit weeks
+    // behind, which reads as a colleague who has gone quiet when they have not.
+    const lastActivityAt = chat.lastMessageDateTime ?? chat.lastUpdatedDateTime;
+    const lastActivity = lastActivityAt ? formatTimestamp(lastActivityAt) : "-";
     const members = chat.memberNames?.length ? chat.memberNames.join(", ") : "-";
 
     lines.push(`| ${escapeCell(topic)} | ${chat.chatType} | \`${chat.id}\` | ${lastActivity} | ${escapeCell(members)} |`);

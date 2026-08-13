@@ -257,6 +257,8 @@ Excludes thread replies by design. `since`/`until` are applied client-side over 
 
 Most recently active first. `includeMembers` expands member display names — useful for naming one-on-one chats, which have no topic. Graph caps expanded members at 25 per chat regardless of `top`.
 
+**`lastMessagePreview` is always expanded, and the "Last activity" column shows it.** Graph orders this list by `lastMessagePreview/createdDateTime` but does **not** return that property unless it is expanded — so the ordering worked while the timestamp driving it was absent from the response, and the renderer fell back to `lastUpdatedDateTime`, which tracks changes to the chat (topic, membership) rather than messages in it. The two disagree badly: a chat whose last message arrived this morning could display a date six weeks old. Both are mapped now (`lastMessageDateTime` and `lastUpdatedDateTime`); show the former.
+
 #### get-chat-messages
 
 ```typescript
@@ -346,7 +348,11 @@ Pattern follows `packages/powerplatform-core/src/auth/token-cache.ts`. It is **n
 
 - `markdownToHtml()` — outbound. Every send/reply path routes through it, so model-generated markup never reaches Graph unsanitized. Uses `marked` + `dompurify` (bold, italic, code, lists, headings, tables, blockquotes; `<script>`, event handlers and `<img>` stripped).
 - `sanitizeHtml()` — outbound, for caller-supplied HTML, same allowlist.
-- `htmlToText()` — inbound. Flattens Teams' nested-div bodies to readable text, renders `<at>` mentions as `@Name`, and replaces images/attachments/system events with placeholders (their content is a Graph `hostedContents` URL, useless to a reader).
+- `htmlToText()` — inbound. Flattens Teams' nested-div bodies to readable text, renders `<at>` mentions as `@Name`, renders `<emoji>` as the character in its `alt`, and replaces images/attachments/system events with placeholders (their content is a Graph `hostedContents` URL, useless to a reader).
+
+  **Graph emits one `<at>` element per word of a mention**, each with its own `mentions[]` entry, all resolving to the same entity — so "Jane Doe" arrives as two elements and rendered naively becomes `@Jane @Doe`. `htmlToText` takes the message's `mentions[]` as a third argument and coalesces runs of `<at>` elements **keyed on the resolved entity id** (`mentioned.user.id`, else `conversation`/`application`/`tag`). Key on the entity, never on adjacency: two different people mentioned back to back are also adjacent, and merging those would invent a name nobody wrote. With no `mentions[]` there is nothing to key on, so each element renders separately rather than being guessed at — which means **the argument has to actually be plumbed through `toMessageInfo`**, and a test asserts that end to end rather than only testing the renderer in isolation.
+
+  `<emoji>` elements carry the character in `alt` and have no text content, so without an explicit branch every emoji silently vanishes from a message body.
 - `truncateText()` — caps each rendered body so one wide read cannot exhaust a context window.
 
 This function was previously duplicated as a private `markdownToHtml` in both `tools/send-message.ts` and `cli/commands/message-commands.ts`; both now import it.
@@ -402,6 +408,11 @@ mcp-teams-cli mark-chat-read <chatId>
 mcp-teams-cli react-to-channel-message <messageId> --type heart
 mcp-teams-cli react-to-channel-message <messageId> -r <replyId>
 mcp-teams-cli react-to-chat-message <chatId> <messageId> --remove
+mcp-teams-cli react-to-chat-message <chatId> <messageId> --action remove   # same thing, MCP spelling
 ```
 
-Add `--json` for raw JSON. Full responses are also written to `.context/.mcp-teams-cache/`.
+Add `--json` for raw JSON. **Read** responses are also written to `.context/.mcp-teams-cache/` under the current working directory, because an agent greps that instead of re-running the call.
+
+**Write commands persist nothing** (`persist: false` on the `outputResult` wrapper in `cli/output.ts`). Their payload is only an echo of the arguments, so the file has no grep value, and creating `.context/` in whatever directory the command was run from is a surprise — on a real machine that meant a new directory inside a cloud-synced folder, which then synced. A test asserts the *absence* of both the file and the directory.
+
+This is fixed in `teams` only. **Every other package's CLI still caches write commands into the caller's cwd** — the wrapper is per-package, and doing this repo-wide means editing ~20 packages plus a `core` change, which belongs in its own wave rather than a Teams one.

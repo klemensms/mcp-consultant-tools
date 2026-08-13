@@ -77,7 +77,7 @@ export function registerMessageCommands(program: Command, ctx: ServiceContext): 
         });
 
         outputResult(
-          { fileName: 'send-message', data: result, summary: `Message sent. ID: ${result.messageId}` },
+          { fileName: 'send-message', data: result, summary: `Message sent. ID: ${result.messageId}`, persist: false },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'send message'); }
@@ -147,7 +147,7 @@ export function registerMessageCommands(program: Command, ctx: ServiceContext): 
 
       const templateInfo = opts.template ? ` (template: ${opts.template})` : '';
       outputResult(
-        { fileName: 'send-card', data: result, summary: `Adaptive Card sent${templateInfo}. ID: ${result.messageId}` },
+        { fileName: 'send-card', data: result, summary: `Adaptive Card sent${templateInfo}. ID: ${result.messageId}`, persist: false },
         getGlobalFlags(program)
       );
     } catch (error) { handleCliError(error, 'send adaptive card'); }

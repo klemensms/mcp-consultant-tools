@@ -26,7 +26,7 @@ export function registerAuthCommands(program: Command, ctx: ServiceContext): voi
 
           const final = await ctx.teams.waitForAuthentication(result.expiresInSeconds * 1000);
           outputResult(
-            { fileName: 'auth-login', data: final, summary: `Authentication status: ${final.status} - ${final.message}` },
+            { fileName: 'auth-login', data: final, summary: `Authentication status: ${final.status} - ${final.message}`, persist: false },
             getGlobalFlags(program)
           );
           // MSAL's device-code poll and the wait timeout both keep the event loop
@@ -35,7 +35,7 @@ export function registerAuthCommands(program: Command, ctx: ServiceContext): voi
         }
 
         outputResult(
-          { fileName: 'auth-login', data: result, summary: `Authentication status: ${result.status} - ${result.message}` },
+          { fileName: 'auth-login', data: result, summary: `Authentication status: ${result.status} - ${result.message}`, persist: false },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'authenticate'); }
@@ -61,7 +61,7 @@ export function registerAuthCommands(program: Command, ctx: ServiceContext): voi
       try {
         await ctx.teams.logout();
         outputResult(
-          { fileName: 'auth-logout', data: { status: 'logged_out' }, summary: 'Teams authentication cleared.' },
+          { fileName: 'auth-logout', data: { status: 'logged_out' }, summary: 'Teams authentication cleared.', persist: false },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'logout'); }
