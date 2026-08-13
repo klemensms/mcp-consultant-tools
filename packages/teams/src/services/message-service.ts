@@ -20,6 +20,7 @@
 import type { TeamsService } from "./teams-service.js";
 import { htmlToText, markdownToHtml, sanitizeHtml } from "../message-content.js";
 import type {
+  ChannelDeltaResult,
   ChatInfo,
   MessageInfo,
   MessageReadOptions,
@@ -51,6 +52,13 @@ const DEFAULT_TOP = 20;
 /** Graph caps $top at 50 for both channel and chat message collections. */
 const MAX_TOP = 50;
 
+/**
+ * Pages a cold-start delta walk will follow before giving up.
+ * Graph ignores $deltatoken=latest here, so a first call has to walk the channel's
+ * whole history to reach a deltaLink; this stops a busy channel walking forever.
+ */
+const DEFAULT_DELTA_MAX_PAGES = 10;
+
 export class MessageService {
   constructor(private teams: TeamsService) {}
 
@@ -80,6 +88,72 @@ export class MessageService {
     } catch (error) {
       throw wrapGraphError(error, "read channel messages");
     }
+  }
+
+  /**
+   * Incremental channel read: everything created or changed since a previous call.
+   *
+   * Pass the `deltaLink` a previous call returned to get only what changed since.
+   * With no deltaLink this is a cold start, and a cold start is expensive: Graph
+   * does NOT honour `$deltatoken=latest` on this endpoint, so the only way to reach
+   * a usable deltaLink is to page to the end of the channel's history once.
+   *
+   * `maxPages` bounds that walk. Stopping early is reported rather than hidden -
+   * a truncated cold start returns no deltaLink at all, because a deltaLink from a
+   * partial walk would silently skip every message beyond the cut.
+   *
+   * The v1.0 delta response is undocumented but real, so the shape is read
+   * defensively.
+   */
+  async getChannelMessagesDelta(
+    options: {
+      teamId?: string;
+      channelId?: string;
+      deltaLink?: string;
+      maxPages?: number;
+    } = {}
+  ): Promise<ChannelDeltaResult> {
+    const client = await this.teams.getGraphClient();
+    const teamId = this.teams.getTeamId(options.teamId);
+    const channelId = this.teams.getChannelId(options.channelId);
+    const maxPages = Math.max(1, Math.floor(options.maxPages ?? DEFAULT_DELTA_MAX_PAGES));
+
+    let nextUrl: string | undefined =
+      options.deltaLink ?? `/teams/${teamId}/channels/${channelId}/messages/delta`;
+    let deltaLink: string | undefined;
+    const messages: MessageInfo[] = [];
+    let pagesFetched = 0;
+
+    try {
+      while (nextUrl && pagesFetched < maxPages) {
+        const response: any = await client.api(nextUrl).get();
+        pagesFetched++;
+
+        for (const raw of response?.value ?? []) {
+          messages.push(toMessageInfo(raw));
+        }
+
+        deltaLink = response?.["@odata.deltaLink"] ?? undefined;
+        nextUrl = response?.["@odata.nextLink"] ?? undefined;
+
+        // A deltaLink ends the walk: there is nothing further to page.
+        if (deltaLink) {
+          break;
+        }
+      }
+    } catch (error) {
+      throw wrapGraphError(error, "read channel message delta");
+    }
+
+    const truncated = !deltaLink && Boolean(nextUrl);
+
+    return {
+      messages,
+      // Only hand back a deltaLink that actually represents a complete walk.
+      deltaLink: truncated ? undefined : deltaLink,
+      pagesFetched,
+      truncated,
+    };
   }
 
   /**
@@ -312,7 +386,7 @@ export class MessageService {
 }
 
 /** Clamp a caller-supplied page size into Graph's accepted range. */
-function clampTop(top?: number): number {
+export function clampTop(top?: number): number {
   if (!top || top < 1) {
     return DEFAULT_TOP;
   }
@@ -332,7 +406,7 @@ function toGraphDate(value: string): string {
  * Build a chatMessage body, routing markdown through the shared sanitizer.
  * Model-generated HTML is never handed to Graph unsanitized.
  */
-function buildMessageBody(content: string, format?: "text" | "markdown") {
+export function buildMessageBody(content: string, format?: "text" | "markdown") {
   if (format === "text") {
     return { contentType: "text", content };
   }
@@ -393,7 +467,7 @@ function applyDateRange(messages: MessageInfo[], options: MessageReadOptions): M
  * A 403 here almost always means the token predates a scope change, which is
  * invisible from the error text alone.
  */
-function wrapGraphError(error: unknown, action: string): Error {
+export function wrapGraphError(error: unknown, action: string): Error {
   const message = error instanceof Error ? error.message : String(error);
   const statusCode = (error as { statusCode?: number })?.statusCode;
 

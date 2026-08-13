@@ -4,6 +4,8 @@
 
 import type { TeamsService } from './services/teams-service.js';
 import type { MessageService } from './services/message-service.js';
+import type { PeopleService } from './services/people-service.js';
+import type { SearchService } from './services/search-service.js';
 
 /**
  * Service context shared between MCP server entry points.
@@ -12,6 +14,8 @@ import type { MessageService } from './services/message-service.js';
 export interface ServiceContext {
   readonly teams: TeamsService;
   readonly messages: MessageService;
+  readonly people: PeopleService;
+  readonly search: SearchService;
 }
 
 /**
@@ -236,6 +240,80 @@ export interface MessageReadOptions {
   since?: string;
   /** Only messages modified before this ISO-8601 timestamp. */
   until?: string;
+}
+
+/**
+ * Result of an incremental channel read.
+ */
+export interface ChannelDeltaResult {
+  /** Messages created or changed since the supplied deltaLink. */
+  messages: MessageInfo[];
+  /**
+   * Token URL to pass to the next call to get only what changes after this point.
+   * Absent when the walk was truncated - a deltaLink from a partial walk would
+   * silently skip everything beyond the cut.
+   */
+  deltaLink?: string;
+  pagesFetched: number;
+  /** The page budget ran out before the walk completed. */
+  truncated: boolean;
+}
+
+/**
+ * A directory user resolved via User.ReadBasic.All.
+ * `id` is the AAD object id - what chat creation and @-mentions need.
+ */
+export interface UserInfo {
+  id: string;
+  displayName: string;
+  userPrincipalName?: string;
+  mail?: string;
+  jobTitle?: string;
+}
+
+/**
+ * Result of sending a direct message, including how the chat was resolved.
+ * `chatExisted` distinguishes "posted into your existing thread" from
+ * "opened a new one", which is the difference a reader cares about.
+ */
+export interface DirectMessageResult extends SendMessageResult {
+  chatId: string;
+  chatExisted: boolean;
+  recipient: UserInfo;
+}
+
+/**
+ * One hit from a message search.
+ *
+ * Search hits do NOT carry the `from.user.displayName` shape the message
+ * endpoints return - the sender arrives as `from.emailAddress` - so this is
+ * mapped on its own path rather than through toMessageInfo.
+ */
+export interface MessageSearchHit {
+  id: string;
+  /** Sender display name, from the hit's emailAddress block. */
+  authorName: string;
+  authorAddress?: string;
+  createdDateTime?: string;
+  /** Graph's own summary of the hit, with search terms marked. */
+  summary?: string;
+  /** Body as readable plain text, when the hit carried one. */
+  text?: string;
+  /** Set when the hit came from a channel rather than a chat. */
+  teamId?: string;
+  channelId?: string;
+  chatId?: string;
+  webUrl?: string;
+}
+
+/**
+ * A page of message search results.
+ */
+export interface MessageSearchResult {
+  hits: MessageSearchHit[];
+  /** Graph's estimate of the total matching set, which can exceed hits.length. */
+  totalMatches?: number;
+  moreResultsAvailable: boolean;
 }
 
 /**

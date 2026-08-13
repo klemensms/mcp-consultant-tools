@@ -522,3 +522,101 @@ describe('MessageService.markChatRead', () => {
     });
   });
 });
+
+/**
+ * Delta needs its own stub: it follows nextLink across several requests, and the
+ * single-request recorder above cannot express a multi-page walk.
+ */
+function createPagingService(pages: any[]) {
+  const paths: string[] = [];
+  let page = 0;
+
+  const client = {
+    api: (path: string) => {
+      paths.push(path);
+      const response = pages[Math.min(page, pages.length - 1)];
+      page++;
+      return { get: async () => response };
+    },
+  };
+
+  const teams = {
+    getGraphClient: vi.fn().mockResolvedValue(client),
+    getTeamId: (id?: string) => id ?? TEAM_ID,
+    getChannelId: (id?: string) => id ?? CHANNEL_ID,
+  } as unknown as TeamsService;
+
+  return { service: new MessageService(teams), paths };
+}
+
+const DELTA_PATH = `/teams/${TEAM_ID}/channels/${CHANNEL_ID}/messages/delta`;
+const NEXT_LINK = 'https://graph.microsoft.com/v1.0/teams/x/channels/y/messages/delta?$skiptoken=abc';
+const DELTA_LINK = 'https://graph.microsoft.com/v1.0/teams/x/channels/y/messages/delta?$deltatoken=xyz';
+
+describe('MessageService.getChannelMessagesDelta', () => {
+  it('starts at the channel delta endpoint on a cold start', async () => {
+    const { service, paths } = createPagingService([
+      { value: [CHANNEL_MESSAGE], '@odata.deltaLink': DELTA_LINK },
+    ]);
+
+    await service.getChannelMessagesDelta();
+
+    expect(paths[0]).toBe(DELTA_PATH);
+  });
+
+  it('resumes from a supplied deltaLink instead of walking history again', async () => {
+    const { service, paths } = createPagingService([
+      { value: [], '@odata.deltaLink': DELTA_LINK },
+    ]);
+
+    await service.getChannelMessagesDelta({ deltaLink: DELTA_LINK });
+
+    expect(paths).toEqual([DELTA_LINK]);
+  });
+
+  it('follows nextLink until a deltaLink arrives, and returns it', async () => {
+    const { service, paths } = createPagingService([
+      { value: [CHANNEL_MESSAGE], '@odata.nextLink': NEXT_LINK },
+      { value: [CHANNEL_MESSAGE], '@odata.deltaLink': DELTA_LINK },
+    ]);
+
+    const result = await service.getChannelMessagesDelta();
+
+    expect(paths).toEqual([DELTA_PATH, NEXT_LINK]);
+    expect(result.messages).toHaveLength(2);
+    expect(result.deltaLink).toBe(DELTA_LINK);
+    expect(result.truncated).toBe(false);
+    expect(result.pagesFetched).toBe(2);
+  });
+
+  it('withholds the deltaLink when the walk was truncated - a partial one skips history', async () => {
+    const { service } = createPagingService([{ value: [CHANNEL_MESSAGE], '@odata.nextLink': NEXT_LINK }]);
+
+    const result = await service.getChannelMessagesDelta({ maxPages: 2 });
+
+    expect(result.truncated).toBe(true);
+    expect(result.deltaLink).toBeUndefined();
+    expect(result.pagesFetched).toBe(2);
+  });
+
+  it('maps delta entries through the same reader-facing shape as a normal read', async () => {
+    const { service } = createPagingService([
+      { value: [CHANNEL_MESSAGE], '@odata.deltaLink': DELTA_LINK },
+    ]);
+
+    const result = await service.getChannelMessagesDelta();
+
+    expect(result.messages[0].authorName).toBe('Robin Kline');
+    expect(result.messages[0].id).toBe('1616965872395');
+  });
+
+  it('survives a response carrying neither nextLink nor deltaLink', async () => {
+    const { service } = createPagingService([{ value: [] }]);
+
+    const result = await service.getChannelMessagesDelta();
+
+    expect(result.messages).toEqual([]);
+    expect(result.deltaLink).toBeUndefined();
+    expect(result.truncated).toBe(false);
+  });
+});

@@ -73,6 +73,38 @@ export const MESSAGE_ID_EXAMPLES = [
   { label: "Channel message id (epoch millis)", value: "1616990032035" },
 ];
 
+// ========================================
+// People / Directory Examples
+// ========================================
+
+export const USER_QUERY_EXAMPLES = [
+  { label: "Full display name", value: "Jane Doe" },
+  { label: "Email address (unambiguous)", value: "jdoe@example.com" },
+  { label: "Partial name", value: "Jane" },
+];
+
+// ========================================
+// Search Examples
+// ========================================
+
+export const SEARCH_QUERY_EXAMPLES = [
+  { label: "Single keyword", value: "deployment" },
+  { label: "Exact phrase", value: '"release notes"' },
+  { label: "Scoped to a sender", value: "from:jdoe@example.com budget" },
+];
+
+// ========================================
+// Delta Examples
+// ========================================
+
+export const DELTA_LINK_EXAMPLES = [
+  {
+    label: "deltaLink returned by a previous call",
+    value:
+      "https://graph.microsoft.com/v1.0/teams/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/channels/19:aaaaaaaa@thread.tacv2/messages/delta?$deltatoken=ABC123",
+  },
+];
+
 export const CHAT_ID_EXAMPLES = [
   { label: "Group or meeting chat", value: "19:561082c0f3f847a58069deb8eb300807@thread.v2" },
   { label: "One-on-one chat", value: "19:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee_11111111-2222-3333-4444-555555555555@unq.gbl.spaces" },

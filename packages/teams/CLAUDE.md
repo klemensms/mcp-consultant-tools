@@ -4,18 +4,21 @@
 
 Microsoft Teams integration for reading, sending and managing channel messages and chats. Originally built for automated release announcements; extended in v35 so an agent can read and act on Teams on the user's behalf.
 
-- **Tools:** 16 tools
+- **Tools:** 20 tools
 - **Authentication:** Device Code (default, personal credentials) or Client Credentials (app-only)
-- **Services:** `TeamsService` (auth, discovery, channel sends) and `MessageService` (message reads, replies, chats). `MessageService` shares `TeamsService`'s authenticated Graph client rather than owning auth, so there is one token cache and one sign-in for the package.
+- **Services:** `TeamsService` (auth, discovery, channel sends), `MessageService` (message reads, replies, chats, channel delta), `PeopleService` (directory lookup, direct messaging) and `SearchService` (keyword search). All three share `TeamsService`'s authenticated Graph client rather than owning auth, so there is one token cache and one sign-in for the package.
 
 ## Scope Boundary (HARD RULE)
 
-The device-code flow requests exactly these eight delegated scopes, defined once as `DEVICE_CODE_SCOPES` in `src/services/teams-service.ts`:
+The device-code flow requests exactly these ten delegated scopes, defined once as `DEVICE_CODE_SCOPES` in `src/services/teams-service.ts`:
 
 ```
-User.Read, Team.ReadBasic.All, Channel.ReadBasic.All, ChannelMessage.Read.All,
-ChannelMessage.Send, Chat.ReadWrite, Group.Read.All, offline_access
+User.Read, User.ReadBasic.All, Team.ReadBasic.All, Channel.ReadBasic.All,
+ChannelMessage.Read.All, ChannelMessage.Send, Chat.ReadWrite, Chat.Create,
+Group.Read.All, offline_access
 ```
+
+An eleventh scope, **`ChannelMessage.Edit`, is consented but deliberately not requested**. No published Graph method accepts it. Editing a channel message's content is `PATCH /teams/{t}/channels/{c}/messages/{m}`, whose delegated permission is `ChannelMessage.ReadWrite` or `Group.ReadWrite.All` — neither consented. Requesting it would widen the token without buying a capability, so **there is no `edit-channel-message` tool and cannot be one on this registration.**
 
 **Do not add a scope to that array unless it has tenant-wide admin consent.** An unconsented scope cannot be self-consented in a tenant that classifies it as anything other than low impact, so it fails at *sign-in* rather than degrading gracefully on the call that needed it — which takes the whole server down, not one tool. If a new capability needs a ninth scope, stop and raise it rather than implementing it.
 
@@ -33,15 +36,20 @@ Verified against the Graph v1.0 permission tables, these are reachable on the se
 | `POST .../messages/{m}/setReaction` (channel) | `ChannelMessage.Send` |
 | `POST /chats/{c}/messages/{m}/setReaction` | `Chat.ReadWrite` |
 
+| `GET /users?$search=...` | `User.ReadBasic.All` |
+| `POST /chats` (create one-on-one) | `Chat.Create` (`Chat.ReadWrite` is higher) |
+| `GET .../messages/delta` | `ChannelMessage.Read.All` |
+| `POST /search/query` (`chatMessage`) | see the search note below |
+
 Deliberately **not** implemented, and why:
 
-- **@-mentions** — possible only for AAD user ids already present in data that has been read (`authorId` is returned on every message). This registration cannot search the directory by name, and no directory-lookup tool should be added.
+- **`edit-channel-message`** — needs `ChannelMessage.ReadWrite`, which is not consented. See the Scope Boundary note above: the consented `ChannelMessage.Edit` has no published Graph method. Do not route around it.
+- **@-mentions** — now *possible*: `find-user` resolves a name to the AAD id a mention payload needs. Not built, because a mention is not just a lookup — it needs `<at id="n">` markup in the body paired with a matching `mentions[]` array, on every outbound path (`send-channel-message`, `reply-to-message`, `send-chat-message`, `send-direct-message`). Build it across all four at once or not at all; a half-built version posts literal `<at>` tags into a channel.
 - **Team/channel administration** — out of scope entirely: no creating channels, no managing members, no changing team settings.
 
-Not built yet, but **proven viable** — both were previously written up here as blocked, and live testing on 2026-08-12 disproved both on the current eight scopes:
+**Search permission note.** The Graph reference lists `Chat.Read` for `entityTypes: ["chatMessage"]`, which is *not* consented. Graph does not enforce that list literally — live testing on 2026-08-12 returned 200 with real hits on `Chat.ReadWrite` alone. `search-messages` is built on that observed behaviour rather than the documented table, so if Graph ever tightens enforcement this is the first tool to break, and the fix is a scope request, not a code change.
 
-- **`search-messages`** (`POST /v1.0/search/query`, `entityTypes: ["chatMessage"]`, header `Prefer: include-unknown-enum-members`) — returns 200 with real hits on `Chat.ReadWrite`, **without** `Chat.Read`; Graph does not enforce its documented permission list literally. It spans channels as well as chats (hits carry `channelIdentity.teamId`/`channelIdentity.channelId`), so one tool covers both. Caveat for whoever builds it: hits deliver the sender as `from.emailAddress.name`/`.address`, not the `from.user.displayName` shape `toMessageInfo()` expects — they need their own mapping path.
-- **Channel messages `delta`** (`GET /v1.0/teams/{teamId}/channels/{channelId}/messages/delta`) — returns 200 with delegated permissions; `/beta/` also works and adds `hasReplies`. Pages via `@odata.nextLink`. `$deltatoken=latest` is **not** honoured, so a client must page to the end of history once before it gets its first `deltaLink`. The v1.0 response is undocumented but real — code defensively.
+**Channel `delta` behaviour**, confirmed the same day: `/beta/` also works and adds `hasReplies`. Pages via `@odata.nextLink`. `$deltatoken=latest` is **not** honoured, so a cold start must page to the end of history before Graph issues a `deltaLink` — which is why `get-channel-messages-delta` bounds the walk with `maxPages` and returns **no** deltaLink when it stops early. The v1.0 response is undocumented but real, so it is read defensively.
 
 ## Authentication Modes
 
@@ -64,13 +72,15 @@ TEAMS_DEFAULT_CHANNEL_ID=channel-guid
 2. Name: `MCP Teams Integration` (or similar)
 3. Supported account types: **Single tenant**
 4. In **Authentication** → Enable **"Allow public client flows"**
-5. In **API permissions** → Add **Microsoft Graph** → **Delegated permissions** (all eight — see Scope Boundary above):
+5. In **API permissions** → Add **Microsoft Graph** → **Delegated permissions** (all ten — see Scope Boundary above):
    - `User.Read`
+   - `User.ReadBasic.All`
    - `Team.ReadBasic.All`
    - `Channel.ReadBasic.All`
    - `ChannelMessage.Read.All`
    - `ChannelMessage.Send`
    - `Chat.ReadWrite`
+   - `Chat.Create`
    - `Group.Read.All`
    - `offline_access`
 6. Click **Grant admin consent**
@@ -283,6 +293,56 @@ Cannot create a chat — use `list-chats` to find an existing one.
 
 Posts the signed-in user's own AAD identity (resolved via `User.Read`), which the Graph action requires.
 
+### People Tools
+
+#### find-user
+
+```typescript
+{ query: string, top?: number }   // top: 1-25, default 10
+```
+
+Searches display name, `mail` and `userPrincipalName`. Returns each match's name, email, job title and **AAD user ID** — the id an @-mention payload needs.
+
+`$search` on `/users` is an *advanced* query: Graph rejects it without **both** the `ConsistencyLevel: eventual` header and `$count=true`, and the resulting error mentions neither. Both are sent unconditionally. The term is interpolated into quoted `"field:term"` clauses, so quotes and backslashes are stripped before it goes on the wire — a stray quote splits one clause into several and Graph answers with a parse error rather than a result.
+
+#### send-direct-message
+
+```typescript
+{ to: string, message: string, format?: "text" | "markdown" }
+```
+
+**The point of the package for day-to-day use: DM anyone by name, without knowing a chat ID.** Three steps behind one tool — resolve the person, find the existing one-on-one chat, post — deliberately not exposed separately, because splitting them puts the burden of not creating duplicate threads on the caller.
+
+**Ambiguity is never resolved by guessing.** One match wins; several matches are reported back with the candidates so the caller can re-run with an exact email. An exact match on email, UPN or full display name beats partial hits, so `jdoe@example.com` resolves even when several people share a first name. Messaging the wrong colleague is not recoverable, which is why this is an error and not a heuristic.
+
+**Two guards against duplicate chats, not one.** The lookup (`/me/chats?$filter=chatType eq 'oneOnOne'&$expand=members`, matched on member `userId`) runs first so the result can honestly report `chatExisted` — whether the message landed in your existing thread or opened a new one. The backstop is Graph itself: it documents that only one one-on-one chat can exist between two people and that `POST /chats` **returns the existing chat rather than creating a second one**. So a missed lookup costs an inaccurate `chatExisted` label, never a duplicate thread. The lookup is bounded at 5 pages for that reason.
+
+### Search and Delta Tools
+
+#### search-messages
+
+```typescript
+{ query: string, size?: number, from?: number }   // size: 1-50, default 20
+```
+
+Spans channel messages **and** chat messages in one call — usually the cheapest way to answer "where was X discussed" without knowing which team, channel or chat to look in. Each hit carries the ids a follow-up read needs: `teamId`+`channelId` for a channel hit, `chatId` for a chat hit.
+
+Two shape traps, both pinned by tests:
+- `chatMessage` is not in the v1.0 `entityType` enum, so the request **must** send `Prefer: include-unknown-enum-members` or Graph rejects it outright.
+- Hits deliver the sender as `from.emailAddress.name`/`.address`, **not** the `from.user.displayName` shape the message endpoints use. Passing a hit through `toMessageInfo()` renders every result as an unattributed "Unknown", which reads like a permission failure rather than a mapping bug. `SearchService` has its own mapping path.
+
+Graph's `total` is an estimate over the whole matching set, so output says "20 of about 340" rather than implying the page is the answer. `<c0>` hit-highlight markers are stripped from summaries.
+
+#### get-channel-messages-delta
+
+```typescript
+{ teamId?: string, channelId?: string, deltaLink?: string, maxPages?: number }
+```
+
+"What changed since last time." Pass the `deltaLink` from a previous call to get only what is new.
+
+**A cold start is expensive and this is a Graph constraint, not a choice.** `$deltatoken=latest` is not honoured on this endpoint, so the only route to a usable `deltaLink` is to page to the end of the channel's history once. `maxPages` (default 10) bounds that walk, and a truncated walk returns **no deltaLink at all** — one taken from a partial walk would silently skip every message beyond the cut, which is worse than having none. Truncation is stated in the output rather than hidden. For a one-off skim, `get-channel-messages` is cheaper.
+
 ### Reaction Tools
 
 Both post as the signed-in user and return `204 No Content`. `reactionType` is required by Graph even when removing, since a user may hold one reaction of each type on a message.
@@ -313,11 +373,12 @@ Both post as the signed-in user and return `204 No Content`. `reactionType` is r
 ### Device Code (Personal Credentials)
 
 1. **First time:** Call `authenticate` → get URL/code → sign in browser
-2. **Discover:** `list-teams` → `list-channels`, or `list-chats`
+2. **Discover:** `list-teams` → `list-channels`, or `list-chats`; `find-user` to identify a person
 3. **Read:** `get-channel-messages` / `get-chat-messages`, then `get-message-replies` on any thread worth expanding
-4. **Act:** `reply-to-message`, `send-channel-message`, `send-chat-message`, `mark-chat-read`
-5. **Token expired:** nothing to do — it renews silently from the cached refresh token
-6. **Refresh token expired or revoked:** `auth-status` reports `expired`; call `authenticate` again
+4. **Find:** `search-messages` when you don't know where something was said; `get-channel-messages-delta` to catch up on a channel you already have a deltaLink for
+5. **Act:** `send-direct-message` to DM by name, `reply-to-message`, `send-channel-message`, `send-chat-message`, `mark-chat-read`
+6. **Token expired:** nothing to do — it renews silently from the cached refresh token
+7. **Refresh token expired or revoked:** `auth-status` reports `expired`; call `authenticate` again
 
 ### Client Credentials (App Registration)
 
@@ -403,6 +464,17 @@ mcp-teams-cli list-chats --members
 mcp-teams-cli get-chat-messages <chatId> --top 10
 mcp-teams-cli send-chat-message <chatId> "On my way"
 mcp-teams-cli mark-chat-read <chatId>
+
+# People
+mcp-teams-cli find-user "Jane Doe"
+mcp-teams-cli find-user jdoe@example.com --top 5
+mcp-teams-cli send-direct-message jdoe@example.com "Running five minutes late"
+
+# Search and delta
+mcp-teams-cli search-messages "release notes" --size 10
+mcp-teams-cli search-messages '"budget review"' --from 20
+mcp-teams-cli get-channel-messages-delta --max-pages 20
+mcp-teams-cli get-channel-messages-delta --delta-link "<deltaLink from the previous run>"
 
 # Reactions
 mcp-teams-cli react-to-channel-message <messageId> --type heart

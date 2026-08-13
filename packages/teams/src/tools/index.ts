@@ -21,6 +21,11 @@ import {
   registerReactToChannelMessageTool,
   registerReactToChatMessageTool,
 } from './reactions.js';
+import { registerFindUserTool, registerSendDirectMessageTool } from './people.js';
+import {
+  registerSearchMessagesTool,
+  registerGetChannelMessagesDeltaTool,
+} from './search.js';
 
 export function registerAllTools(server: any, ctx: ServiceContext): void {
   // Authentication tools
@@ -49,7 +54,15 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerReactToChannelMessageTool(server, ctx);
   registerReactToChatMessageTool(server, ctx);
 
-  console.error("teams tools registered: 16 tools");
+  // People tools
+  registerFindUserTool(server, ctx);
+  registerSendDirectMessageTool(server, ctx);
+
+  // Search and delta tools
+  registerSearchMessagesTool(server, ctx);
+  registerGetChannelMessagesDeltaTool(server, ctx);
+
+  console.error("teams tools registered: 20 tools");
 }
 
 export { registerAuthenticateTool, registerAuthStatusTool, registerLogoutTool } from './authenticate.js';
@@ -71,3 +84,8 @@ export {
   registerReactToChannelMessageTool,
   registerReactToChatMessageTool,
 } from './reactions.js';
+export { registerFindUserTool, registerSendDirectMessageTool } from './people.js';
+export {
+  registerSearchMessagesTool,
+  registerGetChannelMessagesDeltaTool,
+} from './search.js';

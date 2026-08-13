@@ -3,6 +3,8 @@
  */
 import { TeamsService } from './services/teams-service.js';
 import { MessageService } from './services/message-service.js';
+import { PeopleService } from './services/people-service.js';
+import { SearchService } from './services/search-service.js';
 import type { TeamsConfig } from './types.js';
 import type { ServiceContext } from './types.js';
 
@@ -11,6 +13,8 @@ export type { ServiceContext } from './types.js';
 export function createServiceContext(): ServiceContext {
   let service: TeamsService | null = null;
   let messageService: MessageService | null = null;
+  let peopleService: PeopleService | null = null;
+  let searchService: SearchService | null = null;
 
   function getService(): TeamsService {
     if (!service) {
@@ -26,9 +30,10 @@ export function createServiceContext(): ServiceContext {
           'TEAMS_CLIENT_ID is required. You must register an Azure AD app:\n\n' +
           '1. Go to https://entra.microsoft.com → App registrations → New registration\n' +
           "2. Enable 'Allow public client flows' in Authentication settings\n" +
-          '3. Add delegated Microsoft Graph permissions: User.Read, Team.ReadBasic.All,\n' +
-          '   Channel.ReadBasic.All, ChannelMessage.Read.All, ChannelMessage.Send,\n' +
-          '   Chat.ReadWrite, Group.Read.All, offline_access\n' +
+          '3. Add delegated Microsoft Graph permissions: User.Read, User.ReadBasic.All,\n' +
+          '   Team.ReadBasic.All, Channel.ReadBasic.All, ChannelMessage.Read.All,\n' +
+          '   ChannelMessage.Send, Chat.ReadWrite, Chat.Create, Group.Read.All,\n' +
+          '   offline_access\n' +
           '4. Grant admin consent\n' +
           "5. Set TEAMS_CLIENT_ID to your app's Application (client) ID"
         );
@@ -68,8 +73,24 @@ export function createServiceContext(): ServiceContext {
     return messageService;
   }
 
+  function getPeopleService(): PeopleService {
+    if (!peopleService) {
+      peopleService = new PeopleService(getService());
+    }
+    return peopleService;
+  }
+
+  function getSearchService(): SearchService {
+    if (!searchService) {
+      searchService = new SearchService(getService());
+    }
+    return searchService;
+  }
+
   return {
     get teams() { return getService(); },
     get messages() { return getMessageService(); },
+    get people() { return getPeopleService(); },
+    get search() { return getSearchService(); },
   };
 }

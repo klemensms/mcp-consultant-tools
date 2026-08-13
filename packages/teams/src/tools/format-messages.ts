@@ -10,7 +10,14 @@
  */
 
 import { truncateText } from "../message-content.js";
-import type { ChatInfo, MessageInfo } from "../types.js";
+import type {
+  ChannelDeltaResult,
+  ChatInfo,
+  MessageInfo,
+  MessageSearchHit,
+  MessageSearchResult,
+  UserInfo,
+} from "../types.js";
 
 /** Per-message body budget. A 20-message read stays well inside a context window. */
 const MAX_BODY_CHARS = 1500;
@@ -90,6 +97,102 @@ export function formatChats(chats: ChatInfo[]): string {
   }
 
   lines.push("", `**Total:** ${chats.length} chat(s)`);
+
+  return lines.join("\n");
+}
+
+export function formatUsers(users: UserInfo[]): string {
+  if (users.length === 0) {
+    return "No matching users found.";
+  }
+
+  const lines: string[] = [
+    "## Users",
+    "",
+    "| Name | Email | Job title | ID |",
+    "|------|-------|-----------|----|",
+  ];
+
+  for (const user of users) {
+    const email = user.mail ?? user.userPrincipalName ?? "-";
+    lines.push(
+      `| ${escapeCell(user.displayName)} | ${escapeCell(email)} | ${escapeCell(user.jobTitle ?? "-")} | \`${user.id}\` |`
+    );
+  }
+
+  lines.push("", `**Total:** ${users.length} user(s)`);
+
+  return lines.join("\n");
+}
+
+export function formatSearchResults(result: MessageSearchResult, query: string): string {
+  if (result.hits.length === 0) {
+    return `No messages found matching "${query}".`;
+  }
+
+  const lines: string[] = [`## Message search: "${query}"`, ""];
+
+  for (const hit of result.hits) {
+    const timestamp = hit.createdDateTime ? formatTimestamp(hit.createdDateTime) : "unknown time";
+    lines.push(`**${hit.authorName}** · ${timestamp} · \`${hit.id}\`${describeHitLocation(hit)}`);
+    lines.push(hit.text || hit.summary || "_(no text content)_");
+    lines.push("");
+  }
+
+  // Graph's total is an estimate over the whole matching set, not the page - saying
+  // "20 of about 340" is the difference between a complete answer and a first page.
+  const shown =
+    result.totalMatches && result.totalMatches > result.hits.length
+      ? `${result.hits.length} of about ${result.totalMatches} match(es)`
+      : `${result.hits.length} match(es)`;
+
+  lines.push(`**Showing:** ${shown}`);
+  if (result.moreResultsAvailable) {
+    lines.push("More results are available - raise `size`, or page with `from`.");
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Say where a hit came from, and carry the ids a follow-up read needs.
+ * A channel hit needs teamId + channelId; a chat hit needs chatId.
+ */
+function describeHitLocation(hit: MessageSearchHit): string {
+  if (hit.teamId && hit.channelId) {
+    return `  _(channel — team \`${hit.teamId}\`, channel \`${hit.channelId}\`)_`;
+  }
+  if (hit.chatId) {
+    return `  _(chat \`${hit.chatId}\`)_`;
+  }
+  return "";
+}
+
+export function formatDelta(result: ChannelDeltaResult): string {
+  const body =
+    result.messages.length === 0
+      ? "No new or changed messages since the last delta."
+      : formatMessages(result.messages, {
+          heading: "Channel changes",
+          emptyMessage: "No new or changed messages since the last delta.",
+        });
+
+  const lines = [body, ""];
+
+  if (result.truncated) {
+    lines.push(
+      `⚠️ Stopped after ${result.pagesFetched} page(s) before reaching the end of the channel's ` +
+        `history, so **no deltaLink was issued** — one taken from a partial walk would silently ` +
+        `skip everything beyond the cut. Re-run with a higher \`maxPages\` to complete the ` +
+        `first pass.`
+    );
+  } else if (result.deltaLink) {
+    lines.push(
+      "Pass this `deltaLink` to the next call to get only what changes after this point:",
+      "",
+      `\`${result.deltaLink}\``
+    );
+  }
 
   return lines.join("\n");
 }

@@ -51,14 +51,27 @@ const LEGACY_TOKEN_FILE = path.join(TOKEN_DIR, "teams-auth.json");
  * offline_access is what makes silent renewal possible. MSAL strips OIDC scopes
  * (openid/profile/offline_access/email) from cache-matching scope sets, so listing
  * it here does not interfere with acquireTokenSilent lookups.
+ *
+ * ChannelMessage.Edit is consented but deliberately NOT requested: no published
+ * Graph method accepts it. Editing a channel message's content is
+ * PATCH /teams/{t}/channels/{c}/messages/{m}, whose delegated permission is
+ * ChannelMessage.ReadWrite or Group.ReadWrite.All - neither of which is consented.
+ * Requesting it would widen the token without buying a single capability.
+ *
+ * Widening this array invalidates cached access tokens minted against the old set.
+ * That is handled rather than breaking: acquireTokenSilent redeems the cached
+ * refresh token for the wider set (consent is tenant-wide, so no prompt), and only
+ * falls back to device code if the refresh token itself is dead.
  */
 const DEVICE_CODE_SCOPES = [
   "User.Read",
+  "User.ReadBasic.All",
   "Team.ReadBasic.All",
   "Channel.ReadBasic.All",
   "ChannelMessage.Read.All",
   "ChannelMessage.Send",
   "Chat.ReadWrite",
+  "Chat.Create",
   "Group.Read.All",
   "offline_access",
 ];
