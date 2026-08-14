@@ -330,10 +330,42 @@ describe('PeopleService.findOneOnOneChat', () => {
 
     expect(await service.findOneOnOneChat(THEIR_USER_ID)).toBeNull();
   });
+
+  it('never matches the signed-in user, who is a member of every one-on-one chat', async () => {
+    const { service } = createService(() => ({
+      value: [
+        oneOnOneChat('19:someone-else@unq.gbl.spaces', ['other-id', MY_USER_ID]),
+        oneOnOneChat(ONE_ON_ONE_CHAT_ID, [THEIR_USER_ID, MY_USER_ID]),
+      ],
+    }));
+
+    // Matching on "some member holds this id" is right for anyone else and wrong
+    // for yourself: you are in all of them, so the first one wins and the caller
+    // gets a stranger's thread back.
+    expect(await service.findOneOnOneChat(MY_USER_ID)).toBeNull();
+  });
 });
 
 describe('PeopleService.sendDirectMessage', () => {
   const RESOLVED = { value: [user(THEIR_USER_ID, 'Peter Parker', 'pparker@example.com')] };
+
+  it('refuses to message yourself rather than posting into a colleague\'s chat', async () => {
+    const { service, requests } = createService((req) => {
+      if (req.path === '/users') return { value: [user(MY_USER_ID, 'Jane Doe', 'jdoe@example.com')] };
+      if (req.path === '/me/chats') {
+        // Every one-on-one chat has the signed-in user in it, so a lookup keyed on
+        // their own id matches whichever happens to come back first.
+        return { value: [oneOnOneChat('19:someone-else@unq.gbl.spaces', ['other-id', MY_USER_ID])] };
+      }
+      return { id: '1616965872395' };
+    });
+
+    await expect(service.sendDirectMessage('Jane Doe', 'note to self')).rejects.toThrow(/yourself/i);
+
+    // The refusal is only worth anything if nothing went out on the way to it.
+    expect(requests.some((r) => r.method === 'post' && r.path.includes('/messages'))).toBe(false);
+    expect(requests.some((r) => r.path === '/chats' && r.method === 'post')).toBe(false);
+  });
 
   it('reuses an existing one-on-one chat and does NOT create a second one', async () => {
     const { service, requests } = createService((req) => {

@@ -655,8 +655,11 @@ The three steps are deliberately not exposed separately: splitting them puts the
 | Several, no single exact match | Error listing up to 10 candidates, each marked when it is a guest. **Nothing is sent.** |
 | One guest, named by anything but their address | **Error. Nothing is sent.** Re-run with the exact `mail` or `#EXT#` UPN. |
 | One guest, named by their exact address | Resolved |
+| The signed-in user themselves | **Error. Nothing is sent.** There is no one-on-one chat with yourself. |
 
 The guest rule is separate from the ambiguity rule and does not follow from it: a first name matching exactly one supplier and no colleague *is* unambiguous, so before `beta.9` it resolved cleanly and sent a message to a stranger at another company with nothing said about it. It is an error rather than a warning because the caller is usually an agent, and a warning printed after the message has gone is not a guard.
+
+**Addressing yourself is refused.** The chat lookup matches on "some member holds this id", which is correct for anybody else and wrong for the signed-in user, who is a member of *every* one-on-one chat they have — so their own id matched whichever chat came back first and the message went to that colleague silently. Confirmed live on 2026-08-14. `sendDirectMessage` now refuses, and `findOneOnOneChat` returns null for the signed-in user so the same mistake cannot return through another caller. Do not smoke-test this tool by messaging yourself.
 
 **Two guards against duplicate chats.** The lookup runs first so the result can honestly report `chatExisted`. The backstop is Graph: only one one-on-one chat can exist between two people, and `POST /chats` returns the existing one rather than creating a second. A missed lookup therefore costs an inaccurate `chatExisted` label, never a duplicate thread — which is why the walk is bounded at `CHAT_LOOKUP_MAX_PAGES` (5) × `CHAT_PAGE_SIZE` (50) = 250 chats.
 
@@ -676,12 +679,13 @@ The guest rule is separate from the ambiguity rule and does not follow from it: 
 
 **Parameters:** `query` (required), `top?` (1–50, default 20), `from?` (zero-based offset)
 
-Spans channel messages **and** chat messages in one call. Four shape traps, all pinned by tests in `src/services/__tests__/search-service.test.ts`:
+Spans channel messages **and** chat messages in one call. Five shape traps, all pinned by tests in `src/services/__tests__/search-service.test.ts`:
 
 1. **`chatMessage` is not in the v1.0 `entityType` enum.** Without the `Prefer` header Graph rejects the request outright rather than treating the value as a forward-compatible member.
 2. **Hits deliver the sender as `from.emailAddress.name`/`.address`**, not the `from.user.displayName` shape the message endpoints use. Passing a hit through `toMessageInfo()` renders every result as an unattributed "Unknown", which reads like a permission failure rather than a mapping bug. `SearchService` has its own mapping path.
 3. **A hit's deep link is `webLink`, not `webUrl`.** Every other message endpoint in Graph says `webUrl`; a search hit does not. Reading the wrong property is silent — it is simply absent — so through `beta.8` every hit came back linkless with nothing to say why, and the renderer did not print the field at all. Both halves fixed in `beta.9`; `webUrl` is retained as a fallback.
 4. **`channelIdentity.teamId` is not always the group id the read endpoints accept.** A private-channel hit carries that channel's own backing group, and `GET /teams/{that}` answers `Group ID '...' is not found` — an error that reads like a permission or deletion problem rather than a wrong argument. `confirmChannelTeams()` checks each channel hit's team against `/me/joinedTeams` (one call, settles the ordinary case) and only walks channels for a hit that fails it, stopping as soon as every unplaced channel is found. A hit that still cannot be placed **loses the field** rather than keeping a value no read will accept. *Ceiling: `MAX_TEAM_SCAN` (20) teams walked.*
+5. **Every hit carries both `chatId` and `channelIdentity`, whichever kind it is.** A chat hit repeats its chat id in `channelIdentity.channelId`; a channel hit repeats its channel id in `chatId`. Only `channelIdentity.teamId` is exclusive to a channel hit, so it is the discriminator — `hit.channelId` is not. Using it ran every chat hit through `confirmChannelTeams()`, which cannot place a chat: a `listChannels` call per joined team on any search returning one, and the hit rendered as a channel whose team was unidentifiable while its `chatId` was valid and readable throughout. Confirmed live on 2026-08-14, where half an eight-hit sample were chats and all four were mislabelled. *Ceiling: a channel hit arriving with no `teamId` would read as a chat; not observed, since a private channel's `teamId` is present but wrong rather than missing.*
 
 **Permission note.** The Graph reference lists `Chat.Read` for this entity type, which is *not* consented. Graph does not enforce that list literally — live testing on 2026-08-12 returned 200 with real hits on `Chat.ReadWrite` alone. This tool is built on the observed behaviour rather than the documented table, so if Graph ever tightens enforcement it is the first tool to break, and the fix is a scope request, not a code change.
 

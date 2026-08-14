@@ -37,3 +37,7 @@ package-lock.json text eol=lf linguist-generated=true
 .gitattributes text eol=lf
 .editorconfig text eol=lf
 tsconfig.json text eol=lf
+
+# Agent work log: keep every line from both sides on a merge,
+# so parallel sessions on different machines never conflict.
+.claude/log.md merge=union

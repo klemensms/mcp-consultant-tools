@@ -96,8 +96,19 @@ export class PeopleService {
    * Graph exposes no filter for "the one-on-one chat with person X", so this pages
    * the signed-in user's one-on-one chats and matches on member userId. Returns
    * null when the walk finished without a match or ran out of pages.
+   *
+   * The match is on "some member holds this id", which is right for anybody else
+   * and silently wrong for the signed-in user: they are a member of every chat in
+   * the list, so their own id matches whichever page one happens to return first
+   * and the caller is handed a colleague's thread. There is no self chat for this
+   * lookup to find, so that case answers null before the walk starts.
    */
   async findOneOnOneChat(userId: string): Promise<string | null> {
+    const me = await this.teams.getMe();
+    if (userId === me.id) {
+      return null;
+    }
+
     const client = await this.teams.getGraphClient();
 
     let nextUrl: string | undefined;
@@ -183,6 +194,19 @@ export class PeopleService {
     options: { format?: "text" | "markdown" } = {}
   ): Promise<DirectMessageResult> {
     const recipient = await this.resolveUser(nameOrEmail);
+
+    // Addressing yourself is refused rather than served. A one-on-one chat needs
+    // two people, so there is nothing correct to send to - and the failure mode is
+    // the worst one this tool has: the chat lookup matches on membership, the
+    // signed-in user is in all of their one-on-one chats, and the message lands on
+    // whichever colleague came back first with nothing said about it.
+    const me = await this.teams.getMe();
+    if (recipient.id === me.id) {
+      throw new Error(
+        `"${nameOrEmail}" resolves to you. This tool messages someone else, and ` +
+          `there is no one-on-one chat with yourself for it to use.`
+      );
+    }
 
     const existingChatId = await this.findOneOnOneChat(recipient.id);
     const chatId = existingChatId ?? (await this.createOneOnOneChat(recipient.id));

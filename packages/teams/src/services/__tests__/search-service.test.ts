@@ -17,6 +17,15 @@
  *     A private-channel hit carries that channel's own backing group, and
  *     GET /teams/{that} answers "Group ID ... is not found" - an error that reads
  *     like a permission problem rather than a wrong argument.
+ *   - EVERY hit carries both chatId and channelIdentity, whichever kind it is:
+ *     a chat hit repeats its chat id in channelIdentity.channelId, and a channel
+ *     hit repeats its channel id in chatId. Only channelIdentity.teamId tells the
+ *     two apart. Treating "has a channelId" as "is a channel hit" therefore runs
+ *     every chat hit through channel placement, where it cannot be found, so it
+ *     renders as a channel whose team is unidentifiable while its chat id was
+ *     usable all along. Fixtures below carry both fields for that reason: the
+ *     shapes here are what a live tenant returned on 2026-08-14, not what the
+ *     Graph reference documents.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -80,6 +89,8 @@ function channelHit(channelIdentity: { teamId: string; channelId: string } = { t
       from: { emailAddress: { name: 'Robin Kline', address: 'rkline@example.com' } },
       body: { contentType: 'html', content: '<div>We should discuss the budget next week</div>' },
       channelIdentity,
+      // A channel hit repeats its channel id here. Live shape, not documented.
+      chatId: channelIdentity.channelId,
     },
   };
 }
@@ -95,6 +106,9 @@ function chatHit() {
       chatId: CHAT_ID,
       from: { emailAddress: { name: 'Peter Parker', address: 'pparker@example.com' } },
       body: { contentType: 'text', content: 'the budget is signed off' },
+      // A chat hit still carries channelIdentity, holding the chat id again and
+      // no teamId. Its absence is the only thing marking this as a chat.
+      channelIdentity: { channelId: CHAT_ID },
     },
   };
 }
@@ -168,6 +182,27 @@ describe('SearchService.searchMessages', () => {
 
     expect(result.hits[0].chatId).toBe(CHAT_ID);
     expect(result.hits[0].teamId).toBeUndefined();
+  });
+
+  it('does not report a chat hit as a channel, even though it carries a channelId', async () => {
+    const { service } = createService(searchResponse([chatHit()]));
+
+    const result = await service.searchMessages('budget');
+
+    // The chat id is repeated in channelIdentity.channelId. Passing it on would
+    // tell the caller to read a channel that does not exist, when chatId works.
+    expect(result.hits[0].channelId).toBeUndefined();
+  });
+
+  it('does not walk teams looking for a chat hit it will never find there', async () => {
+    const { service, calls, teams } = createService(searchResponse([chatHit()]));
+
+    await service.searchMessages('budget');
+
+    // Placement is for channel hits. Running chat hits through it costs a
+    // listChannels call per joined team on every search that returns one.
+    expect(teams.listTeams).not.toHaveBeenCalled();
+    expect(calls.listedChannelsFor).toEqual([]);
   });
 
   it('reads the deep link from webLink, which is what a hit actually carries', async () => {

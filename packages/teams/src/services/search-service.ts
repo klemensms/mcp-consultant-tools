@@ -178,6 +178,18 @@ function toSearchHit(hit: any): MessageSearchHit {
     ? truncateText(htmlToText(resource.body.content, resource.body.contentType), MAX_HIT_CHARS)
     : undefined;
 
+  // Every hit carries BOTH chatId and channelIdentity, whichever kind it is: a chat
+  // hit repeats its chat id in channelIdentity.channelId, and a channel hit repeats
+  // its channel id in chatId. Only teamId is exclusive to a channel hit, so it is the
+  // discriminator. Relaying both fields leaves the caller unable to tell which
+  // follow-up read applies, and - because "has a channelId" then matches every chat
+  // hit - sends each one into a channel placement walk it can never be found by,
+  // which reports it as a channel with an unidentifiable team while its chat id
+  // worked all along. Ceiling: a channel hit arriving with no teamId at all would
+  // read as a chat. Not observed live; a private channel's teamId is present but
+  // wrong, which is what confirmChannelTeams repairs.
+  const isChannelHit = Boolean(channelIdentity.teamId);
+
   return {
     id: resource.id ?? hit?.hitId,
     authorName: emailAddress.name ?? emailAddress.address ?? "Unknown",
@@ -186,9 +198,9 @@ function toSearchHit(hit: any): MessageSearchHit {
     // Graph's summary marks the matched terms, which is what makes a hit skimmable.
     summary: hit?.summary ? truncateText(stripHitMarkers(hit.summary), MAX_HIT_CHARS) : undefined,
     text: body,
-    teamId: channelIdentity.teamId ?? undefined,
-    channelId: channelIdentity.channelId ?? undefined,
-    chatId: resource.chatId ?? undefined,
+    teamId: isChannelHit ? channelIdentity.teamId : undefined,
+    channelId: isChannelHit ? channelIdentity.channelId ?? undefined : undefined,
+    chatId: isChannelHit ? undefined : resource.chatId ?? undefined,
     // A search hit names its deep link `webLink`, NOT the `webUrl` every other
     // message endpoint in Graph uses. Reading the wrong one is silent - the property
     // is simply absent, so every hit came back linkless and nothing said why.
