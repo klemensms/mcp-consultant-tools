@@ -3,7 +3,7 @@
  */
 
 import type { Command } from 'commander';
-import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
+import { getGlobalFlags, handleCliError, truncationSuffix } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../types.js';
 import { outputResult } from '../output.js';
 
@@ -13,7 +13,7 @@ export function registerSecurityCommands(program: Command, ctx: ServiceContext):
   security
     .command('connection-refs')
     .description('Get all connection references with connector details')
-    .option('-m, --max <n>', 'Maximum records to return', '100')
+    .option('-m, --max <n>', 'Maximum records to return (0 = all, the default)', '0')
     .option('--managed-only', 'Filter to managed connection references only', false)
     .option('--has-connection', 'Filter: only refs with connections set')
     .option('--no-connection', 'Filter: only refs without connections')
@@ -29,7 +29,7 @@ export function registerSecurityCommands(program: Command, ctx: ServiceContext):
           hasConnection,
         });
         outputResult(
-          { fileName: 'connection-references', data: result, summary: `Connection references: ${result.summary.total} total, ${result.summary.withConnection} with connection` },
+          { fileName: 'connection-references', data: result, summary: `Connection references: ${result.summary.total} total, ${result.summary.withConnection} with connection${truncationSuffix(result.truncation)}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'get connection references'); }
@@ -40,7 +40,7 @@ export function registerSecurityCommands(program: Command, ctx: ServiceContext):
     .description('Get custom security roles in the environment')
     .option('-s, --solution <name>', 'Filter to roles in a specific solution')
     .option('--include-system', 'Include system roles (System Admin, etc.)', false)
-    .option('-m, --max <n>', 'Maximum records to return', '100')
+    .option('-m, --max <n>', 'Maximum records to return (0 = all, the default)', '0')
     .action(async (opts: any) => {
       try {
         const result = await ctx.pp.getSecurityRoles({
@@ -49,7 +49,7 @@ export function registerSecurityCommands(program: Command, ctx: ServiceContext):
           maxRecords: parseInt(opts.max),
         });
         outputResult(
-          { fileName: 'security-roles', data: result, summary: `Security roles: ${result.summary.total} total (${result.summary.managed} managed, ${result.summary.unmanaged} unmanaged)` },
+          { fileName: 'security-roles', data: result, summary: `Security roles: ${result.summary.total} total (${result.summary.managed} managed, ${result.summary.unmanaged} unmanaged)${truncationSuffix(result.truncation)}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'get security roles'); }

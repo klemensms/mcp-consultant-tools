@@ -5,7 +5,9 @@
  */
 
 import axios from 'axios';
+import { buildTruncation, UNCAPPED } from '@mcp-consultant-tools/core';
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
+import { paginateDataverse } from './paginate.js';
 import type {
   ApiCollectionResponse,
   FlowFilterOptions,
@@ -182,12 +184,15 @@ export class FlowService {
   constructor(private client: PowerPlatformClient) {}
 
   /**
-   * Get Power Automate cloud flows with smart filtering
+   * Get Power Automate cloud flows with smart filtering.
+   *
+   * Returns every matching flow by default. A cap is opt-in via `maxRecords`, and
+   * when one bites `truncation.hasMore` says so.
    */
   async getFlows(options: FlowFilterOptions = {}): Promise<FlowListResult> {
     const {
       activeOnly = false,
-      maxRecords = 25,
+      maxRecords = UNCAPPED,
       excludeCustomerInsights = true,
       excludeSystem = true,
       excludeCopilotSales = true,
@@ -211,46 +216,38 @@ export class FlowService {
 
     const filterString = filterConditions.join(' and ');
 
-    const clientFilterFactor = excludeSystem || excludeCopilotSales ? 1.5 : 1;
-    const requestLimit = Math.ceil(maxRecords * clientFilterFactor) + 1;
-
-    const flows = await this.client.makeRequest<
-      ApiCollectionResponse<Record<string, unknown>>
-    >(
-      `api/data/v9.2/workflows?$filter=${filterString}&$select=workflowid,name,statecode,statuscode,description,createdon,modifiedon,type,ismanaged,iscrmuiworkflow,primaryentity,_ownerid_value&$expand=modifiedby($select=fullname)&$orderby=modifiedon desc&$top=${requestLimit}`
-    );
-
     const excludedCounts = {
       customerInsights: 0,
       system: 0,
       copilotSales: 0,
     };
 
-    let filteredFlows = flows.value;
+    // The client-side exclusions run inside the paging loop. They used to run over a
+    // single over-fetched page, and `hasMore` was then computed from what survived
+    // them, so filtering the page below the cap reported the environment as
+    // exhausted while the source still held rows.
+    const { rows, hasMore, truncationReason } = await paginateDataverse<
+      Record<string, unknown>
+    >(this.client, {
+      endpoint: `api/data/v9.2/workflows?$filter=${filterString}&$select=workflowid,name,statecode,statuscode,description,createdon,modifiedon,type,ismanaged,iscrmuiworkflow,primaryentity,_ownerid_value&$expand=modifiedby($select=fullname)&$orderby=modifiedon desc`,
+      maxRecords,
+      keep: (flow) => {
+        if (excludeSystem) {
+          const modifiedBy = (flow.modifiedby as { fullname?: string })?.fullname;
+          if (modifiedBy === 'SYSTEM') {
+            excludedCounts.system++;
+            return false;
+          }
+        }
+        if (excludeCopilotSales && COPILOT_SALES_FLOW_NAMES.has(flow.name as string)) {
+          excludedCounts.copilotSales++;
+          return false;
+        }
+        return true;
+      },
+    });
 
-    if (excludeSystem) {
-      const beforeCount = filteredFlows.length;
-      filteredFlows = filteredFlows.filter((flow) => {
-        const modifiedBy = (flow.modifiedby as { fullname?: string })?.fullname;
-        return modifiedBy !== 'SYSTEM';
-      });
-      excludedCounts.system = beforeCount - filteredFlows.length;
-    }
-
-    if (excludeCopilotSales) {
-      const beforeCount = filteredFlows.length;
-      filteredFlows = filteredFlows.filter(
-        (flow) => !COPILOT_SALES_FLOW_NAMES.has(flow.name as string)
-      );
-      excludedCounts.copilotSales = beforeCount - filteredFlows.length;
-    }
-
-    const hasMore = filteredFlows.length > maxRecords;
-    const trimmedFlows = hasMore
-      ? filteredFlows.slice(0, maxRecords)
-      : filteredFlows;
-
-    const formattedFlows: FlowSummary[] = trimmedFlows.map((flow) => ({
+    const formattedFlows: FlowSummary[] = rows.map((flow) => ({
       workflowid: flow.workflowid as string,
       name: flow.name as string,
       description: flow.description as string | null,
@@ -280,6 +277,12 @@ export class FlowService {
       totalCount: formattedFlows.length,
       hasMore,
       requestedMax: maxRecords,
+      truncation: buildTruncation({
+        returnedCount: formattedFlows.length,
+        requestedMax: maxRecords,
+        hasMore,
+        truncationReason,
+      }),
       excluded: {
         customerInsights: excludedCounts.customerInsights,
         system: excludedCounts.system,

@@ -6,8 +6,14 @@
  * detailed privilege inspection.
  */
 
+import {
+  buildTruncation,
+  UNCAPPED,
+  type TruncationInfo,
+} from '@mcp-consultant-tools/core';
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
 import type { ApiCollectionResponse } from '../client/types.js';
+import { paginateDataverse } from './paginate.js';
 import { SolutionService } from './SolutionService.js';
 
 // ============================================================================
@@ -25,7 +31,14 @@ export interface SecurityRole {
 
 export interface SecurityRolesResult {
   roles: SecurityRole[];
+  truncation: TruncationInfo;
   summary: {
+    /**
+     * Roles in this payload, which is the population only when
+     * `truncation.hasMore` is false. Every other figure in this block describes the
+     * same returned set, so a capped run is a census of what was fetched, not of
+     * what exists.
+     */
     total: number;
     managed: number;
     unmanaged: number;
@@ -165,7 +178,7 @@ export class SecurityRoleService {
     excludeSystemRoles?: boolean;
     maxRecords?: number;
   }): Promise<SecurityRolesResult> {
-    const maxRecords = options?.maxRecords ?? 100;
+    const maxRecords = options?.maxRecords ?? UNCAPPED;
     const excludeSystemRoles = options?.excludeSystemRoles ?? true;
 
     // If filtering by solution, use the solution-based approach
@@ -176,6 +189,11 @@ export class SecurityRoleService {
       });
       return {
         roles: result.roles,
+        truncation: buildTruncation({
+          returnedCount: result.roles.length,
+          requestedMax: UNCAPPED,
+          hasMore: false,
+        }),
         summary: {
           total: result.roles.length,
           managed: result.roles.filter((r) => r.isManaged).length,
@@ -185,14 +203,25 @@ export class SecurityRoleService {
       };
     }
 
-    const response = await this.client.makeRequest<ApiCollectionResponse<DataverseRole>>(
-      `api/data/v9.2/roles` +
-      `?$select=roleid,name,roleidunique,ismanaged,iscustomizable,_businessunitid_value` +
-      `&$orderby=name` +
-      `&$top=${maxRecords}`
-    );
+    let systemRolesExcluded = 0;
 
-    let roles: SecurityRole[] = (response.value || []).map((r) => ({
+    const { rows, hasMore, truncationReason } =
+      await paginateDataverse<DataverseRole>(this.client, {
+        endpoint:
+          `api/data/v9.2/roles` +
+          `?$select=roleid,name,roleidunique,ismanaged,iscustomizable,_businessunitid_value` +
+          `&$orderby=name`,
+        maxRecords,
+        keep: (r) => {
+          if (excludeSystemRoles && SYSTEM_ROLE_NAMES.includes(r.name)) {
+            systemRolesExcluded++;
+            return false;
+          }
+          return true;
+        },
+      });
+
+    const roles: SecurityRole[] = rows.map((r) => ({
       roleId: r.roleid,
       roleIdUnique: r.roleidunique,
       name: r.name,
@@ -201,15 +230,14 @@ export class SecurityRoleService {
       businessUnitId: r._businessunitid_value,
     }));
 
-    let systemRolesExcluded = 0;
-    if (excludeSystemRoles) {
-      const beforeCount = roles.length;
-      roles = roles.filter((r) => !SYSTEM_ROLE_NAMES.includes(r.name));
-      systemRolesExcluded = beforeCount - roles.length;
-    }
-
     return {
       roles,
+      truncation: buildTruncation({
+        returnedCount: roles.length,
+        requestedMax: maxRecords,
+        hasMore,
+        truncationReason,
+      }),
       summary: {
         total: roles.length,
         managed: roles.filter((r) => r.isManaged).length,

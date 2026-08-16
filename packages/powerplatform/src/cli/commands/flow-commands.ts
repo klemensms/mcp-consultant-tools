@@ -3,7 +3,7 @@
  */
 
 import type { Command } from 'commander';
-import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
+import { getGlobalFlags, handleCliError, truncationSuffix } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../types.js';
 import { outputResult } from '../output.js';
 
@@ -14,7 +14,7 @@ export function registerFlowCommands(program: Command, ctx: ServiceContext): voi
     .command('list')
     .description('List Power Automate cloud flows')
     .option('--active-only', 'Only return activated flows', false)
-    .option('-m, --max <n>', 'Maximum number of flows to return', '25')
+    .option('-m, --max <n>', 'Maximum number of flows to return (0 = all, the default)', '0')
     .option('--include-customer-insights', 'Include Customer Insights flows (CXP_ prefix)', false)
     .option('--include-system', 'Include SYSTEM-modified flows', false)
     .option('--include-copilot-sales', 'Include Copilot for Sales flows', false)
@@ -30,7 +30,7 @@ export function registerFlowCommands(program: Command, ctx: ServiceContext): voi
           nameContains: opts.name,
         });
         outputResult(
-          { fileName: 'flows', data: result, summary: `Found ${result.totalCount} Power Automate flows${result.hasMore ? ' (more available)' : ''}` },
+          { fileName: 'flows', data: result, summary: `Found ${result.totalCount} Power Automate flows${truncationSuffix(result.truncation)}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'list flows'); }

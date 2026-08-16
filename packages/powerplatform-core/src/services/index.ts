@@ -18,6 +18,7 @@ export { PluginService } from './PluginService.js';
 export type {
   PluginStepInventoryEntry,
   PluginStepInventoryResult,
+  PluginAssembliesResult,
 } from './PluginService.js';
 export { SecurityRoleService } from './SecurityRoleService.js';
 export type {

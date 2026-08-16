@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "@azure/identity": "^4.13.0",
-    "@mcp-consultant-tools/core": "34.0.0",
+    "@mcp-consultant-tools/core": "34.1.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "commander": "^14.0.3",

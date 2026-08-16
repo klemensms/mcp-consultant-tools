@@ -44,6 +44,8 @@ import {
   type FieldSecurityProfileDetail,
   type FieldPermissionRecord,
   type SecuredColumnInfo,
+  // Plugin types
+  type PluginAssembliesResult,
   // Plugin deployment types
   type RegisterPluginStepOptions,
   type RegisterPluginImageOptions,
@@ -254,10 +256,10 @@ export class PowerPlatformService {
   // PLUGIN METHODS (Read-only)
   // =====================================================
 
-  async getPluginAssemblies(includeManaged?: boolean, maxRecords?: number): Promise<{
-    totalCount: number;
-    assemblies: unknown[];
-  }> {
+  async getPluginAssemblies(
+    includeManaged?: boolean,
+    maxRecords?: number
+  ): Promise<PluginAssembliesResult> {
     return this.plugin.getPluginAssemblies(includeManaged, maxRecords);
   }
 

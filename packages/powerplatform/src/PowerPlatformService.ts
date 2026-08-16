@@ -8,6 +8,7 @@
  * For customization operations, use @mcp-consultant-tools/powerplatform-customization.
  */
 
+import { UNCAPPED } from '@mcp-consultant-tools/core';
 import {
   // Client and types
   PowerPlatformClient,
@@ -40,6 +41,7 @@ import {
   // Plugin types
   type PluginStepInventoryEntry,
   type PluginStepInventoryResult,
+  type PluginAssembliesResult,
   // Read-only services
   MetadataService,
   PluginService,
@@ -99,6 +101,7 @@ export type {
   // Plugin types
   PluginStepInventoryEntry,
   PluginStepInventoryResult,
+  PluginAssembliesResult,
 };
 
 export class PowerPlatformService {
@@ -225,8 +228,8 @@ export class PowerPlatformService {
 
   async getPluginAssemblies(
     includeManaged: boolean = false,
-    maxRecords: number = 100
-  ): Promise<{ totalCount: number; assemblies: unknown[] }> {
+    maxRecords: number = UNCAPPED
+  ): Promise<PluginAssembliesResult> {
     return this.plugin.getPluginAssemblies(includeManaged, maxRecords);
   }
 

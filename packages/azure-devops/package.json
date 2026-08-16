@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@azure/identity": "^4.13.0",
-    "@mcp-consultant-tools/core": "34.0.0",
+    "@mcp-consultant-tools/core": "34.1.0",
     "@modelcontextprotocol/ext-apps": "^1.1.2",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "axios": "^1.8.3",

@@ -2,6 +2,7 @@
  * Plugin Tools - 5 tools for plugin inspection
  */
 import { z } from 'zod';
+import { UNCAPPED, truncationSuffix } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../types.js';
 import { descWithExamples, ENTITY_NAME_EXAMPLES, MESSAGE_FILTER_EXAMPLES, HOURS_BACK_EXAMPLES } from '../tool-examples.js';
 
@@ -11,20 +12,20 @@ export function registerPluginTools(server: any, ctx: ServiceContext): void {
     "Get a list of all plugin assemblies in the environment",
     {
       includeManaged: z.boolean().optional().describe("Include managed assemblies (default: false)"),
-      maxRecords: z.number().optional().describe("Maximum number of assemblies to return (default: 100)"),
+      maxRecords: z.number().optional().describe("Maximum number of assemblies to return. Omit or pass 0 to return every assembly, which is the default. When a cap truncates the result, `truncation.hasMore` is true and `truncation.totalAvailable` is null."),
     },
     { readOnlyHint: true, openWorldHint: true },
     async ({ includeManaged, maxRecords }: any) => {
       try {
         const service = ctx.pp;
-        const result = await service.getPluginAssemblies(includeManaged || false, maxRecords || 100);
+        const result = await service.getPluginAssemblies(includeManaged || false, maxRecords ?? UNCAPPED);
         const resultStr = JSON.stringify(result, null, 2);
 
         return {
           content: [
             {
               type: "text",
-              text: `Found ${result.totalCount} plugin assemblies:\n\n${resultStr}`,
+              text: `Found ${result.totalCount} plugin assemblies${truncationSuffix(result.truncation)}:\n\n${resultStr}`,
             },
           ],
         };
@@ -124,7 +125,7 @@ export function registerPluginTools(server: any, ctx: ServiceContext): void {
     "Get every SDK message processing step in the environment across all assemblies. Use for a full plugin-registration inventory or to compare registrations between environments; use get-entity-plugins instead when you only care about one entity.",
     {
       includeDisabled: z.boolean().optional().describe("Include disabled steps (default: true)"),
-      maxRecords: z.number().optional().describe("Maximum number of steps to return (default: 500)"),
+      maxRecords: z.number().optional().describe("Maximum number of steps to return. Omit or pass 0 to return every step, which is the default. When a cap truncates the result, `truncation.hasMore` is true and `truncation.totalAvailable` is null."),
     },
     { readOnlyHint: true, openWorldHint: true },
     async ({ includeDisabled, maxRecords }: any) => {
@@ -132,7 +133,7 @@ export function registerPluginTools(server: any, ctx: ServiceContext): void {
         const service = ctx.pp;
         const result = await service.getAllPluginSteps({
           includeDisabled: includeDisabled ?? true,
-          maxRecords: maxRecords ?? 500,
+          maxRecords: maxRecords ?? UNCAPPED,
         });
         const enabledCount = result.steps.filter((s) => s.enabled).length;
         const resultStr = JSON.stringify(result, null, 2);
@@ -141,7 +142,7 @@ export function registerPluginTools(server: any, ctx: ServiceContext): void {
           content: [
             {
               type: "text",
-              text: `Found ${result.totalCount} plugin steps (${enabledCount} enabled):\n\n${resultStr}`,
+              text: `Found ${result.totalCount} plugin steps (${enabledCount} enabled)${truncationSuffix(result.truncation)}:\n\n${resultStr}`,
             },
           ],
         };

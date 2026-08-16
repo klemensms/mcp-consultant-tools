@@ -2,6 +2,8 @@
  * Shared types and interfaces for PowerPlatform services
  */
 
+import type { TruncationInfo } from '@mcp-consultant-tools/core';
+
 /**
  * Configuration for PowerPlatform services
  */
@@ -104,9 +106,13 @@ export interface FlowFilterOptions {
 }
 
 export interface FlowListResult {
+  /** Flows in this payload. Read `truncation.totalAvailable` for the population. */
   totalCount: number;
+  /** Mirrors `truncation.hasMore`; kept at the top level for existing consumers. */
   hasMore: boolean;
+  /** Mirrors `truncation.requestedMax`, with 0 meaning uncapped. */
   requestedMax: number;
+  truncation: TruncationInfo;
   excluded: {
     customerInsights: number;
     system: number;

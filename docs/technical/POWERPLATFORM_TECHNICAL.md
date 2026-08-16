@@ -11,7 +11,7 @@ This document covers all three PowerPlatform MCP packages:
 
 | Package | Binary | CLI Binary | Tools | Prompts | Production-Safe |
 |---------|--------|-----------|-------|---------|-----------------|
-| `@mcp-consultant-tools/powerplatform` | `mcp-consultant-tools-powerplatform` | `mcp-pp-cli` | 51 | 12 | YES |
+| `@mcp-consultant-tools/powerplatform` | `mcp-consultant-tools-powerplatform` | `mcp-pp-cli` | 52 | 12 | YES |
 | `@mcp-consultant-tools/powerplatform-customization` | `mcp-pp-custom` | `mcp-pp-custom-cli` | 70 | 0 | NO |
 | `@mcp-consultant-tools/powerplatform-data` | `mcp-pp-data` | `mcp-pp-data-cli` | 10 | 0 | NO |
 
@@ -58,6 +58,39 @@ export interface ServiceContext {
 Lazy initialization is in `index.ts` and `context-factory.ts` (both must be kept in sync).
 
 </service-context>
+
+<truncation-contract>
+
+**Every list command returns the complete set by default, and any command that returns less than everything says so.** A capped result that looks identical to a complete one is the most dangerous output this package can produce, because a consumer reading a returned-row count as a population total gets a confident, well-formed, wrong number with no way to detect it.
+
+`maxRecords` (`-m` on the CLI) defaults to `0`, meaning uncapped. Pass a positive number to cap deliberately.
+
+Every capped list result carries a `truncation` block:
+
+```typescript
+{
+  returnedCount: number,          // rows in this payload, after every filter
+  requestedMax: number | null,    // the cap asked for; null when uncapped
+  hasMore: boolean,               // rows matching the same filters remained at the source
+  totalAvailable: number | null,  // exact source total; null whenever hasMore is true
+  truncationReason: 'requestedMax' | 'safetyCeiling' | null
+}
+```
+
+Two rules make a truncated result impossible to mistake for a complete one:
+
+1. **`hasMore` is never inferred from row count.** It comes from an `@odata.nextLink` continuation token or from a surplus row fetched but not returned. A short page is not proof of exhaustion, and a full page is not proof of truncation.
+2. **`totalAvailable` is null whenever the fetch stopped short.** A total is reported only when one was actually counted.
+
+Mechanics live in `services/paginate.ts` (`paginateDataverse`), which pages via `Prefer: odata.maxpagesize` plus `@odata.nextLink` rather than `$top`. Dataverse ignores `$top` when a page-size preference is present and returns no continuation token for a `$top`-capped query, so a `$top` result cannot distinguish capped from exhausted. Client-side filters run inside the paging loop, so a cap of 25 means 25 rows returned rather than 25 fetched and however many survive.
+
+An uncapped fetch stops at a 50,000-row safety ceiling. Hitting it is reported as truncation like any other (`truncationReason: 'safetyCeiling'`), never as a complete result.
+
+Dataverse occasionally offers a continuation token whose next page turns out to be empty, so `hasMore` can be true where nothing further existed. Over-warning is the deliberate direction.
+
+The `summary` blocks on `get-security-roles` and `get-connection-references` describe the **returned** set. When `truncation.hasMore` is true they are a census of what was fetched, not of the environment, and `summary.byConnector` under-counts every connector.
+
+</truncation-contract>
 
 <publisher-prefix>
 
@@ -144,10 +177,10 @@ For `get-flow-run-details` (Power Automate Management API):
 
 | Tool | Key Parameters | Returns |
 |------|---------------|---------|
-| `get-plugin-assemblies` | `includeManaged?` (default: false), `maxRecords?` (default: 100) | Assembly list with isolation mode, version, modified-by |
+| `get-plugin-assemblies` | `includeManaged?` (default: false), `maxRecords?` (default: 0 = all) | Assembly list with isolation mode, version, modified-by |
 | `get-plugin-asm-full` | `assemblyName`, `includeDisabled?` (default: false) | Assembly + all types, steps, images + automatic validation |
 | `get-entity-plugins` | `entityName`, `messageFilter?`, `includeDisabled?` (default: false) | All plugin steps on entity, organized by message and execution order |
-| `get-all-plugin-steps` | `includeDisabled?` (default: **true**), `maxRecords?` (default: 500) | Environment-wide step inventory across all assemblies — for registration comparison between environments |
+| `get-all-plugin-steps` | `includeDisabled?` (default: **true**), `maxRecords?` (default: 0 = all) | Environment-wide step inventory across all assemblies — for registration comparison between environments |
 | `get-plugin-trace-logs` | `entityName?`, `messageName?`, `correlationId?`, `exceptionOnly?`, `hoursBack?` (default: 24), `maxRecords?` (default: 50), `pluginStepId?` | Trace logs with parsed exception details (type, message, stack trace) |
 
 **Automatic validation in `get-plugin-asm-full`:**
@@ -167,7 +200,7 @@ For `get-flow-run-details` (Power Automate Management API):
 
 | Tool | Key Parameters | Returns |
 |------|---------------|---------|
-| `get-flows` | `activeOnly?`, `maxRecords?` (default: 25), `excludeCustomerInsights?` (default: true), `excludeSystem?` (default: true), `excludeCopilotSales?` (default: true), `nameContains?` | Flow list + exclusion statistics |
+| `get-flows` | `activeOnly?`, `maxRecords?` (default: 0 = all), `excludeCustomerInsights?` (default: true), `excludeSystem?` (default: true), `excludeCopilotSales?` (default: true), `nameContains?` | Flow list + exclusion statistics |
 | `search-workflows` | `name?`, `primaryEntity?`, `description?`, `category?`, `statecode?`, `includeDescription?` (default: true), `maxResults?` (default: 50, max: 1000) | Both classic workflows and Power Automate flows |
 | `get-flow-definition` | `flowId`, `summary?` (default: false) | Full JSON definition or parsed summary (trigger, actions, connectors) |
 | `get-flow-runs` | `flowId`, `status?`, `startedAfter?`, `startedBefore?`, `maxRecords?` (default: 50, max: 250) | Run history: status, timestamps, trigger info, error details |
@@ -190,7 +223,7 @@ For `get-flow-run-details` (Power Automate Management API):
 | Copilot for Sales | Exact name match (list in `COPILOT_SALES_FLOW_NAMES`) | Client-side post-filter |
 | Name search | `nameContains` → OData `contains(name,'term')` | Server-side OData |
 
-Over-fetch strategy: When client-side filtering is active, service requests 1.5x the `maxRecords` count. Response includes exclusion statistics. Set `excludeCustomerInsights: false`, `excludeSystem: false`, or `excludeCopilotSales: false` to disable respective filters.
+Client-side filters run inside the paging loop, so a `maxRecords` cap counts flows returned rather than flows fetched, and `truncation.hasMore` reflects the source rather than the surviving page. Response includes exclusion statistics. Set `excludeCustomerInsights: false`, `excludeSystem: false`, or `excludeCopilotSales: false` to disable respective filters.
 
 </filtering-behavior>
 
@@ -211,7 +244,7 @@ Honesty guarantees (each addresses a defect in the original source):
 
 <flow-inventory-behavior>
 
-**`get-flow-inventory` guarantees completeness where `get-flows` does not.** `get-flows` issues a single page and can silently truncate a large environment; `get-flow-inventory` follows `@odata.nextLink` to enumerate every cloud flow (`category eq 5`) up to `maxRecords`, setting `hasMore` when the cap was reached. Use it for deployment audits; use `get-flows` for filtered interactive investigation.
+**`get-flow-inventory` and `get-flows` are both complete by default; they differ in shape, not in honesty.** Both follow `@odata.nextLink` and set `hasMore` when a cap is reached. `get-flow-inventory` returns deployment metadata for every cloud flow (`category eq 5`) with no exclusions; `get-flows` applies the Customer Insights / SYSTEM / Copilot for Sales filters and reports what they dropped. Use the inventory for deployment audits and `get-flows` for filtered investigation.
 
 </flow-inventory-behavior>
 
@@ -1097,7 +1130,7 @@ mcp-pp-cli plugin entity account --message Update --include-disabled
 
 # Environment-wide step inventory — disabled steps are INCLUDED by default,
 # so the output can be diffed against another environment to find registration drift
-mcp-pp-cli plugin steps --max 500
+mcp-pp-cli plugin steps
 mcp-pp-cli plugin steps --no-include-disabled   # enabled steps only
 ```
 

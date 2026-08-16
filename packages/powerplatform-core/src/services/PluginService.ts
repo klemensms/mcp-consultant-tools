@@ -4,8 +4,14 @@
  * Read-only service for plugin assemblies, types, steps, images, and trace logs.
  */
 
+import {
+  buildTruncation,
+  UNCAPPED,
+  type TruncationInfo,
+} from '@mcp-consultant-tools/core';
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
 import type { ApiCollectionResponse } from '../client/types.js';
+import { paginateDataverse } from './paginate.js';
 
 /** One SDK message processing step in the environment-wide inventory. */
 export interface PluginStepInventoryEntry {
@@ -27,8 +33,23 @@ export interface PluginStepInventoryEntry {
 }
 
 export interface PluginStepInventoryResult {
+  /** Steps in this payload. Read `truncation.totalAvailable` for the population. */
   totalCount: number;
+  truncation: TruncationInfo;
   steps: PluginStepInventoryEntry[];
+}
+
+export interface PluginAssembliesResult {
+  /** Assemblies in this payload. Read `truncation.totalAvailable` for the population. */
+  totalCount: number;
+  truncation: TruncationInfo;
+  /**
+   * Assemblies dropped because Dataverse marks them hidden. Reported for the same
+   * reason `integration endpoints` reports its own exclusions: a filtered list that
+   * declares no filter is indistinguishable from an unfiltered one.
+   */
+  ootbExcluded: number;
+  assemblies: unknown[];
 }
 
 export class PluginService {
@@ -39,42 +60,56 @@ export class PluginService {
    */
   async getPluginAssemblies(
     includeManaged: boolean = false,
-    maxRecords: number = 100
-  ): Promise<{ totalCount: number; assemblies: unknown[] }> {
+    maxRecords: number = UNCAPPED
+  ): Promise<PluginAssembliesResult> {
     const managedFilter = includeManaged ? '' : '$filter=ismanaged eq false&';
 
-    const assemblies = await this.client.makeRequest<ApiCollectionResponse<Record<string, unknown>>>(
-      `api/data/v9.2/pluginassemblies?${managedFilter}$select=pluginassemblyid,name,version,culture,publickeytoken,isolationmode,sourcetype,major,minor,createdon,modifiedon,ismanaged,ishidden&$expand=modifiedby($select=fullname)&$orderby=name&$top=${maxRecords}`
-    );
+    let ootbExcluded = 0;
 
-    // Filter out hidden assemblies and format results
-    const formattedAssemblies = assemblies.value
-      .filter((assembly) => {
+    const { rows, hasMore, truncationReason } = await paginateDataverse<
+      Record<string, unknown>
+    >(this.client, {
+      endpoint: `api/data/v9.2/pluginassemblies?${managedFilter}$select=pluginassemblyid,name,version,culture,publickeytoken,isolationmode,sourcetype,major,minor,createdon,modifiedon,ismanaged,ishidden&$expand=modifiedby($select=fullname)&$orderby=name`,
+      maxRecords,
+      keep: (assembly) => {
         const isHidden =
           (assembly.ishidden as { Value?: boolean })?.Value !== undefined
             ? (assembly.ishidden as { Value: boolean }).Value
             : assembly.ishidden;
-        return !isHidden;
-      })
-      .map((assembly) => ({
-        pluginassemblyid: assembly.pluginassemblyid,
+        if (isHidden) {
+          ootbExcluded++;
+          return false;
+        }
+        return true;
+      },
+    });
+
+    const formattedAssemblies = rows.map((assembly) => ({
+      pluginassemblyid: assembly.pluginassemblyid,
         name: assembly.name,
-        version: assembly.version,
-        isolationMode:
-          assembly.isolationmode === 1
-            ? 'None'
-            : assembly.isolationmode === 2
-              ? 'Sandbox'
-              : 'External',
-        isManaged: assembly.ismanaged,
-        modifiedOn: assembly.modifiedon,
-        modifiedBy: (assembly.modifiedby as { fullname?: string })?.fullname,
-        major: assembly.major,
-        minor: assembly.minor,
-      }));
+      version: assembly.version,
+      isolationMode:
+        assembly.isolationmode === 1
+          ? 'None'
+          : assembly.isolationmode === 2
+            ? 'Sandbox'
+            : 'External',
+      isManaged: assembly.ismanaged,
+      modifiedOn: assembly.modifiedon,
+      modifiedBy: (assembly.modifiedby as { fullname?: string })?.fullname,
+      major: assembly.major,
+      minor: assembly.minor,
+    }));
 
     return {
       totalCount: formattedAssemblies.length,
+      truncation: buildTruncation({
+        returnedCount: formattedAssemblies.length,
+        requestedMax: maxRecords,
+        hasMore,
+        truncationReason,
+      }),
+      ootbExcluded,
       assemblies: formattedAssemblies,
     };
   }
@@ -418,23 +453,27 @@ export class PluginService {
    *
    * Entity-scoped inspection is `getEntityPluginPipeline`; this is the environment-wide
    * inventory used for cross-environment registration comparison, so disabled steps are
-   * included by default — a step enabled in one environment and disabled in another is
+   * included by default: a step enabled in one environment and disabled in another is
    * exactly the drift this is meant to surface.
+   *
+   * Returns every step by default. A cap is opt-in via `maxRecords`, and when one bites
+   * `truncation.hasMore` says so.
    */
   async getAllPluginSteps(options?: {
     includeDisabled?: boolean;
     maxRecords?: number;
   }): Promise<PluginStepInventoryResult> {
-    const { includeDisabled = true, maxRecords = 500 } = options ?? {};
+    const { includeDisabled = true, maxRecords = UNCAPPED } = options ?? {};
     const statusFilter = includeDisabled ? '' : 'statuscode eq 1 and ';
 
-    const response = await this.client.makeRequest<
-      ApiCollectionResponse<Record<string, unknown>>
-    >(
-      `api/data/v9.2/sdkmessageprocessingsteps?$filter=${statusFilter}ishidden/Value eq false&$select=sdkmessageprocessingstepid,name,stage,mode,rank,statuscode,filteringattributes,ismanaged,modifiedon&$expand=sdkmessageid($select=name),plugintypeid($select=typename,assemblyname)&$orderby=name&$top=${maxRecords}`
-    );
+    const { rows, hasMore, truncationReason } = await paginateDataverse<
+      Record<string, unknown>
+    >(this.client, {
+      endpoint: `api/data/v9.2/sdkmessageprocessingsteps?$filter=${statusFilter}ishidden/Value eq false&$select=sdkmessageprocessingstepid,name,stage,mode,rank,statuscode,filteringattributes,ismanaged,modifiedon&$expand=sdkmessageid($select=name),plugintypeid($select=typename,assemblyname)&$orderby=name`,
+      maxRecords,
+    });
 
-    const steps: PluginStepInventoryEntry[] = response.value.map((step) => {
+    const steps: PluginStepInventoryEntry[] = rows.map((step) => {
       const sdkmsg = step.sdkmessageid as { name?: string } | null;
       const pluginType = step.plugintypeid as {
         typename?: string;
@@ -467,6 +506,12 @@ export class PluginService {
 
     return {
       totalCount: steps.length,
+      truncation: buildTruncation({
+        returnedCount: steps.length,
+        requestedMax: maxRecords,
+        hasMore,
+        truncationReason,
+      }),
       steps,
     };
   }

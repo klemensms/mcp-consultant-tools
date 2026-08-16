@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/powerplatform-data",
-  "version": "35.0.0-beta.5",
+  "version": "35.0.0-beta.6",
   "description": "MCP server for PowerPlatform data CRUD operations (operational use)",
   "type": "module",
   "main": "./build/index.js",
@@ -40,8 +40,8 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "@mcp-consultant-tools/core": "33.0.0",
-    "@mcp-consultant-tools/powerplatform-core": "35.0.0-beta.3",
+    "@mcp-consultant-tools/core": "34.1.0",
+    "@mcp-consultant-tools/powerplatform-core": "35.0.0-beta.4",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "commander": "^14.0.3",
     "express": "^4.21.2",

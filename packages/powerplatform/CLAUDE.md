@@ -222,8 +222,8 @@ Binary: `mcp-pp-cli`
 # Get entity metadata
 mcp-pp-cli metadata get account
 
-# Environment-wide plugin step inventory (disabled steps included by default)
-mcp-pp-cli plugin steps --max 500
+# Environment-wide plugin step inventory (every step, disabled ones included)
+mcp-pp-cli plugin steps
 
 # List flows
 mcp-pp-cli flow list

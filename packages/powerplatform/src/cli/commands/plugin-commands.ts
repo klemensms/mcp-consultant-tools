@@ -3,7 +3,7 @@
  */
 
 import type { Command } from 'commander';
-import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
+import { getGlobalFlags, handleCliError, truncationSuffix } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../types.js';
 import { outputResult } from '../output.js';
 
@@ -14,12 +14,12 @@ export function registerPluginCommands(program: Command, ctx: ServiceContext): v
     .command('list')
     .description('List all plugin assemblies in the environment')
     .option('--include-managed', 'Include managed assemblies', false)
-    .option('-m, --max <n>', 'Maximum number of assemblies to return', '100')
+    .option('-m, --max <n>', 'Maximum number of assemblies to return (0 = all, the default)', '0')
     .action(async (opts: any) => {
       try {
         const result = await ctx.pp.getPluginAssemblies(opts.includeManaged, parseInt(opts.max));
         outputResult(
-          { fileName: 'plugin-assemblies', data: result, summary: `Found ${result.totalCount} plugin assemblies` },
+          { fileName: 'plugin-assemblies', data: result, summary: `Found ${result.totalCount} plugin assemblies (${result.ootbExcluded} hidden assemblies excluded)${truncationSuffix(result.truncation)}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'list plugin assemblies'); }
@@ -60,7 +60,7 @@ export function registerPluginCommands(program: Command, ctx: ServiceContext): v
     .command('steps')
     .description('List every plugin step in the environment, across all assemblies')
     .option('--no-include-disabled', 'Exclude disabled steps (they are included by default)')
-    .option('-m, --max <n>', 'Maximum number of steps to return', '500')
+    .option('-m, --max <n>', 'Maximum number of steps to return (0 = all, the default)', '0')
     .action(async (opts: any) => {
       try {
         const result = await ctx.pp.getAllPluginSteps({
@@ -72,7 +72,7 @@ export function registerPluginCommands(program: Command, ctx: ServiceContext): v
           {
             fileName: 'all-plugin-steps',
             data: result,
-            summary: `Found ${result.totalCount} plugin steps (${enabled} enabled, ${result.totalCount - enabled} disabled)`,
+            summary: `Found ${result.totalCount} plugin steps (${enabled} enabled, ${result.totalCount - enabled} disabled)${truncationSuffix(result.truncation)}`,
           },
           getGlobalFlags(program)
         );

@@ -21,6 +21,7 @@ const rawStep = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const url = () => makeRequest.mock.calls[0][0] as string;
+const prefer = () => makeRequest.mock.calls[0][3] as Record<string, string>;
 
 describe('PluginService.getAllPluginSteps', () => {
   beforeEach(() => {
@@ -28,12 +29,15 @@ describe('PluginService.getAllPluginSteps', () => {
     makeRequest.mockResolvedValue({ value: [] });
   });
 
-  it('includes disabled steps by default — no statuscode filter, default top of 500', async () => {
+  it('includes disabled steps by default, and fetches every step rather than a page', async () => {
     await service.getAllPluginSteps();
 
     expect(url()).toContain('$filter=ishidden/Value eq false');
     expect(url()).not.toContain('statuscode eq 1');
-    expect(url()).toContain('$top=500');
+    // No $top: Dataverse returns no continuation token for a $top-capped query, so a
+    // $top result cannot tell a capped set from a complete one.
+    expect(url()).not.toContain('$top');
+    expect(prefer()).toEqual({ Prefer: 'odata.maxpagesize=5000' });
   });
 
   it('filters to enabled steps only when includeDisabled is false', async () => {
@@ -45,7 +49,34 @@ describe('PluginService.getAllPluginSteps', () => {
   it('honours maxRecords', async () => {
     await service.getAllPluginSteps({ maxRecords: 25 });
 
-    expect(url()).toContain('$top=25');
+    expect(prefer()).toEqual({ Prefer: 'odata.maxpagesize=25' });
+  });
+
+  it('a capped run is distinguishable from a complete one at the same totalCount', async () => {
+    // The D2 shape: 500 of 2,637 steps returned as `{ totalCount: 500 }` and nothing else.
+    makeRequest.mockResolvedValue({
+      value: Array.from({ length: 500 }, () => rawStep()),
+      '@odata.nextLink': 'https://mcptests.crm4.dynamics.com/api/data/v9.2/sdkmessageprocessingsteps?$skiptoken=500',
+    });
+
+    const capped = await service.getAllPluginSteps({ maxRecords: 500 });
+
+    expect(capped.totalCount).toBe(500);
+    expect(capped.truncation.hasMore).toBe(true);
+    expect(capped.truncation.totalAvailable).toBeNull();
+    expect(capped.truncation.requestedMax).toBe(500);
+  });
+
+  it('reports an exact total when every step was fetched', async () => {
+    makeRequest.mockResolvedValue({
+      value: Array.from({ length: 3 }, () => rawStep()),
+    });
+
+    const result = await service.getAllPluginSteps();
+
+    expect(result.truncation.hasMore).toBe(false);
+    expect(result.truncation.totalAvailable).toBe(3);
+    expect(result.truncation.requestedMax).toBeNull();
   });
 
   it('expands the message and plugin-type names the inventory shape depends on', async () => {

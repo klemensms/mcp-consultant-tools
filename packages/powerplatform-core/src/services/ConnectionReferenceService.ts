@@ -6,8 +6,13 @@
  * and other components.
  */
 
+import {
+  buildTruncation,
+  UNCAPPED,
+  type TruncationInfo,
+} from '@mcp-consultant-tools/core';
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
-import type { ApiCollectionResponse } from '../client/types.js';
+import { paginateDataverse } from './paginate.js';
 
 // ============================================================================
 // Types
@@ -27,7 +32,13 @@ export interface ConnectionReference {
 
 export interface ConnectionReferencesResult {
   references: ConnectionReference[];
+  truncation: TruncationInfo;
   summary: {
+    /**
+     * References in this payload. When `truncation.hasMore` is true, `byConnector`
+     * under-counts every connector, so this block is a census of the returned set
+     * rather than of the environment.
+     */
     total: number;
     byConnector: Record<string, number>;
     withConnection: number;
@@ -63,7 +74,7 @@ export class ConnectionReferenceService {
     managedOnly?: boolean;
     hasConnection?: boolean;
   }): Promise<ConnectionReferencesResult> {
-    const maxRecords = options?.maxRecords ?? 100;
+    const maxRecords = options?.maxRecords ?? UNCAPPED;
     const managedOnly = options?.managedOnly ?? false;
     const hasConnection = options?.hasConnection;
 
@@ -74,16 +85,24 @@ export class ConnectionReferenceService {
 
     const filterStr = filters.length > 0 ? `&$filter=${filters.join(' and ')}` : '';
 
-    const response = await this.client.makeRequest<ApiCollectionResponse<DataverseConnectionReference>>(
-      `api/data/v9.2/connectionreferences` +
-      `?$select=connectionreferenceid,connectionreferencelogicalname,connectionreferencedisplayname,` +
-      `connectorid,statecode,statuscode,ismanaged,connectionid` +
-      `&$orderby=connectionreferencelogicalname` +
-      `&$top=${maxRecords}` +
-      filterStr
-    );
+    const { rows, hasMore, truncationReason } =
+      await paginateDataverse<DataverseConnectionReference>(this.client, {
+        endpoint:
+          `api/data/v9.2/connectionreferences` +
+          `?$select=connectionreferenceid,connectionreferencelogicalname,connectionreferencedisplayname,` +
+          `connectorid,statecode,statuscode,ismanaged,connectionid` +
+          `&$orderby=connectionreferencelogicalname` +
+          filterStr,
+        maxRecords,
+        // Applied inside the paging loop so a cap counts returned rows, not fetched ones.
+        keep: (cr) => {
+          if (hasConnection === true) return (cr.connectionid ?? null) !== null;
+          if (hasConnection === false) return (cr.connectionid ?? null) === null;
+          return true;
+        },
+      });
 
-    let references: ConnectionReference[] = (response.value || []).map((cr) => ({
+    const references: ConnectionReference[] = rows.map((cr) => ({
       id: cr.connectionreferenceid,
       logicalName: cr.connectionreferencelogicalname,
       displayName: cr.connectionreferencedisplayname || cr.connectionreferencelogicalname,
@@ -94,13 +113,6 @@ export class ConnectionReferenceService {
       connectionId: cr.connectionid ?? null,
       connectionName: null,
     }));
-
-    // Client-side filter for hasConnection
-    if (hasConnection === true) {
-      references = references.filter((r) => r.connectionId !== null);
-    } else if (hasConnection === false) {
-      references = references.filter((r) => r.connectionId === null);
-    }
 
     // Build summary
     const byConnector: Record<string, number> = {};
@@ -126,6 +138,12 @@ export class ConnectionReferenceService {
 
     return {
       references,
+      truncation: buildTruncation({
+        returnedCount: references.length,
+        requestedMax: maxRecords,
+        hasMore,
+        truncationReason,
+      }),
       summary: {
         total: references.length,
         byConnector,

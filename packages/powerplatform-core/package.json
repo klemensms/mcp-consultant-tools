@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/powerplatform-core",
-  "version": "35.0.0-beta.3",
+  "version": "35.0.0-beta.4",
   "description": "Shared core infrastructure for PowerPlatform MCP packages - authentication, HTTP client, and modular services",
   "type": "module",
   "main": "./build/index.js",
@@ -56,7 +56,7 @@
   "dependencies": {
     "@azure/identity": "^4.13.0",
     "@azure/msal-node": "^3.3.0",
-    "@mcp-consultant-tools/core": "33.0.0",
+    "@mcp-consultant-tools/core": "34.1.0",
     "axios": "^1.8.3",
     "open": "^10.1.0"
   },

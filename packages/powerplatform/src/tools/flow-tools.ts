@@ -2,6 +2,7 @@
  * Flow Tools - 11 tools for flow/workflow/business rule inspection
  */
 import { z } from 'zod';
+import { UNCAPPED, truncationSuffix } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../types.js';
 import { descWithExamples, ENTITY_NAME_EXAMPLES, FLOW_CATEGORY_EXAMPLES, STATECODE_EXAMPLES, FLOW_RUN_STATUS_EXAMPLES } from '../tool-examples.js';
 
@@ -11,7 +12,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
     "Get Power Automate cloud flows. By default excludes non-custom flows (Customer Insights CXP_, SYSTEM, Copilot for Sales) to show only custom flows. Use exclude* parameters to override. Returns summary info only - use get-flow-definition for full flow details.",
     {
       activeOnly: z.boolean().optional().describe("Only return activated flows (default: false)"),
-      maxRecords: z.number().optional().describe("Maximum number of flows to return (default: 25)"),
+      maxRecords: z.number().optional().describe("Maximum number of flows to return. Omit or pass 0 to return every matching flow, which is the default. When a cap truncates the result, `truncation.hasMore` is true and `truncation.totalAvailable` is null."),
       excludeCustomerInsights: z.boolean().optional().describe("Exclude Customer Insights flows (CXP_ prefix) (default: true)"),
       excludeSystem: z.boolean().optional().describe("Exclude SYSTEM-modified flows (default: true)"),
       excludeCopilotSales: z.boolean().optional().describe("Exclude Copilot for Sales flows (default: true)"),
@@ -23,7 +24,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
         const service = ctx.pp;
         const result = await service.getFlows({
           activeOnly: activeOnly ?? false,
-          maxRecords: maxRecords ?? 25,
+          maxRecords: maxRecords ?? UNCAPPED,
           excludeCustomerInsights: excludeCustomerInsights ?? true,
           excludeSystem: excludeSystem ?? true,
           excludeCopilotSales: excludeCopilotSales ?? true,
@@ -49,9 +50,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
           message += '\nNote: Customer Insights (CXP_) flows filtered server-side';
         }
 
-        if (result.hasMore) {
-          message += `\n⚠️ More flows available - increase maxRecords (currently ${result.requestedMax}) to retrieve more`;
-        }
+        message += truncationSuffix(result.truncation);
 
         return {
           content: [

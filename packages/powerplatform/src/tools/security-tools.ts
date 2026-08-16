@@ -2,6 +2,7 @@
  * Security Tools - 4 tools for connection references and security roles
  */
 import { z } from 'zod';
+import { truncationSuffix } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../types.js';
 import { descWithExamples, SOLUTION_NAME_EXAMPLES } from '../tool-examples.js';
 
@@ -13,7 +14,7 @@ export function registerSecurityTools(server: any, ctx: ServiceContext): void {
 Connection references define the connector configurations used by Power Automate flows and other components.
 Returns a summary with counts by connector type, plus the full list of connection references.`,
     {
-      maxRecords: z.number().optional().describe("Maximum records to return (default: 100)"),
+      maxRecords: z.number().optional().describe("Maximum records to return. Omit or pass 0 to return every reference, which is the default. When a cap truncates the result, `truncation.hasMore` is true, `truncation.totalAvailable` is null, and `summary.byConnector` under-counts every connector."),
       managedOnly: z.boolean().optional().describe("Filter to managed connection references only (default: false)"),
       hasConnection: z.boolean().optional().describe("Filter: true = only with connections set, false = only without connections"),
     },
@@ -28,7 +29,7 @@ Returns a summary with counts by connector type, plus the full list of connectio
         });
 
         const summaryLines = [
-          `Total: ${result.summary.total}`,
+          `Total: ${result.summary.total}${truncationSuffix(result.truncation)}`,
           `With connection: ${result.summary.withConnection}`,
           `Without connection: ${result.summary.withoutConnection}`,
           `Managed: ${result.summary.managed}, Unmanaged: ${result.summary.unmanaged}`,
@@ -75,7 +76,7 @@ Useful for security audits and understanding what custom roles exist in the envi
         descWithExamples("Filter to roles in a specific solution", SOLUTION_NAME_EXAMPLES)
       ),
       excludeSystemRoles: z.boolean().optional().describe("Exclude System Administrator, System Customizer, and other built-in roles (default: true)"),
-      maxRecords: z.number().optional().describe("Maximum records to return (default: 100)"),
+      maxRecords: z.number().optional().describe("Maximum records to return. Omit or pass 0 to return every role, which is the default. When a cap truncates the result, `truncation.hasMore` is true and the `summary` block describes only the returned page rather than the environment."),
     },
     { readOnlyHint: true, openWorldHint: true },
     async ({ solutionUniqueName, excludeSystemRoles, maxRecords }: any) => {
@@ -88,7 +89,7 @@ Useful for security audits and understanding what custom roles exist in the envi
         });
 
         const summaryLines = [
-          `Total: ${result.summary.total}`,
+          `Total: ${result.summary.total}${truncationSuffix(result.truncation)}`,
           `Managed: ${result.summary.managed}, Unmanaged: ${result.summary.unmanaged}`,
           result.summary.systemRolesExcluded > 0
             ? `System roles excluded: ${result.summary.systemRolesExcluded}`
