@@ -414,6 +414,16 @@ Note: `nameContains` is applied client-side after fetching from ARM because the 
 |-----------|------|----------|---------|-------------|
 | `resourceGroup` | string | No | — | Filter by resource group |
 
+At subscription scope the ARM operation `AppServicePlans_List` returns only a subset of
+each plan's properties unless `detailed=true` is passed on the query string; `numberOfSites`,
+`numberOfWorkers`, `reserved` and `zoneRedundant` are among the ones it drops. This tool
+always passes it, so those fields are populated. The resource-group-scoped operation takes
+no such parameter and always returns the full set.
+
+`workerCount` is ARM's read-only `numberOfWorkers`, the instances actually assigned to the
+plan. `targetWorkerCount` is the separate, writable scaling target and is reported under its
+own name. Reading one as the other overstates or understates the plan's real size.
+
 </tool>
 
 <tool name="get-app-service-logs">
@@ -625,8 +635,17 @@ Connection strings and keys are subject to `AZURE_REDACT_SECRETS` redaction when
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `resourceGroup` | string | No | — | Filter by resource group |
+| `includeDetails` | boolean | No | false | Collect `endpoints`, `originGroups` and `routes` per profile |
 
 Uses `Microsoft.Cdn/profiles` ARM resource type (Front Door Standard/Premium uses the CDN API).
+
+⚠️ Without `includeDetails` the three child-resource arrays are absent from every profile,
+and that absence is **not** evidence the profile has no endpoints, origin groups or routes —
+they were never requested. `summary.note` says so on any result where it applies. Routes are
+what tell you whether a WAF policy is attached, so a security review needs `includeDetails`.
+It costs 3 extra ARM calls per profile. `get-front-door` always collects them for one profile.
+
+The profile's `state` field is ARM's `resourceState`, renamed in the payload.
 
 </tool>
 
@@ -940,8 +959,8 @@ Environment is loaded via `loadEnvForCli()` in a `preAction` hook on every comma
 | `monitoring alerts` | `-g`, `--target-resource-id` | `list-alert-rules` |
 | `monitoring action-groups` | `-g` | `list-action-groups` |
 | `monitoring smart-detectors` | `-g` | `list-smart-detector-alerts` |
-| `networking front-doors` | `-g` | `list-front-doors` |
-| `networking front-door get <name>` | `-g` | `get-front-door` |
+| `networking front-doors` | `-g`, `--include-details` | `list-front-doors` |
+| `networking get-front-door <name>` | `-g` | `get-front-door` |
 | `networking event-grid-topics` | `-g`, `--include-system-topics` | `list-event-grid-topics` |
 | `graph nsgs` | `-g`, `--associated-subnet`, `--associated-nic`, `-m` | `list-network-security-groups` |
 | `graph role-assignments` | `--principal-id`, `--role-definition-id`, `--scope`, `-m` | `list-role-assignments` |

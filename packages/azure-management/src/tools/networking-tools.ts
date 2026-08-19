@@ -5,12 +5,18 @@ import { descWithExamples, RESOURCE_GROUP_EXAMPLES } from '../tool-examples.js';
 export function registerNetworkingTools(server: any, ctx: ServiceContext): void {
   server.tool(
     'list-front-doors',
-    'List all Azure Front Door profiles in the subscription or resource group',
+    'List all Azure Front Door profiles in the subscription or resource group. Endpoints, origin groups and routes are NOT collected by default - their absence from a profile is not evidence that it has none, and summary.note says so. Pass includeDetails to collect them (3 extra ARM calls per profile); routes are what tell you whether a WAF policy is attached.',
     {
       resourceGroup: z
         .string()
         .optional()
         .describe(descWithExamples('Filter by resource group', RESOURCE_GROUP_EXAMPLES)),
+      includeDetails: z
+        .boolean()
+        .optional()
+        .describe(
+          'Collect endpoints, origin groups and routes for each profile (default: false)'
+        ),
     },
     { readOnlyHint: true, openWorldHint: true },
     async (args: any) => {

@@ -145,3 +145,83 @@ describe('NetworkingService.listEventGridTopics scope declaration', () => {
     expect(result.summary.customTopicsUnavailable).toBe(true);
   });
 });
+
+/**
+ * D11: `networking front-doors` omitted `endpoints`, `originGroups` and `routes` for
+ * every profile in a measured run, though the inventory from the same run showed an
+ * `afdendpoints` child under each one.
+ *
+ * The cause is neither a mapping gap nor a refused call: `processFrontDoorProfile`
+ * fetches all three only when `includeDetails` is set, and `listFrontDoors` hard-coded
+ * that flag to `false` with no way for a caller to change it. So the fields were never
+ * requested, and their absence was byte-for-byte identical to a profile that genuinely
+ * has no endpoints, no origin groups and no routes. Without routes a consumer cannot
+ * tell whether a WAF policy is attached, which is the security-relevant part.
+ *
+ * The acceptance criterion is the failure case: a profile whose children were never
+ * asked for must say so, and a caller must be able to ask.
+ */
+
+const frontDoorProfile = (name: string) => ({
+  id: `${SUB}/resourceGroups/rg-contoso/providers/Microsoft.Cdn/profiles/${name}`,
+  name,
+  location: 'global',
+  sku: { name: 'Standard_AzureFrontDoor' },
+  properties: { resourceState: 'Active', frontDoorId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' },
+});
+
+/**
+ * Serves profiles, their endpoints, origin groups and per-endpoint routes off one stub,
+ * keyed on the request path.
+ */
+function stubFrontDoorClient(profiles: unknown[]): ArmClient {
+  return {
+    paginate: async (path: string) => {
+      if (path.endsWith('/routes')) {
+        return [{ name: 'default-route', properties: { patternsToMatch: ['/*'] } }];
+      }
+      if (path.endsWith('/afdEndpoints')) {
+        return [
+          {
+            id: `${SUB}/resourceGroups/rg-contoso/providers/Microsoft.Cdn/profiles/fd-contoso/afdEndpoints/ep-contoso`,
+            name: 'ep-contoso',
+            properties: { hostName: 'ep-contoso.z01.azurefd.net', enabledState: 'Enabled' },
+          },
+        ];
+      }
+      if (path.endsWith('/originGroups')) {
+        return [{ id: 'og', name: 'og-contoso', properties: { origins: [] } }];
+      }
+      return profiles;
+    },
+    subscriptionPath: (suffix: string) => `${SUB}${suffix}`,
+    resourceGroupPath: (rg: string, suffix: string) => `${SUB}/resourceGroups/${rg}${suffix}`,
+    getDefaultResourceGroup: () => 'rg-contoso',
+  } as unknown as ArmClient;
+}
+
+describe('NetworkingService.listFrontDoors child-resource scope', () => {
+  it('declares that endpoints, origin groups and routes were not requested', async () => {
+    const result = await new NetworkingService(
+      stubFrontDoorClient([frontDoorProfile('fd-contoso')])
+    ).listFrontDoors();
+
+    expect(result.frontDoors[0].endpoints).toBeUndefined();
+    expect(result.summary.note).toMatch(/includeDetails/);
+  });
+
+  it('returns the child resources when a caller asks for them', async () => {
+    const result = await new NetworkingService(
+      stubFrontDoorClient([frontDoorProfile('fd-contoso')])
+    ).listFrontDoors({ includeDetails: true });
+
+    expect(result.frontDoors[0].endpoints).toEqual([
+      { name: 'ep-contoso', hostName: 'ep-contoso.z01.azurefd.net', enabledState: 'Enabled' },
+    ]);
+    expect(result.frontDoors[0].originGroups).toHaveLength(1);
+    expect(result.frontDoors[0].routes).toEqual([
+      { name: 'ep-contoso/default-route', patterns: ['/*'] },
+    ]);
+    expect(result.summary.note).toBeUndefined();
+  });
+});

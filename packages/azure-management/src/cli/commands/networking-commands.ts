@@ -14,14 +14,21 @@ export function registerNetworkingCommands(program: Command, ctx: ServiceContext
     .command('front-doors')
     .description('List all Azure Front Door profiles')
     .option('-g, --resource-group <name>', 'Filter by resource group')
+    .option('--include-details', 'Collect endpoints, origin groups and routes per profile')
     .action(async (opts: any) => {
       try {
         const result = await ctx.management.networking.listFrontDoors({
           resourceGroup: opts.resourceGroup,
+          includeDetails: opts.includeDetails,
         });
         const count = result.summary?.total ?? '?';
+        const note = result.summary?.note ? `\n${result.summary.note}` : '';
         outputResult(
-          { fileName: 'front-doors-list', data: result, summary: `Found ${count} Front Door profile(s)` },
+          {
+            fileName: 'front-doors-list',
+            data: result,
+            summary: `Found ${count} Front Door profile(s)${note}`,
+          },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'list front doors'); }

@@ -252,6 +252,8 @@ export interface AppServicePlan extends ArmResource {
       id: string;
     };
     maximumNumberOfWorkers?: number;
+    /** Instances assigned to the plan. Read-only, and distinct from targetWorkerCount. */
+    numberOfWorkers?: number;
     geoRegion?: string;
     perSiteScaling?: boolean;
     elasticScaleEnabled?: boolean;

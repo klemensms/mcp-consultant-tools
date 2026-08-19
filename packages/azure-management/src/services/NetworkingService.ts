@@ -60,16 +60,19 @@ export class NetworkingService {
   /**
    * List all Azure Front Door profiles.
    */
-  async listFrontDoors(options: { resourceGroup?: string } = {}): Promise<{
+  async listFrontDoors(
+    options: { resourceGroup?: string; includeDetails?: boolean } = {}
+  ): Promise<{
     frontDoors: FrontDoorSummary[];
     summary: {
       total: number;
       bySku: Record<string, number>;
       byState: Record<string, number>;
+      note?: string;
     };
     fanOut: FanOutInfo;
   }> {
-    const { resourceGroup } = options;
+    const { resourceGroup, includeDetails = false } = options;
 
     const path = resourceGroup
       ? this.client.resourceGroupPath(resourceGroup, '/providers/Microsoft.Cdn/profiles')
@@ -87,14 +90,19 @@ export class NetworkingService {
 
     const results: FrontDoorSummary[] = [];
     const fanOut = new FanOutRecorder();
-    const summary = {
+    const summary: {
+      total: number;
+      bySku: Record<string, number>;
+      byState: Record<string, number>;
+      note?: string;
+    } = {
       total: frontDoors.length,
-      bySku: {} as Record<string, number>,
-      byState: {} as Record<string, number>,
+      bySku: {},
+      byState: {},
     };
 
     for (const fd of frontDoors) {
-      const processed = await this.processFrontDoorProfile(fd, false, fanOut);
+      const processed = await this.processFrontDoorProfile(fd, includeDetails, fanOut);
       results.push(processed);
 
       const sku = processed.sku || 'Unknown';
@@ -102,6 +110,16 @@ export class NetworkingService {
 
       const state = processed.state || 'Unknown';
       summary.byState[state] = (summary.byState[state] || 0) + 1;
+    }
+
+    // An absent `endpoints` array must not read as "this profile has no endpoints".
+    // Say plainly that the child resources were never requested.
+    if (!includeDetails && frontDoors.length > 0) {
+      summary.note =
+        'endpoints, originGroups and routes were not requested and are absent from every ' +
+        'profile above - this is not evidence that they do not exist. Pass includeDetails ' +
+        'to collect them (3 extra ARM calls per profile). Routes are what tell you whether ' +
+        'a WAF policy is attached.';
     }
 
     return { frontDoors: results, summary, fanOut: fanOut.result() };
@@ -275,6 +293,7 @@ export class NetworkingService {
       resourceGroup,
       location: profile.location,
       sku: profile.sku?.name,
+      // ARM calls this `resourceState`; the payload exposes it as `state`.
       state: props.resourceState,
       frontDoorId: props.frontDoorId,
       originResponseTimeoutSeconds: props.originResponseTimeoutSeconds,

@@ -57,7 +57,10 @@ export interface AppServicePlanSummary {
     capacity?: number;
   };
   kind?: string;
+  /** Instances actually assigned to the plan (ARM `numberOfWorkers`, read-only). */
   workerCount?: number;
+  /** Scaling target the plan is configured for (ARM `targetWorkerCount`, writable). */
+  targetWorkerCount?: number;
   numberOfSites?: number;
   reserved?: boolean;
   zoneRedundant?: boolean;
@@ -232,9 +235,15 @@ export class AppServiceService {
       ? this.client.resourceGroupPath(resourceGroup, '/providers/Microsoft.Web/serverfarms')
       : this.client.subscriptionPath('/providers/Microsoft.Web/serverfarms');
 
+    // `AppServicePlans_List` at subscription scope returns a SUBSET of the properties
+    // unless `detailed=true` is passed - numberOfSites, numberOfWorkers, reserved and
+    // zoneRedundant are among the ones it drops. The resource-group-scoped operation
+    // takes no such parameter and always returns the full set, which is why the gap only
+    // shows up on a subscription-wide run.
     const plans = await this.client.paginate<AppServicePlan>(
       path,
-      getApiVersion('Microsoft.Web/serverfarms')
+      getApiVersion('Microsoft.Web/serverfarms'),
+      resourceGroup ? undefined : { detailed: 'true' }
     );
 
     const results: AppServicePlanSummary[] = [];
@@ -702,7 +711,8 @@ export class AppServiceService {
         capacity: plan.sku?.capacity,
       },
       kind: plan.kind,
-      workerCount: props.targetWorkerCount,
+      workerCount: props.numberOfWorkers,
+      targetWorkerCount: props.targetWorkerCount,
       numberOfSites: props.numberOfSites,
       reserved: props.reserved,
       zoneRedundant: props.zoneRedundant,

@@ -68,7 +68,7 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 ### App Services (Read)
 - `list-app-services` - List web apps
 - `get-app-service` - Get App Service details (supports `showValues` to override redaction)
-- `list-app-service-plans` - List hosting plans
+- `list-app-service-plans` - List hosting plans (asks ARM for the full property set; `workerCount` is the assigned instance count, `targetWorkerCount` the scaling target)
 - `get-app-service-logs` - Fetch log *files* via Kudu SCM (docker, eventlog, stdout)
 - `get-log-stream` - Collect *live* log output via Kudu SCM (bounded: max 30s / 1000 lines)
 - `get-log-config` - Logging configuration (levels, blob destinations, tracing)
@@ -98,7 +98,7 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 - `list-smart-detector-alerts` - List AI-based alerts
 
 ### Networking
-- `list-front-doors` - List Azure Front Door profiles
+- `list-front-doors` - List Azure Front Door profiles (endpoints, origin groups and routes are collected only on request; their absence by default is not evidence they do not exist)
 - `get-front-door` - Get Front Door configuration
 
 ### Event Grid
