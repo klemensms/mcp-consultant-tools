@@ -123,16 +123,29 @@ Returns `{ controls, truncated, summary: { total, totalHealthy, totalUnhealthy, 
 ### Assessments
 
 <tool name="defender-list-assessments">
-Security assessments (recommendations) against resources.
+Security assessments (recommendations) against resources. **Reads two sources and unions them.**
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
-| `statusFilter` | `Healthy` \| `Unhealthy` \| `NotApplicable` | No | Applied client-side |
+| `statusFilter` | `Healthy` \| `Unhealthy` \| `NotApplicable` | No | Applied client-side, to the union |
 | `maxResults` | integer > 0 | No | Omit for subscription-wide totals |
 
-Returns `{ assessments, truncated, summary: { total, byStatus } }`.
+Returns `{ assessments, truncated, summary: { total, byStatus, sources, note? }, fanOut }`.
 
-The ARM list endpoint has **no server-side status filter**, so setting `statusFilter` forces a full scan of every assessment before `maxResults` trims. This is slower, not faster. Truncating before filtering (as a naive implementation does) would hide matches beyond the cut.
+⚠️ **Neither source is complete on its own, which is why both are read.**
+
+| Source | Covers | Blind spot |
+|--------|--------|------------|
+| ARM `Microsoft.Security/assessments` at subscription scope | Assessments on resources **inside** the subscription | Assessments scoped to the subscription itself, or to an identity object. Those are the RBAC recommendations: disabled accounts with owner permissions, guest accounts with write permissions, permissions of inactive identities, overprovisioned identities |
+| Resource Graph `securityresources` | Everything Defender holds for the subscription, identity- and subscription-scoped included | Returns **nothing** for a subscription with no paid Defender plan, where ARM still returns data |
+
+`summary.sources.arm` and `summary.sources.resourceGraph` each report `returned` (rows that source gave), `unique` (rows only that source had) and `available`. One source's `unique` is the other's blind spot, measured on this call.
+
+The union keys on the assessment id, **lower-cased**: Resource Graph lower-cases every id it returns and ARM does not, so a case-sensitive key would count everything both sources hold twice. Where both have a row, ARM's is kept, because it is the typed, documented shape.
+
+Resource Graph is queried through `FanOutRecorder`, so a refusal there does **not** fail the call: `sources.resourceGraph.available` goes false, `summary.note` says the identity- and subscription-scoped assessments are missing, `fanOut.failures` names the error, and the CLI exits 1. Reading `summary.total` without reading `note` is how a partial list gets reported as a complete one.
+
+Neither source filters on status server-side, so setting `statusFilter` forces a full scan before trimming, which is slower rather than faster. `maxResults` is never handed to the ARM list: the cut would fall on ARM's rows and take out exactly the assessments only Resource Graph can see.
 </tool>
 
 <tool name="defender-get-assessment">
@@ -313,7 +326,7 @@ Every list tool surfaces `truncated`, and every `summary` describes exactly the 
 ## Security
 
 - Read-only by design: no write tools, no feature flags, nothing to gate.
-- Service principal needs only `Security Reader` on the subscription.
+- Service principal needs only `Security Reader` on the subscription. `Security Reader` also carries the Resource Graph read access the attack-path tools and the second assessment source need; a principal that somehow lacks it still gets attack paths as an error and assessments as an ARM-only list with `summary.note` saying so.
 - The subscription ID is **never** logged — it would land in stderr, transcripts, and CI logs.
 - ARM tokens are cached in memory and refreshed 5 minutes before expiry; they are never written to disk.
 - KQL filter values are escaped (see `<query-safety>`); ARM path segments are URL-encoded; `resourceId` is validated to start with `/subscriptions/`.

@@ -1,6 +1,6 @@
 import type { DefenderClient } from '../defender-client.js';
-import { DEFENDER_API_VERSIONS } from '../utils/defender-api-versions.js';
 import { kqlString } from '../utils/kql.js';
+import { queryResourceGraph } from '../utils/resource-graph.js';
 import type { AttackPath } from '../models/defender-types.js';
 
 export const ATTACK_PATH_TABLE = 'securityresources';
@@ -13,13 +13,6 @@ export const DEFAULT_ATTACK_PATH_RESULTS = 100;
  * ceiling: one Resource Graph page; add $skipToken paging if a subscription ever exceeds it.
  */
 export const MAX_ATTACK_PATH_RESULTS = 500;
-
-interface ResourceGraphResponse {
-  data?: unknown[];
-  count?: number;
-  totalRecords?: number;
-  resultTruncated?: string | boolean;
-}
 
 export interface AttackPathsResult {
   attackPaths: AttackPath[];
@@ -135,7 +128,9 @@ export class AttackPathService {
       limit: maxResults + 1,
     });
 
-    const { rows, resultTruncated } = await this.queryResourceGraph(query);
+    // Single page: the query carries its own `| limit`, well under one Resource
+    // Graph page, so there is nothing to follow `$skipToken` for.
+    const { rows, truncated: resultTruncated } = await queryResourceGraph(this.client, query);
     const truncated = rows.length > maxResults || resultTruncated;
     const attackPaths = rows.slice(0, maxResults).map(mapAttackPathRow);
 
@@ -143,33 +138,10 @@ export class AttackPathService {
   }
 
   async getAttackPath(options: { attackPathName: string }): Promise<AttackPath | null> {
-    const { rows } = await this.queryResourceGraph(buildAttackPathGetQuery(options.attackPathName));
-    return rows.length === 0 ? null : mapAttackPathRow(rows[0]);
-  }
-
-  /**
-   * Scope comes from the request body's `subscriptions` array, not a `where
-   * subscriptionId ==` clause — one less place to interpolate a value into KQL.
-   */
-  private async queryResourceGraph(
-    query: string
-  ): Promise<{ rows: Record<string, unknown>[]; resultTruncated: boolean }> {
-    const subscriptionId = this.client.getSubscriptionId();
-
-    const response = await this.client.post<ResourceGraphResponse>(
-      '/providers/Microsoft.ResourceGraph/resources',
-      {
-        subscriptions: [subscriptionId],
-        query,
-        options: { resultFormat: 'objectArray' },
-      },
-      DEFENDER_API_VERSIONS.resourceGraph
+    const { rows } = await queryResourceGraph(
+      this.client,
+      buildAttackPathGetQuery(options.attackPathName)
     );
-
-    const rows = (response.data ?? []) as Record<string, unknown>[];
-    const resultTruncated =
-      response.resultTruncated === true || String(response.resultTruncated) === 'true';
-
-    return { rows, resultTruncated };
+    return rows.length === 0 ? null : mapAttackPathRow(rows[0]);
   }
 }

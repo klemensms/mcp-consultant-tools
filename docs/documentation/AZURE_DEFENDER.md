@@ -77,6 +77,8 @@ Attack paths additionally require the **Defender CSPM plan** to be enabled on th
 
 **An empty compliance-standards list means none are enabled**, not that the subscription is compliant. Standards must be switched on in Defender for Cloud's regulatory compliance settings before they appear.
 
+**`defender-list-assessments` reads two sources, because neither is complete.** The ARM list only covers assessments on resources inside the subscription, so the identity and RBAC recommendations (disabled accounts with owner permissions, guest accounts with write permissions, overprovisioned identities) are invisible to it; those come from Azure Resource Graph. Resource Graph in turn returns nothing on a subscription with no paid Defender plan, where ARM still returns data. `summary.sources` says what each contributed, and `summary.note` appears whenever the list is known to be incomplete, including when Resource Graph could not be read at all. Do not report `summary.total` without reading `note`.
+
 **`truncated: true` means the counts are a lower bound.** The list tools accept `maxResults`; when more rows matched than were returned, the response sets `truncated: true` and every count in `summary` covers only the returned rows. Omit `maxResults` for subscription-wide totals.
 
 **Compliance percentage excludes skipped and unsupported controls.** `compliancePercentage` is `passed / (passed + failed)`, matching the Azure portal — so it will not equal `passedControls / totalControls`.

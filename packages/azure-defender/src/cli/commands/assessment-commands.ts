@@ -36,6 +36,10 @@ export function registerAssessmentCommands(program: Command, ctx: ServiceContext
             summary: [
               `Found ${result.summary.total} assessment(s)`,
               ...Object.entries(result.summary.byStatus).map(([s, c]) => `  ${s}: ${c}`),
+              result.summary.sources.resourceGraph.unique > 0
+                ? `  ${result.summary.sources.resourceGraph.unique} of these are not visible to the ARM list (identity- or subscription-scoped)`
+                : '',
+              result.summary.note ? `  ${result.summary.note}` : '',
               truncationNote(result.truncated),
             ]
               .filter(Boolean)

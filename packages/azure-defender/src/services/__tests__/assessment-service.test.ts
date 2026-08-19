@@ -24,9 +24,13 @@ const metadata = (severity: string, categories?: string[]): AssessmentMetadata =
     properties: { displayName: 'd', severity, categories, assessmentType: 'BuiltIn' },
   }) as AssessmentMetadata;
 
-const fakeClient = (parts: Partial<Record<'paginate' | 'get', unknown>>) =>
+const fakeClient = (parts: Partial<Record<'paginate' | 'get' | 'post', unknown>>) =>
   ({
     subscriptionPath: (p = '') => `/subscriptions/SUB${p}`,
+    getSubscriptionId: () => 'SUB',
+    // Resource Graph is the second assessment source, so a fake without `post`
+    // records a fan-out failure rather than returning rows.
+    post: vi.fn().mockResolvedValue({ data: [] }),
     ...parts,
   }) as unknown as DefenderClient;
 
@@ -115,13 +119,20 @@ describe('AssessmentService.listAssessments', () => {
     expect(result.assessments).toHaveLength(1);
   });
 
-  it('delegates the limit to the client when there is no status filter', async () => {
-    const paginate = vi.fn().mockResolvedValue({ items: [assessment('Healthy')], truncated: true });
+  it('scans the ARM list in full even without a status filter, then trims', async () => {
+    // maxResults is never handed to the ARM list: the cut would fall on ARM's rows
+    // and take out the assessments only the second source can see. Both sources are
+    // read in full, unioned, and trimmed afterwards.
+    const paginate = vi.fn().mockResolvedValue({
+      items: [assessment('Healthy', 'h1'), assessment('Healthy', 'h2')],
+      truncated: false,
+    });
     const service = new AssessmentService(fakeClient({ paginate }));
 
     const result = await service.listAssessments({ maxResults: 1 });
 
-    expect(paginate.mock.calls[0][3]).toBe(1);
+    expect(paginate.mock.calls[0][3]).toBeUndefined();
+    expect(result.assessments.map((a) => a.name)).toEqual(['h1']);
     expect(result.truncated).toBe(true);
   });
 });
@@ -163,5 +174,164 @@ describe('AssessmentService.listAssessmentMetadata', () => {
 
     expect(result.metadata).toHaveLength(1);
     expect(result.summary.bySeverity).toEqual({ Critical: 1 });
+  });
+});
+
+// ─── T10 / D14: scope coverage ───
+
+const SUB = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+
+/**
+ * A resource-group-scoped assessment: the only kind the ARM subscription list
+ * returns, because it enumerates assessments on resources *inside* the subscription.
+ */
+const armScoped = (name = '11111111-1111-1111-1111-111111111111'): SecurityAssessment =>
+  ({
+    id: `/subscriptions/${SUB}/resourceGroups/my-rg/providers/Microsoft.Compute/virtualMachines/my-vm/providers/Microsoft.Security/assessments/${name}`,
+    name,
+    type: 'Microsoft.Security/assessments',
+    properties: {
+      displayName: 'Machines should have vulnerability findings resolved',
+      status: { code: 'Unhealthy' },
+      resourceDetails: {
+        source: 'Azure',
+        id: `/subscriptions/${SUB}/resourceGroups/my-rg/providers/Microsoft.Compute/virtualMachines/my-vm`,
+      },
+    },
+  }) as SecurityAssessment;
+
+/**
+ * Resource Graph rows are shaped differently from ARM's: the `id` is lower-cased,
+ * `resourceDetails` uses `Id`/`Source` rather than `id`/`source`, and extra columns
+ * ride alongside. A fixture tidied into the ARM shape would hide both differences.
+ */
+const graphRow = (
+  id: string,
+  resourceId: string,
+  displayName: string,
+  code = 'Unhealthy'
+): Record<string, unknown> => ({
+  id: id.toLowerCase(),
+  name: id.split('/').pop(),
+  type: 'microsoft.security/assessments',
+  tenantId: 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff',
+  subscriptionId: SUB,
+  properties: {
+    displayName,
+    status: { code, cause: '', description: 'Remediate this' },
+    resourceDetails: { Source: 'Azure', Id: resourceId },
+    additionalData: { assessedResourceType: 'Identity' },
+  },
+});
+
+/**
+ * Neither of these is a resource under a resource group, which is what the ARM
+ * subscription list enumerates: one is scoped to the subscription itself, one to an
+ * identity object. The exact id shape of an identity-scoped assessment is not
+ * asserted anywhere: the union keys on the id it is given, whatever that is.
+ */
+const SUBSCRIPTION_SCOPED = graphRow(
+  `/subscriptions/${SUB}/providers/Microsoft.Security/assessments/22222222-2222-2222-2222-222222222222`,
+  `/subscriptions/${SUB}`,
+  'Subscriptions should have a contact email address for security issues'
+);
+
+const IDENTITY_SCOPED = graphRow(
+  `/subscriptions/${SUB}/providers/Microsoft.Security/assessments/33333333-3333-3333-3333-333333333333`,
+  '33333333-4444-5555-6666-777777777777',
+  'Accounts with owner permissions on Azure resources should be MFA enabled'
+);
+
+describe('AssessmentService.listAssessments, scope coverage', () => {
+  it('returns identity- and subscription-scoped assessments the ARM list cannot see', async () => {
+    const paginate = vi.fn().mockResolvedValue({ items: [armScoped()], truncated: false });
+    const post = vi
+      .fn()
+      .mockResolvedValue({ data: [SUBSCRIPTION_SCOPED, IDENTITY_SCOPED] });
+    const service = new AssessmentService(fakeClient({ paginate, post }));
+
+    const result = await service.listAssessments({ statusFilter: 'Unhealthy' });
+
+    expect(result.summary.total).toBe(3);
+    expect(result.assessments.map((a) => a.properties.displayName)).toEqual(
+      expect.arrayContaining([
+        'Subscriptions should have a contact email address for security issues',
+        'Accounts with owner permissions on Azure resources should be MFA enabled',
+      ])
+    );
+    expect(result.summary.sources.resourceGraph.unique).toBe(2);
+  });
+
+  it('does not double-count an assessment both sources return, despite the case difference in the id', async () => {
+    const arm = armScoped();
+    const paginate = vi.fn().mockResolvedValue({ items: [arm], truncated: false });
+    // Resource Graph lower-cases every id, so a case-sensitive key would count this twice.
+    const post = vi.fn().mockResolvedValue({
+      data: [
+        graphRow(arm.id, arm.properties.resourceDetails.id!, 'Machines should have vulnerability findings resolved'),
+      ],
+    });
+    const service = new AssessmentService(fakeClient({ paginate, post }));
+
+    const result = await service.listAssessments();
+
+    expect(result.summary.total).toBe(1);
+    expect(result.summary.sources.resourceGraph.unique).toBe(0);
+    // The ARM row wins: it is the typed, documented shape.
+    expect(result.assessments[0].properties.resourceDetails.source).toBe('Azure');
+  });
+
+  it('declares the gap when Resource Graph cannot be queried, rather than returning the ARM-only set as complete', async () => {
+    const paginate = vi.fn().mockResolvedValue({ items: [armScoped()], truncated: false });
+    const post = vi.fn().mockRejectedValue(
+      Object.assign(new Error('AuthorizationFailed: does not have authorization to perform action'), {
+        response: { status: 403 },
+      })
+    );
+    const service = new AssessmentService(fakeClient({ paginate, post }));
+
+    const result = await service.listAssessments();
+
+    expect(result.assessments).toHaveLength(1);
+    expect(result.summary.sources.resourceGraph.available).toBe(false);
+    expect(result.summary.note).toMatch(/identity- and subscription-scoped/);
+    expect(result.fanOut.failed).toBe(1);
+    expect(result.fanOut.failures[0].statusCode).toBe(403);
+  });
+
+  it('counts what only the ARM list had, which is the reverse blind spot on a subscription with no paid plan', async () => {
+    // Resource Graph returns nothing for a subscription with no paid Defender plan,
+    // where the ARM list still returns data. Neither source is complete alone.
+    const paginate = vi.fn().mockResolvedValue({ items: [armScoped()], truncated: false });
+    const post = vi.fn().mockResolvedValue({ data: [] });
+    const service = new AssessmentService(fakeClient({ paginate, post }));
+
+    const result = await service.listAssessments();
+
+    expect(result.summary.total).toBe(1);
+    expect(result.summary.sources.arm.unique).toBe(1);
+    expect(result.summary.sources.resourceGraph.returned).toBe(0);
+    expect(result.summary.sources.resourceGraph.available).toBe(true);
+  });
+
+  it('applies the status filter to the union, not to the ARM list alone', async () => {
+    const paginate = vi.fn().mockResolvedValue({ items: [armScoped()], truncated: false });
+    const post = vi.fn().mockResolvedValue({
+      data: [
+        SUBSCRIPTION_SCOPED,
+        graphRow(
+          `/subscriptions/${SUB}/providers/Microsoft.Security/assessments/44444444-4444-4444-4444-444444444444`,
+          `/subscriptions/${SUB}`,
+          'Healthy one',
+          'Healthy'
+        ),
+      ],
+    });
+    const service = new AssessmentService(fakeClient({ paginate, post }));
+
+    const result = await service.listAssessments({ statusFilter: 'Unhealthy' });
+
+    expect(result.summary.total).toBe(2);
+    expect(result.summary.byStatus).toEqual({ Unhealthy: 2 });
   });
 });

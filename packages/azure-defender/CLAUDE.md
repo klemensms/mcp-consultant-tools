@@ -60,7 +60,11 @@ Attack paths additionally need the **Defender CSPM plan** enabled (plus agentles
 
 **`truncated: true` means the counts are a lower bound.** `summary` always describes exactly the rows returned. Omit `maxResults` for subscription-wide totals.
 
-**`statusFilter` on `defender-list-assessments` makes it slower, not faster.** The ARM endpoint has no server-side status filter, so filtering forces a full scan before `maxResults` can trim. Truncating first would hide matches beyond the cut.
+**`defender-list-assessments` reads TWO sources, and each covers the other's blind spot.** The ARM list at subscription scope only returns assessments on resources *inside* the subscription, so everything scoped to the subscription itself or to an identity object is invisible to it: that is the whole RBAC set (disabled accounts with owner permissions, guest accounts with write permissions, overprovisioned identities), which is the highest-value content a Defender report carries. Those come from Resource Graph's `securityresources` instead. Resource Graph has the reverse blind spot: it returns nothing on a subscription with no paid Defender plan, where ARM still returns data. The two are unioned on the **lower-cased** id, because Resource Graph lower-cases every id it returns and ARM does not. `summary.sources` reports what each contributed; `summary.note` appears whenever the list is known to be incomplete. Never report `summary.total` without reading `note`.
+
+**`statusFilter` on `defender-list-assessments` makes it slower, not faster,** and `maxResults` no longer makes it cheaper. Neither source filters on status server-side, so both are scanned in full and trimmed afterwards. Handing `maxResults` to the ARM list would decide the answer before the second source was read: the cut falls on ARM's rows, so the identity- and subscription-scoped assessments would be exactly what is lost.
+
+**A Resource Graph refusal does not fail `defender-list-assessments`.** It is recorded through `FanOutRecorder`, so `sources.resourceGraph.available` goes false, `note` says what is missing, `fanOut.failures` carries the error and the CLI exits 1. Attack paths, which have no second source, still fail loudly.
 
 **`averageScorePercentage` from `defender-list-score-controls` is an unweighted mean.** It is not the secure score.
 
@@ -85,7 +89,7 @@ A stale api-version does not fail loudly. It 400s, or silently returns an older 
 
 ```bash
 npm run build --workspace=packages/azure-defender
-npm test --workspace=packages/azure-defender   # 69 tests, no live API
+npm test --workspace=packages/azure-defender   # 78 tests, no live API
 ```
 
 `axios` and `@azure/identity` are mocked at the module boundary, so the suite runs offline.
