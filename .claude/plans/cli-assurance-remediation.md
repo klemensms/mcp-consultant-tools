@@ -83,6 +83,19 @@ A fix that only proves the happy path does not close its task.
       dedupe key was used rather than claiming `OperationId` everywhere. The technical doc's
       own `FunctionAppLogs` schema block was wrong the same way and seeded the defect - it
       is corrected. Unit-verified only. See register items 18 to 21.
+- [x] **T15 · D7 — `plugin get` returns a different assembly shape from `plugin list`**.
+      Both calls now go through `formatPluginAssembly` in `powerplatform-core`'s
+      `PluginService.ts`, with `formatPluginAssemblyDetail` adding the columns only
+      `plugin get` selects (`description`, `culture`, `publicKeyToken`, `sourceType`,
+      `createdOn`, `isHidden`). Nothing the two shapes share is named differently, and the
+      raw lowercase keys and `@odata.etag` are dropped rather than carried beside the
+      decoded ones. Two consumers **inside this repo** were reading the raw shape and are
+      updated - the `gen-plugin-deployment-report` prompt and
+      `powerplatform-customization`'s deployment-status tool - and both had a second
+      defect the shared decoder fixes: `isolationmode === 2 ? 'Sandbox' : 'None'` printed
+      an External assembly as None. An unrecognised isolation mode now reports
+      `Unknown (<value>)` instead of falling through to `External`. Unit-verified only.
+      See register items 22 to 24.
 
 ## Queue
 
@@ -154,16 +167,6 @@ more than one when its context measurement allows.
   for all profiles though the inventory shows an `afdendpoints` child under each; the field
   is `state`, not `resourceState` as documented. Without routes a consumer cannot tell
   whether a WAF policy is attached, which is the security-relevant part.
-
-### T15 · D7 — `plugin get` returns a different assembly shape from `plugin list`
-- **Package:** `powerplatform`
-- **Severity:** Minor.
-- **Measured:** `plugin list` emits camelCase decoded values (`isManaged: true`,
-  `isolationMode: "Sandbox"`, `modifiedBy` as a display name). `plugin get` returns the
-  raw row instead: `ismanaged`, `isolationmode: 2`, `modifiedon`, plus `@odata.etag` and a
-  nested `ishidden` managed-property object. A consumer written against the first shape
-  reads `undefined` for every one of those fields in the second, with no error.
-- **Fix:** normalise `plugin get`'s assembly block to match `plugin list`.
 
 ### T16 · D26 — the `code-review` cache path follows the working directory
 - **Package:** `code-review`

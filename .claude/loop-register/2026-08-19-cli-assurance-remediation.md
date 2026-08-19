@@ -301,3 +301,58 @@ anything matching the trigger checklist.
   corrected in one surface only, which is exactly how D22 came to exist. Not fixed here
   because it is a larger extraction than T8's scope and touches a command the source report
   did not flag. The work-list is `grep -n "AppExceptions\|AppTraces" packages/log-analytics/src/cli/commands/query-commands.ts packages/log-analytics/src/tools/function-tools.ts`.
+
+### ⚑22 · T15 drops the raw keys from `plugin get`, which is a breaking change for anyone reading them
+- **Kind:** klemens-call
+- **Hop:** L3 · T15
+- **State:** open
+- **Matters because:** the plan's instruction was to normalise `plugin get` to match
+  `plugin list`, and the alternative - carrying `ismanaged` **and** `isManaged`,
+  `isolationmode: 2` **and** `isolationMode: "Sandbox"` - is two names for one fact, which is
+  its own defect the moment the two can disagree. So the raw keys and `@odata.etag` are gone.
+  A consumer written against `plugin get`'s old raw shape now reads `undefined`, which is the
+  exact failure D7 describes, pointed the other way. Two such consumers existed inside this
+  repo and are fixed; anything outside it is not visible from here. It is the correct
+  direction and it is what the plan asked for, but it belongs in the release notes as a
+  breaking change rather than shipping silently. Same class as ⚑10, ⚑12 and ⚑20.
+
+### ⚑23 · `getPluginAssemblies` never selects `description`, so the audit's external-plugin descriptions are always null
+- **Kind:** deferred
+- **Hop:** L3 · T15
+- **State:** open
+- **Matters because:** `IntegrationAuditService.generateAuditReport` builds its
+  `externalPlugins` block from `getPluginAssemblies`, reading `p.description` - a column that
+  query does not `$select`. Every external plugin in the report therefore carries
+  `description: null`, which reads as "this assembly has no description" rather than as "not
+  asked for". Same false-completeness class as ⚑3, in the same command. Not fixed here
+  because it changes `plugin list`'s payload and the audit report's content, and T15's scope
+  was making the two plugin shapes agree. The fix is two lines: add `description` to the
+  `$select` in `getPluginAssemblies` and to `formatPluginAssembly`.
+
+### ⚑24 · An unrecognised isolation mode changes what the audit counts as an external plugin
+- **Kind:** assumption
+- **Hop:** L3 · T15
+- **State:** open
+- **Matters because:** `isolationMode` used to fall through to `'External'` for any value
+  that was not 1 or 2, so a null or unexpected `isolationmode` was reported as a deliberate
+  classification and was counted by `generateAuditReport`'s `externalPlugins` filter. It now
+  reports `Unknown (<value>)` and is not counted. That is the right direction - the old
+  behaviour fabricated a classification - but it assumes `isolationmode` is always populated
+  in practice, which is what makes the change a no-op rather than a drop in the audit's
+  external-plugin count. Dataverse documents the column as required, and no test in this repo
+  exercised a null, so the assumption is reasonable and unverified. One live `plugin list`
+  against a real environment settles it: any assembly reporting `Unknown (...)` means the
+  column is not always populated and the audit's count has genuinely changed.
+
+### ⚑5 update (L3) · `powerplatform` was **not** on the stale `core` pin, and nothing currently resolves as `invalid`
+- Recorded here rather than by editing ⚑5, per the append-only rule.
+- The L3 handoff warned that T15's package was still pinned to `core@33.0.0`. It is not:
+  both `powerplatform` and `powerplatform-customization` pin `34.1.0`, and
+  `powerplatform-core` resolves through the workspace symlink
+  (`node_modules/@mcp-consultant-tools/powerplatform-core -> ../../packages/powerplatform-core`),
+  so the L3 edits were visible to the dependent packages immediately. Measured this hop:
+  **16** package.json files still pin `core@33.0.0`, yet `npm ls @mcp-consultant-tools/core`
+  reports **no** `invalid` lines at all, so ⚑5's symptom is not currently reproducible on this
+  checkout even though the stale pins remain. Whoever takes the pin bump should re-measure
+  rather than trusting either number: the count and the symptom now disagree, and the reason
+  is not established here.
