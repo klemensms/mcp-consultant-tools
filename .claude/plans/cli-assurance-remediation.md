@@ -67,21 +67,27 @@ A fix that only proves the happy path does not close its task.
       `workspace tables`) is new and answers what the workspace actually holds, from
       `Usage | summarize by DataType, QuantityUnit`. A zero is scoped to its window and to
       ingestion-metered data, both stated. 14 tools now. See register items 16 and 17.
+- [x] **T8 · D22 — `query error-summary --table FunctionAppLogs` builds an invalid query**.
+      Root cause: the dedupe branch grouped by `InvocationId`, an Application Insights
+      column. `FunctionAppLogs` names it `FunctionInvocationId` and has no `OperationId` at
+      all. The query API resolves column names before it reads a row, which is why the
+      failure was identical on every workspace regardless of what the table held. Both
+      halves of the plan's fix: the column is corrected, **and** an unsupported `--table`
+      now throws naming the supported set instead of falling through to the
+      `FunctionAppLogs` shape, so a typo can no longer answer about a different table. The
+      four query shapes moved out of the two call sites into
+      `utils/error-summary-query.ts`, because they were written out twice and a test had no
+      single string to assert against. The failure-case test checks every column each shape
+      reads against the documented schema of its table, so it fails on the shape that
+      shipped and closes the class rather than the instance. The output now names whichever
+      dedupe key was used rather than claiming `OperationId` everywhere. The technical doc's
+      own `FunctionAppLogs` schema block was wrong the same way and seeded the defect - it
+      is corrected. Unit-verified only. See register items 18 to 21.
 
 ## Queue
 
 Ordered by the source report's own priority. One task per heading; a hop may take
 more than one when its context measurement allows.
-
-### T8 · D22 — `query error-summary --table FunctionAppLogs` builds an invalid query
-- **Package:** `log-analytics`
-- **Severity:** Major.
-- **Measured:** fails with `Bad request: The request had some invalid properties` on **all
-  7 workspaces** holding the table, including one with 79,576 records in it.
-- **Not permissions or data:** a hand-written KQL query over the same table with the same
-  credential returns normally. `--table AppExceptions` works fine.
-- **Fix:** repair the query shape for this table, or restrict `--table` to values the
-  command actually supports.
 
 ### T9 · X1 — the documented invocation idiom fails on macOS, in all six CLIs
 - **Scope:** documentation only, every `SKILL.md` and `cli-reference.md`.

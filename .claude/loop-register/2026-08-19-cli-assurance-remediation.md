@@ -243,3 +243,61 @@ anything matching the trigger checklist.
   consumer that never reads `scope` is still wrong**. Whether that is acceptable, or whether
   the metadata command should eventually be scoped and the change called out as breaking, is
   Klemens's call. Tool count went 13 to 14, which is itself worth a release-notes line.
+
+### ⚑18 · T8's fix is unit-verified only, and `FunctionInvocationId` may be blank on the rows that matter
+- **Kind:** assumption
+- **Hop:** L3 · T8
+- **State:** open
+- **Matters because:** the column now named is the documented one, so the query will no
+  longer be rejected - that much is settled by the schema reference and by the tests. What is
+  not settled is what it returns. `FunctionInvocationId` is documented as "the invocation ID
+  that logged the message", and a host-level row is not written inside an invocation, so rows
+  carrying `ExceptionDetails` but no invocation id would all collapse into a single group per
+  function and under-count. That is the same silent-under-count direction as ⚑13. One live
+  run settles it: run `error-summary --table FunctionAppLogs` and the same query with
+  `--no-deduplicate` against a workspace known to hold errors, and compare `UniqueErrors`
+  against `Count`. If `UniqueErrors` is 1 per function while `Count` is large, the invocation
+  id is blank on those rows and the dedupe branch needs a `where FunctionInvocationId != ''`
+  or to fall back to the undeduplicated shape. No Log Analytics credentials on this machine.
+  Same blocker as ⚑1, ⚑7, ⚑9, ⚑13, ⚑15, ⚑16.
+
+### ⚑19 · `deduplicateRetries` means something weaker on `FunctionAppLogs` than its name says
+- **Kind:** decision
+- **Hop:** L3 · T8
+- **State:** open
+- **Matters because:** on the Application Insights tables the flag collapses retries, because
+  `OperationId` spans them. `FunctionAppLogs` has no such column, so the fix uses
+  `FunctionInvocationId`, which collapses the several log lines one invocation emits. In Azure
+  Functions a retry is a new invocation with a new id, so on that table a retried failure
+  still counts once per attempt. The flag keeps one name for two different guarantees. The
+  output, the tool description, the CLI help and both docs now say which key was used and what
+  it collapses, which is the honest minimum, but a consumer comparing `UniqueErrors` across
+  tables is comparing two different quantities. Whether that warrants a separate flag name, or
+  is fine as documented, is Klemens's call - the alternative was to refuse deduplication on
+  that table entirely, which loses the log-line collapsing that is genuinely useful.
+
+### ⚑20 · An unsupported `--table` on `error-summary` now exits 1 where it used to return data
+- **Kind:** klemens-call
+- **Hop:** L3 · T8
+- **State:** open
+- **Matters because:** the CLI took `--table` as free text and fell through to the
+  `FunctionAppLogs` shape for anything it did not recognise, so `--table AppRequests` or a
+  misspelt `AppExcpetions` returned a confident answer about a different table. It now throws,
+  naming the supported set, and exits 1. That is the correct direction and the whole point of
+  the fix, but it is a behaviour change: a batch script passing a table name this command
+  never supported used to get rows. Belongs in the release notes as a behaviour change rather
+  than shipping silently. Same class as ⚑10 and ⚑12, and the same question of whether it
+  warrants the breaking-change block.
+
+### ⚑21 · `investigate-app` and `investigate-sync` still write their KQL out twice
+- **Kind:** deferred
+- **Hop:** L3 · T8
+- **State:** open
+- **Matters because:** T8 moved the four `error-summary` shapes into
+  `utils/error-summary-query.ts` so the CLI and the MCP tool cannot diverge, but the same
+  duplication is still live for the two investigation surfaces: the four sync queries appear
+  in `cli/commands/query-commands.ts` and again in `tools/function-tools.ts`, and the
+  `investigate-app` shapes are duplicated the same way. A column corrected in one copy is
+  corrected in one surface only, which is exactly how D22 came to exist. Not fixed here
+  because it is a larger extraction than T8's scope and touches a command the source report
+  did not flag. The work-list is `grep -n "AppExceptions\|AppTraces" packages/log-analytics/src/cli/commands/query-commands.ts packages/log-analytics/src/tools/function-tools.ts`.
