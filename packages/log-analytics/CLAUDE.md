@@ -4,7 +4,7 @@
 
 Azure Log Analytics integration for workspace queries, Azure Functions troubleshooting, and sync-function-app debugging.
 
-- **Tools:** 13 tools, 4 prompts
+- **Tools:** 14 tools, 4 prompts
 - **Authentication:** Entra ID (recommended) or API Key
 - **Shared Credentials:** Can reuse Application Insights credentials
 
@@ -48,7 +48,8 @@ LOGANALYTICS_API_KEY=your-api-key
 
 ### Utility Tools
 - `la-list-workspaces` - List configured workspaces
-- `la-get-metadata` - Workspace schema (tables/columns)
+- `la-get-metadata` - Schema catalogue: tables the workspace *could* hold
+- `la-list-workspace-tables` - Inventory: data types the workspace has actually ingested
 - `la-test-access` - Validate workspace access
 
 ## New Features (v27+)
@@ -128,6 +129,8 @@ execute-query(
 ```
 
 ## Things that will bite you
+
+**`la-get-metadata` is a schema catalogue, not an inventory.** It returned 679-691 tables for every workspace measured, near-identically, including for a workspace that had ingested nothing in seven days. Any rule of the form "this workspace has no X table" keyed on it can never fire, and any per-workspace table census credits every empty workspace with a full telemetry stack. The payload now declares itself via `scope.kind: 'schema-catalogue'`. Use `la-list-workspace-tables` (CLI: `workspace tables`) for what a workspace actually holds; it is backed by `Usage | summarize by DataType` and therefore covers ingestion-metered data types only, which its `summary.caveat` says on every call.
 
 **`FunctionAppLogs.FunctionName` is not one name per function.** The same Azure Function reaches that column as the bare name, as a `Functions.`-prefixed variant written by the functions runtime, and as blank on host-level rows. Any `summarize ... by FunctionName` therefore groups by *name*, not by *function*: `la-get-fn-stats` returned 61 rows for 27 functions and inflated total executions from 43,445 to 131,977, roughly threefold, and nothing in the output said so. `collapseFunctionStats` in `src/utils/function-stats.ts` does the reduction and reports it in a `normalization` block. **Any new query that groups by `FunctionName` must run through it**, or normalise the column itself - a threefold inflation of an execution count is not obviously wrong on sight, so it does not get cross-checked.
 

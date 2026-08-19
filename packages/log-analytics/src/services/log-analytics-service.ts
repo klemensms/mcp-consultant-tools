@@ -45,6 +45,39 @@ export interface MetadataResult {
     name: string;
     columns: { name: string; type: string; description?: string }[];
   }[];
+  /**
+   * What this payload is. The metadata endpoint answers the workspace's **schema
+   * catalogue** - every table the workspace could hold - so it is near-identical across
+   * workspaces and says nothing about what any of them has ingested. Declared here because
+   * a bare list of 679 tables reads as an inventory, and a workspace that ingested nothing
+   * for seven days returned the same 679.
+   */
+  scope?: {
+    kind: 'schema-catalogue';
+    tableCount: number;
+    note: string;
+  };
+}
+
+/** One data type the workspace has actually ingested, from the `Usage` table. */
+export interface WorkspaceTable {
+  dataType: string;
+  totalVolumeMB: number;
+}
+
+/** What a workspace actually holds, as opposed to what its schema allows. */
+export interface WorkspaceTablesResult {
+  tables: WorkspaceTable[];
+  summary: {
+    /** Data types with ingestion in the window. */
+    total: number;
+    /** The window measured. A zero is only ever a claim about this window. */
+    timespan: string;
+    /** Always present: what `Usage` does and does not cover. */
+    caveat: string;
+    /** Present only when nothing was ingested, so an empty list is never a bare zero. */
+    note?: string;
+  };
 }
 
 /**
@@ -246,10 +279,76 @@ export class LogAnalyticsService {
         timeout: 15000,
       });
 
-      return response.data;
+      const tableCount = Array.isArray(response.data?.tables) ? response.data.tables.length : 0;
+
+      return {
+        ...response.data,
+        scope: {
+          kind: 'schema-catalogue' as const,
+          tableCount,
+          note:
+            `This is the workspace's schema catalogue - the ${tableCount} table(s) the workspace ` +
+            `could hold - not an inventory of what it has ingested. It is near-identical across ` +
+            `workspaces, so a "no such table" rule keyed on it can never fire. For what this ` +
+            `workspace actually holds, use la-list-workspace-tables (CLI: workspace tables).`,
+        },
+      };
     } catch (error: any) {
       throw new Error(`Failed to get metadata: ${error.message}`);
     }
+  }
+
+  /**
+   * List the data types this workspace has actually ingested, over a window.
+   *
+   * The companion to `getMetadata`, which answers the schema catalogue and is the same for
+   * every workspace. `Usage | summarize by DataType` is the cheap answer to the question a
+   * consumer normally means by "which tables does this workspace have", and it is the query
+   * that was used as the workaround when the catalogue turned out not to answer it.
+   *
+   * A zero here is a claim about one window and about ingestion-metered data only, so both
+   * are stated in the summary rather than left for the reader to assume.
+   */
+  async listWorkspaceTables(
+    resourceId: string,
+    timespan: string = 'P7D'
+  ): Promise<WorkspaceTablesResult> {
+    const query = `
+      Usage
+      | where TimeGenerated > ago(${this.convertTimespanToKQL(timespan)})
+      | summarize TotalVolumeMB = round(sum(Quantity), 2) by DataType
+      | order by TotalVolumeMB desc
+    `.trim();
+
+    const result = await this.executeQuery(resourceId, query, timespan);
+
+    const primary = result.tables?.[0];
+    const columns = primary?.columns ?? [];
+    const typeIndex = columns.findIndex((c) => c.name === 'DataType');
+    const volumeIndex = columns.findIndex((c) => c.name === 'TotalVolumeMB');
+
+    const tables: WorkspaceTable[] = (primary?.rows ?? []).map((row) => ({
+      dataType: typeIndex >= 0 ? String(row[typeIndex]) : '',
+      totalVolumeMB: volumeIndex >= 0 ? Number(row[volumeIndex] ?? 0) : 0,
+    }));
+
+    const summary: WorkspaceTablesResult['summary'] = {
+      total: tables.length,
+      timespan,
+      caveat:
+        'Derived from the Usage table, which records ingestion-metered data types. A table ' +
+        'populated outside that metering would not appear here, so this is a lower bound on ' +
+        'what the workspace holds, not a closed set.',
+    };
+
+    if (tables.length === 0) {
+      summary.note =
+        `The Usage table reports no ingestion in ${timespan}. That is a statement about this ` +
+        `window, not about the workspace: widen the timespan before concluding the workspace ` +
+        `is unused, and note that Usage covers ingestion-metered data types only.`;
+    }
+
+    return { tables, summary };
   }
 
   /**

@@ -27,7 +27,7 @@ export function registerWorkspaceTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     "la-get-metadata",
-    "Get schema metadata (tables and columns) for a Log Analytics workspace",
+    "Get the SCHEMA CATALOGUE (tables and columns) for a Log Analytics workspace - every table the workspace could hold, which is near-identical across workspaces and says nothing about what any of them has ingested. For what a workspace actually holds, use la-list-workspace-tables.",
     {
       resourceId: z.string().describe("Resource ID (use la-list-workspaces to find IDs)"),
     },
@@ -42,6 +42,30 @@ export function registerWorkspaceTools(server: any, ctx: ServiceContext): void {
         console.error("Error getting Log Analytics metadata:", error);
         return {
           content: [{ type: "text", text: `Failed to get metadata: ${error.message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "la-list-workspace-tables",
+    "List the data types a Log Analytics workspace has ACTUALLY ingested over a window, from the Usage table. The companion to la-get-metadata, which returns the schema catalogue and is the same for every workspace. An empty result carries a note naming the window, so it is never a bare zero.",
+    {
+      resourceId: z.string().describe("Resource ID (use la-list-workspaces to find IDs)"),
+      timespan: z.string().optional().describe("ISO 8601 window to measure (default: P7D)"),
+    },
+    { readOnlyHint: true, openWorldHint: true },
+    async ({ resourceId, timespan }: any) => {
+      try {
+        const result = await ctx.logAnalytics.listWorkspaceTables(resourceId, timespan || 'P7D');
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error: any) {
+        console.error("Error listing workspace tables:", error);
+        return {
+          content: [{ type: "text", text: `Failed to list workspace tables: ${error.message}` }],
           isError: true,
         };
       }

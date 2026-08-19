@@ -8,7 +8,7 @@
 The Azure Log Analytics integration provides KQL-based access to Azure Log Analytics workspaces through the Log Analytics Query API (`https://api.loganalytics.io/v1`). Primary use cases are Azure Functions troubleshooting, cross-table log investigation, and sync-function-app debugging.
 
 **Package:** `@mcp-consultant-tools/log-analytics`
-**Tools:** 13 tools, 4 prompts
+**Tools:** 14 tools, 4 prompts
 **Security:** Production-safe (read-only)
 
 </overview>
@@ -29,7 +29,7 @@ packages/log-analytics/src/
   services/
     log-analytics-service.ts  # LogAnalyticsService class (all business logic)
   tools/
-    workspace-tools.ts        # la-list-workspaces, la-get-metadata, la-test-access
+    workspace-tools.ts        # la-list-workspaces, la-get-metadata, la-list-workspace-tables, la-test-access
     query-tools.ts            # la-execute-query, la-get-recent-events, la-search-logs
     function-tools.ts         # la-get-fn-*, la-get-error-summary, la-investigate-*
   prompts/
@@ -241,12 +241,43 @@ Returns: Array of `LogAnalyticsResourceConfig` objects including `id`, `name`, `
 
 <tool name="la-get-metadata">
 
-**`la-get-metadata`** - Get schema metadata for a workspace
+**`la-get-metadata`** - Get the schema catalogue for a workspace
 
 Parameters:
 - `resourceId` (required): Resource ID
 
-Returns: `MetadataResult` - tables with column names, types, and optional descriptions. Use this before writing KQL to verify table and column names.
+Returns: `MetadataResult` - tables with column names, types, and optional descriptions, plus a `scope` block. Use this before writing KQL to verify table and column names.
+
+**It is a schema catalogue, not an inventory.** The metadata endpoint answers every table the workspace *could* hold. Measured across a real estate it returned 679-691 tables for every workspace with near-identical content, including all 34 `App*` tables, and returned the same 679-table catalogue for a workspace that had ingested **zero records in seven days**. A consumer recording "available tables per workspace" therefore credits every empty workspace with a full telemetry stack, and a "no X table present" rule can never fire.
+
+The payload declares this rather than leaving it to be inferred:
+
+| Field | Meaning |
+|-------|---------|
+| `scope.kind` | Always `schema-catalogue` |
+| `scope.tableCount` | Tables the workspace could hold |
+| `scope.note` | Says what the payload is not, and points at `la-list-workspace-tables` |
+
+</tool>
+
+<tool name="la-list-workspace-tables">
+
+**`la-list-workspace-tables`** - List the data types a workspace has actually ingested
+
+Parameters:
+- `resourceId` (required): Resource ID
+- `timespan` (optional): ISO 8601 window to measure. Default `P7D`
+
+Returns: `WorkspaceTablesResult` - `tables[]` of `{ dataType, totalVolumeMB }` ordered by volume, plus a `summary`.
+
+The companion to `la-get-metadata`: it answers the question a consumer usually means by "which tables does this workspace have". Backed by `Usage | summarize by DataType`, which is cheap and was the workaround used once the catalogue turned out not to answer it.
+
+| Field | Meaning |
+|-------|---------|
+| `summary.total` | Data types with ingestion in the window |
+| `summary.timespan` | The window measured - a zero is only ever a claim about this window |
+| `summary.caveat` | Always present: `Usage` records ingestion-metered data types, so this is a lower bound |
+| `summary.note` | Present only when nothing was ingested, so an empty list is never a bare zero |
 
 </tool>
 
@@ -824,7 +855,7 @@ Error messages include the specific missing permission and role assignment instr
 ### Query Errors
 
 - **KQL syntax error:** Test query in Azure Portal → Log Analytics → Logs before using in MCP. Pipe operator (`|`) is required between operators.
-- **Invalid table/column:** Use `la-get-metadata` to discover valid table and column names.
+- **Invalid table/column:** Use `la-get-metadata` to discover valid table and column names. It lists every table the workspace could hold, so a name being present there is not evidence the workspace holds any of it - `la-list-workspace-tables` answers that.
 - **Query timeout:** 30-second default timeout. Reduce timespan, add `| take N`, or use `| summarize` to aggregate.
 
 **Common KQL mistake:**
@@ -891,7 +922,7 @@ packages/log-analytics/src/
 
 | Group | Subcommands | Maps to MCP Tools |
 |-------|-------------|------------------|
-| `workspace` | `list`, `metadata`, `test` | `la-list-workspaces`, `la-get-metadata`, `la-test-access` |
+| `workspace` | `list`, `metadata`, `tables`, `test` | `la-list-workspaces`, `la-get-metadata`, `la-list-workspace-tables`, `la-test-access` |
 | `query` | `execute`, `recent`, `search`, `error-summary`, `investigate-app`, `investigate-sync` | `la-execute-query`, `la-get-recent-events`, `la-search-logs`, `la-get-error-summary`, `la-investigate-app`, `la-investigate-sync` |
 | `fn` | `logs`, `errors`, `stats`, `invocations` | `la-get-fn-logs`, `la-get-fn-errors`, `la-get-fn-stats`, `la-get-fn-invocations` |
 

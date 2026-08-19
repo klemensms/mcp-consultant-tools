@@ -38,7 +38,7 @@ MCP Consultant Tools is a **modular monorepo** with **22 independently published
 | **github-enterprise** | GitHub Enterprise | 22 | `mcp-ghe-cli` | [Setup & Usage](docs/documentation/GITHUB_ENTERPRISE.md) |
 | **figma** | Figma Design Extraction | 4 | `mcp-figma-cli` | [Setup & Usage](docs/documentation/FIGMA.md) |
 | **application-insights** | Application Insights | 10 | `mcp-appins-cli` | [Setup & Usage](docs/documentation/APPLICATION_INSIGHTS.md) |
-| **log-analytics** | Log Analytics | 13 | `mcp-loganalytics-cli` | [Setup & Usage](docs/documentation/LOG_ANALYTICS.md) |
+| **log-analytics** | Log Analytics | 14 | `mcp-loganalytics-cli` | [Setup & Usage](docs/documentation/LOG_ANALYTICS.md) |
 | **1password** | 1Password Vault & Item Management | 21 | `mcp-op-cli` | [Setup & Usage](docs/documentation/ONEPASSWORD.md) |
 | **azure-sql** | Azure SQL Database | 40 | `mcp-sql-cli` | [Setup & Usage](docs/documentation/AZURE_SQL.md) |
 | **service-bus** | Azure Service Bus | 8 | `mcp-sb-cli` | [Setup & Usage](docs/documentation/SERVICE_BUS.md) |
