@@ -29,7 +29,7 @@ MCP Consultant Tools is a **modular monorepo** with **22 independently published
 | **powerplatform-data** | PowerPlatform Data CRUD | 14 | `mcp-pp-data-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_DATA.md) |
 | **azure-devops** | Azure DevOps Wikis, Work Items, PRs, Builds, Branches, Test Runs | 73 | `mcp-ado-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS.md) |
 | **azure-devops-admin** | Azure DevOps Pipelines, Deploys, Feeds, Service Conns, Pools, Sprint Capacity | 75 | `mcp-ado-admin-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS_ADMIN.md) |
-| **azure-management** | Azure ARM API (Functions, App Services, Key Vault, SQL, Monitoring, Resource Graph, log streaming) | 42 | `mcp-azure-mgmt-cli` | [Setup & Usage](docs/documentation/AZURE_MANAGEMENT.md) |
+| **azure-management** | Azure ARM API (VMs, Functions, App Services, Key Vault, SQL, Monitoring, Logic Apps, Resource Graph, log streaming) | 46 | `mcp-azure-mgmt-cli` | [Setup & Usage](docs/documentation/AZURE_MANAGEMENT.md) |
 | **azure-defender** | Microsoft Defender for Cloud (secure score, assessments, compliance, attack paths, security alerts, plan configuration) | 14 | `mcp-defender-cli` | [Setup & Usage](docs/documentation/AZURE_DEFENDER.md) |
 | **entra-id** | Microsoft Entra ID (app registration audit, secret & certificate expiry) | 2 | `mcp-entra-cli` | [Setup & Usage](docs/documentation/ENTRA_ID.md) |
 | **message-center** | Microsoft 365 Service Health & Message Center (health overviews, issues, incident reports, posts) | 7 | `mcp-message-center-cli` | [Setup & Usage](docs/documentation/MESSAGE_CENTER.md) |

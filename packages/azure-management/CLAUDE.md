@@ -4,7 +4,7 @@
 
 MCP server for Azure Resource Manager (ARM) API. Provides discovery and inspection of Azure infrastructure, App Service lifecycle management, and configuration updates.
 
-**Tools:** 42 (38 read-only, 4 write) | **Prompts:** 4 | **Auth:** Entra ID (Service Principal)
+**Tools:** 46 (42 read-only, 4 write) | **Prompts:** 4 | **Auth:** Entra ID (Service Principal)
 
 ## Environment Configuration
 
@@ -59,6 +59,9 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 - `list-diagnostic-settings` - Diagnostic settings across resources
 - `get-resource-relationships` - Subnet/VNet adjacency + forward/reverse references
 
+### Compute
+- `list-virtual-machines` - List VMs. Power state is collected only on request; without it every VM is in the `not collected` bucket and a deallocated VM is indistinguishable from a running one
+
 ### Function Apps
 - `list-function-apps` - List all Function Apps
 - `get-function-app` - Get Function App details + config
@@ -96,10 +99,15 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 - `list-alert-rules` - List metric alerts
 - `list-action-groups` - List notification groups
 - `list-smart-detector-alerts` - List AI-based alerts
+- `list-scheduled-query-rules` - List log-search alerts (a **different** provider surface from metric alerts; quote `summary.alerting`, not `summary.total`)
 
 ### Networking
 - `list-front-doors` - List Azure Front Door profiles (endpoints, origin groups and routes are collected only on request; their absence by default is not evidence they do not exist)
 - `get-front-door` - Get Front Door configuration
+
+### Logic Apps
+- `list-logic-app-workflows` - List workflows (`definition` and `parameters` are withheld by default and named in `propertiesWithheld`; quote `summary.enabled` as live integration)
+- `list-api-connections` - List API connections (sweeps every resource group, because ARM has no subscription-wide list; a connection not in `Connected` is counted in `summary.broken`)
 
 ### Event Grid
 - `list-event-grid-topics` - List Event Grid topics (custom and system topics are always counted; system topics are listed only on request)
@@ -196,7 +204,7 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 
 ```bash
 npm run build --workspace=packages/azure-management
-npm test --workspace=packages/azure-management   # 87 tests, no live API
+npm test --workspace=packages/azure-management   # 128 tests, no live API
 ```
 
 Services take injected clients, so the suite uses plain stub objects and needs no `vi.mock`. Query builders are exported as pure `buildXQuery(opts) => string` functions and tested without a subscription.
@@ -217,6 +225,17 @@ mcp-azure-mgmt-cli resource list --resource-group my-rg
 
 # List function apps
 mcp-azure-mgmt-cli function-app list
+
+# Virtual machines (power state only with --include-status)
+mcp-azure-mgmt-cli compute list-vms
+mcp-azure-mgmt-cli compute list-vms --include-status
+
+# Log-search alert rules (a different surface from `monitoring alerts`)
+mcp-azure-mgmt-cli monitoring log-alerts
+
+# Logic Apps: read both, a connection in Error fails an Enabled workflow at run time
+mcp-azure-mgmt-cli logic-apps list-workflows
+mcp-azure-mgmt-cli logic-apps list-connections
 
 # App Service operations
 mcp-azure-mgmt-cli app-service list

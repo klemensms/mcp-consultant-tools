@@ -324,6 +324,45 @@ Note: `nameContains` is applied client-side after fetching from ARM because the 
 
 ---
 
+### Compute Tools
+
+<tool name="list-virtual-machines">
+
+**`list-virtual-machines`** - List virtual machines in the subscription or resource group.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `resourceGroup` | string | No | - | Filter by resource group |
+| `includeStatus` | boolean | No | false | Collect runtime power state per VM, at one extra ARM call per VM |
+
+Uses `Microsoft.Compute/virtualMachines` at api-version `2024-07-01`.
+
+⚠️ **Power state is not in the list response, and absent is never a state.** Without
+`includeStatus` no row carries `powerState`, every VM lands in the `not collected` bucket, and a
+deallocated VM is indistinguishable from a running one. `summary.note` says so on every such
+result. Defaulting an uncollected state to anything at all is how the two would collapse into one.
+
+Runtime state is collected per VM through `VirtualMachines_InstanceView` rather than through the
+list operation's own parameters, because neither works for a plain listing: `$expand=instanceView`
+"can only be specified if a valid $filter option is specified", and `statusOnly=true` exists at
+subscription scope only. The per-VM operation behaves the same at both scopes.
+
+Every VM lands in exactly one `summary.byPowerState` bucket, and a unit test asserts the buckets
+sum to `summary.total`:
+
+| Bucket | Meaning |
+|--------|---------|
+| a power state (`running`, `deallocated`, `stopped`, ...) | ARM answered with a `PowerState/` entry |
+| `not collected` | `includeStatus` was not passed |
+| `unavailable` | The `instanceView` call was refused. Also sets `statusUnavailable: true` on the row and appears in `fanOut.failures` |
+| `unknown` | ARM answered without a `PowerState/` entry |
+
+The `properties` block is passed through whole with no field allowlist. It is large and
+version-dependent, and a documentation-derived allowlist has discarded live payload three times in
+this repo.
+
+</tool>
+
 ### Function App Tools
 
 <tool name="list-function-apps">
@@ -624,6 +663,39 @@ Connection strings and keys are subject to `AZURE_REDACT_SECRETS` redaction when
 
 </tool>
 
+<tool name="list-scheduled-query-rules">
+
+**`list-scheduled-query-rules`** - List log-search alert rules.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `resourceGroup` | string | No | - | Filter by resource group |
+
+Uses `Microsoft.Insights/scheduledQueryRules` at api-version `2023-12-01`.
+
+⚠️ **This is a different provider surface from `list-alert-rules`.** Three alerting surfaces exist
+and none is a superset of another: metric alerts on `Microsoft.Insights/metricAlerts`, log-search
+alerts here, and smart detectors on `Microsoft.AlertsManagement/smartDetectorAlertRules`. This
+command's absence is what made a measured run's alerting evidence understate the configuration by
+19 rules, so any "alerting gap" finding drawn from one surface overstates the gap. `summary.note`
+names all three on every result, an empty one included.
+
+⚠️ **Quote `summary.alerting`, not `summary.total`, as coverage.** Three things in the result are
+not alert coverage, and each is counted apart from the total:
+
+| Field | Meaning |
+|-------|---------|
+| `alerting` | Rules that can actually raise an alert: enabled, and of `kind: LogAlert` |
+| `byEnabled` | A rule with `enabled: false` fires nothing |
+| `byKind` | A `LogToMetric` rule emits a metric from a log query and never alerts |
+| `withoutActionGroup` | The rule evaluates, then notifies nobody |
+| `legacyRules` | Created through the legacy `2018-04-16` Log Search Alert v1 API. Visible here, managed there |
+
+`properties` is passed through whole with no field allowlist. Neither list operation takes a
+`detailed`-style parameter, so there is no request-side loss to guard against on this surface.
+
+</tool>
+
 ---
 
 ### Networking Tools
@@ -681,6 +753,81 @@ The profile's `state` field is ARM's `resourceState`, renamed in the payload.
 | `systemTopicsUnavailable` / `customTopicsUnavailable` | Present only when that query was refused, so a `0` is never mistaken for a count |
 
 System topics stay out of `topics` by default because they carry auto-generated GUID-shaped names and add bulk. They are still counted because the earlier behaviour - enumerating custom topics only - reported a subscription holding 15 system topics and no custom ones as a clean `total: 0`, byte-for-byte identical to a subscription holding nothing at all. The command carries a `fanOut` block, so a refused query exits 1 with an `INCOMPLETE:` line on stderr rather than shrinking the counts silently.
+
+</tool>
+
+### Logic App Tools
+
+<tool name="list-logic-app-workflows">
+
+**`list-logic-app-workflows`** - List Logic App workflows in the subscription or resource group.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `resourceGroup` | string | No | - | Filter by resource group |
+| `includeDefinition` | boolean | No | false | Return the full `definition` and `parameters` blocks instead of withholding them |
+
+Uses `Microsoft.Logic/workflows` at api-version `2019-05-01`.
+
+⚠️ **Quote `summary.enabled`, not `summary.total`, as live integration.** A workflow whose `state`
+is not `Enabled` runs nothing. `summary.byState` carries the split and `summary.note` names the
+states rather than saying "not Enabled".
+
+⚠️ **`definition` and `parameters` are withheld by default, and each row says which.** The
+definition dominates a listing and `parameters` can carry `securestring` values. Withholding them
+is right; withholding them silently is not, because an absent `definition` reads as a workflow that
+has none. Every row carries `propertiesWithheld` naming exactly what was removed, and the counts a
+review wants are read *before* the removal:
+
+| Field | Meaning |
+|-------|---------|
+| `triggerNames` | Trigger names off the definition. **Absent**, not empty, when the definition was unreadable |
+| `actionCount` | Action count off the definition. **Absent**, not zero, when it was unreadable |
+| `parameterNames` | Parameter names only, never values |
+| `propertiesWithheld` | `["definition", "parameters"]` by default, `[]` under `includeDefinition` |
+
+⚠️ **A workflow reporting `Enabled` says nothing about the connections it runs through.** Pair this
+with `list-api-connections`: a workflow whose API connection sits in `Error` fails at run time and
+still reports `Enabled`. `summary.note` says so.
+
+</tool>
+
+<tool name="list-api-connections">
+
+**`list-api-connections`** - List API connections, the credential-holding resources a Logic App
+workflow reaches a connector through.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `resourceGroup` | string | No | - | Ask one resource group directly instead of sweeping all of them |
+
+Uses `Microsoft.Web/connections` at api-version `2016-06-01`, the only stable version that has ever
+shipped for it.
+
+⚠️ **ARM ships no subscription-wide list for this resource type.** `Connections_List` is
+resource-group scoped only, so without a `resourceGroup` this command lists the resource groups and
+asks each one. The count is therefore only as complete as that sweep, and the payload says so on
+every result rather than only on a failing one:
+
+| Field | Meaning |
+|-------|---------|
+| `resourceGroupsSwept` | Groups the sweep covered. `null` when scoped to one group directly |
+| `complete` | **False whenever any group refused.** `total` is then what was reachable, not what exists |
+| `fanOut.failures` | One named entry per refused group, with its HTTP status |
+
+Each group is one `fanOut` attempt, so a refused group is a named failure rather than a silently
+shorter list, and the CLI exits 1 with an `INCOMPLETE:` line on stderr. See `<fan-out-contract>`.
+
+⚠️ **A broken connection is the finding.** `summary.broken` counts connections whose status is
+neither `Connected` nor absent, and `statusError` on each flattens the ARM error to `code: message`.
+A connection ARM reported no status for lands in the `unknown` bucket rather than being folded in
+with the working ones.
+
+**`parameterValues` is redacted to its keys** under the package's `AZURE_REDACT_SECRETS` default.
+The redaction is by field, not by key name: ARM's own naming says that map is the one that can hold
+secrets and `nonSecretParameterValues` is the one that cannot, which is a better signal than
+guessing from a key like `username`. Keys are kept, because a missing key would hide that a
+credential is configured at all.
 
 </tool>
 
@@ -937,6 +1084,7 @@ Environment is loaded via `loadEnvForCli()` in a `preAction` hook on every comma
 | `resource graph <query>` | `-s` (subscriptions) | `query-resource-graph` |
 | `resource tags <resourceId>` | — | `get-resource-tags` |
 | `resource locations` | `-c`, `-g`, `--include-metadata` | `list-locations` |
+| `compute list-vms` | `-g`, `--include-status` | `list-virtual-machines` |
 | `function-app list` | `-g`, `--include-configuration`, `--include-slots` | `list-function-apps` |
 | `function-app get <name>` | `-g`, `--include-configuration`, `--include-functions`, `--include-deployments` | `get-function-app` |
 | `function-app functions <name>` | `-g` | `list-functions` |
@@ -958,10 +1106,13 @@ Environment is loaded via `loadEnvForCli()` in a `preAction` hook on every comma
 | `sql databases <serverName>` | `-g` | `list-sql-databases` |
 | `monitoring alerts` | `-g`, `--target-resource-id` | `list-alert-rules` |
 | `monitoring action-groups` | `-g` | `list-action-groups` |
-| `monitoring smart-detectors` | `-g` | `list-smart-detector-alerts` |
+| `monitoring smart-alerts` | `-g` | `list-smart-detector-alerts` |
+| `monitoring log-alerts` | `-g` | `list-scheduled-query-rules` |
 | `networking front-doors` | `-g`, `--include-details` | `list-front-doors` |
 | `networking get-front-door <name>` | `-g` | `get-front-door` |
 | `networking event-grid-topics` | `-g`, `--include-system-topics` | `list-event-grid-topics` |
+| `logic-apps list-workflows` | `-g`, `--include-definition` | `list-logic-app-workflows` |
+| `logic-apps list-connections` | `-g` | `list-api-connections` |
 | `graph nsgs` | `-g`, `--associated-subnet`, `--associated-nic`, `-m` | `list-network-security-groups` |
 | `graph role-assignments` | `--principal-id`, `--role-definition-id`, `--scope`, `-m` | `list-role-assignments` |
 | `graph private-endpoints` | `-g`, `--target-resource-id`, `-m` | `list-private-endpoints` |
@@ -1024,6 +1175,20 @@ mcp-azure-mgmt-cli resource get -i /subscriptions/{subId}/resourceGroups/rg-prod
 
 # Run a Resource Graph query
 mcp-azure-mgmt-cli resource graph "Resources | where type == 'microsoft.web/sites' | where kind contains 'functionapp'"
+
+# Virtual machines. Power state is NOT in the default payload: without --include-status
+# a deallocated VM is indistinguishable from a running one.
+mcp-azure-mgmt-cli compute list-vms
+mcp-azure-mgmt-cli compute list-vms --include-status -g rg-prod-uks-01
+
+# Log-search alert rules. A different surface from `monitoring alerts` (metric alerts) -
+# neither count is the whole alerting configuration.
+mcp-azure-mgmt-cli monitoring log-alerts
+
+# Logic Apps. A workflow reporting Enabled says nothing about its connections, so read
+# both: a connection in Error fails the workflow at run time.
+mcp-azure-mgmt-cli logic-apps list-workflows
+mcp-azure-mgmt-cli logic-apps list-connections
 
 # Get Function App details
 mcp-azure-mgmt-cli function-app get func-prod-sync-uks-01
