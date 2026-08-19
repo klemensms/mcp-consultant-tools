@@ -82,7 +82,7 @@ anything matching the trigger checklist.
 ### ⚑6 · T17 (D24/D25) may be already-fixed work
 - **Kind:** assumption
 - **Hop:** origin · 6729aa0
-- **State:** open
+- **State:** closed-by-L7 · confirmed
 - **Matters because:** the source report tested `code-review` at beta.3, but beta.14's
   release notes describe fixing both defects. If that reading is right, T17 is a retest
   and re-fixing it would revert working code. The hop that takes T17 must verify against
@@ -771,4 +771,42 @@ anything matching the trigger checklist.
   and reported. So the first live `--include-details` run should be read for
   `fanOut.failures` before its output is used for a WAF review - an unattached WAF policy and
   a refused route list look the same to a reader who skips it.
+
+### ⚑6 update (L7) · confirmed already-fixed, and the retest cost nothing
+- Both defects are fixed in the current build and **nothing was rewritten**. D25 is verified
+  end-to-end rather than by reading source: the built CLI run against a nonexistent Azure
+  DevOps organisation returns a genuine 404, and its hint names the project, the
+  organisation and `cr-list-repos` with no SAML or "Developer settings" text anywhere. The
+  403 branch and the non-interactive clone environment were read out of the **built** JS,
+  both correct.
+- **Worth keeping:** a nonexistent organisation produces a real 404 from a real API without
+  any credential, so the whole of D25 was retestable on this machine. The task had been
+  carried as needing a live tenant. Before deferring an error-path retest for want of
+  credentials, ask which errors a *wrong* identifier produces - 404 and 400 paths usually
+  need no valid credential at all, and they are where confidently-wrong hint text lives.
+- **Residual:** D24's runtime half stays unproven. Whether a clone now fails in seconds
+  instead of hanging depends on a controlling terminal and a real organisation, which is
+  what `v35.0.0-beta.14.md` already says and what CI cannot supply. Not reopened, because
+  the mechanism (`GIT_TERMINAL_PROMPT=0` with both ASKPASS variables emptied) is present in
+  the built artifact and its unit assertions invert correctly.
+
+### ⚑42 · The plan's "already known in KNOWN_ISSUES" premise for T16 was wrong
+- **Kind:** gotcha
+- **Hop:** L7 · T16 (D26)
+- **State:** open
+- **Matters because:** T16 recorded that `docs/KNOWN_ISSUES.md` held the repo-wide version of
+  the cache-path behaviour. It does not - that file has four entries and none is about the
+  cache path - so a hop that trusted the line would have fixed the package-specific symptom
+  and left the shared cause undocumented. The durable record is now
+  `.claude/refs/cli-architecture.md`, which is the right home because it already documents
+  the cache path and is loaded when CLI work is done. Registered rather than silently
+  corrected because **this is the third wrong premise this chain has found in its own plan
+  file** (T13's scope lead, T14's three causes, now this), and the pattern is the point: the
+  plan file's "related, already known" and "cause" lines are restatements of a source report,
+  not verified claims about this repo. Treat them as leads.
+- **Second, smaller finding, deliberately not acted on:** the `code-review` hint text shipped
+  by an earlier hop contains em-dashes, which Klemens's standing rule bars from every output
+  channel including code. Fixing it means editing user-facing strings that two tests match
+  on, which is not this task's scope. Left for whoever next touches that file, or for a
+  deliberate sweep - a repo-wide `grep -rn '—' packages/*/src` is the work-list.
 

@@ -180,6 +180,28 @@ A fix that only proves the happy path does not close its task.
       `networking front-door get <name>` when it is `networking get-front-door <name>`.
       5 new tests, `azure-management` 51 to 56, repo 1055 to 1060. Unit-verified only. See
       register items 40 and 41, and the ⚑8 / ⚑39 updates.
+- [x] **T16 · D26 — the `code-review` cache path follows the working directory**. The
+      location is deliberate and stays: `.context/` resolves against the working directory
+      because the cache belongs to the project being worked on. What was wrong was the
+      silence. `outputResult` in `core` now always names the file it wrote on stderr,
+      `--json` included (stderr does not pollute the JSON on stdout, and a caller never
+      told the path can neither find nor delete the file), and warns when the working
+      directory is not inside a git repository - the case where the payload is scattered
+      rather than collected. Fixed in `core`, so every CLI on the current workspace `core`
+      gets it. 3 new tests, repo 1060 to 1063, and verified end-to-end from a fresh
+      `mktemp -d` against the built CLI. **The plan's claim that `docs/KNOWN_ISSUES.md`
+      already recorded the repo-wide version was wrong** - there is no such entry - so the
+      durable record is `.claude/refs/cli-architecture.md`. See register item 42.
+- [x] **T17 · D24, D25 — retested, not re-fixed**. Both defects are confirmed fixed in the
+      current build, so nothing was rewritten. D25 is verified **end-to-end**: the built
+      CLI run against a nonexistent Azure DevOps organisation returns a real 404 whose hint
+      names the project, the organisation and `cr-list-repos`, with no SAML or "Developer
+      settings" text - and a nonexistent org needs no credentials, so this half never
+      needed the tenant. The 403 branch and the non-interactive clone environment were
+      checked against the **built** JS rather than the source, both correct. D24's runtime
+      half remains unproven: whether a clone now fails in seconds instead of hanging needs
+      a machine with a controlling terminal and a real organisation, exactly as
+      `v35.0.0-beta.14.md` states. See the ⚑6 update.
 
 ## Queue
 
@@ -263,24 +285,6 @@ more than one when its context measurement allows.
     but an optional field ARM does not populate is **absent**, not null. Either the
     consumer rendered absent as null or ARM sent explicit nulls, and those have different
     causes. See register item 34.
-
-### T16 · D26 — the `code-review` cache path follows the working directory
-- **Package:** `code-review`
-- **Severity:** Minor, documented behaviour, but worth a warning.
-- **Measured:** running from a temporary directory created `.context/.mcp-code-review-cache/`
-  there, holding a 2 MB review JSON. On an engagement that scatters repository metadata
-  into whatever directory the run started in.
-- **Related, already known:** `docs/KNOWN_ISSUES.md` records the repo-wide version of this.
-
-### T17 · D24, D25 — retest, do not re-fix
-- **Package:** `code-review`
-- **Status:** **likely already fixed.** The source report tested `code-review` at
-  `35.0.0-beta.3`, but `v35.0.0-beta.14` (2026-08-13) describes fixing both: the clone now
-  runs unattended so the membership hint actually appears, and `notFoundHint()` /
-  `forbiddenHint()` branch on provider instead of giving GitHub SAML advice under Azure
-  DevOps. See `docs/release-notes/v35.0.0-beta.14.md`.
-- **Task:** verify against the current build and close, or reopen with evidence. Do not
-  rewrite a fix that already shipped.
 
 ### T18 · D13, D18 — coverage gaps (new commands, largest tasks)
 - **Severity:** coverage gaps, not defects. Take these last.
