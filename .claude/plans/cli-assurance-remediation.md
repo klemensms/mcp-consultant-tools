@@ -157,6 +157,29 @@ A fix that only proves the happy path does not close its task.
       object from api-version 2025-05-04 with no hint that a real estate returned none.
       6 new tests, `azure-defender` 91 to 97, repo 1049 to 1055. Unit-verified only. See
       register items 36 to 38 and the ⚑34 update.
+- [x] **T14 · D10, D11 — App Service and Front Door payload gaps**. Both halves were
+      "the code never asked ARM", not a mapping gap and not a swallowed 403, so all three
+      causes the task arrived with were wrong. **D10:** `AppServicePlans_List` at
+      subscription scope returns a *subset* of each plan's properties unless
+      `detailed=true` is on the query string - `numberOfSites`, `numberOfWorkers`,
+      `reserved` and `zoneRedundant` are among the ones it drops - and the
+      resource-group-scoped operation takes no such parameter, which is why only a
+      subscription-wide run showed the defect. The call now passes it. Separately,
+      `workerCount` was reading ARM's writable `targetWorkerCount` (a scaling target)
+      rather than the read-only `numberOfWorkers` (instances assigned), so a plan set to
+      scale to ten and running three reported ten; `workerCount` now reads
+      `numberOfWorkers` and the target is reported as `targetWorkerCount`. **D11:**
+      `listFrontDoors` hard-coded `includeDetails: false` with no caller override, so
+      `endpoints`, `originGroups` and `routes` were never requested. The flag is now on
+      the service, the tool and the CLI (`--include-details`), the default stays `false`
+      for its three-calls-per-profile cost, and a result that did not collect them carries
+      a `summary.note` - silence read as "no routes" is what hides an unattached WAF
+      policy. `state` was **not** a payload defect: the mapper renames ARM's
+      `resourceState`, nothing promised the old name, and nothing documented the rename
+      either, so the technical doc now states it. That doc also listed the CLI command as
+      `networking front-door get <name>` when it is `networking get-front-door <name>`.
+      5 new tests, `azure-management` 51 to 56, repo 1055 to 1060. Unit-verified only. See
+      register items 40 and 41, and the ⚑8 / ⚑39 updates.
 
 ## Queue
 
@@ -240,39 +263,6 @@ more than one when its context measurement allows.
     but an optional field ARM does not populate is **absent**, not null. Either the
     consumer rendered absent as null or ARM sent explicit nulls, and those have different
     causes. See register item 34.
-
-### T14 · D10, D11 — App Service and Front Door payload gaps
-- **Package:** `azure-management`
-- **Severity:** Minor each.
-- **D10 measured:** `numberOfSites: 0` for **all 24 plans**, including plans demonstrably
-  hosting running apps; `workerCount`, `reserved`, `zoneRedundant` null for all 24. An
-  "unused App Service plan" rule keyed on `numberOfSites === 0` fires on every row, which
-  is worse than no rule. Fix: populate the fields, or drop them so consumers cannot key on them.
-- **D11 measured:** `networking front-doors` omits `endpoints`, `originGroups` and `routes`
-  for all profiles though the inventory shows an `afdendpoints` child under each; the field
-  is `state`, not `resourceState` as documented. Without routes a consumer cannot tell
-  whether a WAF policy is attached, which is the security-relevant part.
-- **Read before starting. Three leads from the code at hop L6, without credentials, and
-  each changes what the task is:**
-  1. **The three missing Front Door fields are gated on a flag, not lost in mapping.**
-     `processFrontDoorProfile` in `services/NetworkingService.ts` fetches `endpoints`,
-     `originGroups` and `routes` only `if (includeDetails)`. So the first thing to check is
-     whether the CLI and the tool pass that flag and what it defaults to - if the assurance
-     run never set it, the fields were never requested, and this is neither a mapping gap
-     (the plan's reading) nor a swallowed 403 (register item 8's reading). Check all three
-     before writing code; they need different fixes, and only one of them is a code fix.
-  2. **`state` may be a documentation defect, not a payload one.** The mapper already emits
-     `state: props.resourceState` - it reads ARM's `resourceState` and renames it `state` in
-     the payload. So a doc or tool description promising `resourceState` is what is wrong.
-     Same class as T8, where the technical doc's own schema block seeded the defect.
-  3. **D10's four fields are all mapped, so their absence is a request or a naming
-     question.** `AppServiceService.ts` maps `numberOfSites: props.numberOfSites`,
-     `reserved`, `zoneRedundant`, and - the suspicious one - `workerCount:
-     props.targetWorkerCount`. An unmapped key vanishes, but these are named, so either the
-     ARM `serverfarms` list response omits them (a detail-versus-list difference, checkable
-     against the spec) or `targetWorkerCount` is the wrong key for a worker count. Settle it
-     the way L6 settled T13: read the swagger in `Azure/azure-rest-api-specs` via
-     `gh api search/code`, not the generated Learn page. See register item 39.
 
 ### T16 · D26 — the `code-review` cache path follows the working directory
 - **Package:** `code-review`

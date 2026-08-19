@@ -104,7 +104,7 @@ anything matching the trigger checklist.
 ### ⚑8 · The Front Door payload gaps in T14 may be swallowed 403s, not missing code
 - **Kind:** assumption
 - **Hop:** L1 · fan-out contract work
-- **State:** open
+- **State:** closed-by-L7 · refuted
 - **Matters because:** T14 (D11) records that `networking front-doors` omits `endpoints`,
   `originGroups` and `routes` for every profile though the inventory shows the child
   resources exist. Those three calls sat behind exactly the swallowing `catch` that T2
@@ -691,7 +691,7 @@ anything matching the trigger checklist.
 ### ⚑39 · T14's stated causes are all unverified, and the code points at three different ones
 - **Kind:** assumption
 - **Hop:** L6 · read while locating T14 for the handoff
-- **State:** open
+- **State:** closed-by-L7
 - **Matters because:** T14 arrives with a cause already written into it for each half, and
   neither survives a first read of the code, so a hop that trusts the plan would fix the
   wrong thing. **D11's three missing fields are gated on `includeDetails` in
@@ -707,3 +707,68 @@ anything matching the trigger checklist.
   `workerCount: props.targetWorkerCount` reads the wrong key for a worker count. None of
   this is settled: no Azure credentials on this machine. The credential-free half is a spec
   read, which is what settled T13's shape this hop.
+- **L7 resolution:** settled from the ARM swagger, and **all three of the plan's stated
+  causes were wrong while two of L6's three leads were right**. D11 was the
+  `includeDetails` gate: `listFrontDoors` hard-coded it `false` with no caller override, so
+  the fields were never requested - not a mapping gap and not ⚑8's 403. D11's `state` was
+  the documentation defect L6 predicted, with a twist: nothing in this repo promised
+  `resourceState` either, so the doc was silent rather than wrong, and the fix is to state
+  the rename. D10 was neither of L6's two candidates on its own but both at once:
+  `AppServicePlans_List` at subscription scope drops the four fields unless `detailed=true`
+  is passed (the list-versus-detail difference, confirmed in the swagger's own parameter
+  description) **and** `workerCount` was reading `targetWorkerCount`, the writable scaling
+  target, rather than the read-only `numberOfWorkers`. Two independent defects behind one
+  symptom; fixing only the request would have populated a field that was still reporting
+  the wrong number.
+
+### ⚑40 · Whether ARM honours `detailed=true` on a live estate is unverified
+- **Kind:** assumption
+- **Hop:** L7 · T14 (D10)
+- **State:** open
+- **Matters because:** the whole D10 fix rests on one sentence in the `AppServicePlans_List`
+  swagger - `detailed` "defaults to false, which returns a subset of the properties" - and
+  the parameter is documented nowhere else useful. No Azure credentials on this machine, so
+  no live `serverfarms` response has been seen through the changed code. If ARM ignores the
+  parameter, or if the subset it returns is scope-dependent rather than parameter-dependent,
+  `numberOfSites` stays absent and the "unused App Service plan" false positive stays live -
+  and the fix will *look* landed because the unit tests assert the request, not the response.
+  One live `app-service plans` run at subscription scope settles it: `numberOfSites` and
+  `workerCount` must be populated on a plan known to host apps. Klemens has the credentials.
+- **Related:** the swagger also warns that "retrieval of all properties may increase the API
+  latency", which is unmeasured here. If a subscription-wide run becomes slow, the trade-off
+  is latency against a field that manufactures false alarm - and the field wins, but the
+  choice should be made knowingly rather than discovered.
+
+### ⚑41 · `workerCount` changed meaning without a breaking-change block
+- **Kind:** decision-for-Klemens
+- **Hop:** L7 · T14 (D10)
+- **State:** open
+- **Matters because:** `workerCount` used to carry ARM's `targetWorkerCount` and now carries
+  `numberOfWorkers`. The key name is unchanged and the type is unchanged, so nothing breaks
+  at the schema level, but any consumer that read it as a scaling target now reads an
+  assigned-instance count, and on a plan configured to scale the two differ. In practice
+  every measured value was absent, so no live consumer can have been reading a real number
+  from it - which is the argument for treating this as a fix rather than a break. Recorded
+  because that argument rests on ⚑40: if `detailed=true` turns out to be unnecessary and the
+  field was populated all along on some scopes, this becomes a silent semantic change to a
+  populated field, and the release notes need the breaking-change block. Klemens's call at
+  release time, and it depends on the same live run.
+
+### ⚑8 update (L7) · refuted, and it could have been refuted without credentials
+- The three calls were never made at all. `listFrontDoors` passed `includeDetails: false`
+  literally, and `processFrontDoorProfile` only fetches `endpoints`, `originGroups` and
+  `routes` inside `if (includeDetails)`. So a 403 was never reachable on the path the
+  assurance run took, and the empty `fanOut.failures` a live run would have shown was
+  correct rather than suspicious. Nothing was swallowed; nothing was asked.
+- **Worth keeping:** ⚑8 was written as "cannot be settled here: no Azure credentials", and
+  that was wrong. Whether a call is *made* is a question about this repo's code, answerable
+  by reading it; only whether it is *refused* needs the tenant. Six hops carried the item as
+  credential-blocked when a five-line read closed it. When registering a
+  live-run-only assumption, check first whether the credential-free half answers it.
+- **Residual, and it is a real one:** with `--include-details` now reachable, those three
+  calls will run on a live estate for the first time, and they go through `fanOut.run`. A
+  403 on `afdEndpoints`, `originGroups` or a per-endpoint `routes` list is now both possible
+  and reported. So the first live `--include-details` run should be read for
+  `fanOut.failures` before its output is used for a WAF review - an unattached WAF policy and
+  a refused route list look the same to a reader who skips it.
+
