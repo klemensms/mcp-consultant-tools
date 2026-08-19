@@ -59,23 +59,19 @@ A fix that only proves the happy path does not close its task.
       every markdown surface because `formatTableAsMarkdown` keeps only the tables.
       `UniqueFunctions` is dropped from the query: inside a `by FunctionName` summarize it
       was always 1. See register item 13.
+- [x] **T6 · D20 — `workspace metadata` returns the schema catalogue, not the workspace's
+      tables**. Both halves of the plan's suggested fix, because the command was answering a
+      different question from the one it was asked. `la-get-metadata` declares its own scope
+      (`scope.kind: 'schema-catalogue'`, the table count, and a note naming where the other
+      answer lives), including in the CLI summary line. `la-list-workspace-tables` (CLI:
+      `workspace tables`) is new and answers what the workspace actually holds, from
+      `Usage | summarize by DataType, QuantityUnit`. A zero is scoped to its window and to
+      ingestion-metered data, both stated. 14 tools now. See register items 16 and 17.
 
 ## Queue
 
 Ordered by the source report's own priority. One task per heading; a hop may take
 more than one when its context measurement allows.
-
-### T6 · D20 — `workspace metadata` returns the schema catalogue, not the workspace's tables
-- **Package:** `log-analytics`
-- **Severity:** Major.
-- **Measured:** returns 679-691 tables for **every** workspace with near-identical content,
-  including all 34 `App*` tables. Returned the same 679-table catalogue for a workspace
-  that had ingested **zero records in seven days**.
-- **Effect:** any consumer recording "available tables per workspace" credits every empty
-  workspace with a full telemetry stack, and any "no X table present" rule can never fire.
-- **Fix:** scope to tables the workspace actually holds, or document it as a schema
-  catalogue and add a separate inventory command. `Usage | summarize by DataType` answers
-  the real question cheaply and was the workaround used.
 
 ### T8 · D22 — `query error-summary --table FunctionAppLogs` builds an invalid query
 - **Package:** `log-analytics`

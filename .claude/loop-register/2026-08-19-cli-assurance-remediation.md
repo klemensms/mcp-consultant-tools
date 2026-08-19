@@ -212,3 +212,34 @@ anything matching the trigger checklist.
   `Functions.`-prefixed name and the empty string, with no fourth shape the exact-prefix
   strip would miss. Do not claim either works against a live estate. Same credentials
   blocker as ⚑1, ⚑7, ⚑9.
+
+### ⚑16 · `Usage` is a lower bound on what a workspace holds, not a closed set
+- **Kind:** assumption
+- **Hop:** L2 · 144f5f3, be15147
+- **State:** open
+- **Matters because:** T6's new `la-list-workspace-tables` answers "what does this workspace
+  actually hold" from the `Usage` table, which records ingestion-metered data types. A table
+  populated outside that metering would not appear, so the command can under-report - the
+  same direction of error as the catalogue it replaces, just far smaller. The mitigation is
+  that `summary.caveat` says so on every call, unconditionally, and the command is named an
+  inventory of ingestion rather than of tables. What would settle it is one live run against
+  a workspace whose contents are known: compare the list against `search * | distinct $table`
+  over the same window, and if the two disagree the caveat needs to become a documented
+  limitation with the gap named. Also unverified: that `QuantityUnit` is `MBytes` for
+  ordinary log ingestion. The query no longer assumes it - it groups by the unit, so a
+  surprise shows as an extra row rather than a wrong total - but nobody has seen a live
+  `Usage` row from this code. No Log Analytics credentials on this machine.
+
+### ⚑17 · T6 leaves `la-get-metadata`'s payload shape intact and adds a tool instead
+- **Kind:** decision
+- **Hop:** L2 · 144f5f3
+- **State:** open
+- **Matters because:** the plan offered two routes - scope the metadata command to tables the
+  workspace actually holds, or keep it as a catalogue and add a separate inventory command.
+  The second was taken, so `la-get-metadata` still returns ~680 tables and any consumer
+  already keying on its table count keeps the number it had; it now also gets a `scope` block
+  telling it the number is not what it thought. The first route would have been a silent
+  behaviour change to an existing tool, which is worse, but it does mean **an existing
+  consumer that never reads `scope` is still wrong**. Whether that is acceptable, or whether
+  the metadata command should eventually be scoped and the change called out as breaking, is
+  Klemens's call. Tool count went 13 to 14, which is itself worth a release-notes line.
