@@ -76,7 +76,7 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 
 ## Notable Behavior
 
-- **Retry deduplication:** Investigation tools (`la-investigate-app`, `la-investigate-sync`, `la-get-error-summary`) group by `OperationId` by default, so a message that retried 10 times appears as 1 row with `RetryCount: 10`. Disable with `deduplicateRetries: false`.
+- **Retry deduplication:** Investigation tools (`la-investigate-app`, `la-investigate-sync`, `la-get-error-summary`) group by `OperationId` by default, so a message that retried 10 times appears as 1 row with `RetryCount: 10`. Disable with `deduplicateRetries: false`. On `FunctionAppLogs`, which has no `OperationId`, the key is `FunctionInvocationId` and it collapses the log lines of one invocation rather than retries across invocations; the output names whichever key was used.
 - **Sync function-app workspace naming:** `la-investigate-sync` expects workspace IDs matching the pattern `log-{env}-{client}-...` and auto-derives the sync function app name (`func-{env}-{client}-sc-sync-...`). Only relevant for the sync function app clients.
 - **Column presets:** All query tools accept `columnPreset: "minimal" | "investigation" | "full"` to reduce token consumption. `minimal` (4 columns) reduces output by ~80%. Default is `full` for backwards compatibility.
 - **Output format:** All tools accept `outputFormat: "json" | "markdown"`. Investigation tools default to `markdown`; query tools default to `json`.

@@ -12,6 +12,7 @@ import {
   filterColumns,
   resolveColumnPreset,
 } from '../../utils/loganalytics-formatters.js';
+import { buildErrorSummaryQuery, ERROR_SUMMARY_TABLES } from '../../utils/error-summary-query.js';
 
 export function registerQueryCommands(program: Command, ctx: ServiceContext): void {
   const query = program.command('query').description('KQL query and log search operations');
@@ -131,9 +132,9 @@ export function registerQueryCommands(program: Command, ctx: ServiceContext): vo
     .description('Get aggregated error summary by type - ideal for starting investigations')
     .argument('<resourceId>', 'Resource ID')
     .option('-t, --timespan <timespan>', 'Time range (e.g., PT1H, P1D)', 'PT1H')
-    .option('--table <tableName>', 'Table to analyze: AppExceptions, AppTraces, FunctionAppLogs', 'AppExceptions')
+    .option('--table <tableName>', `Table to analyze: ${ERROR_SUMMARY_TABLES.join(', ')}`, 'AppExceptions')
     .option('--min-count <n>', 'Minimum error count to include', '1')
-    .option('--no-deduplicate', 'Disable retry deduplication (grouped by OperationId by default)')
+    .option('--no-deduplicate', 'Disable retry deduplication (grouped by OperationId, or by FunctionInvocationId on FunctionAppLogs, by default)')
     .option('-f, --format <format>', 'Output format: json, markdown', 'markdown')
     .action(async (resourceId: string, opts: any) => {
       try {
@@ -142,118 +143,17 @@ export function registerQueryCommands(program: Command, ctx: ServiceContext): vo
         const minCountValue = parseInt(opts.minCount) || 1;
         const dedupe = opts.deduplicate !== false;
 
-        let kql: string;
-        if (table === 'AppExceptions') {
-          if (dedupe) {
-            kql = `
-              AppExceptions
-              | summarize
-                  RetryCount = count(),
-                  FirstSeen = min(TimeGenerated),
-                  LastSeen = max(TimeGenerated),
-                  SampleMessage = take_any(OuterMessage)
-                by OperationId, ExceptionType, AppRoleName
-              | summarize
-                  UniqueErrors = count(),
-                  TotalRetries = sum(RetryCount),
-                  FirstSeen = min(FirstSeen),
-                  LastSeen = max(LastSeen),
-                  SampleMessage = take_any(SampleMessage)
-                by ExceptionType, AppRoleName
-              | where UniqueErrors >= ${minCountValue}
-              | order by UniqueErrors desc
-            `;
-          } else {
-            kql = `
-              AppExceptions
-              | summarize
-                  Count = count(),
-                  FirstSeen = min(TimeGenerated),
-                  LastSeen = max(TimeGenerated),
-                  SampleMessage = take_any(OuterMessage)
-                by ExceptionType, AppRoleName
-              | where Count >= ${minCountValue}
-              | order by Count desc
-            `;
-          }
-        } else if (table === 'AppTraces') {
-          if (dedupe) {
-            kql = `
-              AppTraces
-              | where SeverityLevel >= 3
-              | summarize
-                  RetryCount = count(),
-                  FirstSeen = min(TimeGenerated),
-                  LastSeen = max(TimeGenerated),
-                  SampleMessage = take_any(Message)
-                by OperationId, AppRoleName, SeverityLevel
-              | summarize
-                  UniqueErrors = count(),
-                  TotalRetries = sum(RetryCount),
-                  FirstSeen = min(FirstSeen),
-                  LastSeen = max(LastSeen),
-                  SampleMessage = take_any(SampleMessage)
-                by AppRoleName, SeverityLevel
-              | where UniqueErrors >= ${minCountValue}
-              | order by UniqueErrors desc
-            `;
-          } else {
-            kql = `
-              AppTraces
-              | where SeverityLevel >= 3
-              | summarize
-                  Count = count(),
-                  FirstSeen = min(TimeGenerated),
-                  LastSeen = max(TimeGenerated),
-                  SampleMessage = take_any(Message)
-                by AppRoleName, SeverityLevel
-              | where Count >= ${minCountValue}
-              | order by Count desc
-            `;
-          }
-        } else {
-          if (dedupe) {
-            kql = `
-              FunctionAppLogs
-              | where ExceptionDetails != ''
-              | summarize
-                  RetryCount = count(),
-                  FirstSeen = min(TimeGenerated),
-                  LastSeen = max(TimeGenerated),
-                  SampleMessage = take_any(Message)
-                by InvocationId, FunctionName
-              | summarize
-                  UniqueErrors = count(),
-                  TotalRetries = sum(RetryCount),
-                  FirstSeen = min(FirstSeen),
-                  LastSeen = max(LastSeen),
-                  SampleMessage = take_any(SampleMessage)
-                by FunctionName
-              | where UniqueErrors >= ${minCountValue}
-              | order by UniqueErrors desc
-            `;
-          } else {
-            kql = `
-              FunctionAppLogs
-              | where ExceptionDetails != ''
-              | summarize
-                  Count = count(),
-                  FirstSeen = min(TimeGenerated),
-                  LastSeen = max(TimeGenerated),
-                  SampleMessage = take_any(Message)
-                by FunctionName
-              | where Count >= ${minCountValue}
-              | order by Count desc
-            `;
-          }
-        }
-
+        const { kql, dedupeKey } = buildErrorSummaryQuery({
+          table,
+          dedupe,
+          minCount: minCountValue,
+        });
         const result = await ctx.logAnalytics.executeQuery(resourceId, kql, timespanValue);
 
         const format = opts.format || 'markdown';
         let data: any = result;
         if (format === 'markdown' && result.tables && result.tables.length > 0) {
-          const dedupeNote = dedupe ? ' (deduplicated by OperationId)' : '';
+          const dedupeNote = dedupeKey ? ` (deduplicated by ${dedupeKey})` : '';
           data = `## Error Summary (${table})${dedupeNote}\n\n**Time range:** ${timespanValue}\n\n` +
             result.tables.map((t: any) => formatTableAsMarkdown(t)).join('\n\n');
         }

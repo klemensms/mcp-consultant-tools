@@ -451,11 +451,17 @@ Parameters:
 - `timespan` (optional): Default `PT1H`
 - `tableName` (optional): `"AppExceptions" | "AppTraces" | "FunctionAppLogs"` (default: `AppExceptions`)
 - `minCount` (optional): Minimum error count to include (default: 1)
-- `deduplicateRetries` (optional): Group by OperationId to collapse retries (default: `true`)
+- `deduplicateRetries` (optional): Collapse repeats before counting (default: `true`). Groups by `OperationId`, or by `FunctionInvocationId` on `FunctionAppLogs`, which has no `OperationId`. The output names whichever key was used.
 - `outputFormat` (optional): Default `"markdown"`
 
 **With deduplication (default):** Returns `UniqueErrors`, `TotalRetries`, `FirstSeen`, `LastSeen`, `SampleMessage`.
 **Without deduplication:** Returns `Count`, `FirstSeen`, `LastSeen`, `SampleMessage`.
+
+The four query shapes - three tables, with and without deduplication - are built in
+`utils/error-summary-query.ts` and shared by the tool and the CLI command. A `tableName`
+outside the three throws, naming the supported set, rather than falling through to one of
+the shapes: the CLI's `--table` is free text, and a typo used to return a confident answer
+about a different table.
 
 See [Retry Deduplication](#retry-deduplication) for KQL details.
 
@@ -689,8 +695,15 @@ AppExceptions
 | order by UniqueErrors desc
 ```
 
+**Two-stage pattern (FunctionAppLogs with deduplication):** same shape, different key.
+`FunctionAppLogs` has no `OperationId`, so the first stage groups by
+`FunctionInvocationId, FunctionName` and the second by `FunctionName`.
+
 **Result interpretation:**
-- `UniqueErrors`: Number of distinct failures (deduplicated by OperationId)
+- `UniqueErrors`: Number of distinct failures, deduplicated by `OperationId` - or by
+  `FunctionInvocationId` on `FunctionAppLogs`, which collapses the several log lines one
+  invocation emits. That is narrower: a retry in Azure Functions is a new invocation with a
+  new id, so a retried failure counts once per attempt there, not once overall.
 - `TotalRetries`: Total log entries across all retries
 - A message that retried 10 times shows as 1 row with `UniqueErrors: 1`, `TotalRetries: 10`
 
@@ -796,11 +809,21 @@ FunctionAppLogs | getschema
 TimeGenerated: datetime
 FunctionName: string
 Message: string
-SeverityLevel: int      // 0=Verbose, 1=Info, 2=Warning, 3=Error, 4=Critical
+Level: string           // Trace, Debug, Information, Warning, Error, Critical
+LevelId: int            // 0=Trace, 1=Debug, 2=Information, 3=Warning, 4=Error, 5=Critical
 ExceptionDetails: string
+ExceptionType: string
 HostInstanceId: string
-InvocationId: string
+FunctionInvocationId: string
 ```
+
+⚠️ `FunctionAppLogs` is **not** an Application Insights table and does not share their
+columns. It has no `SeverityLevel` (use `LevelId`), no `OperationId` (use
+`FunctionInvocationId`), and no `AppRoleName` (use `AppName`). The query API resolves
+column names before it reads a row, so a query naming an Application Insights column here
+fails with `Bad request: The request had some invalid properties` on every workspace
+regardless of what the table holds. Documented columns:
+https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/functionapplogs
 
 </log-tables>
 

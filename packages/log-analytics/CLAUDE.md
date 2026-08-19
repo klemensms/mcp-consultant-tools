@@ -33,7 +33,7 @@ LOGANALYTICS_API_KEY=your-api-key
 ### Investigation Tools (Start Here)
 - `la-investigate-app` - Combined investigation: exceptions + traces + recent errors (deduplicated)
 - `la-investigate-sync` - **sync-function-app-specific**: Auto-derives sync app from workspace ID, categorizes errors
-- `la-get-error-summary` - Aggregated error summary by type (deduplicated by OperationId)
+- `la-get-error-summary` - Aggregated error summary by type (deduplicated by `OperationId`, or by `FunctionInvocationId` on `FunctionAppLogs`)
 
 ### Query Tools
 - `la-execute-query` - Run custom KQL queries with column filtering
@@ -70,6 +70,11 @@ Investigation tools group by `OperationId` to deduplicate retry attempts:
 - Shows `UniqueErrors` count and `TotalRetries`
 - Single error that retried 10 times shows as 1 row, not 10
 - Enabled by default, disable with `deduplicateRetries: false`
+
+On `FunctionAppLogs` the key is `FunctionInvocationId`, because the table has no
+`OperationId`. That is a narrower guarantee: it collapses the several log lines one
+invocation emits, where a retry in Azure Functions is a new invocation with a new id. The
+output names whichever key was used rather than claiming `OperationId` everywhere.
 
 ### Output Formats
 All tools support the `outputFormat` parameter (`--format` on the CLI):
@@ -133,6 +138,8 @@ execute-query(
 **`la-get-metadata` is a schema catalogue, not an inventory.** It returned 679-691 tables for every workspace measured, near-identically, including for a workspace that had ingested nothing in seven days. Any rule of the form "this workspace has no X table" keyed on it can never fire, and any per-workspace table census credits every empty workspace with a full telemetry stack. The payload now declares itself via `scope.kind: 'schema-catalogue'`. Use `la-list-workspace-tables` (CLI: `workspace tables`) for what a workspace actually holds; it is backed by `Usage | summarize by DataType` and therefore covers ingestion-metered data types only, which its `summary.caveat` says on every call.
 
 **`FunctionAppLogs.FunctionName` is not one name per function.** The same Azure Function reaches that column as the bare name, as a `Functions.`-prefixed variant written by the functions runtime, and as blank on host-level rows. Any `summarize ... by FunctionName` therefore groups by *name*, not by *function*: `la-get-fn-stats` returned 61 rows for 27 functions and inflated total executions from 43,445 to 131,977, roughly threefold, and nothing in the output said so. `collapseFunctionStats` in `src/utils/function-stats.ts` does the reduction and reports it in a `normalization` block. **Any new query that groups by `FunctionName` must run through it**, or normalise the column itself - a threefold inflation of an execution count is not obviously wrong on sight, so it does not get cross-checked.
+
+**`FunctionAppLogs` does not share the Application Insights columns.** It has no `OperationId` (use `FunctionInvocationId`), no `SeverityLevel` (use `LevelId`, or `Level` for the string) and no `AppRoleName` (use `AppName`). The query API resolves column names before it reads a row, so a query naming an Application Insights column on this table fails with `Bad request: The request had some invalid properties` on **every** workspace regardless of what the table holds - which reads as a broken command rather than as a wrong column. `error-summary` shipped that way: it grouped `FunctionAppLogs` by `InvocationId`, a column no table in the workspace carries. The four query shapes now live once, in `src/utils/error-summary-query.ts`, and `src/utils/__tests__/error-summary-query.test.ts` checks every column each shape reads against the documented schema of the table it reads it from. **Add a table to that builder rather than to a call site**, and add its documented columns to the test fixture.
 
 **A markdown rendering drops everything but the tables.** `formatTableAsMarkdown` keeps the rows and nothing else, so a `normalization` note, a `timespanWarning` or any other declaration has to be appended to the string by hand. `la-get-fn-stats`, the `fn stats` CLI command and the three prompt templates all do this. A new markdown surface that forgets to is silently back to presenting a reshaped table as the raw one.
 
