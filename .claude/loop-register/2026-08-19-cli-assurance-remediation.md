@@ -376,3 +376,24 @@ anything matching the trigger checklist.
   (`arm() { npx -y --package=... "$@"; }`). That is Klemens's to do or to delegate; no hop of
   this chain can reach those files. The moved plan section now says so, so a later hop does
   not spend a session rediscovering it.
+
+### ⚑26 · T12's api-version bump may resolve part of T11 and T13, so their order matters
+- **Kind:** assumption
+- **Hop:** L3 · queue triage
+- **State:** open
+- **Matters because:** T11, T12 and T13 are all `azure-defender` and the plan orders them by
+  the source report's priority, not by dependency. T12 is "raise the api-version", and the
+  plan's own measurement says both things it would unlock arrived **with** api-version
+  2025-05-04: `Critical` severity, and the `properties.risk` object. T11 is "`attack-path`
+  drops `riskLevel`, `riskFactors`, `entryPoint`, `target`, `attackPathSteps`,
+  `mITRETacticsAndTechniques`, `attackStory`, `isPartialAttackPath`" - which is the same risk
+  payload, and Resource Graph returning them while the CLI does not is equally explained by
+  the CLI asking an older api-version. T13's `implementationEffort` / `userImpact` being null
+  on all 1,302 definitions may be the same story. So a hop that takes T11 or T13 first could
+  write mapping code for fields that the T12 one-line bump would deliver for free, or "fix" a
+  null by hard-coding around a version that never carried the field. **Recommended order:
+  T12 before T11 and T13**, and whichever hop takes T12 should re-read T11's and T13's
+  measured evidence afterwards and say plainly whether either is now moot. Cannot be settled
+  here: no Azure credentials on this machine, so nobody can see what the newer api-version
+  actually returns. Same blocker as ⚑1, ⚑7, ⚑8, ⚑9. T10 is unaffected - it is about scope
+  filtering, not payload version - which is why it stays next.
