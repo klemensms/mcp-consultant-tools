@@ -112,33 +112,66 @@ A fix that only proves the happy path does not close its task.
       take out exactly what the second source recovers. The Resource Graph POST moved to
       `utils/resource-graph.ts`, shared with attack paths, and follows `$skipToken` up to 20
       pages. Unit-verified only. See register items 27 to 30.
+- [x] **T11 · D15 — `attack-path` drops the entire risk payload**. Cause: `mapAttackPathRow`
+      mapped a fixed allowlist of `properties` keys taken from Microsoft's published
+      attack-path field table, and discarded every key off it. Live rows on a tenant whose
+      attack paths come from Microsoft Security Exposure Management carry a different,
+      **undocumented** set - `riskLevel`, `riskFactors`, `entryPoint`, `target`,
+      `attackPathSteps`, `mITRETacticsAndTechniques`, `attackStory`, `isPartialAttackPath` -
+      so the mapper was faithful to the documentation and wrong about the API. Microsoft's
+      field table still describes only the legacy shape, checked 2026-08-19. Both name sets
+      are now mapped, because a row carries one shape or the other and nothing in it says
+      which, and `unmappedProperties` carries whatever neither set names so the next rename
+      arrives visibly rather than vanishing. Three consequences of the same cause went with
+      it: the `riskCategory` filter emitted a clause on `riskCategories` alone, which matches
+      nothing on a live row, so a filtered list came back **empty and read as "no paths in
+      that category"** - each risk filter now emits an `or` across both spellings and
+      `riskLevel` is filterable in its own right; the summary counted every live path as
+      `byPotentialImpact: { Unknown: N }` and is now `byRiskLevel` / `byRiskFactor` keyed on
+      the effective value of either shape; and a path reporting no risk level under either
+      name is counted in `summary.riskLevelNotReported`, bucketed `NotReported` rather than
+      `Unknown`, noted in `summary.note`, and printed by the CLI as "not reported by the
+      API". **Renaming the two summary keys is a breaking payload change** - on a live-shape
+      tenant they only ever held `{ Unknown: N }` and `{}`. The package `CLAUDE.md`, the
+      technical doc, both tool descriptions and the attack-path **prompt template** all
+      asserted an attack path has no `riskLevel`; that claim entered at the package's first
+      commit, seeded the defect, and is corrected in all four. Unit-verified only. See
+      register items 31 to 34.
 
 ## Queue
 
 Ordered by the source report's own priority. One task per heading; a hop may take
 more than one when its context measurement allows.
 
-### T11 · D15 — `attack-path` drops the entire risk payload
-- **Package:** `azure-defender`
-- **Severity:** Major.
-- **Measured:** the CLI payload carries only `assessments`, `attackPathType`, `description`,
-  `displayName`, `graphComponent`, `manualRemediationSteps`, `refreshInterval`. The same
-  path from Resource Graph also carries `riskLevel`, `riskFactors`, `entryPoint`, `target`,
-  `attackPathSteps`, `mITRETacticsAndTechniques`, `attackStory`, `isPartialAttackPath`.
-- **Effect measured:** a path printed as `Potential impact: Unknown, Risk categories: none`
-  was in fact `riskLevel: High` with risk factors Internet exposure and Weak authorization,
-  and a named entry point and target.
-- **Fix:** map `riskLevel` / `riskFactors` through, or pass the raw payload.
-
-### T12 · D17 — api-version predates two features the payload is expected to carry
+### T12 · D17 — find out why `Critical` severity and `properties.risk` are absent
 - **Package:** `azure-defender`
 - **Severity:** Major.
 - **Measured:** no assessment carries `Critical` severity (catalogue is High 410, Medium
   606, Low 286), and none of 4,886 unhealthy assessments carries a `properties.risk`
   object. Both arrived with api-version **2025-05-04**.
 - **Effect:** a "Critical" row always reads 0, indistinguishable from "checked and none
-  found", when the tier was never available.
-- **Fix:** raise the api-version.
+  found", when the tier may never have been available.
+- **⚠️ Re-scoped at hop L5. The original fix - "raise the api-version" - is a no-op.**
+  `DEFENDER_API_VERSIONS.assessments` and `.assessmentMetadata` have been `2025-05-04`
+  since the package's first commit, the only commit that file has ever had, so every
+  published build already asks for it. The task is now to find out **why** the fields are
+  absent, and the candidates have changed since the register first listed them:
+  - **Most likely, and new at L5: the same defect class as T11.** T11 proved that this
+    package's Resource Graph mappers were built from Microsoft's documentation rather than
+    from a live row, and that the documentation was behind the API. `mapAssessmentGraphRow`
+    names a fixed allowlist too (`displayName`, `status`, `resourceDetails`, `risk`,
+    `additionalData`, `metadata`, `links`). If a live row carries the risk data under any
+    other key, it is discarded exactly as the attack-path payload was, and "no assessment
+    carries a `properties.risk` object" would be a mapper artefact rather than an API fact.
+    **Check this before anything else** - it is testable by adding a passthrough for
+    unmapped keys, the way T11 did, and reading what arrives.
+  - The payload may need an `$expand` the code does not send.
+  - The estate may genuinely hold neither. Weakened at L5: the same report measured live
+    attack paths carrying `riskLevel: High`, which means Defender CSPM was producing risk
+    data somewhere on that estate, so "CSPM is off everywhere" no longer explains it on its
+    own. Inferred across two measurements that may not be the same subscription - see
+    register item 33.
+  - Cannot be settled from this machine either way: no Azure credentials.
 
 ### T13 · D16 — `assessment list-assessment-metadata` returns null for the ranking fields
 - **Package:** `azure-defender`
@@ -146,6 +179,17 @@ more than one when its context measurement allows.
 - **Measured:** `implementationEffort` and `userImpact` are `null` on **all 1,302**
   assessment definitions, so any effort/impact ranking is uncomputable and a "top
   remediation opportunities" section renders empty.
+- **Narrowed at hop L5, without credentials: this is not a mapper drop.**
+  `listAssessmentMetadata` performs **no mapping at all** - it returns
+  `client.paginate<AssessmentMetadata>` items straight through, and a TypeScript cast
+  discards nothing at runtime. So unlike T11, no allowlist in this repo can be removing
+  the two fields; whatever ARM returned is what the caller saw. That rules out the cheap
+  fix and leaves the cause in the request or in the API. Untested lead for whoever takes
+  it: the call is subscription-scoped
+  (`/subscriptions/{sub}/providers/Microsoft.Security/assessmentMetadata`), and the
+  built-in definition catalogue that the portal ranks by effort and impact may only carry
+  those fields at tenant/default scope. Verify against a live response before writing
+  code. See register item 34.
 
 ### T14 · D10, D11 — App Service and Front Door payload gaps
 - **Package:** `azure-management`

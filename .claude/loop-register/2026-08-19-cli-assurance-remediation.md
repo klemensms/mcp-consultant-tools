@@ -380,7 +380,10 @@ anything matching the trigger checklist.
 ### ⚑26 · T12's api-version bump may resolve part of T11 and T13, so their order matters
 - **Kind:** assumption
 - **Hop:** L3 · queue triage
-- **State:** open
+- **State:** closed-by-L5 — the ordering dependency is void (the api-version was never
+  stale, see the L4 update) and T11 landed without needing T12. T12 is re-scoped in the plan
+  file from "raise the api-version" to "find out why the fields are absent", with the
+  candidate causes ranked; the open question moved to ⚑33 and ⚑34.
 - **Matters because:** T11, T12 and T13 are all `azure-defender` and the plan orders them by
   the source report's priority, not by dependency. T12 is "raise the api-version", and the
   plan's own measurement says both things it would unlock arrived **with** api-version
@@ -489,3 +492,118 @@ anything matching the trigger checklist.
   found disabled on most of the estate). Whoever takes T11 or T13 should read this first and
   re-scope T12 to "find out why the fields are absent" rather than "bump the version". No
   Azure credentials on this machine, so which candidate it is cannot be settled from here.
+
+### ⚑31 · The Exposure Management attack-path field *types* are guessed, only their names are measured
+- **Kind:** assumption
+- **Hop:** L5 · T11
+- **State:** open
+- **Matters because:** the plan measured the field **names** on a live row and the value of
+  two of them (`riskLevel: High`; risk factors Internet exposure and Weak authorization).
+  Everything else about the shape is inferred. `riskFactors` is typed `unknown[]` and
+  `entryPoint` / `target` / `attackPathSteps` / `mITRETacticsAndTechniques` as `unknown`,
+  precisely so a wrong guess cannot be a type error, and `labelOf()` turns a value into a
+  display label by trying `name`, `displayName`, `riskFactorName`, `type`, `id` in that
+  order before falling back to `JSON.stringify`. **That order is a guess.** If a live entity
+  object carries a human name under some other key, `labelOf` returns the serialized object
+  instead - visibly odd in the CLI summary, and a distinct bucket key in
+  `summary.byRiskFactor`, so a wrong label inflates the number of distinct factors rather
+  than collapsing them. That is the safe direction and it is why the fallback serializes
+  rather than returning `undefined`, but a breakdown keyed on JSON blobs is not usable and
+  nobody has seen one. One live `defender-get-attack-path` settles it: read `entryPoint`,
+  `target` and the first element of `riskFactors` and check `labelOf` picked the readable
+  field. No Azure credentials on this machine. Same blocker as ⚑1, ⚑7, ⚑8, ⚑9, ⚑26, ⚑27, ⚑29.
+
+### ⚑32 · T11 renamed two summary keys, which is a breaking payload change
+- **Kind:** klemens-call
+- **Hop:** L5 · T11
+- **State:** open
+- **Matters because:** `defender-list-attack-paths` returned
+  `summary.byPotentialImpact` and `summary.byRiskCategory`; it now returns
+  `summary.byRiskLevel`, `summary.byRiskFactor`, `summary.riskLevelNotReported` and an
+  optional `summary.note`. Any consumer keying on the old names breaks. The judgement taken
+  was that leaving a key named `byPotentialImpact` while feeding it `riskLevel` values is
+  the T8 defect pattern - a name asserting something the value is not - and that on a
+  live-shape tenant the old keys only ever held `{ Unknown: N }` and `{}`, so what breaks was
+  already worthless there. On a legacy-shape tenant the old keys **did** hold real values, so
+  a consumer there loses a working field to a rename. **This needs the breaking-change block
+  in the release notes** (warning plus copy-paste agent block), which is Klemens's call to
+  make when he cuts the beta, not the loop's. Same class as ⚑10, ⚑12, ⚑20, ⚑28.
+
+### ⚑33 · T12's "the estate simply had CSPM off" explanation is weakened by an inference across two measurements
+- **Kind:** assumption
+- **Hop:** L5 · T11
+- **State:** open
+- **Matters because:** the ⚑26 update left T12 with two candidate explanations for zero
+  `Critical` severities and zero `properties.risk` objects, one being that the estate
+  genuinely held neither, since a risk object requires Defender CSPM and the same report
+  found CSPM disabled on most of the estate. T11's own measurement cuts against that: the
+  attack path the report measured carried `riskLevel: High` **and existed at all**, and
+  attack paths are a CSPM-only artefact. So CSPM was producing risk data somewhere on that
+  estate. **This is an inference, and a weak one:** the report covered 16 subscriptions, the
+  attack path and the 4,886 assessments need not be from the same one, and "CSPM on for one
+  subscription" does not imply "risk objects on assessments in another". It is recorded so
+  whoever takes T12 does not treat "CSPM was off" as settled, and knows to check which
+  subscription each measurement came from - which requires the source report, held outside
+  this repo, plus credentials this machine does not have.
+
+### ⚑34 · T13 is not a mapper drop, and the assessment mapper may still carry T11's defect class
+- **Kind:** deferred
+- **Hop:** L5 · T11
+- **State:** open
+- **Matters because:** two separate things, both measured this hop while reading the
+  assessment service for T11's sake, and both worth a hop's first ten minutes:
+  1. **T13 cannot be fixed by changing a mapper, because there is no mapper.**
+     `listAssessmentMetadata` returns `client.paginate<AssessmentMetadata>` items straight
+     through; the type parameter is a cast and discards nothing at runtime. Whatever ARM
+     returned is what the caller saw, so `implementationEffort` / `userImpact` being null on
+     all 1,302 definitions is a fact about the request or the API. Untested lead, recorded in
+     the plan: the call is subscription-scoped, and the definition catalogue the portal ranks
+     by effort and impact may only carry those fields at tenant/default scope.
+  2. **`mapAssessmentGraphRow` still names a fixed allowlist** (`displayName`, `status`,
+     `resourceDetails`, `risk`, `additionalData`, `metadata`, `links`) and was written from
+     Microsoft's documentation, exactly as `mapAttackPathRow` was. T11 proved that
+     documentation is behind the live API on this surface. If a live Resource Graph
+     assessment row carries risk data under any key that allowlist does not name, it is
+     discarded, and T12's "no assessment carries a `properties.risk` object" would be an
+     artefact of this repo rather than a fact about Azure. **Cheap to close:** give the
+     assessment mapper the same `unmappedProperties` passthrough T11 gave attack paths, then
+     one live call shows what is actually arriving. Deliberately not done this hop - T11's
+     scope was attack paths, and widening a fix into a second service on a hunch is how a
+     hop stops being reviewable. This is the sweep ⚑29 anticipated, now with a confirmed
+     instance behind it.
+
+### ⚑35 · The CLI half of the T11 fix is unit-untested, because this package has no CLI tests
+- **Kind:** gotcha
+- **Hop:** L5 · T11
+- **State:** open
+- **Matters because:** the user-visible half of the fix is a CLI summary block - "Risk level:
+  not reported by the API" instead of "Unknown", the entry point and target labels, the
+  `isPartialAttackPath` warning, the `unmappedProperties` key list, and the printed
+  `summary.note`. **Nothing asserts any of it.** `packages/azure-defender` has seven test
+  files and none covers `src/cli/`, so the convention this hop followed is "no CLI tests
+  here", and adding the first one is a package-shaped decision rather than a hop's. What was
+  verified instead, without credentials: the package builds, the built MCP server lists
+  `defender-list-attack-paths` with the new `riskLevel` parameter and no longer carries the
+  wrong claim in either description, `--help` shows `-l, --risk-level`, and a run with fake
+  credentials fails loudly and exits 1 rather than returning an empty list. What is **not**
+  verified is that any of those strings render correctly against a real payload, including
+  the "not reported by the API" line, which is the one the whole absent-versus-none decision
+  rests on. Same class as ⚑15 if that is the CLI-coverage item; if not, this is the first.
+
+### ⚑29 update (L5) · The class ⚑29 warned about is now confirmed, on attack paths rather than assessments
+- Recorded here rather than by editing ⚑29, per the append-only rule.
+- ⚑29 registered that `mapAssessmentGraphRow` reads a row shape taken from documentation and
+  community usage, not from a row anyone has seen, and that a differently-named key would
+  arrive as a silent mapping miss rather than an error. **T11 is that exact failure, found in
+  the sibling mapper.** `mapAttackPathRow` was built from Microsoft's published attack-path
+  field table, the live rows carry a different set of names, and every field off the
+  documented list was discarded - so a `riskLevel: High` path reported no risk at all, on
+  every path of a real estate. The documentation is not merely incomplete: it was checked on
+  2026-08-19 and still describes only the legacy shape.
+- **What that changes:** ⚑29 was a theoretical risk and is now a demonstrated one on the same
+  API, in the same package, from the same cause. It should be read as a defect to go and
+  find rather than an assumption to note, and ⚑34 names the cheap way to test it. It also
+  generalises: any mapper in this repo whose field list came from a vendor doc rather than
+  from a captured response can be silently dropping payload. Whoever runs the closing hop
+  should decide whether that belongs in `docs/KNOWN_ISSUES.md` as a class, not just as
+  instances.
