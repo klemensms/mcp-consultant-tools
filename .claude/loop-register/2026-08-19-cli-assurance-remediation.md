@@ -397,3 +397,95 @@ anything matching the trigger checklist.
   here: no Azure credentials on this machine, so nobody can see what the newer api-version
   actually returns. Same blocker as ⚑1, ⚑7, ⚑8, ⚑9. T10 is unaffected - it is about scope
   filtering, not payload version - which is why it stays next.
+
+### ⚑27 · T10's mechanism is inferred from the measurement, not confirmed against live Azure
+- **Kind:** assumption
+- **Hop:** L4 · T10
+- **State:** open
+- **Matters because:** the plan states the *measurement* (39 of 39 assessments present in
+  Resource Graph but absent from CLI output were scoped to an identity object or to the
+  subscription) but not the *mechanism*, and this repo's code contains no scope filter to
+  relax - the CLI made one call, `GET /subscriptions/{sub}/providers/Microsoft.Security/
+  assessments`, and returned what came back. The reading taken is that the ARM list
+  enumerates assessments on resources **inside** the subscription, so an assessment whose
+  subject is an AAD identity (not an ARM resource) or the subscription itself (not a
+  resource in it) is never in the response. That reading fits the measurement exactly and
+  is why the fix adds a second source rather than changing a filter. It is not confirmed:
+  nobody has seen the two responses side by side from this code. If the real cause were
+  something else - a paging bug in the ARM response, a permissions difference - the union
+  still recovers the rows, because Resource Graph has them either way, so the fix is
+  correct under both readings and the open question is only *why*. One live run settles
+  it: compare `summary.sources.arm.returned` against
+  `summary.sources.resourceGraph.returned` and read `resourceGraph.unique` on a
+  subscription with a paid Defender plan. No Azure credentials on this machine. Same
+  blocker as ⚑1, ⚑7, ⚑8, ⚑9, ⚑26.
+
+### ⚑28 · `defender-list-assessments` now costs a full scan of two sources on every call
+- **Kind:** klemens-call
+- **Hop:** L4 · T10
+- **State:** open
+- **Matters because:** `maxResults` used to be handed to the ARM list, so a small limit was
+  a cheap call. It no longer is: the cut would fall on ARM's rows and take out exactly the
+  identity- and subscription-scoped assessments the second source recovers, so both
+  sources are scanned in full and the trim happens after the union. Every call now also
+  makes at least one Resource Graph POST it did not make before. On a subscription holding
+  thousands of assessments an unfiltered `--max-results 10` goes from one page to the whole
+  set plus a Resource Graph scan. That is the price of the fix being correct rather than
+  fast, and the same trade the existing `statusFilter` branch already made, but it is a
+  performance change to a command an assurance run invokes per subscription. Belongs in the
+  release notes as a behaviour change. Same class as ⚑10, ⚑12 and ⚑20.
+
+### ⚑29 · The Resource Graph row shape is mapped from documentation and community usage, not from a row anyone has seen
+- **Kind:** assumption
+- **Hop:** L4 · T10
+- **State:** open
+- **Matters because:** `mapAssessmentGraphRow` reads `properties.resourceDetails.Id` and
+  `.Source` (the PascalCase keys the published `securityresources` queries use) while
+  falling back to the lowercase ARM spelling, and reads `properties.status.code` for the
+  health status. If Resource Graph names any of those differently in practice, the
+  recovered rows arrive with `resourceDetails.id` undefined - which reads as "assessment
+  with no resource" rather than as a mapping miss - or, for `status.code`, drop out of a
+  filtered list entirely. The status comparison is case-insensitive precisely because a
+  casing difference between two APIs would otherwise delete rows silently, but a *different
+  key* is not defended against. Also unverified: that Resource Graph's assessment `id` and
+  ARM's differ only by case, which is what the union's lower-cased key assumes. If they
+  differ by more - a doubled provider segment, say - the union would double-count instead of
+  deduplicating, and `summary.total` would be too high rather than too low. One live run
+  settles all of it: read `summary.sources.resourceGraph.unique` against the portal's
+  recommendation count, and check a recovered row carries a `resourceDetails.id`. No Azure
+  credentials on this machine.
+
+### ⚑30 · Resource Graph paging is capped at 20 pages, and the cap is not reachable in any test
+- **Kind:** decision
+- **Hop:** L4 · T10
+- **State:** open
+- **Matters because:** `queryResourceGraph` follows `$skipToken` up to `MAX_RESOURCE_GRAPH_PAGES`
+  (20), which is 20,000 assessment rows, then stops and sets `truncated`. The ceiling exists
+  so a malformed token loop cannot run forever, and hitting it is declared rather than
+  silent - the truncation contract holds. But 20,000 is a guess at "more than any real
+  subscription", not a measured bound: the estate that produced this defect held 4,886
+  unhealthy assessments across 16 subscriptions, so the cap is roughly 60x the largest
+  single-subscription figure anyone has seen, and no test exercises a real overrun because
+  the test drives it with a stub. If a subscription ever does exceed it, the result is a
+  lower bound that says so, which is the safe direction. Worth revisiting only if a live run
+  ever reports `truncated: true` with no `maxResults` set.
+
+### ⚑26 update (L4) · T12's premise does not hold in this repo: the assessments api-version was never stale
+- Recorded here rather than by editing ⚑26, per the append-only rule.
+- ⚑26 recommended taking T12 ("raise the api-version") before T11 and T13, on the reading
+  that both the `Critical` severity tier and the `properties.risk` object arrived with
+  api-version 2025-05-04 and the CLI was asking for an older one. **The CLI is already on
+  2025-05-04.** `DEFENDER_API_VERSIONS.assessments` and `.assessmentMetadata` have been
+  `2025-05-04` since the package's first commit (`1ea2564`, 2026-07-10), which is the only
+  commit that file has ever had, so every published build carries it. Measured this hop
+  while reading the same file for T10.
+- **What that means for the queue:** T12 as written is a no-op, and the ordering dependency
+  ⚑26 raised is void - T11 and T13 can be taken in any order. It does **not** mean the
+  measurement behind T12 was wrong: the source report still measured zero `Critical`
+  assessments and zero `properties.risk` objects, and that now needs a different explanation
+  from the one the plan assumed. Two candidates, neither settled here: the payload may need
+  an `$expand` the code does not send, or the tenant may genuinely hold no Critical-severity
+  findings and no risk objects (the latter requires Defender CSPM, which the same report
+  found disabled on most of the estate). Whoever takes T11 or T13 should read this first and
+  re-scope T12 to "find out why the fields are absent" rather than "bump the version". No
+  Azure credentials on this machine, so which candidate it is cannot be settled from here.

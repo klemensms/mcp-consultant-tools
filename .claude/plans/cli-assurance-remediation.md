@@ -96,26 +96,27 @@ A fix that only proves the happy path does not close its task.
       an External assembly as None. An unrecognised isolation mode now reports
       `Unknown (<value>)` instead of falling through to `External`. Unit-verified only.
       See register items 22 to 24.
+- [x] **T10 · D14 — assessment list omits identity- and subscription-scoped assessments**.
+      The cause is not a filter in this repo's code: the ARM list at subscription scope
+      enumerates assessments on resources **inside** the subscription, and neither an
+      identity object nor the subscription itself is one, so those rows were never in the
+      response. `listAssessments` now reads Resource Graph's `securityresources` as a second
+      source and unions the two on the **lower-cased** assessment id (Resource Graph
+      lower-cases every id it returns; ARM does not). A union rather than a replacement,
+      because Resource Graph returns nothing on a subscription with no paid Defender plan
+      where ARM still returns data - the plan's reverse blind spot. `summary.sources`
+      measures each source's blind spot on every call, and the Resource Graph read goes
+      through `FanOutRecorder`, so a refusal names itself in `summary.note` and
+      `fanOut.failures` and exits 1 instead of quietly returning the ARM-only set.
+      `maxResults` is no longer handed to the ARM list: the cut would fall on ARM's rows and
+      take out exactly what the second source recovers. The Resource Graph POST moved to
+      `utils/resource-graph.ts`, shared with attack paths, and follows `$skipToken` up to 20
+      pages. Unit-verified only. See register items 27 to 30.
 
 ## Queue
 
 Ordered by the source report's own priority. One task per heading; a hop may take
 more than one when its context measurement allows.
-
-### T10 · D14 — Defender assessment list omits identity- and subscription-scoped assessments
-- **Package:** `azure-defender`
-- **Severity:** Major.
-- **Measured:** diffed set-against-set across 16 subscriptions, **39 unhealthy assessments
-  present in Resource Graph are absent from CLI output, and 39 of 39 are scoped to an
-  identity object ID or to the subscription itself** rather than to a resource group. On
-  one subscription the CLI returned 6 of the 16 unhealthy assessments that exist.
-- **What is lost:** the highest-value RBAC content a Defender report produces — disabled
-  accounts with read/write permissions, overprovisioned identities, permissions of
-  inactive identities, guest accounts with write permissions, disabled accounts with
-  owner permissions.
-- **Reverse blind spot:** Resource Graph returns nothing for subscriptions with no paid
-  Defender plan, where the CLI does return data. Neither source is complete alone.
-- **Fix:** include non-resource-group-scoped assessments.
 
 ### T11 · D15 — `attack-path` drops the entire risk payload
 - **Package:** `azure-defender`
