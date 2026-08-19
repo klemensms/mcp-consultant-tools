@@ -6,10 +6,14 @@ import type { SecureScoreService } from './services/secure-score-service.js';
 import type { AssessmentService } from './services/assessment-service.js';
 import type { ComplianceService } from './services/compliance-service.js';
 import type { AttackPathService } from './services/attack-path-service.js';
+import type { AlertService } from './services/alert-service.js';
+import type { PricingService } from './services/pricing-service.js';
 
 export interface ServiceContext {
   readonly secureScore: SecureScoreService;
   readonly assessment: AssessmentService;
   readonly compliance: ComplianceService;
   readonly attackPath: AttackPathService;
+  readonly alert: AlertService;
+  readonly pricing: PricingService;
 }

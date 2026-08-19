@@ -11,6 +11,8 @@ import { SecureScoreService } from './services/secure-score-service.js';
 import { AssessmentService } from './services/assessment-service.js';
 import { ComplianceService } from './services/compliance-service.js';
 import { AttackPathService } from './services/attack-path-service.js';
+import { AlertService } from './services/alert-service.js';
+import { PricingService } from './services/pricing-service.js';
 import type { ServiceContext } from './types.js';
 
 export function createServiceContext(): ServiceContext {
@@ -19,6 +21,8 @@ export function createServiceContext(): ServiceContext {
   let assessment: AssessmentService | null = null;
   let compliance: ComplianceService | null = null;
   let attackPath: AttackPathService | null = null;
+  let alert: AlertService | null = null;
+  let pricing: PricingService | null = null;
 
   function getClient(): DefenderClient {
     if (!client) {
@@ -65,6 +69,12 @@ export function createServiceContext(): ServiceContext {
     },
     get attackPath() {
       return (attackPath ??= new AttackPathService(getClient()));
+    },
+    get alert() {
+      return (alert ??= new AlertService(getClient()));
+    },
+    get pricing() {
+      return (pricing ??= new PricingService(getClient()));
     },
   };
 }

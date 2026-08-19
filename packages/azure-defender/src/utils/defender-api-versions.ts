@@ -28,6 +28,16 @@ export const DEFENDER_API_VERSIONS = {
    */
   regulatoryCompliance: '2019-01-01-preview',
 
+  /**
+   * Newest stable this surface has: `alerts.json` stops at `2022-01-01` in
+   * `Azure/azure-rest-api-specs` and the TypeSpec-migrated `AlertsAPI/` folder still
+   * emits the same version. Not a stale pin - there is nothing newer to move to.
+   */
+  alerts: '2022-01-01',
+
+  /** Newest stable for `pricings.json`. `2025-10-01-preview` exists; preview is not pinned. */
+  pricings: '2024-01-01',
+
   /** Resource Graph query POST. Current GA; `2021-03-01` differs only by an additive option field. */
   resourceGraph: '2024-04-01',
 } as const;

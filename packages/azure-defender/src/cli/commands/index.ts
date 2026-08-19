@@ -8,15 +8,21 @@ import { registerSecureScoreCommands } from './secure-score-commands.js';
 import { registerAssessmentCommands } from './assessment-commands.js';
 import { registerComplianceCommands } from './compliance-commands.js';
 import { registerAttackPathCommands } from './attack-path-commands.js';
+import { registerAlertCommands } from './alert-commands.js';
+import { registerPricingCommands } from './pricing-commands.js';
 
 export function registerAllCommands(program: Command, ctx: ServiceContext): void {
   registerSecureScoreCommands(program, ctx);
   registerAssessmentCommands(program, ctx);
   registerComplianceCommands(program, ctx);
   registerAttackPathCommands(program, ctx);
+  registerAlertCommands(program, ctx);
+  registerPricingCommands(program, ctx);
 }
 
 export { registerSecureScoreCommands } from './secure-score-commands.js';
 export { registerAssessmentCommands } from './assessment-commands.js';
 export { registerComplianceCommands } from './compliance-commands.js';
 export { registerAttackPathCommands } from './attack-path-commands.js';
+export { registerAlertCommands } from './alert-commands.js';
+export { registerPricingCommands } from './pricing-commands.js';

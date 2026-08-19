@@ -50,6 +50,12 @@ Attack paths additionally need the **Defender CSPM plan** enabled (plus agentles
 - `defender-list-attack-paths` — CSPM attack paths via Azure Resource Graph
 - `defender-get-attack-path` — one path in full, with its graph components
 
+### Security alerts
+- `defender-list-alerts` - active threat detections across the subscription, with status/severity breakdowns and the entities carrying more than one
+
+### Defender plans
+- `defender-list-plans` - which Defender plans are Standard vs Free, and whether Defender CSPM is on
+
 ## Things that will bite you
 
 **An attack path arrives in one of TWO shapes, and reading only the documented one hides its entire risk payload.** Microsoft's published field table (`learn.microsoft.com/azure/defender-for-cloud/attack-path-api`, unchanged as of 2026-08-19) lists only the legacy Defender CSPM names: `potentialImpact`, `riskCategories`, `entryPointEntityInternalID`, `targetEntityInternalID`. Live rows on a tenant whose attack paths come from Microsoft Security Exposure Management instead carry `riskLevel`, `riskFactors`, `entryPoint`, `target`, `attackPathSteps`, `mITRETacticsAndTechniques`, `attackStory` and `isPartialAttackPath`. Mapping only the documented set printed a `riskLevel: High` path as impact `Unknown` with no risk categories, on every path of a real estate. **Never key a filter, a count or a display line on one spelling** — use `effectiveRiskLevel` / `effectiveRiskFactors` in `services/attack-path-service.ts`, and note each risk filter emits an `or` across both names. Anything neither shape names lands in `properties.unmappedProperties` rather than being dropped. `riskLevel` and `riskFactors` also exist, separately, on the `risk` object of `Microsoft.Security/assessments@2025-05-04`: same names, different fields. `graphComponent` holds `insights`/`entities`/`connections`, not `nodes`/`edges`.
@@ -69,6 +75,10 @@ Attack paths additionally need the **Defender CSPM plan** enabled (plus agentles
 **`statusFilter` on `defender-list-assessments` makes it slower, not faster,** and `maxResults` no longer makes it cheaper. Neither source filters on status server-side, so both are scanned in full and trimmed afterwards. Handing `maxResults` to the ARM list would decide the answer before the second source was read: the cut falls on ARM's rows, so the identity- and subscription-scoped assessments would be exactly what is lost.
 
 **A Resource Graph refusal does not fail `defender-list-assessments`.** It is recorded through `FanOutRecorder`, so `sources.resourceGraph.available` goes false, `note` says what is missing, `fanOut.failures` carries the error and the CLI exits 1. Attack paths, which have no second source, still fail loudly.
+
+**`defender-list-plans` is how you tell "Defender CSPM disabled" from "no findings".** Attack paths and assessment `risk` objects are CSPM-only artefacts, so with the `CloudPosture` plan on the Free tier an empty result from either is explained by the configuration rather than being evidence of a clean estate. `summary.cspmEnabled` is three-state on purpose - `true`, `false`, or `null` when the plan was absent from the response, which means UNKNOWN and not off. Collapsing that to a boolean turns "we never saw the plan" into "the plan is disabled". Read it before reporting an empty CSPM result.
+
+**`defender-list-alerts` filters client-side, because `Alerts_List` accepts no `$filter` at any api-version.** So `summary.matchedOf` (what ARM returned) and `summary.total` (what matched) are both reported, and `summary.note` names the shortfall - without the pair, a filter that matched nothing is byte-for-byte a subscription with no alerts. `maxResults` bounds the **fetch**, which runs before the filter, so a truncated filtered call may be hiding matches beyond the limit and says so. It uses the subscription-wide `Alerts_List`, not the region-scoped `locations/{location}/alerts`, because the region-scoped one silently omits any region the caller did not name. Also: **alert severity has no `Critical`** - it stops at `High`, unlike assessment severity, and the CLI rejects `--severity Critical` rather than filtering to nothing.
 
 **`averageScorePercentage` from `defender-list-score-controls` is an unweighted mean.** It is not the secure score.
 

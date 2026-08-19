@@ -59,9 +59,9 @@ All four variables are required. Every tool is subscription-scoped, so the serve
 
 | Role | Scope | Purpose |
 |------|-------|---------|
-| `Security Reader` | Subscription | All 12 tools |
+| `Security Reader` | Subscription | All 14 tools |
 
-Attack paths additionally require the **Defender CSPM plan** to be enabled on the subscription (plus agentless VM scanning, or the vulnerability assessment capability on Defender for Servers). Without it, `defender-list-attack-paths` returns an empty list — it does **not** error.
+Attack paths additionally require the **Defender CSPM plan** to be enabled on the subscription (plus agentless VM scanning, or the vulnerability assessment capability on Defender for Servers). Without it, `defender-list-attack-paths` returns an empty list - it does **not** error. `defender-list-plans` reports whether that plan is on.
 
 ## Prompts
 
@@ -73,7 +73,9 @@ Attack paths additionally require the **Defender CSPM plan** to be enabled on th
 
 ## Notable behavior
 
-**An empty attack-path list is not a clean bill of health.** Attack paths only exist when the Defender CSPM plan is enabled. `defender-list-attack-paths` cannot distinguish "CSPM disabled" from "no attack paths", so it returns `[]` in both cases. Confirm the plan is on before reading an empty result as "no risk".
+**An empty attack-path list is not a clean bill of health, and `defender-list-plans` is how you check.** Attack paths and assessment `risk` objects only exist when the Defender CSPM plan is enabled, and `defender-list-attack-paths` returns `[]` whether the plan is off or the estate is clean. Run `defender-list-plans` and read `summary.cspmEnabled`: `true` means an empty result is a finding about the estate, `false` means it is explained by the configuration, and `null` means the plan was absent from the response so the answer is unknown rather than "off". `summary.note` states the reading in a sentence you can quote.
+
+**`defender-list-alerts` filters after fetching, so read both counts.** The ARM operation accepts no server-side filter, so `status` and `severity` are applied to the rows once they arrive: `summary.matchedOf` is what came back and `summary.total` is what matched, with `summary.note` naming the shortfall. Without that pair, a filter that matched nothing looks exactly like a subscription with no alerts. `maxResults` bounds the fetch and therefore runs *before* the filter, so a filtered call with `truncated: true` may be hiding matches beyond the limit - raise it for a filtered total. `summary.topEntities` names any resource carrying more than one alert, which is usually the actual finding: 25 alerts on one domain controller and 25 across 25 machines are the same count and a different incident. Note that alert severity has no `Critical` - it stops at `High`, unlike assessment severity.
 
 **A path with no risk level is unrated, not low risk.** Attack paths arrive in two shapes depending on the tenant, and both are read. When a path's payload names no risk level under either shape it is counted in `summary.riskLevelNotReported`, bucketed as `NotReported`, and `summary.note` says so; the CLI prints "not reported by the API". Report those paths as unrated.
 

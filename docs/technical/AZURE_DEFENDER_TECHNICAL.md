@@ -50,6 +50,8 @@ packages/azure-defender/src/
     assessment-service.ts         # normalizeArmResourceId, summariseAssessments
     compliance-service.ts         # compliancePercentage
     attack-path-service.ts        # buildAttackPathListQuery, mapAttackPathRow
+    alert-service.ts              # filterAlerts, summariseAlerts (client-side filtering)
+    pricing-service.ts            # summarisePricings, cspmVerdict
     __tests__/*.test.ts
   tools/
     tool-helpers.ts               # runTool() response shape, READ_ONLY annotations
@@ -57,11 +59,13 @@ packages/azure-defender/src/
     assessment-tools.ts           # 3 tools
     compliance-tools.ts           # 4 tools
     attack-path-tools.ts          # 2 tools
+    alert-tools.ts                # 1 tool
+    pricing-tools.ts              # 1 tool
   prompts/
     templates.ts                  # 3 prompt templates
   cli/
     output.ts                     # .mcp-defender-cache wrapper
-    commands/                     # score, assessment, compliance, attack-path groups
+    commands/                     # score, assessment, compliance, attack-path, alert, plan groups
   __tests__/defender-client.test.ts
 ```
 
@@ -80,6 +84,8 @@ Verified against Microsoft Learn and `Azure/azure-rest-api-specs` on 2026-07-10.
 | `Microsoft.Security/assessments` | `2025-05-04` | Current GA. `2020-01-01` cannot express `Critical` severity and lacks the `risk` object |
 | `Microsoft.Security/assessmentMetadata` | `2025-05-04` | Current GA, same API area |
 | `Microsoft.Security/regulatoryCompliance*` | `2019-01-01-preview` | **Not stale.** This is the only version that has ever existed for this surface — no GA has shipped in seven years. Do not "upgrade" it |
+| `Microsoft.Security/alerts` | `2022-01-01` | **Not stale.** Newest stable this surface has: `alerts.json` stops there in `Azure/azure-rest-api-specs`, and the TypeSpec-migrated `AlertsAPI/` folder still emits the same version (checked 2026-08-19) |
+| `Microsoft.Security/pricings` | `2024-01-01` | Newest stable. `2025-10-01-preview` exists; preview versions are not pinned here |
 | `Microsoft.ResourceGraph/resources` | `2024-04-01` | Current GA; `2021-03-01` differs only by one additive option field |
 
 A stale api-version does not fail loudly — it either 400s or returns an older schema that silently omits fields. Re-check before a release.
@@ -239,6 +245,50 @@ One attack path in full.
 | `attackPathName` | string | Yes | The row's `name` (not `displayName`); matched case-insensitively |
 
 Returns the path, or `{ attackPath: null, message }` when no path matches.
+</tool>
+
+### Security alerts
+
+<tool name="defender-list-alerts">
+Defender for Cloud security alerts across the whole subscription - the active threat detections, as opposed to the configuration findings `defender-list-assessments` returns.
+
+| Parameter | Type | Required | Notes |
+|-----------|------|----------|-------|
+| `status` | enum | No | `Active` \| `InProgress` \| `Resolved` \| `Dismissed`. Applied **client-side** |
+| `severity` | enum | No | `Informational` \| `Low` \| `Medium` \| `High`. Applied **client-side**. **No `Critical`** - alert severity tops out at High, unlike assessment severity |
+| `maxResults` | integer | No | Default 200. Bounds the **fetch**, so it runs before the filter |
+
+Returns `{ alerts, truncated, summary: { total, matchedOf, byStatus, bySeverity, topEntities, note? } }`.
+
+⚠️ **`Alerts_List` accepts no `$filter` at any api-version**, so both filters run in this package after the rows arrive. `summary.matchedOf` is what ARM returned and `summary.total` is what matched; when they differ `summary.note` says how many were removed. Without that pair a filter that matched nothing and a subscription with no alerts are the same output.
+
+⚠️ **`maxResults` bounds the fetch, not the filtered result.** On a filtered call with `truncated: true`, matching alerts may exist beyond the limit - `summary.note` says so explicitly. Raise `maxResults` for a filtered subscription-wide total.
+
+`summary.topEntities` names every resource carrying more than one alert, busiest first. Clustering is usually the finding: 25 Active alerts on one domain controller and 25 spread over 25 machines are the same count and a different incident.
+
+Uses the subscription-wide `Alerts_List`, not the region-scoped `Microsoft.Security/locations/{location}/alerts`. Both exist; the region-scoped operation needs a location per call and would silently omit any region the caller did not think to name, which is the partial-scope-as-clean-result defect this package removes everywhere else.
+
+`properties` is passed through whole. There is no field allowlist, deliberately: `extendedProperties` is detection-specific and undocumented by design, and it is where the evidence lives.
+</tool>
+
+### Defender plans
+
+<tool name="defender-list-plans">
+Which Defender for Cloud plans are enabled on the subscription (`Microsoft.Security/pricings`). `Standard` is the paid tier; `Free` means the plan is off.
+
+No parameters.
+
+Returns `{ pricings, summary: { total, standard, free, standardPlans, subPlans, cspmEnabled, note } }`.
+
+⚠️ **Read this before concluding anything from an empty Defender result.** Attack paths and assessment `risk` objects are Defender CSPM artefacts, so with the `CloudPosture` plan off, an empty result from either is explained by the configuration and is not evidence of a clean estate. `summary.note` states the reading in words a report can quote.
+
+`summary.cspmEnabled` is deliberately **three-state**: `true`, `false`, or `null` when the `CloudPosture` plan was absent from the response entirely - which means UNKNOWN, not off. Collapsing that to a boolean is how "we never saw the plan" becomes "the plan is disabled".
+
+A `Standard` CloudPosture plan whose `resourcesCoverageStatus` is not `FullyCovered` still reports `cspmEnabled: true`, and `summary.note` names the coverage status, because resources outside the coverage are another way for a CSPM result to be quietly partial.
+
+`summary.standardPlans` names the paid plans and `summary.subPlans` the sub-plan each carries: two `Standard` plans are not necessarily the same plan.
+
+`Pricings_List` returns a plain `{ value: [] }` envelope with **no `nextLink`** - the plan list is bounded by how many plans Microsoft offers, so this is a single `get` rather than a paginated fetch.
 </tool>
 
 </tool-reference>
@@ -402,6 +452,8 @@ Global flags (`--json`, `--no-cache`, `--env-file`) come from `createCliProgram`
 | `assessment` | `list-assessments`, `get-assessment`, `list-assessment-metadata` |
 | `compliance` | `list-compliance-standards`, `list-compliance-controls`, `list-compliance-assessments`, `get-compliance-summary` |
 | `attack-path` | `list-attack-paths`, `get-attack-path` |
+| `alert` | `list-alerts` |
+| `plan` | `list-plans` |
 
 </cli-architecture>
 
@@ -455,7 +507,7 @@ Coverage is targeted at the behaviours that are easy to get wrong:
 ## Known limitations
 
 - **Not exercised against a live Defender subscription.** The T-SQL-equivalent here is the ARM contract: api-versions, paths, and response shapes are verified against Microsoft's published schemas and unit-tested against mocked responses, but no call in this package has been run against a real Defender for Cloud tenant.
-- `defender-list-attack-paths` cannot distinguish "Defender CSPM disabled" from "no attack paths". Both return `[]`.
+- `defender-list-attack-paths` cannot distinguish "Defender CSPM disabled" from "no attack paths". Both return `[]`. **`defender-list-plans` is how you tell them apart** - read `summary.cspmEnabled` before reporting an empty attack-path or assessment-risk result.
 - Attack-path results are capped at one Resource Graph page (`maxResults` ≤ 500). A subscription with more paths needs `$skipToken` paging.
 - `regulatoryCompliance*` depends on a `-preview` api-version indefinitely; Microsoft has never shipped a GA for that surface.
 

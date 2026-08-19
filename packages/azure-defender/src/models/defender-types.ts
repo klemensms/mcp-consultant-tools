@@ -272,3 +272,90 @@ export interface AttackPath {
     unmappedProperties?: Record<string, unknown>;
   };
 }
+
+// ============================================================
+// Security alerts (Microsoft.Security/alerts)
+// ============================================================
+
+export type AlertSeverity = 'Informational' | 'Low' | 'Medium' | 'High';
+export type AlertStatus = 'Active' | 'InProgress' | 'Resolved' | 'Dismissed';
+
+/**
+ * A Defender for Cloud security alert.
+ *
+ * `properties` is deliberately open (`[key: string]: unknown`) rather than a closed set.
+ * Twice in this package a mapper built from Microsoft's published field table dropped
+ * live payload it had not been told to expect - the whole Exposure Management risk block
+ * on attack paths, then whatever the assessment table omitted. Alerts carry a
+ * `extendedProperties` bag whose contents are detection-specific and undocumented by
+ * design, so a closed type here would be the same defect a third time.
+ */
+export interface SecurityAlert {
+  id: string;
+  name: string;
+  type: string;
+  properties: {
+    alertDisplayName?: string;
+    description?: string;
+    severity?: AlertSeverity;
+    status?: AlertStatus;
+    /** Detection logic identifier - the same value for every instance of one detection. */
+    alertType?: string;
+    /** Kill-chain intent, e.g. `LateralMovement`. Microsoft's enum is long and grows. */
+    intent?: string;
+    startTimeUtc?: string;
+    endTimeUtc?: string;
+    timeGeneratedUtc?: string;
+    processingEndTimeUtc?: string;
+    /** Display name of the resource most related to the alert. */
+    compromisedEntity?: string;
+    /** Product that raised it, e.g. Microsoft Defender for Servers or Microsoft Sentinel. */
+    productName?: string;
+    vendorName?: string;
+    /** True when the alert is a compound grouping of several alerts. */
+    isIncident?: boolean;
+    /** Deep link to the alert in the Azure portal. */
+    alertUri?: string;
+    remediationSteps?: string[];
+    resourceIdentifiers?: unknown[];
+    entities?: unknown[];
+    techniques?: string[];
+    subTechniques?: string[];
+    extendedProperties?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+}
+
+// ============================================================
+// Defender plans (Microsoft.Security/pricings)
+// ============================================================
+
+export type PricingTier = 'Free' | 'Standard';
+export type ResourcesCoverageStatus = 'FullyCovered' | 'PartiallyCovered' | 'NotCovered';
+
+/** One Defender plan's configuration on a scope. */
+export interface SecurityPricing {
+  id: string;
+  name: string;
+  type: string;
+  properties: {
+    /** `Standard` is the paid tier; `Free` means the plan is off. */
+    pricingTier?: PricingTier;
+    /** Which sub-plan of a Standard configuration, where a plan offers more than one. */
+    subPlan?: string;
+    /** ISO 8601 duration left on a free trial, when one is running. */
+    freeTrialRemainingTime?: string;
+    /** When `pricingTier` was last set to Standard. */
+    enablementTime?: string;
+    /** Subscription-level only. Whether the resources under the scope are actually covered. */
+    resourcesCoverageStatus?: ResourcesCoverageStatus;
+    /** `"True"` when the configuration comes from a parent scope. Microsoft uses strings here. */
+    inherited?: string;
+    inheritedFrom?: string;
+    /** Per-plan extensions, e.g. agentless scanning. */
+    extensions?: Array<{ name?: string; isEnabled?: string; [key: string]: unknown }>;
+    deprecated?: boolean;
+    replacedBy?: string[];
+    [key: string]: unknown;
+  };
+}

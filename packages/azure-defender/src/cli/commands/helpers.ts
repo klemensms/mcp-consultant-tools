@@ -32,6 +32,9 @@ export function parseEnum<T extends string>(
 export const ASSESSMENT_STATUSES = ['Healthy', 'Unhealthy', 'NotApplicable'] as const;
 export const ASSESSMENT_SEVERITIES = ['Critical', 'High', 'Medium', 'Low'] as const;
 export const COMPLIANCE_STATES = ['Passed', 'Failed', 'Skipped', 'Unsupported'] as const;
+/** Alert severity tops out at High - there is no Critical, unlike assessment severity. */
+export const ALERT_SEVERITIES = ['Informational', 'Low', 'Medium', 'High'] as const;
+export const ALERT_STATUSES = ['Active', 'InProgress', 'Resolved', 'Dismissed'] as const;
 
 /** Rendered under any list whose counts were cut short by a result limit. */
 export function truncationNote(truncated: boolean): string {
