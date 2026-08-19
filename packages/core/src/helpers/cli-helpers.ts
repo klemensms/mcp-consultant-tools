@@ -11,7 +11,7 @@
 
 import { Command } from 'commander';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { config } from 'dotenv';
 import { resolveSecrets } from './secret-resolver.js';
 import { resolvePackageVersion } from './resolve-version.js';
@@ -60,6 +60,20 @@ function readFanOut(data: unknown): FanOutInfo | null {
 }
 
 /**
+ * Walk up from `start` looking for a `.git` entry. A worktree and a submodule both carry
+ * `.git` as a file rather than a directory, so this tests existence, not type.
+ */
+function isInsideGitRepo(start: string): boolean {
+  let dir = resolve(start);
+  for (;;) {
+    if (existsSync(join(dir, '.git'))) return true;
+    const parent = dirname(dir);
+    if (parent === dir) return false;
+    dir = parent;
+  }
+}
+
+/**
  * Output result to stdout and optionally cache to disk.
  *
  * - Default: prints summary to stdout, saves full JSON to `.context/{cacheDir}/`
@@ -82,14 +96,25 @@ export function outputResult(opts: OutputOptions, flags: GlobalFlags): void {
 
   if (flags.cache) {
     try {
-      const cacheDir = resolve(process.cwd(), '.context', opts.cacheDir);
+      const cwd = process.cwd();
+      const cacheDir = resolve(cwd, '.context', opts.cacheDir);
       if (!existsSync(cacheDir)) {
         mkdirSync(cacheDir, { recursive: true });
       }
       const filePath = join(cacheDir, `${opts.fileName}.json`);
       writeFileSync(filePath, jsonStr, 'utf-8');
-      if (!flags.json) {
-        process.stderr.write(`Cached: ${filePath}\n`);
+      // Always on stderr, `--json` included: stderr does not pollute the JSON on stdout,
+      // and a caller that is never told the path cannot clean the file up or find it.
+      process.stderr.write(`Cached: ${filePath}\n`);
+      // The cache is resolved against the working directory by design - it belongs to the
+      // repository being worked on. Outside a repository there is nothing for it to belong
+      // to, so the file is scattered rather than collected, and that is worth saying.
+      if (!isInsideGitRepo(cwd)) {
+        process.stderr.write(
+          `Warning: ${cwd} is not inside a git repository, so this cache directory is ` +
+            `not collected with a project. Payloads can reach several MB; delete ` +
+            `${resolve(cwd, '.context')} when done, or pass --no-cache.\n`
+        );
       }
     } catch {
       // Silently skip cache on error (e.g., read-only filesystem)

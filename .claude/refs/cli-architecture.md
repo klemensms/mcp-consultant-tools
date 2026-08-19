@@ -19,7 +19,7 @@ Each package follows this pattern:
 - `cli.ts` - Entry point with Commander.js program
 - `cli/output.ts` - Package-specific output wrapper (sets cache dir)
 - `cli/commands/{domain}-commands.ts` - One file per tool domain
-- Output: Summary to stdout + JSON cached to `.context/.mcp-{abbrev}-cache/`
+- Output: Summary to stdout + JSON cached to `.context/.mcp-{abbrev}-cache/`, resolved against the **working directory** (see "Where the cache lands" below)
 
 ## Adding a CLI Command
 
@@ -57,6 +57,7 @@ CLI is a first-class citizen alongside MCP tools. Maintaining parity is non-nego
 - **CLI commands are thin wrappers** — ~5–15 lines: parse args, call service, format output. Complexity belongs in services.
 - **Always wrap `.action()` in try/catch with `handleCliError(error, 'command-name')`.**
 - **Output:** `outputResult()` for everything. Summary → stdout, full JSON → `.context/.mcp-{abbrev}-cache/`. `--json` flag outputs raw JSON only.
+- **Where the cache lands.** `.context/` is resolved against `process.cwd()`, not the package or the repo root, so it follows wherever the command was run from. That is deliberate - the cache belongs to the project being worked on, and a run inside a client repo should leave its JSON there. It also means a run started in a temporary or home directory leaves the payload there, and payloads reach several MB. `outputResult` therefore always names the file it wrote on stderr (`--json` included - stderr does not pollute the JSON on stdout), and warns when the working directory is not inside a git repository, which is the case where the file is scattered rather than collected. `--no-cache` skips the write entirely.
 - **Never hardcode a version.** Both `createMcpServer` and `createCliProgram` take a `version`, and it must come from the package's own `package.json`:
 
   ```typescript
