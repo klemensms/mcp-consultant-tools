@@ -30,6 +30,9 @@ export * from './helpers/context-safe-response.js';
 // Export the truncation contract shared by every list command
 export * from './helpers/truncation.js';
 
+// Export the fan-out contract shared by every command that collects from many things
+export * from './helpers/fan-out.js';
+
 // Export safe filesystem-path helpers
 export * from './helpers/safe-path.js';
 

@@ -15,6 +15,7 @@ import { join, resolve } from 'node:path';
 import { config } from 'dotenv';
 import { resolveSecrets } from './secret-resolver.js';
 import { resolvePackageVersion } from './resolve-version.js';
+import { fanOutSuffix, type FanOutInfo } from './fan-out.js';
 
 export interface OutputOptions {
   /** File name (without extension) for the cached JSON */
@@ -35,11 +36,40 @@ export interface GlobalFlags {
 }
 
 /**
+ * Read a `fanOut` block off a command's payload, if it carries one.
+ *
+ * Detected from the payload rather than passed separately, because the whole point of
+ * the fan-out contract is that a partial collection cannot look complete - and a
+ * second argument the command author has to remember is exactly the thing that gets
+ * forgotten on the command where it matters.
+ */
+function readFanOut(data: unknown): FanOutInfo | null {
+  if (typeof data !== 'object' || data === null) return null;
+  const fanOut = (data as { fanOut?: unknown }).fanOut;
+  if (typeof fanOut !== 'object' || fanOut === null) return null;
+  const { attempted, succeeded, failed, failures } = fanOut as Record<string, unknown>;
+  if (
+    typeof attempted !== 'number' ||
+    typeof succeeded !== 'number' ||
+    typeof failed !== 'number' ||
+    !Array.isArray(failures)
+  ) {
+    return null;
+  }
+  return fanOut as FanOutInfo;
+}
+
+/**
  * Output result to stdout and optionally cache to disk.
  *
  * - Default: prints summary to stdout, saves full JSON to `.context/{cacheDir}/`
  * - --json flag: prints full JSON to stdout
  * - --no-cache flag: skips writing cache file
+ *
+ * A payload carrying a `fanOut` block that lost items also writes a warning to stderr
+ * and sets a non-zero exit code, so a batch caller cannot read a partial collection as
+ * a successful one. `process.exitCode` rather than `process.exit()`, so the cache write
+ * and the stdout flush still complete.
  */
 export function outputResult(opts: OutputOptions, flags: GlobalFlags): void {
   const jsonStr = JSON.stringify(opts.data, null, 2);
@@ -64,6 +94,12 @@ export function outputResult(opts: OutputOptions, flags: GlobalFlags): void {
     } catch {
       // Silently skip cache on error (e.g., read-only filesystem)
     }
+  }
+
+  const fanOut = readFanOut(opts.data);
+  if (fanOut && fanOut.failed > 0) {
+    process.stderr.write(`${fanOutSuffix(fanOut).trim()}\n`);
+    process.exitCode = 1;
   }
 }
 

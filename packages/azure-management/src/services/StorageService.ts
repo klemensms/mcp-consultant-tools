@@ -1,4 +1,5 @@
 import { ArmClient } from '../client/ArmClient.js';
+import { FanOutRecorder, type FanOutInfo } from '@mcp-consultant-tools/core';
 import type { StorageAccount } from '../types/arm-types.js';
 import { getApiVersion } from '../utils/arm-api-versions.js';
 
@@ -106,6 +107,7 @@ export class StorageService {
   }): Promise<{
     account: StorageAccountSummary;
     keys?: Array<{ keyName: string; value: string; permissions: string }>;
+    fanOut: FanOutInfo;
   }> {
     const { name, resourceGroup, includeKeys = false } = options;
 
@@ -124,20 +126,19 @@ export class StorageService {
       getApiVersion('Microsoft.Storage/storageAccounts')
     );
 
+    const fanOut = new FanOutRecorder();
     const result: {
       account: StorageAccountSummary;
       keys?: Array<{ keyName: string; value: string; permissions: string }>;
+      fanOut: FanOutInfo;
     } = {
       account: this.processStorageAccount(account),
+      fanOut: fanOut.result(),
     };
 
     if (includeKeys) {
-      try {
-        result.keys = await this.getStorageKeys(name, rg);
-      } catch (error) {
-        console.error(`Failed to get storage keys for ${name}:`, error);
-        result.keys = [];
-      }
+      result.keys = (await fanOut.run(name, 'keys', () => this.getStorageKeys(name, rg))) ?? [];
+      result.fanOut = fanOut.result();
     }
 
     return result;

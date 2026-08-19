@@ -1,4 +1,5 @@
 import { ArmClient } from '../client/ArmClient.js';
+import { FanOutRecorder, type FanOutInfo } from '@mcp-consultant-tools/core';
 import type { SqlServer, SqlDatabase } from '../types/arm-types.js';
 import { getApiVersion } from '../utils/arm-api-versions.js';
 
@@ -63,6 +64,7 @@ export class SqlService {
       byVersion: Record<string, number>;
       byPublicAccess: Record<string, number>;
     };
+    fanOut: FanOutInfo;
   }> {
     const { resourceGroup } = options;
 
@@ -76,6 +78,7 @@ export class SqlService {
     );
 
     const results: SqlServerSummary[] = [];
+    const fanOut = new FanOutRecorder();
     const summary = {
       total: servers.length,
       byVersion: {} as Record<string, number>,
@@ -83,7 +86,7 @@ export class SqlService {
     };
 
     for (const server of servers) {
-      const processed = await this.processSqlServer(server);
+      const processed = await this.processSqlServer(server, fanOut);
       results.push(processed);
 
       const version = processed.version || 'Unknown';
@@ -93,7 +96,7 @@ export class SqlService {
       summary.byPublicAccess[publicAccess] = (summary.byPublicAccess[publicAccess] || 0) + 1;
     }
 
-    return { servers: results, summary };
+    return { servers: results, summary, fanOut: fanOut.result() };
   }
 
   /**
@@ -159,7 +162,10 @@ export class SqlService {
   /**
    * Process a SqlServer into a SqlServerSummary.
    */
-  private async processSqlServer(server: SqlServer): Promise<SqlServerSummary> {
+  private async processSqlServer(
+    server: SqlServer,
+    fanOut: FanOutRecorder = new FanOutRecorder()
+  ): Promise<SqlServerSummary> {
     const props = server.properties || {};
 
     const rgMatch = server.id.match(/\/resourceGroups\/([^/]+)/i);
@@ -179,21 +185,18 @@ export class SqlService {
     };
 
     // Try to get database count (summary only)
-    try {
-      const dbPath = `${server.id}/databases`;
-      const databases = await this.client.paginate<SqlDatabase>(
-        dbPath,
-        getApiVersion('Microsoft.Sql/servers/databases')
-      );
+    const dbPath = `${server.id}/databases`;
+    const databases = await fanOut.run(server.name, 'databases', () =>
+      this.client.paginate<SqlDatabase>(dbPath, getApiVersion('Microsoft.Sql/servers/databases'))
+    );
 
+    if (databases) {
       // Filter out system databases
       const userDatabases = databases.filter((db) => db.name !== 'master');
       result.databases = userDatabases.slice(0, 10).map((db) => ({
         name: db.name,
         status: db.properties?.status,
       }));
-    } catch (error) {
-      console.error(`Failed to get databases for server ${server.name}:`, error);
     }
 
     return result;

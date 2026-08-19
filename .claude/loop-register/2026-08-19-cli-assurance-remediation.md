@@ -31,12 +31,17 @@ anything matching the trigger checklist.
 ### ⚑2 · T2 (X2, aggregate failure counts) is scoped to a contract plus one package
 - **Kind:** dropped-scope
 - **Hop:** origin · 6729aa0
-- **State:** open
+- **State:** open · narrowed-by-L1
 - **Matters because:** X2 as written is "every command that fans out, in every package",
   which is a repo-wide sweep across 14+ packages and cannot land in one hop. The plan
   narrows T2 to landing the shared contract in `core` plus one package as proof. The
   remaining packages are then an unscheduled sweep that nothing in this chain will do, so
   if it is not registered here it will be quietly lost the way X3's siblings nearly were.
+- **L1 update:** the contract is landed (`FanOutRecorder`, `fanOutSuffix` in `core`;
+  `outputResult` exits 1 on a payload whose fan-out lost items) and `azure-management` is
+  converted, all 15 sites. Still outstanding, and still unscheduled: every other package
+  that fans out. `grep -rn "console.error(\`Failed to" packages/*/src` finds the same
+  swallowing shape elsewhere; that grep is the sweep's work-list.
 
 ### ⚑3 · `generateAuditReport` still presents a truncated assembly list as complete
 - **Kind:** deferred
@@ -60,13 +65,19 @@ anything matching the trigger checklist.
 ### ⚑5 · 14 packages compile against a stale published `core`
 - **Kind:** gotcha
 - **Hop:** origin · 6729aa0
-- **State:** open
+- **State:** open · reduced-by-L1
 - **Matters because:** they pin `core@33.0.0` against a workspace at `34.1.0`, so npm
   installs a registry copy under their own `node_modules` rather than linking the
   workspace. Any hop that adds an export to `core` and then edits one of those packages
   will find the export missing at test time while the build passes, which cost real time
   in the beta.17 session. Check with `npm ls @mcp-consultant-tools/core` and look for
   `invalid`. Belongs in a `CLAUDE.md` if it is not fixed.
+- **L1 update:** the real count was 16, not 14. `azure-management` is now on `34.1.0`,
+  leaving **15**. Bumping the pin alone is not enough - npm leaves the stale copy on disk,
+  so `rm -rf packages/<pkg>/node_modules/@mcp-consultant-tools/core` after the bump, then
+  `npm install`. Verified by resolving the package from the fixed one and getting the
+  workspace path rather than a registry copy. The other 15 are deliberately untouched: a
+  16-package pin bump is a release-shaped change, not a loop hop's call.
 
 ### ⚑6 · T17 (D24/D25) may be already-fixed work
 - **Kind:** assumption
@@ -76,3 +87,55 @@ anything matching the trigger checklist.
   release notes describe fixing both defects. If that reading is right, T17 is a retest
   and re-fixing it would revert working code. The hop that takes T17 must verify against
   the current build first and record which way it went.
+
+### ⚑7 · `exceptiondetails ne ''` is unverified against live Dataverse
+- **Kind:** assumption
+- **Hop:** L1 · 8e84439
+- **State:** open
+- **Matters because:** T1's fix rests on Dataverse accepting an empty-string comparison
+  on `exceptiondetails`, which is a memo attribute. The root cause is confirmed by the
+  source report's own measurement (147 rows matched `ne null`, 0 matched
+  `ne null and ne ''`), so the semantics are right, but the request the CLI now sends
+  has never been executed against a live environment - same blocker as ⚑1, no
+  PowerPlatform credentials on this machine. If Dataverse rejects the comparison on a
+  memo field the command fails loudly rather than silently, which is the safe direction,
+  but it would still be broken. Needs Klemens, or one live run at the next beta.
+
+### ⚑8 · The Front Door payload gaps in T14 may be swallowed 403s, not missing code
+- **Kind:** assumption
+- **Hop:** L1 · fan-out contract work
+- **State:** open
+- **Matters because:** T14 (D11) records that `networking front-doors` omits `endpoints`,
+  `originGroups` and `routes` for every profile though the inventory shows the child
+  resources exist. Those three calls sat behind exactly the swallowing `catch` that T2
+  removed, so the fields may have been dropped because the calls were refused rather than
+  because the code never asked. The hop that takes T14 should re-run against a live
+  subscription and read `fanOut.failures` before writing any new code - if the operations
+  are `endpoints` / `originGroups` / `routes` with a 403, T14's D11 half is a permissions
+  finding, not a payload-mapping one. Cannot be settled here: no Azure credentials on this
+  machine.
+
+### ⚑9 · The fan-out contract is unit-verified only
+- **Kind:** assumption
+- **Hop:** L1 · fan-out contract work
+- **State:** open
+- **Matters because:** the exit code, the stderr line and the `fanOut` payload are proven
+  by tests and by an end-to-end run through `azure-management`'s own `outputResult`
+  wrapper with a stubbed 403 - not against live Azure. The specific untested claim is that
+  a real Reader-credential refusal on `Microsoft.Web/sites/config/list/action` surfaces as
+  an error carrying `response.status = 403`; if the ARM client wraps it differently,
+  `statusCode` records null and the summary loses the "mostly HTTP 403" hint. The counts,
+  the exit code and `configurationUnavailable` are unaffected either way, so the contract
+  degrades rather than breaks. Same credentials blocker as items 1 and 7.
+
+### ⚑10 · Exit-code change is a behaviour change for any batch caller
+- **Kind:** klemens-call
+- **Hop:** L1 · fan-out contract work
+- **State:** open
+- **Matters because:** `outputResult` now sets exit 1 whenever a payload's fan-out lost an
+  item. That is the point of X2 - the measured run exited 0 on 32 authorisation failures -
+  but a script that treats any non-zero exit as fatal will now stop on a partial
+  collection where it previously continued with a quietly incomplete cache file. Stopping
+  is the correct default and the reason the fix exists, so this is not a defect; it does
+  need saying out loud in the release notes as a behaviour change rather than shipping as
+  a silent one. Klemens's call whether it warrants the breaking-change block.

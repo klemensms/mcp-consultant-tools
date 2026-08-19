@@ -954,6 +954,29 @@ All commands use `outputResult()` from `cli/output.ts`:
 - Summary line to stdout
 - Full JSON cached to `.context/.mcp-mgmt-cache/`
 - `--json` flag bypasses summary and outputs raw JSON to stdout
+- A payload carrying a `fanOut` block that lost items writes an `INCOMPLETE:` line to stderr and exits **1**. See `<fan-out-contract>`.
+
+<fan-out-contract>
+
+### Fan-out contract
+
+Commands that collect from more than one thing return a `fanOut` block alongside their data:
+
+```json
+{ "attempted": 32, "succeeded": 0, "failed": 32,
+  "failures": [{ "item": "contoso-func-0", "operation": "configuration",
+                 "reason": "Request failed with status code 403", "statusCode": 403 }] }
+```
+
+`attempted` counts questions asked, so `succeeded` short of it is arithmetic rather than inference. Every failure is named with what could not be collected and why.
+
+**`--include-configuration` needs `Microsoft.Web/sites/config/list/action`, a POST action that Reader does not grant.** Against a read-only credential every site returns 403. Before this contract the command exited 0, wrote a cache file, and simply left `configuration` absent, so "no settings" and "not allowed to look" were the same output. Sites now also carry `configurationUnavailable: true`, and `--include-slots` sets `slotsUnavailable` the same way.
+
+Carried by: `list-function-apps`, `get-function-app`, `get-function-keys`, `list-app-services`, `get-app-service`, `list-front-doors`, `get-front-door`, `list-sql-servers`, `get-storage-account`.
+
+The shared helpers are `FanOutRecorder` and `fanOutSuffix` in `@mcp-consultant-tools/core`.
+
+</fan-out-contract>
 
 ### CLI Examples
 

@@ -1,4 +1,5 @@
 import { ArmClient } from '../client/ArmClient.js';
+import { FanOutRecorder, type FanOutInfo } from '@mcp-consultant-tools/core';
 import type {
   FrontDoorProfile,
   FrontDoorEndpoint,
@@ -66,6 +67,7 @@ export class NetworkingService {
       bySku: Record<string, number>;
       byState: Record<string, number>;
     };
+    fanOut: FanOutInfo;
   }> {
     const { resourceGroup } = options;
 
@@ -84,6 +86,7 @@ export class NetworkingService {
     );
 
     const results: FrontDoorSummary[] = [];
+    const fanOut = new FanOutRecorder();
     const summary = {
       total: frontDoors.length,
       bySku: {} as Record<string, number>,
@@ -91,7 +94,7 @@ export class NetworkingService {
     };
 
     for (const fd of frontDoors) {
-      const processed = await this.processFrontDoorProfile(fd);
+      const processed = await this.processFrontDoorProfile(fd, false, fanOut);
       results.push(processed);
 
       const sku = processed.sku || 'Unknown';
@@ -101,7 +104,7 @@ export class NetworkingService {
       summary.byState[state] = (summary.byState[state] || 0) + 1;
     }
 
-    return { frontDoors: results, summary };
+    return { frontDoors: results, summary, fanOut: fanOut.result() };
   }
 
   /**
@@ -110,7 +113,7 @@ export class NetworkingService {
   async getFrontDoor(options: {
     name: string;
     resourceGroup?: string;
-  }): Promise<{ frontDoor: FrontDoorSummary }> {
+  }): Promise<{ frontDoor: FrontDoorSummary; fanOut: FanOutInfo }> {
     const { name, resourceGroup } = options;
 
     const rg = resourceGroup || this.client.getDefaultResourceGroup();
@@ -124,9 +127,10 @@ export class NetworkingService {
       getApiVersion('Microsoft.Cdn/profiles')
     );
 
-    const frontDoor = await this.processFrontDoorProfile(profile, true);
+    const fanOut = new FanOutRecorder();
+    const frontDoor = await this.processFrontDoorProfile(profile, true, fanOut);
 
-    return { frontDoor };
+    return { frontDoor, fanOut: fanOut.result() };
   }
 
   /**
@@ -205,7 +209,8 @@ export class NetworkingService {
    */
   private async processFrontDoorProfile(
     profile: FrontDoorProfile,
-    includeDetails = false
+    includeDetails = false,
+    fanOut: FanOutRecorder = new FanOutRecorder()
   ): Promise<FrontDoorSummary> {
     const props = profile.properties || {};
 
@@ -225,23 +230,20 @@ export class NetworkingService {
 
     // Get endpoints if detailed info requested
     if (includeDetails) {
-      try {
-        result.endpoints = await this.getFrontDoorEndpoints(profile.id);
-      } catch (error) {
-        console.error(`Failed to get endpoints for ${profile.name}:`, error);
-      }
+      const endpoints = await fanOut.run(profile.name, 'endpoints', () =>
+        this.getFrontDoorEndpoints(profile.id)
+      );
+      if (endpoints) result.endpoints = endpoints;
 
-      try {
-        result.originGroups = await this.getFrontDoorOriginGroups(profile.id);
-      } catch (error) {
-        console.error(`Failed to get origin groups for ${profile.name}:`, error);
-      }
+      const originGroups = await fanOut.run(profile.name, 'originGroups', () =>
+        this.getFrontDoorOriginGroups(profile.id)
+      );
+      if (originGroups) result.originGroups = originGroups;
 
-      try {
-        result.routes = await this.getFrontDoorRoutes(profile.id);
-      } catch (error) {
-        console.error(`Failed to get routes for ${profile.name}:`, error);
-      }
+      const routes = await fanOut.run(profile.name, 'routes', () =>
+        this.getFrontDoorRoutes(profile.id, fanOut)
+      );
+      if (routes) result.routes = routes;
     }
 
     return result;
@@ -289,7 +291,8 @@ export class NetworkingService {
    * Get Front Door routes.
    */
   private async getFrontDoorRoutes(
-    profileId: string
+    profileId: string,
+    fanOut: FanOutRecorder = new FanOutRecorder()
   ): Promise<Array<{ name: string; patterns?: string[] }>> {
     // Routes are under endpoints, so we need to get endpoints first
     const endpointsPath = `${profileId}/afdEndpoints`;
@@ -301,21 +304,19 @@ export class NetworkingService {
     const allRoutes: Array<{ name: string; patterns?: string[] }> = [];
 
     for (const endpoint of endpoints) {
-      try {
-        const routesPath = `${endpoint.id}/routes`;
-        const routes = await this.client.paginate<{
+      const routesPath = `${endpoint.id}/routes`;
+      const routes = await fanOut.run(endpoint.name, 'endpointRoutes', () =>
+        this.client.paginate<{
           name: string;
           properties?: { patternsToMatch?: string[] };
-        }>(routesPath, getApiVersion('Microsoft.Cdn/profiles/afdEndpoints'));
+        }>(routesPath, getApiVersion('Microsoft.Cdn/profiles/afdEndpoints'))
+      );
 
-        for (const route of routes) {
-          allRoutes.push({
-            name: `${endpoint.name}/${route.name}`,
-            patterns: route.properties?.patternsToMatch,
-          });
-        }
-      } catch (error) {
-        console.error(`Failed to get routes for endpoint ${endpoint.name}:`, error);
+      for (const route of routes ?? []) {
+        allRoutes.push({
+          name: `${endpoint.name}/${route.name}`,
+          patterns: route.properties?.patternsToMatch,
+        });
       }
     }
 

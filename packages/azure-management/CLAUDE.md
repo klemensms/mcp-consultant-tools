@@ -38,6 +38,9 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 | App Service Write Ops | `Website Contributor` | App Service (restart, stop, start, config) |
 | Key Vault Secrets | `Key Vault Secrets User` | Key Vault |
 | Storage Keys | `Storage Account Key Operator` | Storage Account |
+| `--include-configuration` | `Website Contributor` | App Service / Function App |
+
+**`--include-configuration` is not a Reader operation.** Reading app settings needs `Microsoft.Web/sites/config/list/action`, a POST action Reader does not grant, so against a read-only credential it returns 403 for every site. Commands that fan out report this in a `fanOut` block, mark each site `configurationUnavailable: true`, and exit 1 - a partial collection is never presented as a complete one. See the fan-out contract in `docs/technical/AZURE_MANAGEMENT_TECHNICAL.md`.
 
 ## Key Tools
 

@@ -30,25 +30,19 @@ A fix that only proves the happy path does not close its task.
 - [x] **T1 · D5 — `plugin trace-logs --exception-only`**. Filter now excludes the empty
       string as well as null, and the payload carries `exceptionCount` alongside
       `totalCount`. Not yet published; lands on `release/35.0`.
+- [x] **T2 · X2 — aggregate failure counts**, scoped as planned to the shared contract
+      plus one package. `FanOutRecorder` / `fanOutSuffix` in `@mcp-consultant-tools/core`,
+      `outputResult` exits 1 on a payload whose fan-out lost items, and all 15 swallowing
+      `catch` blocks in `azure-management` now report. The remaining packages are the
+      unscheduled sweep in register item 2.
+- [x] **T7 · D12 — `--include-configuration` fails silently**. Closed by T2 in the same
+      edit: the 403s are now counted and named, and each site carries
+      `configurationUnavailable: true` so a blank cannot read as "no settings".
 
 ## Queue
 
 Ordered by the source report's own priority. One task per heading; a hop may take
 more than one when its context measurement allows.
-
-### T2 · X2 — no CLI surfaces an aggregate failure count
-- **Package:** cross-cutting, architectural.
-- **Severity:** Major.
-- **Measured:** one command family produced **32 authorisation failures inside commands
-  that all exited 0** and still wrote a cache file, so a partial collection is invisible
-  unless someone reads the log.
-- **Fix:** every command that fans out returns `{ attempted, succeeded, failed, failures[] }`
-  in its payload, and exits non-zero when `failed > 0`. Follow the `truncation` contract's
-  precedent: put the shared shape in `@mcp-consultant-tools/core`, apply it per package.
-- **Scope note:** this is the structural answer to the headline finding and would have
-  caught T7. Do not attempt every package in one hop; land the contract plus one package.
-- **Failure-case test:** a fan-out where some items 403 must be distinguishable from one
-  where all succeeded, and must not exit 0.
 
 ### T3 · D8 — `graph role-assignments` resolves no role name
 - **Package:** `azure-management`
@@ -96,18 +90,6 @@ more than one when its context measurement allows.
 - **Fix:** scope to tables the workspace actually holds, or document it as a schema
   catalogue and add a separate inventory command. `Usage | summarize by DataType` answers
   the real question cheaply and was the workaround used.
-
-### T7 · D12 — `--include-configuration` needs a permission outside Reader and fails silently
-- **Package:** `azure-management`
-- **Severity:** Major.
-- **Measured:** collecting app settings needs `Microsoft.Web/sites/config/list/action`, a
-  POST action not in Reader. Against a read-only credential this returns 403 for every
-  site — **32 times in one run** — while the command exits 0 and writes a cache file.
-- **Affects:** `function-app list --include-configuration`, `app-service list
-  --include-configuration`, `--show-values` on `app-service get`.
-- **Fix:** surface the failures (see T2), and detect the 403 to emit an explicit
-  `configurationUnavailable: true` per site so a consumer renders "not collectable"
-  rather than a blank.
 
 ### T8 · D22 — `query error-summary --table FunctionAppLogs` builds an invalid query
 - **Package:** `log-analytics`

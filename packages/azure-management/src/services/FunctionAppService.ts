@@ -1,4 +1,5 @@
 import { ArmClient } from '../client/ArmClient.js';
+import { FanOutRecorder, type FanOutInfo } from '@mcp-consultant-tools/core';
 import type { WebSite, FunctionEnvelope, FunctionKeys, SiteConfig } from '../types/arm-types.js';
 import { getApiVersion } from '../utils/arm-api-versions.js';
 
@@ -42,6 +43,13 @@ export interface FunctionAppSummary {
   cors?: {
     allowedOrigins?: string[];
   };
+  /**
+   * True when configuration was asked for and the call was refused. Distinguishes
+   * "not collectable" from "collected, and there was nothing there".
+   */
+  configurationUnavailable?: boolean;
+  /** True when slots were asked for and the call was refused. */
+  slotsUnavailable?: boolean;
 }
 
 /**
@@ -92,6 +100,7 @@ export class FunctionAppService {
       byRuntime: Record<string, number>;
       bySku: Record<string, number>;
     };
+    fanOut: FanOutInfo;
   }> {
     const { resourceGroup, includeConfiguration = false, includeSlots = false } = options;
 
@@ -116,26 +125,24 @@ export class FunctionAppService {
       bySku: {} as Record<string, number>,
     };
 
+    const fanOut = new FanOutRecorder();
+
     for (const app of functionApps) {
       const processed = this.processWebSite(app);
 
       // Get additional details if requested
       if (includeConfiguration) {
-        try {
-          const config = await this.getAppConfiguration(app.id);
-          processed.configuration = config;
-        } catch (error) {
-          console.error(`Failed to get configuration for ${app.name}:`, error);
-        }
+        const config = await fanOut.run(app.name, 'configuration', () =>
+          this.getAppConfiguration(app.id)
+        );
+        if (config) processed.configuration = config;
+        else processed.configurationUnavailable = true;
       }
 
       if (includeSlots) {
-        try {
-          const slots = await this.getDeploymentSlots(app.id);
-          processed.slots = slots.map((s) => s.name);
-        } catch (error) {
-          console.error(`Failed to get slots for ${app.name}:`, error);
-        }
+        const slots = await fanOut.run(app.name, 'slots', () => this.getDeploymentSlots(app.id));
+        if (slots) processed.slots = slots.map((s) => s.name);
+        else processed.slotsUnavailable = true;
       }
 
       results.push(processed);
@@ -153,7 +160,7 @@ export class FunctionAppService {
       }
     }
 
-    return { functionApps: results, summary };
+    return { functionApps: results, summary, fanOut: fanOut.result() };
   }
 
   /**
@@ -176,6 +183,7 @@ export class FunctionAppService {
       author?: string;
       message?: string;
     }>;
+    fanOut: FanOutInfo;
   }> {
     const {
       name,
@@ -195,14 +203,15 @@ export class FunctionAppService {
     const site = await this.client.get<WebSite>(path, getApiVersion('Microsoft.Web/sites'));
 
     const functionApp = this.processWebSite(site);
+    const fanOut = new FanOutRecorder();
 
     // Get configuration
     if (includeConfiguration) {
-      try {
-        functionApp.configuration = await this.getAppConfiguration(site.id);
-      } catch (error) {
-        console.error(`Failed to get configuration:`, error);
-      }
+      const config = await fanOut.run(name, 'configuration', () =>
+        this.getAppConfiguration(site.id)
+      );
+      if (config) functionApp.configuration = config;
+      else functionApp.configurationUnavailable = true;
     }
 
     const result: {
@@ -216,28 +225,24 @@ export class FunctionAppService {
         author?: string;
         message?: string;
       }>;
-    } = { functionApp };
+      fanOut: FanOutInfo;
+    } = { functionApp, fanOut: fanOut.result() };
 
     // Get functions
     if (includeFunctions) {
-      try {
-        const functionsResult = await this.listFunctions({ functionAppName: name, resourceGroup: rg });
-        result.functions = functionsResult.functions;
-      } catch (error) {
-        console.error(`Failed to get functions:`, error);
-        result.functions = [];
-      }
+      const functions = await fanOut.run(name, 'functions', () =>
+        this.listFunctions({ functionAppName: name, resourceGroup: rg })
+      );
+      result.functions = functions?.functions ?? [];
     }
 
     // Get deployments
     if (includeDeployments) {
-      try {
-        result.deployments = await this.getDeployments(site.id);
-      } catch (error) {
-        console.error(`Failed to get deployments:`, error);
-        result.deployments = [];
-      }
+      result.deployments =
+        (await fanOut.run(name, 'deployments', () => this.getDeployments(site.id))) ?? [];
     }
+
+    result.fanOut = fanOut.result();
 
     return result;
   }
@@ -308,6 +313,7 @@ export class FunctionAppService {
   }): Promise<{
     hostKeys: Array<{ name: string; value: string }>;
     functionKeys?: Array<{ name: string; value: string }>;
+    fanOut: FanOutInfo;
   }> {
     const { functionAppName, resourceGroup, functionName } = options;
 
@@ -328,11 +334,14 @@ export class FunctionAppService {
       getApiVersion('Microsoft.Web/sites/host/default/listkeys')
     );
 
+    const fanOut = new FanOutRecorder();
     const result: {
       hostKeys: Array<{ name: string; value: string }>;
       functionKeys?: Array<{ name: string; value: string }>;
+      fanOut: FanOutInfo;
     } = {
       hostKeys: hostKeysResponse.functionKeys || [],
+      fanOut: fanOut.result(),
     };
 
     // Add master key if present
@@ -347,17 +356,15 @@ export class FunctionAppService {
         `/providers/Microsoft.Web/sites/${functionAppName}/functions/${functionName}/listkeys`
       );
 
-      try {
-        const functionKeysResponse = await this.client.post<FunctionKeys>(
+      const functionKeysResponse = await fanOut.run(functionName, 'functionKeys', () =>
+        this.client.post<FunctionKeys>(
           functionKeysPath,
           {},
           getApiVersion('Microsoft.Web/sites/functions/listkeys')
-        );
-        result.functionKeys = functionKeysResponse.keys || [];
-      } catch (error) {
-        console.error(`Failed to get keys for function ${functionName}:`, error);
-        result.functionKeys = [];
-      }
+        )
+      );
+      result.functionKeys = functionKeysResponse?.keys ?? [];
+      result.fanOut = fanOut.result();
     }
 
     return result;

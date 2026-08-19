@@ -1,4 +1,5 @@
 import { ArmClient } from '../client/ArmClient.js';
+import { FanOutRecorder, type FanOutInfo } from '@mcp-consultant-tools/core';
 import type { WebSite, AppServicePlan, SiteConfig } from '../types/arm-types.js';
 import { getApiVersion } from '../utils/arm-api-versions.js';
 import type { ScmClient } from '../utils/scm-client.js';
@@ -35,6 +36,11 @@ export interface AppServiceSummary {
     principalId?: string;
     tenantId?: string;
   };
+  /**
+   * True when configuration was asked for and the call was refused. Distinguishes
+   * "not collectable" from "collected, and there was nothing there".
+   */
+  configurationUnavailable?: boolean;
 }
 
 /**
@@ -97,6 +103,7 @@ export class AppServiceService {
       byState: Record<string, number>;
       byRuntime: Record<string, number>;
     };
+    fanOut: FanOutInfo;
   }> {
     const { resourceGroup, includeConfiguration = false } = options;
 
@@ -112,6 +119,7 @@ export class AppServiceService {
     );
 
     const results: AppServiceSummary[] = [];
+    const fanOut = new FanOutRecorder();
     const summary = {
       total: webApps.length,
       byState: {} as Record<string, number>,
@@ -122,11 +130,11 @@ export class AppServiceService {
       const processed = this.processWebSite(app);
 
       if (includeConfiguration) {
-        try {
-          processed.configuration = await this.getAppConfiguration(app.id);
-        } catch (error) {
-          console.error(`Failed to get configuration for ${app.name}:`, error);
-        }
+        const config = await fanOut.run(app.name, 'configuration', () =>
+          this.getAppConfiguration(app.id)
+        );
+        if (config) processed.configuration = config;
+        else processed.configurationUnavailable = true;
       }
 
       results.push(processed);
@@ -139,7 +147,7 @@ export class AppServiceService {
       }
     }
 
-    return { appServices: results, summary };
+    return { appServices: results, summary, fanOut: fanOut.result() };
   }
 
   /**
@@ -161,6 +169,7 @@ export class AppServiceService {
       author?: string;
       message?: string;
     }>;
+    fanOut: FanOutInfo;
   }> {
     const { name, resourceGroup, includeConfiguration = true, includeDeployments = false, showValues = false } = options;
 
@@ -173,13 +182,14 @@ export class AppServiceService {
     const site = await this.client.get<WebSite>(path, getApiVersion('Microsoft.Web/sites'));
 
     const appService = this.processWebSite(site);
+    const fanOut = new FanOutRecorder();
 
     if (includeConfiguration) {
-      try {
-        appService.configuration = await this.getAppConfiguration(site.id, showValues);
-      } catch (error) {
-        console.error(`Failed to get configuration:`, error);
-      }
+      const config = await fanOut.run(name, 'configuration', () =>
+        this.getAppConfiguration(site.id, showValues)
+      );
+      if (config) appService.configuration = config;
+      else appService.configurationUnavailable = true;
     }
 
     const result: {
@@ -192,16 +202,15 @@ export class AppServiceService {
         author?: string;
         message?: string;
       }>;
-    } = { appService };
+      fanOut: FanOutInfo;
+    } = { appService, fanOut: fanOut.result() };
 
     if (includeDeployments) {
-      try {
-        result.deployments = await this.getDeployments(site.id);
-      } catch (error) {
-        console.error(`Failed to get deployments:`, error);
-        result.deployments = [];
-      }
+      result.deployments =
+        (await fanOut.run(name, 'deployments', () => this.getDeployments(site.id))) ?? [];
     }
+
+    result.fanOut = fanOut.result();
 
     return result;
   }
