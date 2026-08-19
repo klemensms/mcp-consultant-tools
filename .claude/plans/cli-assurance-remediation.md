@@ -44,32 +44,26 @@ A fix that only proves the happy path does not close its task.
       `summary.note`, and `roleDefinitionsFound` separates "lookup returned nothing"
       from "returned definitions that did not match". Root cause is inferred from the
       measured evidence, not confirmed live - see register item 11.
+- [x] **T4 · D9 — `networking event-grid-topics` reports zero while topics exist**.
+      `includeSystemTopics` now decides whether system topics are **listed**, not whether
+      they are **looked for**, so `summary.total` is what exists and `summary.listed` is
+      what came back. `summary.note` names the shortfall, and both queries run through
+      `FanOutRecorder`, so a refused or unregistered provider sets
+      `systemTopicsUnavailable` / `customTopicsUnavailable` and exits 1 rather than
+      shrinking the counts. Costs one extra ARM list call per invocation, deliberately.
+      Unit-verified only - no Azure credentials on this machine. See register item 12.
+- [x] **T5 · D21 — `fn stats` triple-counts every function**. `collapseFunctionStats`
+      strips the `Functions.` prefix, drops blank-named host rows, and keeps the
+      highest-counting variant **whole** so `SuccessRate` stays consistent with the counts
+      beside it. Reports the reshaping in a `normalization` block, appended by hand to
+      every markdown surface because `formatTableAsMarkdown` keeps only the tables.
+      `UniqueFunctions` is dropped from the query: inside a `by FunctionName` summarize it
+      was always 1. See register item 13.
 
 ## Queue
 
 Ordered by the source report's own priority. One task per heading; a hop may take
 more than one when its context measurement allows.
-
-### T4 · D9 — `networking event-grid-topics` reports zero while topics exist
-- **Package:** `azure-management`
-- **Severity:** Major.
-- **Measured:** `total: 0` in **every one of 16 subscriptions**, while the resource
-  inventory from the same run shows **15** `Microsoft.EventGrid/systemTopics`.
-- **Cause:** enumerates custom topics only, and reports a partial scope as a clean zero.
-- **Fix:** include system topics, or name the scope in the output.
-- **Failure-case test:** an out-of-scope resource type must make the result declare its
-  scope rather than return a bare zero.
-
-### T5 · D21 — `fn stats` triple-counts every function
-- **Package:** `log-analytics`
-- **Severity:** Major.
-- **Measured:** groups by `FunctionName` without normalising, so each function appears
-  three times: bare name, `Functions.`-prefixed variant, and a blank-named aggregate row.
-  27 real functions became **61 rows**, and total executions inflated from 43,445 to
-  **131,977**, roughly threefold. The inflation looks entirely plausible.
-- **Fix:** strip the `Functions.` prefix, drop blank names, take the max per function.
-- **Failure-case test:** a fixture containing all three name variants of one function must
-  yield one row and the un-inflated execution count.
 
 ### T6 · D20 — `workspace metadata` returns the schema catalogue, not the workspace's tables
 - **Package:** `log-analytics`

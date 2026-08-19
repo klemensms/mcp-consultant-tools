@@ -155,3 +155,60 @@ anything matching the trigger checklist.
   What still needs one live run is which cause it actually was. If `roleDefinitionsFound`
   comes back zero on a real subscription, the join was never the problem and the
   role-definition query needs its own investigation.
+
+### ⚑12 · T4 changes what `summary.total` counts, and pays an extra ARM call for it
+- **Kind:** klemens-call
+- **Hop:** L2 · 150cde3
+- **State:** open
+- **Matters because:** `networking event-grid-topics` used to satisfy
+  `topics.length === summary.total`. It no longer does: `total` is now what exists and
+  `listed` is what came back, so a default call on a subscription holding system topics
+  returns `total: 15, listed: 0`. That is the point of the fix - the old identity was only
+  true because the command lied about the total - but a consumer that iterates `topics`
+  and reports `total` will now disagree with itself unless it reads `note`. It also costs
+  one extra ARM list call per invocation, always, to count a type it may not list. Both are
+  deliberate and both belong in the release notes as behaviour changes rather than shipping
+  silently. Same class as ⚑10, and the same question: whether it warrants the
+  breaking-change block. Klemens's call.
+
+### ⚑13 · T5's collapse assumes the name variants are duplicate views, not disjoint subsets
+- **Kind:** assumption
+- **Hop:** L2 · d1cb9e5
+- **State:** open
+- **Matters because:** `collapseFunctionStats` keeps the highest-counting variant and
+  discards the others, which is right if `ProcessOrders` and `Functions.ProcessOrders` are
+  two loggings of the same executions - the reading the plan's own measurement supports,
+  since 27 functions produced 61 rows at roughly three times the executions. If the two
+  variants were instead partly disjoint - say the prefixed rows covered a window or a host
+  the bare rows did not - `max` under-counts, and it under-counts silently. Summing would
+  over-count just as silently, so `max` is the safer of the two, and `normalization.collapsed`
+  names the variants so a reader can see what was dropped. What would settle it is one live
+  run: compare `normalization.rows` against the function count the portal shows, and the
+  collapsed `TotalExecutions` against a hand-written KQL `count()` per function. No Log
+  Analytics credentials on this machine. Same blocker as ⚑1, ⚑7, ⚑9.
+
+### ⚑14 · T5 removes `UniqueFunctions` from the `fn stats` payload
+- **Kind:** dropped-scope
+- **Hop:** L2 · d1cb9e5
+- **State:** open
+- **Matters because:** it was `dcount(FunctionName)` inside a `by FunctionName` summarize,
+  so it was always exactly 1 and told a reader nothing while looking like a count. Removing
+  it is a payload change, not a bug fix, and a consumer selecting that column now gets
+  `undefined` with no error - the very failure shape T15 (D7) exists to close elsewhere in
+  this chain. The judgement is that a column which was always 1 cannot have been carrying
+  anyone's logic, but it is still worth one line in the release notes. `normalization.rows`
+  is the replacement.
+
+### ⚑15 · T4 and T5 are unit-verified only
+- **Kind:** assumption
+- **Hop:** L2 · 150cde3, d1cb9e5
+- **State:** open
+- **Matters because:** both MCP servers were booted and confirmed to register the updated
+  tools, and 1002 tests pass, but neither fix has run against a live estate. The specific
+  untested claims are: that `GET .../providers/Microsoft.EventGrid/systemTopics` succeeds
+  wherever the provider is registered and surfaces as a recorded `FanOutRecorder` failure
+  where it is not, rather than as something the recorder does not catch; and that the three
+  `FunctionName` variants in live `FunctionAppLogs` are exactly the bare name, the
+  `Functions.`-prefixed name and the empty string, with no fourth shape the exact-prefix
+  strip would miss. Do not claim either works against a live estate. Same credentials
+  blocker as ⚑1, ⚑7, ⚑9.
