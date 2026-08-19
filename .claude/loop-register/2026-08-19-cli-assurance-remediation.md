@@ -18,7 +18,7 @@ anything matching the trigger checklist.
 ### ⚑1 · beta.17's paging is published but unverified against live Dataverse
 - **Kind:** assumption
 - **Hop:** origin · 6729aa0
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list · needs Klemens
 - **Matters because:** `v35.0.0-beta.17` switched five `powerplatform` list commands from
   `$top` to `Prefer: odata.maxpagesize` and shipped to the beta tag. The mechanism is
   copied from `DataService.queryRecords`, which has shipped since beta.5, but the changed
@@ -31,7 +31,7 @@ anything matching the trigger checklist.
 ### ⚑2 · T2 (X2, aggregate failure counts) is scoped to a contract plus one package
 - **Kind:** dropped-scope
 - **Hop:** origin · 6729aa0
-- **State:** open · narrowed-by-L1
+- **State:** open · promoted-by-L10 to the plan file's deferred scope · L1's work-list grep is exhausted and the remaining scope is unmeasured
 - **Matters because:** X2 as written is "every command that fans out, in every package",
   which is a repo-wide sweep across 14+ packages and cannot land in one hop. The plan
   narrows T2 to landing the shared contract in `core` plus one package as proof. The
@@ -46,7 +46,7 @@ anything matching the trigger checklist.
 ### ⚑3 · `generateAuditReport` still presents a truncated assembly list as complete
 - **Kind:** deferred
 - **Hop:** origin · 6729aa0
-- **State:** open
+- **State:** open · promoted-by-L10 to docs/KNOWN_ISSUES.md and to the plan file's deferred scope
 - **Matters because:** found during the beta.17 work and deliberately left out of it,
   because fixing it changes `gen-integration-audit`'s own output contract. It is the same
   false-completeness defect class that beta.17 closed for the five list commands, still
@@ -55,7 +55,7 @@ anything matching the trigger checklist.
 ### ⚑4 · Two `powerplatform-core` services still use the `$top = maxRecords + 1` check
 - **Kind:** deferred
 - **Hop:** origin · 6729aa0
-- **State:** open
+- **State:** closed-by-L10 · the KNOWN_ISSUES record is accurate, and it names three services rather than two: `FlowService.getFlows` still carries the pattern at `FlowService.ts:357`
 - **Matters because:** `MetadataService.getGlobalOptionSets` and
   `WorkflowService.getWorkflows` will report `hasMore: false` on a truncated result
   wherever the result set can reach the 5,000-row page cap. Already recorded in
@@ -65,7 +65,7 @@ anything matching the trigger checklist.
 ### ⚑5 · 14 packages compile against a stale published `core`
 - **Kind:** gotcha
 - **Hop:** origin · 6729aa0
-- **State:** open · reduced-by-L1
+- **State:** open · promoted-by-L10 to the root `CLAUDE.md` · re-measured at 16 packages
 - **Matters because:** they pin `core@33.0.0` against a workspace at `34.1.0`, so npm
   installs a registry copy under their own `node_modules` rather than linking the
   workspace. Any hop that adds an export to `core` and then edits one of those packages
@@ -91,7 +91,7 @@ anything matching the trigger checklist.
 ### ⚑7 · `exceptiondetails ne ''` is unverified against live Dataverse
 - **Kind:** assumption
 - **Hop:** L1 · 8e84439
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** T1's fix rests on Dataverse accepting an empty-string comparison
   on `exceptiondetails`, which is a memo attribute. The root cause is confirmed by the
   source report's own measurement (147 rows matched `ne null`, 0 matched
@@ -118,7 +118,7 @@ anything matching the trigger checklist.
 ### ⚑9 · The fan-out contract is unit-verified only
 - **Kind:** assumption
 - **Hop:** L1 · fan-out contract work
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** the exit code, the stderr line and the `fanOut` payload are proven
   by tests and by an end-to-end run through `azure-management`'s own `outputResult`
   wrapper with a stubbed 403 - not against live Azure. The specific untested claim is that
@@ -131,7 +131,7 @@ anything matching the trigger checklist.
 ### ⚑10 · Exit-code change is a behaviour change for any batch caller
 - **Kind:** klemens-call
 - **Hop:** L1 · fan-out contract work
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's release-notes checklist · needs Klemens
 - **Matters because:** `outputResult` now sets exit 1 whenever a payload's fan-out lost an
   item. That is the point of X2 - the measured run exited 0 on 32 authorisation failures -
   but a script that treats any non-zero exit as fatal will now stop on a partial
@@ -143,7 +143,7 @@ anything matching the trigger checklist.
 ### ⚑11 · T3's root cause is inferred from the evidence, not confirmed live
 - **Kind:** assumption
 - **Hop:** L1 · T3
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** the measured facts are that 752 of 752 names were unresolved with
   `roleDefinitionsTruncated` false, while all 52 distinct GUIDs resolved when fetched
   directly. Two causes fit that equally well: the role-definition query returned rows
@@ -159,7 +159,7 @@ anything matching the trigger checklist.
 ### ⚑12 · T4 changes what `summary.total` counts, and pays an extra ARM call for it
 - **Kind:** klemens-call
 - **Hop:** L2 · 150cde3
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's release-notes checklist · needs Klemens
 - **Matters because:** `networking event-grid-topics` used to satisfy
   `topics.length === summary.total`. It no longer does: `total` is now what exists and
   `listed` is what came back, so a default call on a subscription holding system topics
@@ -174,7 +174,7 @@ anything matching the trigger checklist.
 ### ⚑13 · T5's collapse assumes the name variants are duplicate views, not disjoint subsets
 - **Kind:** assumption
 - **Hop:** L2 · d1cb9e5
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** `collapseFunctionStats` keeps the highest-counting variant and
   discards the others, which is right if `ProcessOrders` and `Functions.ProcessOrders` are
   two loggings of the same executions - the reading the plan's own measurement supports,
@@ -190,7 +190,7 @@ anything matching the trigger checklist.
 ### ⚑14 · T5 removes `UniqueFunctions` from the `fn stats` payload
 - **Kind:** dropped-scope
 - **Hop:** L2 · d1cb9e5
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's release-notes checklist
 - **Matters because:** it was `dcount(FunctionName)` inside a `by FunctionName` summarize,
   so it was always exactly 1 and told a reader nothing while looking like a count. Removing
   it is a payload change, not a bug fix, and a consumer selecting that column now gets
@@ -202,7 +202,7 @@ anything matching the trigger checklist.
 ### ⚑15 · T4 and T5 are unit-verified only
 - **Kind:** assumption
 - **Hop:** L2 · 150cde3, d1cb9e5
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** both MCP servers were booted and confirmed to register the updated
   tools, and 1002 tests pass, but neither fix has run against a live estate. The specific
   untested claims are: that `GET .../providers/Microsoft.EventGrid/systemTopics` succeeds
@@ -216,7 +216,7 @@ anything matching the trigger checklist.
 ### ⚑16 · `Usage` is a lower bound on what a workspace holds, not a closed set
 - **Kind:** assumption
 - **Hop:** L2 · 144f5f3, be15147
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** T6's new `la-list-workspace-tables` answers "what does this workspace
   actually hold" from the `Usage` table, which records ingestion-metered data types. A table
   populated outside that metering would not appear, so the command can under-report - the
@@ -233,7 +233,7 @@ anything matching the trigger checklist.
 ### ⚑17 · T6 leaves `la-get-metadata`'s payload shape intact and adds a tool instead
 - **Kind:** decision
 - **Hop:** L2 · 144f5f3
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's release-notes checklist · needs Klemens
 - **Matters because:** the plan offered two routes - scope the metadata command to tables the
   workspace actually holds, or keep it as a catalogue and add a separate inventory command.
   The second was taken, so `la-get-metadata` still returns ~680 tables and any consumer
@@ -247,7 +247,7 @@ anything matching the trigger checklist.
 ### ⚑18 · T8's fix is unit-verified only, and `FunctionInvocationId` may be blank on the rows that matter
 - **Kind:** assumption
 - **Hop:** L3 · T8
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** the column now named is the documented one, so the query will no
   longer be rejected - that much is settled by the schema reference and by the tests. What is
   not settled is what it returns. `FunctionInvocationId` is documented as "the invocation ID
@@ -264,7 +264,7 @@ anything matching the trigger checklist.
 ### ⚑19 · `deduplicateRetries` means something weaker on `FunctionAppLogs` than its name says
 - **Kind:** decision
 - **Hop:** L3 · T8
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's deferred scope
 - **Matters because:** on the Application Insights tables the flag collapses retries, because
   `OperationId` spans them. `FunctionAppLogs` has no such column, so the fix uses
   `FunctionInvocationId`, which collapses the several log lines one invocation emits. In Azure
@@ -279,7 +279,7 @@ anything matching the trigger checklist.
 ### ⚑20 · An unsupported `--table` on `error-summary` now exits 1 where it used to return data
 - **Kind:** klemens-call
 - **Hop:** L3 · T8
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's release-notes checklist · needs Klemens
 - **Matters because:** the CLI took `--table` as free text and fell through to the
   `FunctionAppLogs` shape for anything it did not recognise, so `--table AppRequests` or a
   misspelt `AppExcpetions` returned a confident answer about a different table. It now throws,
@@ -292,7 +292,7 @@ anything matching the trigger checklist.
 ### ⚑21 · `investigate-app` and `investigate-sync` still write their KQL out twice
 - **Kind:** deferred
 - **Hop:** L3 · T8
-- **State:** open
+- **State:** open · promoted-by-L10 to docs/KNOWN_ISSUES.md and to the plan file's deferred scope
 - **Matters because:** T8 moved the four `error-summary` shapes into
   `utils/error-summary-query.ts` so the CLI and the MCP tool cannot diverge, but the same
   duplication is still live for the two investigation surfaces: the four sync queries appear
@@ -305,7 +305,7 @@ anything matching the trigger checklist.
 ### ⚑22 · T15 drops the raw keys from `plugin get`, which is a breaking change for anyone reading them
 - **Kind:** klemens-call
 - **Hop:** L3 · T15
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's release-notes checklist · needs Klemens
 - **Matters because:** the plan's instruction was to normalise `plugin get` to match
   `plugin list`, and the alternative - carrying `ismanaged` **and** `isManaged`,
   `isolationmode: 2` **and** `isolationMode: "Sandbox"` - is two names for one fact, which is
@@ -319,7 +319,7 @@ anything matching the trigger checklist.
 ### ⚑23 · `getPluginAssemblies` never selects `description`, so the audit's external-plugin descriptions are always null
 - **Kind:** deferred
 - **Hop:** L3 · T15
-- **State:** open
+- **State:** open · promoted-by-L10 to docs/KNOWN_ISSUES.md and to the plan file's deferred scope
 - **Matters because:** `IntegrationAuditService.generateAuditReport` builds its
   `externalPlugins` block from `getPluginAssemblies`, reading `p.description` - a column that
   query does not `$select`. Every external plugin in the report therefore carries
@@ -332,7 +332,7 @@ anything matching the trigger checklist.
 ### ⚑24 · An unrecognised isolation mode changes what the audit counts as an external plugin
 - **Kind:** assumption
 - **Hop:** L3 · T15
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** `isolationMode` used to fall through to `'External'` for any value
   that was not 1 or 2, so a null or unexpected `isolationmode` was reported as a deliberate
   classification and was counted by `generateAuditReport`'s `externalPlugins` filter. It now
@@ -360,7 +360,7 @@ anything matching the trigger checklist.
 ### ⚑25 · T9 (X1) cannot be fixed from this repo, and the plan listed it as if it could
 - **Kind:** dropped-scope
 - **Hop:** L3 · T9 triage
-- **State:** open
+- **State:** open · promoted-by-L10 to `.claude/refs/cli-architecture.md` · the sweep itself is Klemens's action, in a repo no hop can reach
 - **Matters because:** the plan queued T9 as "documentation only, every `SKILL.md` and
   `cli-reference.md`", which reads as a cheap sweep a hop could take. Those files are not in
   this repository. Verified three ways at L3: no file named `cli-reference.md` exists in the
@@ -404,7 +404,7 @@ anything matching the trigger checklist.
 ### ⚑27 · T10's mechanism is inferred from the measurement, not confirmed against live Azure
 - **Kind:** assumption
 - **Hop:** L4 · T10
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** the plan states the *measurement* (39 of 39 assessments present in
   Resource Graph but absent from CLI output were scoped to an identity object or to the
   subscription) but not the *mechanism*, and this repo's code contains no scope filter to
@@ -426,7 +426,7 @@ anything matching the trigger checklist.
 ### ⚑28 · `defender-list-assessments` now costs a full scan of two sources on every call
 - **Kind:** klemens-call
 - **Hop:** L4 · T10
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's release-notes checklist · needs Klemens
 - **Matters because:** `maxResults` used to be handed to the ARM list, so a small limit was
   a cheap call. It no longer is: the cut would fall on ARM's rows and take out exactly the
   identity- and subscription-scoped assessments the second source recovers, so both
@@ -441,7 +441,7 @@ anything matching the trigger checklist.
 ### ⚑29 · The Resource Graph row shape is mapped from documentation and community usage, not from a row anyone has seen
 - **Kind:** assumption
 - **Hop:** L4 · T10
-- **State:** open
+- **State:** open · promoted-by-L10 to `.claude/refs/adding-features-checklist.md` as a convention, with pointers in the `azure-management` and `azure-defender` package `CLAUDE.md` files · the unverified live row shape is in the plan file's live-run list
 - **Matters because:** `mapAssessmentGraphRow` reads `properties.resourceDetails.Id` and
   `.Source` (the PascalCase keys the published `securityresources` queries use) while
   falling back to the lowercase ARM spelling, and reads `properties.status.code` for the
@@ -461,7 +461,7 @@ anything matching the trigger checklist.
 ### ⚑30 · Resource Graph paging is capped at 20 pages, and the cap is not reachable in any test
 - **Kind:** decision
 - **Hop:** L4 · T10
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's deferred scope
 - **Matters because:** `queryResourceGraph` follows `$skipToken` up to `MAX_RESOURCE_GRAPH_PAGES`
   (20), which is 20,000 assessment rows, then stops and sets `truncated`. The ceiling exists
   so a malformed token loop cannot run forever, and hitting it is declared rather than
@@ -496,7 +496,7 @@ anything matching the trigger checklist.
 ### ⚑31 · The Exposure Management attack-path field *types* are guessed, only their names are measured
 - **Kind:** assumption
 - **Hop:** L5 · T11
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** the plan measured the field **names** on a live row and the value of
   two of them (`riskLevel: High`; risk factors Internet exposure and Weak authorization).
   Everything else about the shape is inferred. `riskFactors` is typed `unknown[]` and
@@ -516,7 +516,7 @@ anything matching the trigger checklist.
 ### ⚑32 · T11 renamed two summary keys, which is a breaking payload change
 - **Kind:** klemens-call
 - **Hop:** L5 · T11
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's release-notes checklist · needs Klemens
 - **Matters because:** `defender-list-attack-paths` returned
   `summary.byPotentialImpact` and `summary.byRiskCategory`; it now returns
   `summary.byRiskLevel`, `summary.byRiskFactor`, `summary.riskLevelNotReported` and an
@@ -532,7 +532,7 @@ anything matching the trigger checklist.
 ### ⚑33 · T12's "the estate simply had CSPM off" explanation is weakened by an inference across two measurements
 - **Kind:** assumption
 - **Hop:** L5 · T11
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list · needs Klemens
 - **Matters because:** the ⚑26 update left T12 with two candidate explanations for zero
   `Critical` severities and zero `properties.risk` objects, one being that the estate
   genuinely held neither, since a risk object requires Defender CSPM and the same report
@@ -575,7 +575,7 @@ anything matching the trigger checklist.
 ### ⚑35 · The CLI half of the T11 fix is unit-untested, because this package has no CLI tests
 - **Kind:** gotcha
 - **Hop:** L5 · T11
-- **State:** open
+- **State:** open · promoted-by-L10 to `packages/azure-defender/CLAUDE.md` and to the plan file's live-run list
 - **Matters because:** the user-visible half of the fix is a CLI summary block - "Risk level:
   not reported by the API" instead of "Unknown", the entry point and target labels, the
   `isPartialAttackPath` warning, the `unmappedProperties` key list, and the printed
@@ -637,7 +637,7 @@ anything matching the trigger checklist.
 ### ⚑36 · T13's remaining cause is one live comparison, and the likely fix is a capability trade-off Klemens has to make
 - **Kind:** klemens-call
 - **Hop:** L6 · ⚑34
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list · needs Klemens
 - **Matters because:** L6 narrowed T13 to a single testable hypothesis. At `2025-05-04` both
   `implementationEffort` and `userImpact` are **optional** in the response model and **absent
   from every 2025-05-04 example**, while the 2020-01-01 examples for the same operation carry
@@ -655,7 +655,7 @@ anything matching the trigger checklist.
 ### ⚑37 · The assessment passthrough is unit-verified only, and covers just one of the two sources
 - **Kind:** assumption
 - **Hop:** L6 · ⚑34
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** two things a reader could get wrong. First, **nothing has seen a live
   assessment row through this code.** The passthrough's whole value is diagnostic - it exists
   so one live run tells T12 whether the mapper was discarding risk data - and until that run
@@ -675,7 +675,7 @@ anything matching the trigger checklist.
 ### ⚑38 · `summary.note` now carries a list that a live tenant could make long
 - **Kind:** decision
 - **Hop:** L6 · ⚑34
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's deferred scope
 - **Matters because:** the unmapped-key sentence names every distinct key, and the CLI prints
   `summary.note` verbatim. On a tenant whose rows carry many unrecognised fields the note
   grows with them, and `note` is the same field that carries the "this list is incomplete"
@@ -724,7 +724,7 @@ anything matching the trigger checklist.
 ### ⚑40 · Whether ARM honours `detailed=true` on a live estate is unverified
 - **Kind:** assumption
 - **Hop:** L7 · T14 (D10)
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list · needs Klemens
 - **Matters because:** the whole D10 fix rests on one sentence in the `AppServicePlans_List`
   swagger - `detailed` "defaults to false, which returns a subset of the properties" - and
   the parameter is documented nowhere else useful. No Azure credentials on this machine, so
@@ -742,7 +742,7 @@ anything matching the trigger checklist.
 ### ⚑41 · `workerCount` changed meaning without a breaking-change block
 - **Kind:** decision-for-Klemens
 - **Hop:** L7 · T14 (D10)
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's release-notes checklist · needs Klemens, and it depends on item 40's live run
 - **Matters because:** `workerCount` used to carry ARM's `targetWorkerCount` and now carries
   `numberOfWorkers`. The key name is unchanged and the type is unchanged, so nothing breaks
   at the schema level, but any consumer that read it as a scaling target now reads an
@@ -793,7 +793,7 @@ anything matching the trigger checklist.
 ### ⚑42 · The plan's "already known in KNOWN_ISSUES" premise for T16 was wrong
 - **Kind:** gotcha
 - **Hop:** L7 · T16 (D26)
-- **State:** open
+- **State:** open · promoted-by-L10 in part: the em-dash residual to docs/KNOWN_ISSUES.md; the "plan-file causes are leads" lesson has no repo home and stays here
 - **Matters because:** T16 recorded that `docs/KNOWN_ISSUES.md` held the repo-wide version of
   the cache-path behaviour. It does not - that file has four entries and none is about the
   cache path - so a hop that trusted the line would have fixed the package-specific symptom
@@ -826,7 +826,7 @@ anything matching the trigger checklist.
 ### ⚑43 · The two new Defender surfaces have never seen a live row
 - **Kind:** assumption
 - **Hop:** L7 · T18 half 1 (D18)
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** every field the alert and pricing commands name, and every enum they
   validate against, comes from the ARM swagger rather than from a captured response. That is
   the best available source on this machine and it has been right twice this chain - but the
@@ -843,7 +843,7 @@ anything matching the trigger checklist.
 ### ⚑44 · `defender-list-alerts` cannot give a filtered subscription-wide total
 - **Kind:** dropped-scope
 - **Hop:** L7 · T18 half 1 (D18)
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's deferred scope
 - **Matters because:** `Alerts_List` accepts no `$filter`, so `maxResults` bounds the fetch
   and the filter can only ever see the rows already fetched. A caller asking for Active
   alerts on a tenant with more than `maxResults` alerts gets Active alerts *from the first
@@ -858,7 +858,7 @@ anything matching the trigger checklist.
 ### ⚑45 · The four new `azure-management` surfaces have never seen a live row
 - **Kind:** assumption
 - **Hop:** L8 · T18 half 2 (D13)
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** every field the four commands name, and every shape their mappers
   read, comes from an ARM swagger rather than from a captured response. That source has now
   been right three times in this chain and is the best available on a machine with no Azure
@@ -885,7 +885,7 @@ anything matching the trigger checklist.
 ### ⚑46 · VM power state costs one ARM call per VM, and the cheap alternative was refused on purpose
 - **Kind:** dropped-scope
 - **Hop:** L8 · T18 half 2 (D13)
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's deferred scope
 - **Matters because:** `--include-status` fans out to `VirtualMachines_InstanceView` once per
   VM, sequentially. On the estate D13 measured that is 244 calls in one command, with no
   cap, no concurrency and no progress output - it will look like a hang before it looks like
@@ -909,7 +909,7 @@ anything matching the trigger checklist.
 ### ⚑47 · The API connection sweep is unbounded in resource groups, and ARM's own paging parameters are unused
 - **Kind:** dropped-scope
 - **Hop:** L8 · T18 half 2 (D13)
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's deferred scope
 - **Matters because:** `Microsoft.Web/connections` has no subscription-wide list operation, so
   `list-api-connections` walks every resource group in the subscription and asks each one.
   There is no cap on that walk. A subscription with several hundred resource groups pays
@@ -928,7 +928,7 @@ anything matching the trigger checklist.
 ### ⚑48 · Two of the four api-version pins were chosen for maturity, not measured, and one is ten years old
 - **Kind:** assumption
 - **Hop:** L8 · T18 half 2 (D13)
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** `Microsoft.Compute/virtualMachines` has **54** stable api-versions in
   the spec repo and `2024-07-01` was picked as a mature one rather than because anything
   measured its payload against a newer one. A VM's `properties` block is explicitly
@@ -944,7 +944,7 @@ anything matching the trigger checklist.
 ### ⚑49 · Connection redaction trusts ARM's naming of which parameter map holds secrets
 - **Kind:** assumption
 - **Hop:** L8 · T18 half 2 (D13)
-- **State:** open
+- **State:** open · promoted-by-L10 to docs/KNOWN_ISSUES.md, and first in the plan file's live-run list · needs Klemens
 - **Matters because:** `list-api-connections` redacts `parameterValues` to its keys and leaves
   `nonSecretParameterValues` whole. That is not a guess about key names - it is ARM's own
   distinction, and it is a better instrument than the name-pattern redaction
@@ -995,7 +995,7 @@ anything matching the trigger checklist.
 ### ⚑50 · D19 was answered with a hint rather than a `notApplicable` payload, and the payload version is still open
 - **Kind:** klemens-call
 - **Hop:** L9 · T19 (D19)
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list · needs Klemens
 - **Matters because:** the plan file's suggestion was to return an empty result with
   `notApplicable: true` so a batch consumer stops parsing an error string. L9 did not do
   that, and the reason is evidence rather than taste: **nothing anywhere in this repo
@@ -1024,7 +1024,7 @@ anything matching the trigger checklist.
 ### ⚑51 · `log-analytics` retries nothing at all, and only the 400 case is a decision
 - **Kind:** deferred
 - **Hop:** L9 · T19 (D23)
-- **State:** open
+- **State:** open · promoted-by-L10 to docs/KNOWN_ISSUES.md and to the plan file's deferred scope
 - **Matters because:** found while reading the error path for D23.
   `LogAnalyticsService.executeQuery` makes exactly one `axios.post` and throws on any
   failure. It does not retry `429`, `503`, `500` or a socket reset, while `DefenderClient`
@@ -1044,7 +1044,7 @@ anything matching the trigger checklist.
 ### ⚑52 · The two transient `Bad request` failures are still unexplained, and now they are at least diagnosable
 - **Kind:** assumption
 - **Hop:** L9 · T19 (D23)
-- **State:** open
+- **State:** open · promoted-by-L10 to the plan file's live-run verification list
 - **Matters because:** D23's two failures in roughly 180 `query execute` invocations both
   succeeded unchanged on immediate retry, which is the signature of something transient
   surfacing as a 400. **L9 did not identify them and could not:** the two original
@@ -1084,3 +1084,72 @@ anything matching the trigger checklist.
   package built and tested clean. Recorded so the next hop knows the pin is still there and
   still untested rather than assuming L9 cleared it: the moment a fix in that package needs
   a `core` export, ⚑5's full procedure applies.
+
+---
+
+## Closing hop (L10) · reconciliation and drain
+
+The chain's queue is empty. This hop took no task, wrote no code and chained nothing. It read all
+52 items and their 11 appended updates, read every commit from `6729aa0` to `a89ddf0`, checked each
+open item against what is on disk rather than against what a hop said, and gave every survivor a
+durable home.
+
+### Reconciliation: what a later hop resolved without saying so
+
+The expected failure mode was a hop resolving an item as a side effect and never closing it. It
+found almost nothing, which is itself the result: **one item closes, one has advanced, and the other
+45 are genuinely open.** Verified on disk this hop:
+
+| Item | Checked | Result |
+|---|---|---|
+| ⚑2 | `grep -rn "FanOutRecorder\|fanOut.run" packages/*/src` | **Advanced, not closed.** `core` (18 sites), `azure-management` (43), `azure-defender` (3). L1's stated work-list grep now returns two hits and neither is a collection fan-out, so the grep is spent and the remaining scope is unmeasured. |
+| ⚑3 | `IntegrationAuditService.ts:822`, `:835`, `:1027`, `:861` | **Still live.** `maxRecords` defaults to 100 and neither `hasMore` nor `truncationReason` is read anywhere in the method. |
+| ⚑4 | `MetadataService.ts:293`, `WorkflowService.ts:357`, `FlowService.ts:357`, `docs/KNOWN_ISSUES.md` | **Closed.** Its only job was to make this hop check the durable record. The record is accurate and names **three** services; ⚑4 said two. `FlowService.getFlows` is the third and still carries the pattern. |
+| ⚑5 | every `packages/*/package.json` | **Still live, re-measured at 16.** ⚑5's title says 14, L1 said 15, L3 measured 16. Sixteen is the current number. |
+| ⚑21 | both log-analytics files | **Still live:** 7 and 8 occurrences. |
+| ⚑23 | `PluginService.ts:136` against `:162` and `:209` | **Still live.** The list query omits `description`; the single-assembly query has it. |
+| ⚑35 | `find packages/azure-defender/src -name "*.test.ts"` | **Still live.** Nine test files, none under `src/cli/`. |
+| ⚑42 | a recursive dash search over `packages/*/src` | **Still live and larger than recorded:** 535 occurrences, not just the `code-review` hints. |
+| all | `docs/release-notes/v35.0.0.md` | **Nothing from this chain is in the master release notes.** Nine hops of fixes sit unreleased on `release/35.0`, so every "belongs in the release notes" item is genuinely undrained. |
+
+⚑34 stays `part-closed-by-L6`: half 2 is done, and half 1 is carried in full by ⚑36.
+
+### Where everything went
+
+- **`docs/KNOWN_ISSUES.md`, six new entries:** ⚑3 (capped assembly list), ⚑23 (null assembly
+  description), ⚑21 (duplicated investigation KQL), ⚑51 (no retry policy in `log-analytics`), ⚑49
+  (the connection-redaction assumption, written as the warning a reader needs before sharing a
+  listing), and ⚑42's em-dash residual.
+- **The plan file, three new sections:** a **release-notes checklist for the next beta** (⚑10, ⚑12,
+  ⚑14, ⚑17, ⚑20, ⚑22, ⚑28, ⚑32, ⚑41, with the four breaking-change candidates separated out); a
+  **live-run verification list** (⚑1, ⚑7, ⚑9, ⚑11, ⚑13, ⚑15, ⚑16, ⚑18, ⚑24, ⚑27, ⚑29, ⚑31, ⚑33,
+  ⚑35, ⚑36, ⚑37, ⚑40, ⚑43, ⚑45, ⚑48, ⚑49, ⚑50, ⚑52, each reduced to one command and the one field
+  to read); and **deferred scope, unscheduled** (⚑2, ⚑3, ⚑19, ⚑21, ⚑23, ⚑30, ⚑38, ⚑44, ⚑46, ⚑47,
+  ⚑51).
+- **Conventions, four durable homes.** ⚑29's mapper rule went to
+  `.claude/refs/adding-features-checklist.md` as a new "Writing a response mapper (hard rule)"
+  section, with a pointer bullet in `packages/azure-management/CLAUDE.md` and
+  `packages/azure-defender/CLAUDE.md`. **That was the closing hop's choice**: one home that is
+  already loaded whenever a service or mapper is written beats three copies that drift, and the
+  package pointers are where a package-scoped reader looks. It also covers the request-side half
+  (`detailed=true`, per-VM instance view) and the api-version half, neither of which a
+  `KNOWN_ISSUES` defect entry could carry. ⚑5's stale-pin procedure went to the root `CLAUDE.md`.
+  ⚑25's zsh word-splitting rule went to `.claude/refs/cli-architecture.md`. ⚑35's "no CLI tests
+  here" went to `packages/azure-defender/CLAUDE.md`.
+
+### What has no home, stated plainly
+
+**This repo has no task system, so nothing was promoted to a task, and nothing was closed by being
+written down.** Every item above except ⚑4 is still `open`: the record moved, the question did not
+get answered.
+
+- **Roughly twenty items are one assumption wearing different hats:** no Azure, PowerPlatform or Log
+  Analytics credentials on the machine the chain ran on. They are answerable only by running the
+  command, which is why they are a list of commands in the plan file rather than twenty questions.
+- **⚑42's other half has no repo home at all.** The lesson is that this plan file's stated causes
+  were leads rather than facts, four times out of four (T13's scope lead, T14's three causes,
+  T16's "already in KNOWN_ISSUES", and the pattern itself). It is not a defect, not a convention
+  and not a task, so it stays here and in the work log.
+- **Fourteen items need Klemens rather than a hop:** ⚑1, ⚑10, ⚑12, ⚑17, ⚑20, ⚑22, ⚑25, ⚑28, ⚑32,
+  ⚑33, ⚑36, ⚑41, ⚑49, ⚑50. Seven were walked with him at the close of this hop; the rest are
+  release-notes wording decisions that belong to whoever runs `/product-releasenotes beta`.

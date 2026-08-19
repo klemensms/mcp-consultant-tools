@@ -145,6 +145,14 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 
 ## Things that will bite you
 
+**A mapper built from a vendor doc drops live payload silently.** All four mappers here (VMs,
+log-search alert rules, Logic App workflows, API connections) pass `properties` through whole and
+report unrecognised keys rather than naming an allowlist, and two of them also had to change the
+*request* to get the fields at all (`detailed=true` on App Service plans, a per-VM instance-view
+call). The rule and the three confirmed instances behind it are in
+`.claude/refs/adding-features-checklist.md`, under "Writing a response mapper". Read it before
+adding a fifth mapper.
+
 **Resource Graph has no query-parameter binding.** Filter values are escaped into the KQL literal by `src/utils/kql.ts`, which escapes the backslash *before* the quote. Escaping only the quote lets a trailing `\` close the literal and inject clauses. Never interpolate a value into a query without `kqlString()`.
 
 **Compare `type` with `=~`, never `==`.** A wrong-cased `type` literal compiles and returns zero rows — a false all-clear, not an error. Same for `tostring(properties) contains`: `contains` takes a `string`, and `properties` is `dynamic`.

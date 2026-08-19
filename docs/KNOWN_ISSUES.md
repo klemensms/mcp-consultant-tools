@@ -112,3 +112,119 @@ changing anything.
 
 **Note:** the two confirmed defects above are sufficient on their own to make `PII_PROTECTION`
 behave unpredictably. Fix those first, then re-test whether a symptom remains.
+
+---
+
+## `gen-integration-audit` presents a capped plugin-assembly list as complete
+
+**Status:** confirmed in source. **Affects:** `IntegrationAuditService.generateAuditReport`.
+
+`generateAuditReport` defaults `maxRecords` to 100
+(`packages/powerplatform-core/src/services/IntegrationAuditService.ts:822`) and passes it to
+`getPluginAssemblies` at line 835. That call returns `{ rows, hasMore, truncationReason }`, but the
+report reads only the rows: `assemblies: pluginAssemblies.assemblies` at line 1027, and the
+`externalPlugins` filter at line 861. **Neither `hasMore` nor `truncationReason` is read anywhere in
+the method**, so an environment holding more than 100 assemblies produces a report that names 100 and
+says nothing about the rest.
+
+This is the same false-completeness class that `v35.0.0-beta.17` closed for the five `powerplatform`
+list commands, still live inside a command whose entire purpose is to produce a report someone acts
+on.
+
+**Fix:** carry `hasMore` and `truncationReason` into the report's `plugins` block, and surface them
+in the summary the same way the beta.17 commands do. Changing the report's output contract is why it
+was left out of beta.17.
+
+---
+
+## `plugin list` and the integration audit always report a null assembly description
+
+**Status:** confirmed in source. **Affects:** `PluginService.getPluginAssemblies`,
+`IntegrationAuditService.generateAuditReport`.
+
+`formatPluginAssembly` reads `row.description`
+(`packages/powerplatform-core/src/services/PluginService.ts:136`), but the list query at line 162
+does not `$select` it. The single-assembly query at line 209 does. So every assembly from
+`plugin list` carries `description: undefined`, and the audit's `externalPlugins` block renders it
+as `null` (`IntegrationAuditService.ts:865`), which reads as "this assembly has no description"
+rather than "not asked for".
+
+**Fix:** two lines. Add `description` to the `$select` in `getPluginAssemblies` and confirm
+`formatPluginAssembly` passes it through. It changes `plugin list`'s payload and the audit report's
+content, which is why it was not taken inside a task scoped to making `plugin get` and `plugin list`
+agree.
+
+---
+
+## `investigate-app` and `investigate-sync` still write their KQL out twice
+
+**Status:** confirmed in source. **Affects:** `packages/log-analytics`.
+
+The four `error-summary` query shapes were moved into `utils/error-summary-query.ts` so the CLI and
+the MCP tool cannot diverge. The two investigation surfaces were not: `AppExceptions` and
+`AppTraces` still appear 7 times in `src/cli/commands/query-commands.ts` and 8 times in
+`src/tools/function-tools.ts`. A column corrected in one copy is corrected on one surface only,
+which is exactly how the invalid `FunctionAppLogs` query came to exist.
+
+**Fix:** extract the `investigate-app` and `investigate-sync` shapes the same way. Work-list:
+`grep -n "AppExceptions\|AppTraces" packages/log-analytics/src/cli/commands/query-commands.ts packages/log-analytics/src/tools/function-tools.ts`.
+
+---
+
+## `log-analytics` retries nothing, while its sibling clients retry the standard transient set
+
+**Status:** confirmed in source. **Affects:** every command in `packages/log-analytics`.
+
+`LogAnalyticsService.executeQuery` makes exactly one `axios.post`
+(`packages/log-analytics/src/services/log-analytics-service.ts:201`) and throws on any failure. It
+has no retry policy at all. Its 429 branch reads the `Retry-After` header purely to print it in the
+error message (line 228). By contrast `DefenderClient` and `azure-management`'s `ArmClient` both
+retry `[429, 500, 502, 503, 504]` with exponential backoff and honour `Retry-After`
+(`packages/azure-defender/src/defender-client.ts:113`,
+`packages/azure-management/src/client/ArmClient.ts:46`).
+
+An assurance run that queries a workspace 180 times therefore has no protection against the one
+failure class everybody agrees is transient, and every such failure is a hard stop.
+
+**Fix:** add the sibling packages' retry policy once for the package rather than once for
+`executeQuery`. If the helper is hoisted into `core`, note that `packages/log-analytics` still pins
+`@mcp-consultant-tools/core` at `33.0.0`, so the pin must be bumped and
+`packages/log-analytics/node_modules/@mcp-consultant-tools/core` removed before `npm install`.
+
+**Deliberately not fixed:** a 400 is not retried, and a test named `does not retry a 400` pins that.
+A blind retry on `Bad request` would mask a malformed query for every caller of the package.
+
+---
+
+## Unverified: `list-api-connections` trusts ARM's own split between secret and non-secret parameters
+
+**Status:** NOT confirmed against a live response. **Affects:**
+`logic-apps list-connections` / `azmgmt-list-api-connections` (`packages/azure-management`).
+
+The command redacts `parameterValues` to its keys and leaves `nonSecretParameterValues` whole. That
+is ARM's own distinction rather than a guess at key names, and it is a better instrument than
+name-pattern redaction, which would miss a secret under a key called `server`. But it is a single
+point of trust, and **the CLI caches the payload to disk**.
+
+If a live response ever carries a credential in `nonSecretParameterValues`, or ARM renames either
+map, the redaction stops working silently. `Microsoft.Web/connections` has exactly one stable
+api-version (`2016-06-01`), so a live tenant may return keys the schema does not define.
+
+**⚠️ Before sharing a connection listing anywhere, read `nonSecretParameterValues` in the output.**
+The first live run should use a subscription holding a SQL or Office 365 connection. If that map
+holds anything credential-shaped, redaction must move to redacting both maps by default.
+
+---
+
+## User-facing strings in `packages/*/src` still contain em-dashes
+
+**Status:** confirmed by measurement, sweep unscheduled. **Affects:** repo-wide.
+
+A recursive search of `packages/*/src` for U+2014 and U+2013 returns **535** occurrences across most packages, including
+hint and error strings the CLI prints. The house rule bars the character from every output channel,
+code included. The `code-review` hint text is the instance that was noticed; it is not the only one.
+
+**Fix:** a deliberate repo-wide sweep, not a side effect of unrelated work. It touches user-facing
+strings that tests match on, so each replacement needs its test updated in the same change. The work-list is
+`grep -rn "$(printf '\xe2\x80\x94\\|\xe2\x80\x93')" packages/*/src` (the escapes keep the barred characters out of the
+command you paste).

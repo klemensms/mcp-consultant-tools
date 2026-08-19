@@ -406,6 +406,193 @@ more than one when its context measurement allows.
   under their own `node_modules` instead of linking the workspace. They compile against
   published code and cannot see local changes. `npm ls <pkg>` reports these as `invalid`.
 
+## Release-notes checklist for the next beta
+
+Nine hops landed on `release/35.0` with no beta cut, so **none of this is in
+`docs/release-notes/v35.0.0.md` yet** (checked at the closing hop: the master doc mentions no
+fan-out contract, no `byRiskLevel`, no `workerCount`, no `unmappedPropertyKeys`). Every line below
+is a behaviour or payload change that must be written up when `/product-releasenotes beta` next
+runs, and the first four need Klemens's decision on whether they get the breaking-change block
+(warning plus copy-paste agent block) rather than a plain behaviour-change line.
+
+**Candidates for the breaking-change block:**
+
+- **`outputResult` now exits 1 whenever a payload's fan-out lost an item** (`core`, all packages).
+  A script treating any non-zero exit as fatal now stops on a partial collection where it
+  previously continued with a quietly incomplete cache file. Stopping is the point of the fix.
+  Register item 10.
+- **`defender-list-attack-paths` renamed two summary keys.** `summary.byPotentialImpact` and
+  `summary.byRiskCategory` are gone; `summary.byRiskLevel`, `summary.byRiskFactor`,
+  `summary.riskLevelNotReported` and an optional `summary.note` replace them. On a legacy-shape
+  tenant the old keys held real values, so a consumer there loses a working field. Register
+  item 32.
+- **`plugin get` no longer returns the raw Dataverse keys or `@odata.etag`.** It now returns the
+  same decoded shape as `plugin list`. A consumer written against the raw shape reads `undefined`.
+  Register item 22.
+- **`query error-summary` throws on an unsupported `--table` and exits 1** where it used to fall
+  through to the `FunctionAppLogs` shape and return confident rows about a different table.
+  Register item 20.
+
+**Behaviour and payload changes that need a line either way:**
+
+- **`networking event-grid-topics`: `summary.total` is now what exists and `listed` is what came
+  back**, so `topics.length === summary.total` no longer holds, and the command makes one extra
+  ARM list call on every invocation. Register item 12.
+- **`fn stats` drops `UniqueFunctions`** (it was `dcount` inside a `by` on the same column, so it
+  was always 1). `normalization.rows` replaces it. Register item 14.
+- **`la-get-metadata` keeps its ~680-table catalogue and gains a `scope` block**; the new
+  `la-list-workspace-tables` answers what the workspace actually holds. Tool count 13 to 14. A
+  consumer that never reads `scope` is still wrong about what the count means. Register item 17.
+- **`defender-list-assessments` now scans both sources in full on every call** and makes at least
+  one Resource Graph POST it did not make before, because `maxResults` can no longer be pushed
+  down to ARM without cutting exactly the rows the second source recovers. Register item 28.
+- **`app-service plans`: `workerCount` changed meaning**, from ARM's writable `targetWorkerCount`
+  to the read-only `numberOfWorkers`. Same key, same type, different quantity on any plan
+  configured to scale. Register item 41, and whether it needs the breaking-change block depends on
+  the live run in the verification list below.
+- **New commands:** two `azure-defender` surfaces (security alerts, Defender plan configuration)
+  and four `azure-management` ones (virtual machines, log-search alert rules, Logic App workflows,
+  API connections). Tool counts in `README.md` need updating.
+- **Message-only, nothing to declare:** the compliance commands' `defender-list-plans` hint and
+  the Log Analytics `Bad request (<code>)` message. No exit code and no payload shape moves.
+  Register item 10's L9 update.
+
+## Live-run verification list
+
+**Every code fix in this chain is unit-verified only.** There are no Azure, PowerPlatform or Log
+Analytics credentials on the machine the chain ran on, which is why roughly twenty register items
+are the same assumption wearing different hats. Klemens has the credentials. Each line below is
+one command and the one thing to read in its output, ordered by what a wrong answer would cost.
+
+**Read this one before sharing any output:**
+
+- `logic-apps list-connections` against a subscription holding a SQL or Office 365 connection.
+  Read `nonSecretParameterValues` **before the JSON goes anywhere**. The command trusts ARM's own
+  split between secret and non-secret parameter maps, and the CLI writes the payload to disk.
+  Register item 49, also in `docs/KNOWN_ISSUES.md`.
+
+**Settles a product decision:**
+
+- `assessmentMetadata` twice against the same subscription, once at api-version `2020-01-01` and
+  once at `2025-05-04`, comparing `implementationEffort` and `userImpact`. If the old version
+  populates them and the new one does not, there is no patch that keeps everything, because
+  `2025-05-04` is what the package needs for `Critical` severity. Register item 36, task T13.
+- `defender-list-plans` per subscription, reading `summary.cspmEnabled` (three-state: `null` means
+  the plan was absent from the response, **not** that CSPM is off). This is what T12's remaining
+  explanation now rests on. Register item 33.
+- `defender-list-assessments` against a subscription with a paid Defender plan, reading
+  `summary.unmappedPropertyKeys` and then `properties.unmappedProperties` on a row that has one.
+  Non-empty and naming a risk field means the mapper was T12's cause; empty means it never was.
+  Register items 37 and 34.
+- Any `compliance list-*` command against a subscription with **no** paid Defender plan, capturing
+  the ARM error code and status verbatim. With that code in hand, returning `notApplicable: true`
+  instead of failing becomes a real option rather than a guessed string match. Register item 50.
+
+**Confirms a fix actually works:**
+
+- The five `powerplatform` paging commands shipped in `v35.0.0-beta.17`, which have never run
+  against a live Dataverse environment. Register item 1.
+- `plugin trace-logs --exception-only`, which now sends an empty-string comparison on a memo
+  attribute. Register item 7.
+- `graph role-assignments`: read `roleDefinitionsFound`. Zero means the join was never the problem
+  and the role-definition query needs its own investigation. Register item 11.
+- `app-service plans` at subscription scope: `numberOfWorkers` and `workerCount` must be populated
+  on a plan known to host apps. If ARM ignores `detailed=true`, the fix looks landed but the
+  "unused App Service plan" false positive is still live. Register item 40.
+- `networking front-doors --include-details`: read `fanOut.failures` before using the output for a
+  WAF review. Those three calls have never run on a live estate, and an unattached WAF policy and
+  a refused route list look the same to a reader who skips it. Register item 8's L7 update.
+- `networking event-grid-topics`: confirm a system-topic list failure surfaces as a recorded
+  `FanOutRecorder` failure rather than as something the recorder does not catch. Register item 15.
+- A Reader-credential refusal anywhere in `azure-management`: confirm it arrives carrying
+  `response.status = 403`, or `statusCode` records null and the summary loses its "mostly HTTP
+  403" hint. Counts and exit code are unaffected either way. Register item 9.
+- `fn stats`: compare `normalization.rows` against the function count the portal shows, and the
+  collapsed `TotalExecutions` against a hand-written KQL `count()` per function. The collapse
+  keeps the highest-counting name variant, which under-counts silently if the variants are
+  partly disjoint rather than duplicate views. Register item 13.
+- `query error-summary --table FunctionAppLogs` with and without `--no-deduplicate`. If
+  `UniqueErrors` is 1 per function while `Count` is large, `FunctionInvocationId` is blank on the
+  rows that matter and the dedupe branch needs a guard. Register item 18.
+- `la-list-workspace-tables` against a workspace whose contents are known, compared with
+  `search * | distinct $table` over the same window. `Usage` records ingestion-metered data types,
+  so the command is a lower bound. Register item 16.
+- `plugin list`: any assembly reporting `Unknown (<value>)` means `isolationmode` is not always
+  populated and the audit's external-plugin count has genuinely changed. Register item 24.
+- `defender-list-assessments`: compare `summary.sources.arm.returned` against
+  `summary.sources.resourceGraph.returned` and read `resourceGraph.unique`. This says which of the
+  two candidate causes the missing identity- and subscription-scoped assessments actually had.
+  Register item 27.
+- `defender-list-assessments`: check a Resource-Graph-recovered row carries a
+  `resourceDetails.id`, and that `summary.total` is not inflated by ids that differ between the
+  two sources by more than case. Register item 29.
+- `defender-get-attack-path`: read `entryPoint`, `target` and the first element of `riskFactors`
+  and check the display label picked the readable field rather than serialising the object.
+  Register item 31.
+- `defender-list-alerts`: check rows carry `compromisedEntity` (`topEntities` is empty and useless
+  without it), and that `defender-list-plans` names `CloudPosture` rather than another spelling.
+  Register item 43.
+- `compute list-vms --include-status`: `properties.instanceView` must carry a `PowerState/` entry,
+  or `byPowerState` reads `unknown` for every VM. Register item 45.
+- `monitoring log-alerts`: `kind` must be present on the resource rather than inside `properties`,
+  or every rule defaults to `LogAlert` and `summary.alerting` counts `LogToMetric` rules as
+  coverage. Register item 45.
+- `logic-apps list-workflows`: `definition.triggers` and `definition.actions` must be objects
+  rather than arrays, or `actionCount` is the string-key count of an array and still looks right.
+  Register item 45.
+- `compute list-vms` compared against `az vm list` on the same subscription. A field present in
+  `az` output and absent from ours is an api-version gap, not a mapper gap:
+  `Microsoft.Compute/virtualMachines` has 54 stable versions and `2024-07-01` was picked for
+  maturity, not measured. Register item 48.
+- The next `Bad request` from a real Log Analytics workspace, read with its now-included error
+  code. `BadArgumentError` or `PathNotFoundError` means the query or workspace id was the problem;
+  anything throttling-shaped means the 400 is a mislabelled transient and a bounded retry becomes
+  defensible. Register item 52.
+- The `azure-defender` CLI summary strings (risk level, entry point and target labels, the partial
+  attack-path warning, the unmapped-key list). Nothing asserts any of them: that package has no
+  CLI tests. Register item 35, also noted in `packages/azure-defender/CLAUDE.md`.
+
+## Deferred scope, unscheduled
+
+Nothing in this chain will do these, and none is scheduled.
+
+- **The fan-out sweep is two thirds done and its work-list is exhausted.** `core`,
+  `azure-management` (43 sites) and `azure-defender` (3 sites) use the contract. L1's stated
+  work-list, `grep -rn "console.error(\`Failed to" packages/*/src`, now returns two hits and
+  **neither is a collection fan-out**: `azure-devops/src/sync/template-loader.ts:72` is a fallback
+  chain and `azure-sql/src/services/connection-service.ts:231` is a connection failure. So the
+  grep is spent and the sweep's remaining scope across the other packages is **unmeasured** rather
+  than small. Register item 2.
+- **`gen-integration-audit` presents a capped assembly list as complete**, and **`plugin list`
+  always reports a null assembly description.** Both confirmed in source and written up in
+  `docs/KNOWN_ISSUES.md`. Register items 3 and 23.
+- **`investigate-app` and `investigate-sync` still duplicate their KQL** across the CLI and the
+  MCP tool. In `docs/KNOWN_ISSUES.md`. Register item 21.
+- **`log-analytics` has no retry policy at all** while its sibling ARM clients retry the standard
+  transient set. In `docs/KNOWN_ISSUES.md`. Register item 51.
+- **`deduplicateRetries` guarantees something weaker on `FunctionAppLogs`** than on the
+  Application Insights tables: it collapses the log lines of one invocation, not retries, because
+  a retry is a new invocation with a new id. Documented in the output, the tool description, the
+  CLI help and both docs. Whether that warrants a separate flag name is an open design question.
+  Register item 19.
+- **VM power state costs one ARM call per VM, sequentially**, with no cap and no progress output
+  (244 calls on the estate that produced the defect). `VirtualMachines_ListAll` accepts
+  `statusOnly=true` and would be one call, but whether it returns the full model alongside the
+  status is established nowhere, and taking it blind risked gaining the runtime and losing the
+  configuration. One live `ListAll` comparison settles it. Register item 46.
+- **`list-api-connections` walks every resource group in the subscription** because
+  `Microsoft.Web/connections` has no subscription-wide list operation, and the walk is uncapped.
+  The alternative is Resource Graph, refused here because a projected row shape is exactly what
+  went wrong twice in this repo. Register item 47.
+- **`defender-list-alerts` cannot give a filtered subscription-wide total**: `Alerts_List` accepts
+  no `$filter`, so the filter only sees the rows `maxResults` already fetched. The default of 200
+  is a guess. Register item 44.
+- **Resource Graph paging stops at 20 pages** (20,000 rows) and declares it. Worth revisiting only
+  if a live run ever reports `truncated: true` with no `maxResults` set. Register item 30.
+- **`summary.note` names every unmapped key**, and it is the same field that carries the "this
+  list is incomplete" warning. If a live tenant makes the note unreadable, cap the names in the
+  note rather than dropping the sentence. Register item 38.
+
 ## Release discipline for this chain
 
 - Do not publish per task. Land fixes on `release/35.0` and let Klemens decide when to cut

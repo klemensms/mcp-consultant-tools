@@ -12,6 +12,17 @@ mcp-ado-cli --no-cache wiki list MyProject # Skip cache
 mcp-ado-cli --env-file .env.prod wiki list MyProject # Custom env file
 ```
 
+**Never document an invocation as a string in a shell variable.** `ARM="npx -y --package=... mcp-azure-mgmt"` then `$ARM list-resources` fails under zsh, which is the macOS default shell: zsh does not word-split an unquoted variable, so the whole string is passed as one command name. Measured cost in an assurance run: once failing loudly, and once far worse, a collection that ran to completion, **exited 0 and wrote zero files**. The same defect bit a verification script inside this repo written as `for cmd in "logic-apps list-workflows" ...; do node "$CLI" $cmd; done`.
+
+Document either the direct inline form, as the examples above do, or a shell function:
+
+```bash
+arm() { npx -y --package=@mcp-consultant-tools/azure-management@beta mcp-azure-mgmt "$@"; }
+arm list-resources
+```
+
+Any script this repo writes should pass arguments literally rather than through a variable.
+
 ## CLI Architecture
 
 Each package follows this pattern:

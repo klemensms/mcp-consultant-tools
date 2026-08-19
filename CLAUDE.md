@@ -142,6 +142,8 @@ Workspace root with `packages/`:
 - **Azure platform:** `azure-management` (ARM) • `azure-defender` (Defender for Cloud, read-only) • `entra-id` (app registration audit, read-only) • `azure-data-factory` • `fabric` (Microsoft Fabric) • `application-insights` • `log-analytics` • `azure-sql` • `service-bus` • `azure-storage` • `azure-b2c`.
 - **Other integrations:** `figma` • `sharepoint` • `github-enterprise` • `teams` • `1password` • `rest-api`.
 
+**16 packages still pin `@mcp-consultant-tools/core` at `33.0.0` while the workspace is at `34.1.0`**, so npm installs a registry copy under their own `node_modules` instead of linking the workspace: `1password`, `application-insights`, `audit-cli`, `azure-b2c`, `azure-data-factory`, `azure-devops-admin`, `azure-sql`, `azure-storage`, `fabric`, `figma`, `github-enterprise`, `log-analytics`, `service-bus`, `sharepoint`, `teams`, `todoist`. Add an export to `core`, edit one of those packages, and the export is missing at test time while the build passes. **Bumping the pin alone is not enough** - npm leaves the stale copy on disk, so `rm -rf packages/<pkg>/node_modules/@mcp-consultant-tools/core` after the bump, then `npm install`, then confirm the package resolves to the workspace path. A 16-package bump is a release-shaped change; do it deliberately, not inside a bug fix.
+
 Tool counts live in `README.md` (don't duplicate). **Build order:** core → service packages → meta. **Setup:** `git clone` → `npm install` → `npm run build`. Per-package env config lives in each package's `CLAUDE.md`.
 
 ## Integration Technical Documentation

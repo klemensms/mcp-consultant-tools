@@ -58,6 +58,12 @@ Attack paths additionally need the **Defender CSPM plan** enabled (plus agentles
 
 ## Things that will bite you
 
+**The two-shapes problem above is an instance of a general rule, and this package is where it was
+found twice.** A mapper whose field list came from a vendor doc rather than a captured response can
+be silently dropping payload. The rule, and what to do instead, is in
+`.claude/refs/adding-features-checklist.md` under "Writing a response mapper". Read it before
+writing or widening any mapper here.
+
 **An attack path arrives in one of TWO shapes, and reading only the documented one hides its entire risk payload.** Microsoft's published field table (`learn.microsoft.com/azure/defender-for-cloud/attack-path-api`, unchanged as of 2026-08-19) lists only the legacy Defender CSPM names: `potentialImpact`, `riskCategories`, `entryPointEntityInternalID`, `targetEntityInternalID`. Live rows on a tenant whose attack paths come from Microsoft Security Exposure Management instead carry `riskLevel`, `riskFactors`, `entryPoint`, `target`, `attackPathSteps`, `mITRETacticsAndTechniques`, `attackStory` and `isPartialAttackPath`. Mapping only the documented set printed a `riskLevel: High` path as impact `Unknown` with no risk categories, on every path of a real estate. **Never key a filter, a count or a display line on one spelling** — use `effectiveRiskLevel` / `effectiveRiskFactors` in `services/attack-path-service.ts`, and note each risk filter emits an `or` across both names. Anything neither shape names lands in `properties.unmappedProperties` rather than being dropped. `riskLevel` and `riskFactors` also exist, separately, on the `risk` object of `Microsoft.Security/assessments@2025-05-04`: same names, different fields. `graphComponent` holds `insights`/`entities`/`connections`, not `nodes`/`edges`.
 
 **A missing risk level is a gap in the payload, not a finding of no risk.** `summary.riskLevelNotReported` counts paths naming no level under either spelling, they bucket under `NotReported` rather than `Unknown`, `summary.note` appears, and the CLI prints "not reported by the API". Never let an absent field render as a value the API returned.
@@ -107,6 +113,13 @@ npm test --workspace=packages/azure-defender   # 97 tests, no live API
 ```
 
 `axios` and `@azure/identity` are mocked at the module boundary, so the suite runs offline.
+
+**This package has no CLI tests, and the user-visible half of some fixes lives only in the CLI.**
+The nine test files cover `services/`, `utils/` and the client; nothing covers `src/cli/`. So the
+attack-path summary block (risk level, entry point and target labels, the partial-path warning, the
+unmapped-key list, the printed `summary.note`) is unasserted. Adding the first CLI test here is a
+package-shaped decision rather than a side effect of a bug fix; until someone takes it, verify CLI
+output by running the built binary.
 
 **Not verified against a live Defender subscription.** The ARM contract is checked against Microsoft's published schemas and mocked responses only.
 
