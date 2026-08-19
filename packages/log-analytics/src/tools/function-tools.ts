@@ -113,7 +113,7 @@ export function registerFunctionTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     "la-get-fn-stats",
-    "Get execution statistics for Azure Functions (count, success rate, errors). Returns aggregated data - no column filtering needed.",
+    "Get execution statistics for Azure Functions (count, success rate, errors). Returns aggregated data - no column filtering needed. One row per function, not per FunctionName: the bare name, the Functions.-prefixed variant and blank host rows are collapsed after the query, and `normalization` says what was collapsed or dropped.",
     {
       resourceId: z.string().describe("Resource ID"),
       functionName: z.string().optional().describe(descWithExamples("Function name (optional, returns stats for all functions if not specified)", APP_NAME_EXAMPLES)),
@@ -131,7 +131,12 @@ export function registerFunctionTools(server: any, ctx: ServiceContext): void {
         );
 
         if (outputFormat === 'markdown' && result.tables && result.tables.length > 0) {
-          const markdown = result.tables.map((t: any) => formatTableAsMarkdown(t)).join('\n\n');
+          // Keep the normalisation note: markdown drops everything but the tables, and a
+          // collapsed table with no note is indistinguishable from the raw one.
+          const note = result.normalization?.note;
+          const markdown =
+            result.tables.map((t: any) => formatTableAsMarkdown(t)).join('\n\n') +
+            (note ? `\n\n> ${note}` : '');
           return { content: [{ type: "text", text: markdown }] };
         }
 

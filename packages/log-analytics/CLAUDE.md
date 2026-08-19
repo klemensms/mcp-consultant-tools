@@ -43,7 +43,7 @@ LOGANALYTICS_API_KEY=your-api-key
 ### Azure Functions Tools
 - `la-get-fn-logs` - Function execution logs with severity filter
 - `la-get-fn-errors` - Function error logs with exception details
-- `la-get-fn-stats` - Execution statistics (count, success rate)
+- `la-get-fn-stats` - Execution statistics (count, success rate), one row per function
 - `la-get-fn-invocations` - Function invocation history
 
 ### Utility Tools
@@ -126,6 +126,12 @@ execute-query(
   outputFormat: "markdown"
 )
 ```
+
+## Things that will bite you
+
+**`FunctionAppLogs.FunctionName` is not one name per function.** The same Azure Function reaches that column as the bare name, as a `Functions.`-prefixed variant written by the functions runtime, and as blank on host-level rows. Any `summarize ... by FunctionName` therefore groups by *name*, not by *function*: `la-get-fn-stats` returned 61 rows for 27 functions and inflated total executions from 43,445 to 131,977, roughly threefold, and nothing in the output said so. `collapseFunctionStats` in `src/utils/function-stats.ts` does the reduction and reports it in a `normalization` block. **Any new query that groups by `FunctionName` must run through it**, or normalise the column itself - a threefold inflation of an execution count is not obviously wrong on sight, so it does not get cross-checked.
+
+**A markdown rendering drops everything but the tables.** `formatTableAsMarkdown` keeps the rows and nothing else, so a `normalization` note, a `timespanWarning` or any other declaration has to be appended to the string by hand. `la-get-fn-stats`, the `fn stats` CLI command and the three prompt templates all do this. A new markdown surface that forgets to is silently back to presenting a reshaped table as the raw one.
 
 ## Reference
 

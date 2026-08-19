@@ -100,14 +100,22 @@ export function registerFunctionCommands(program: Command, ctx: ServiceContext):
           resourceId, opts.functionName, opts.timespan
         );
 
+        // The normalisation note must survive the markdown rendering, which keeps only
+        // the tables. Without it a collapsed table reads as the raw one.
+        const note = result.normalization?.note;
         let data: any = result;
         if (opts.format === 'markdown' && result.tables && result.tables.length > 0) {
           data = result.tables.map((t: any) => formatTableAsMarkdown(t)).join('\n\n');
+          if (note) data += `\n\n> ${note}`;
         }
 
         const fnLabel = opts.functionName ? ` for '${opts.functionName}'` : ' for all functions';
         outputResult(
-          { fileName: `fn-stats-${resourceId}`, data, summary: `Function statistics${fnLabel}` },
+          {
+            fileName: `fn-stats-${resourceId}`,
+            data,
+            summary: `Function statistics${fnLabel}${note ? ` - ${note}` : ''}`,
+          },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'get function stats'); }

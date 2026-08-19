@@ -374,7 +374,25 @@ Parameters:
 - `timespan` (optional): Default `PT1H`
 - `outputFormat` (optional): `"json" | "markdown"`. No column filtering (already aggregated).
 
-Returns columns: `FunctionName`, `TotalExecutions`, `ErrorCount`, `SuccessCount`, `SuccessRate`
+Returns columns: `FunctionName`, `TotalExecutions`, `ErrorCount`, `SuccessCount`, `UniqueHosts`, `SuccessRate`
+
+**One row per function, not per `FunctionName`.** The same Azure Function reaches that column under up to three names - the bare name, a `Functions.`-prefixed variant written by the functions runtime, and blank on host-level rows. Grouping by the raw column therefore returned one row per *name*: in a measured run 27 functions became 61 rows and 43,445 executions became 131,977, roughly threefold, with nothing in the output saying so.
+
+The variants are collapsed after the query returns. Where a function arrived under several names the row with the highest `TotalExecutions` is kept **whole**, so `SuccessRate` stays consistent with the counts beside it, and blank-named rows are dropped as host-level. The reshaping is declared in a `normalization` block rather than done silently:
+
+| Field | Meaning |
+|-------|---------|
+| `rawRows` | Rows the query returned |
+| `rows` | Rows after collapsing - the real function count |
+| `blankNameRowsDropped` | Rows dropped because `FunctionName` was blank |
+| `collapsed` | One entry per function that arrived under more than one name, with the variants |
+| `note` | Present only when something was collapsed or dropped |
+
+In `markdown` output the note is appended as a blockquote under the table, because markdown keeps only the tables and a collapsed table with no note is indistinguishable from a raw one.
+
+`UniqueFunctions` is **no longer returned**. It was `dcount(FunctionName)` inside a `by FunctionName` summarize, so it was always 1: a column that looked like a count and carried nothing. `normalization.rows` is the real per-function total.
+
+A call that passes `functionName` aggregates across a single function, has no `FunctionName` column, and carries no `normalization` block - there is nothing to collapse.
 
 </tool>
 

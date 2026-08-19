@@ -26,7 +26,10 @@ export function registerLogAnalyticsPrompts(server: any, ctx: ServiceContext): v
         const statsResult = await ctx.logAnalytics.getFunctionStats(resourceId, undefined, timespanValue);
 
         const errorsTable = errorsResult.tables[0] ? formatTableAsMarkdown(errorsResult.tables[0]) : '*No errors*';
-        const statsTable = statsResult.tables[0] ? formatTableAsMarkdown(statsResult.tables[0]) : '*No statistics*';
+        const statsTable = statsResult.tables[0]
+          ? formatTableAsMarkdown(statsResult.tables[0]) +
+            (statsResult.normalization?.note ? `\n\n> ${statsResult.normalization.note}` : '')
+          : '*No statistics*';
 
         const errorsAnalysis = analyzeFunctionErrors(errorsResult.tables[0]);
         const statsAnalysis = analyzeFunctionStats(statsResult.tables[0]);
@@ -85,7 +88,10 @@ export function registerLogAnalyticsPrompts(server: any, ctx: ServiceContext): v
 
         const logsTable = logsResult.tables[0] ? formatTableAsMarkdown(logsResult.tables[0]) : '*No logs*';
         const errorsTable = errorsResult.tables[0] ? formatTableAsMarkdown(errorsResult.tables[0]) : '*No errors*';
-        const statsTable = statsResult.tables[0] ? formatTableAsMarkdown(statsResult.tables[0]) : '*No statistics*';
+        const statsTable = statsResult.tables[0]
+          ? formatTableAsMarkdown(statsResult.tables[0]) +
+            (statsResult.normalization?.note ? `\n\n> ${statsResult.normalization.note}` : '')
+          : '*No statistics*';
         const invocationsTable = invocationsResult.tables[0] ? formatTableAsMarkdown(invocationsResult.tables[0]) : '*No invocations*';
 
         const logsAnalysis = analyzeFunctionLogs(logsResult.tables[0]);
@@ -146,7 +152,10 @@ export function registerLogAnalyticsPrompts(server: any, ctx: ServiceContext): v
         const statsResult = await ctx.logAnalytics.getFunctionStats(resourceId, functionName, timespanValue);
         const invocationsResult = await ctx.logAnalytics.getFunctionInvocations(resourceId, functionName, timespanValue, 100);
 
-        const statsTable = statsResult.tables[0] ? formatTableAsMarkdown(statsResult.tables[0]) : '*No statistics*';
+        const statsTable = statsResult.tables[0]
+          ? formatTableAsMarkdown(statsResult.tables[0]) +
+            (statsResult.normalization?.note ? `\n\n> ${statsResult.normalization.note}` : '')
+          : '*No statistics*';
         const invocationsTable = invocationsResult.tables[0] ? formatTableAsMarkdown(invocationsResult.tables[0]) : '*No invocations*';
 
         const statsAnalysis = analyzeFunctionStats(statsResult.tables[0]);

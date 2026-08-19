@@ -1,6 +1,10 @@
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import axios from 'axios';
 import { resolveEffectiveTimespan } from '../utils/timespan.js';
+import {
+  collapseFunctionStats,
+  type FunctionStatsNormalization,
+} from '../utils/function-stats.js';
 
 export interface LogAnalyticsResourceConfig {
   id: string;
@@ -29,6 +33,11 @@ export interface QueryResult {
   effectiveTimespan?: string;
   /** Set when an explicit timespan clips a wider ago() window declared in the KQL. */
   timespanWarning?: string;
+  /**
+   * Set by `getFunctionStats` when the raw result was reshaped: how many rows arrived,
+   * how many remain, and which `FunctionName` variants were collapsed onto one function.
+   */
+  normalization?: FunctionStatsNormalization;
 }
 
 export interface MetadataResult {
@@ -383,7 +392,11 @@ export class LogAnalyticsService {
   }
 
   /**
-   * Get Azure Function execution statistics
+   * Get Azure Function execution statistics.
+   *
+   * The per-function shape collapses `FunctionName` variants after the query returns; see
+   * `collapseFunctionStats`. Grouping by the raw column returns one row per *name*, and one
+   * function reaches that column under up to three of them.
    */
   async getFunctionStats(
     resourceId: string,
@@ -406,12 +419,14 @@ export class LogAnalyticsService {
       | extend SuccessRate = round(100.0 * SuccessCount / TotalExecutions, 2)
       `.trim();
     } else {
+      // `UniqueFunctions = dcount(FunctionName)` used to sit here. Inside a
+      // `by FunctionName` group it is always 1, so it reported nothing while looking
+      // like a count. The real per-function total is `normalization.rows` below.
       query += `
       | summarize
           TotalExecutions = count(),
           ErrorCount = countif(ExceptionDetails != ""),
           SuccessCount = countif(ExceptionDetails == ""),
-          UniqueFunctions = dcount(FunctionName),
           UniqueHosts = dcount(HostInstanceId)
         by FunctionName
       | extend SuccessRate = round(100.0 * SuccessCount / TotalExecutions, 2)
@@ -419,7 +434,19 @@ export class LogAnalyticsService {
       `.trim();
     }
 
-    return this.executeQuery(resourceId, query, timespan);
+    const result = await this.executeQuery(resourceId, query, timespan);
+
+    const primary = result.tables?.[0];
+    if (!primary) return result;
+
+    const { table, normalization } = collapseFunctionStats(primary);
+    if (!normalization) return result;
+
+    return {
+      ...result,
+      tables: [table, ...result.tables.slice(1)],
+      normalization,
+    };
   }
 
   /**

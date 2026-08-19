@@ -160,3 +160,98 @@ describe('LogAnalyticsService.investigateApp', () => {
     expect((mockedPost.mock.calls[0][1] as any).timespan).toBe('PT1H');
   });
 });
+
+/**
+ * D21: `getFunctionStats` grouped by the raw `FunctionName`, so one function arriving under
+ * its bare name, a `Functions.`-prefixed variant and a blank-named host row became three
+ * rows and roughly three times the executions. The failure case is that the inflated table
+ * and a genuinely three-function workspace looked identical.
+ */
+describe('LogAnalyticsService.getFunctionStats name normalisation', () => {
+  beforeEach(() => {
+    mockedPost.mockReset();
+  });
+
+  const statsResponse = (rows: unknown[][]) => ({
+    data: {
+      tables: [
+        {
+          name: 'PrimaryResult',
+          columns: [
+            { name: 'FunctionName', type: 'string' },
+            { name: 'TotalExecutions', type: 'long' },
+            { name: 'ErrorCount', type: 'long' },
+            { name: 'SuccessCount', type: 'long' },
+            { name: 'UniqueHosts', type: 'long' },
+            { name: 'SuccessRate', type: 'real' },
+          ],
+          rows,
+        },
+      ],
+    },
+  });
+
+  it('collapses the name variants of one function, and says that it did', async () => {
+    mockedPost.mockResolvedValueOnce(
+      statsResponse([
+        ['ProcessOrders', 1000, 10, 990, 3, 99],
+        ['Functions.ProcessOrders', 1000, 10, 990, 3, 99],
+        ['', 1000, 10, 990, 3, 99],
+      ])
+    );
+
+    const result: any = await makeService().getFunctionStats('ws-test');
+
+    expect(result.tables[0].rows).toHaveLength(1);
+    expect(result.tables[0].rows[0][1]).toBe(1000);
+    expect(result.normalization.rawRows).toBe(3);
+    expect(result.normalization.rows).toBe(1);
+    expect(result.normalization.note).toBeDefined();
+  });
+
+  it('a genuinely three-function workspace is not mistaken for an inflated one', async () => {
+    mockedPost.mockResolvedValueOnce(
+      statsResponse([
+        ['ProcessOrders', 1000, 10, 990, 3, 99],
+        ['SendReceipts', 500, 0, 500, 2, 100],
+        ['ReconcileLedger', 250, 5, 245, 1, 98],
+      ])
+    );
+
+    const result: any = await makeService().getFunctionStats('ws-test');
+
+    expect(result.tables[0].rows).toHaveLength(3);
+    expect(result.normalization.collapsed).toEqual([]);
+    expect(result.normalization.note).toBeUndefined();
+  });
+
+  it('no longer asks for UniqueFunctions, which was always 1 inside a by-FunctionName group', async () => {
+    mockedPost.mockResolvedValueOnce(statsResponse([]));
+
+    await makeService().getFunctionStats('ws-test');
+
+    expect((mockedPost.mock.calls[0][1] as any).query).not.toContain('UniqueFunctions');
+  });
+
+  it('leaves a single-function query aggregated, with no normalisation block', async () => {
+    mockedPost.mockResolvedValueOnce({
+      data: {
+        tables: [
+          {
+            name: 'PrimaryResult',
+            columns: [
+              { name: 'TotalExecutions', type: 'long' },
+              { name: 'ErrorCount', type: 'long' },
+            ],
+            rows: [[43445, 120]],
+          },
+        ],
+      },
+    });
+
+    const result: any = await makeService().getFunctionStats('ws-test', 'ProcessOrders');
+
+    expect(result.tables[0].rows).toEqual([[43445, 120]]);
+    expect(result.normalization).toBeUndefined();
+  });
+});
