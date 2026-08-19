@@ -687,3 +687,23 @@ anything matching the trigger checklist.
   sentence. Recorded so the cap is a deliberate later choice rather than a surprise. Payload
   change is additive - `unmappedPropertyKeys` is new and `note` was always variable text - so
   unlike ⚑32 this needs no breaking-change block.
+
+### ⚑39 · T14's stated causes are all unverified, and the code points at three different ones
+- **Kind:** assumption
+- **Hop:** L6 · read while locating T14 for the handoff
+- **State:** open
+- **Matters because:** T14 arrives with a cause already written into it for each half, and
+  neither survives a first read of the code, so a hop that trusts the plan would fix the
+  wrong thing. **D11's three missing fields are gated on `includeDetails` in
+  `processFrontDoorProfile`** - they are fetched only when that flag is set, so "the code
+  never asked" may be literally true and controlled by a caller, which is a third
+  explanation alongside the plan's mapping gap and ⚑8's swallowed 403. The three need
+  different fixes and only one is a code change. **D11's `state` complaint looks like a
+  documentation defect**: the mapper already reads ARM's `resourceState` and renames it
+  `state` in the payload, so whatever promises `resourceState` to a consumer is what is
+  wrong - the T8 pattern, where the doc seeded the defect. **D10's four fields are all
+  named in the mapper**, so unlike T11 nothing is discarding them; either the ARM
+  `serverfarms` **list** response omits what the detail response carries, or
+  `workerCount: props.targetWorkerCount` reads the wrong key for a worker count. None of
+  this is settled: no Azure credentials on this machine. The credential-free half is a spec
+  read, which is what settled T13's shape this hop.

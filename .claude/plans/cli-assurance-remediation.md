@@ -252,6 +252,27 @@ more than one when its context measurement allows.
   for all profiles though the inventory shows an `afdendpoints` child under each; the field
   is `state`, not `resourceState` as documented. Without routes a consumer cannot tell
   whether a WAF policy is attached, which is the security-relevant part.
+- **Read before starting. Three leads from the code at hop L6, without credentials, and
+  each changes what the task is:**
+  1. **The three missing Front Door fields are gated on a flag, not lost in mapping.**
+     `processFrontDoorProfile` in `services/NetworkingService.ts` fetches `endpoints`,
+     `originGroups` and `routes` only `if (includeDetails)`. So the first thing to check is
+     whether the CLI and the tool pass that flag and what it defaults to - if the assurance
+     run never set it, the fields were never requested, and this is neither a mapping gap
+     (the plan's reading) nor a swallowed 403 (register item 8's reading). Check all three
+     before writing code; they need different fixes, and only one of them is a code fix.
+  2. **`state` may be a documentation defect, not a payload one.** The mapper already emits
+     `state: props.resourceState` - it reads ARM's `resourceState` and renames it `state` in
+     the payload. So a doc or tool description promising `resourceState` is what is wrong.
+     Same class as T8, where the technical doc's own schema block seeded the defect.
+  3. **D10's four fields are all mapped, so their absence is a request or a naming
+     question.** `AppServiceService.ts` maps `numberOfSites: props.numberOfSites`,
+     `reserved`, `zoneRedundant`, and - the suspicious one - `workerCount:
+     props.targetWorkerCount`. An unmapped key vanishes, but these are named, so either the
+     ARM `serverfarms` list response omits them (a detail-versus-list difference, checkable
+     against the spec) or `targetWorkerCount` is the wrong key for a worker count. Settle it
+     the way L6 settled T13: read the swagger in `Azure/azure-rest-api-specs` via
+     `gh api search/code`, not the generated Learn page. See register item 39.
 
 ### T16 · D26 — the `code-review` cache path follows the working directory
 - **Package:** `code-review`
