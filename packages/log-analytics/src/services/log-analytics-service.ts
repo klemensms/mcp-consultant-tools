@@ -211,7 +211,6 @@ export class LogAnalyticsService {
     } catch (error: any) {
       // Enhanced error handling
       let errorMessage = 'Unknown error';
-      let errorDetails: any = {};
 
       if (error.response) {
         const status = error.response.status;
@@ -237,7 +236,11 @@ export class LogAnalyticsService {
               } else if (data.error.code === 'SemanticError') {
                 errorMessage = `KQL semantic error: ${data.error.message}. Check table/column names.`;
               } else {
-                errorMessage = `Bad request: ${data.error.message}`;
+                // An assurance run saw two of these in ~180 queries, both succeeding
+                // unchanged on immediate retry, and neither could be classified after
+                // the fact because the code was computed and then thrown away. Carry it:
+                // it is the only thing that tells a transient 400 from a bad query.
+                errorMessage = `Bad request (${data.error.code ?? 'no error code'}): ${data.error.message}`;
               }
             } else {
               errorMessage = 'Bad request. Check your query syntax.';
@@ -249,12 +252,6 @@ export class LogAnalyticsService {
           default:
             errorMessage = `HTTP ${status}: ${data?.error?.message || error.message}`;
         }
-
-        errorDetails = {
-          status,
-          code: data?.error?.code,
-          message: data?.error?.message,
-        };
       } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
         errorMessage = 'Network error: Unable to reach Log Analytics API. Check your internet connection.';
       } else if (error.code === 'ETIMEDOUT') {

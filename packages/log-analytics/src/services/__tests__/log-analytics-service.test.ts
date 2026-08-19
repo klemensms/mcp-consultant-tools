@@ -255,3 +255,64 @@ describe('LogAnalyticsService.getFunctionStats name normalisation', () => {
     expect(result.normalization).toBeUndefined();
   });
 });
+
+describe('LogAnalyticsService.executeQuery 400 handling', () => {
+  beforeEach(() => {
+    mockedPost.mockReset();
+  });
+
+  const badRequest = (error?: { code?: string; message: string }) => ({
+    response: { status: 400, data: error ? { error } : undefined, headers: {} },
+  });
+
+  // An assurance run saw two "Bad request" failures in ~180 query invocations, both of
+  // which succeeded unchanged on immediate retry. Neither could be classified afterwards,
+  // because the branch that produced the message computed ARM's error code into a local
+  // and then discarded it. Carrying the code is what makes the next occurrence
+  // diagnosable; guessing a retry would only hide it.
+  it("carries ARM's error code, so a transient 400 can be told from a malformed query", async () => {
+    mockedPost.mockRejectedValueOnce(
+      badRequest({ code: 'BadArgumentError', message: 'The request had an invalid argument' })
+    );
+    const service = makeService();
+
+    await expect(service.executeQuery('ws-test', 'AppTraces | take 1')).rejects.toThrow(
+      /BadArgumentError/
+    );
+  });
+
+  it('says so when ARM sent no code at all, rather than printing undefined', async () => {
+    mockedPost.mockRejectedValueOnce(badRequest({ message: 'Something went wrong' }));
+    const service = makeService();
+
+    const error = await service
+      .executeQuery('ws-test', 'AppTraces | take 1')
+      .catch((e: Error) => e);
+
+    expect(error.message).not.toMatch(/undefined/);
+    expect(error.message).toMatch(/Something went wrong/);
+  });
+
+  it('still gives the KQL-specific message for a SyntaxError, code and all', async () => {
+    mockedPost.mockRejectedValueOnce(
+      badRequest({ code: 'SyntaxError', message: "Query could not be parsed at 'wher'" })
+    );
+    const service = makeService();
+
+    await expect(service.executeQuery('ws-test', 'AppTraces | wher x')).rejects.toThrow(
+      /KQL syntax error: Query could not be parsed/
+    );
+  });
+
+  // Pins a decision rather than a fix: a 400 is normally deterministic, so retrying one
+  // would mask a genuinely malformed query for every caller in order to paper over a
+  // failure nobody has yet identified. Whoever adds a retry policy here has to change
+  // this test on purpose.
+  it('does not retry a 400', async () => {
+    mockedPost.mockRejectedValueOnce(badRequest({ code: 'SemanticError', message: 'No table' }));
+    const service = makeService();
+
+    await expect(service.executeQuery('ws-test', 'Nope | take 1')).rejects.toThrow();
+    expect(mockedPost).toHaveBeenCalledTimes(1);
+  });
+});
