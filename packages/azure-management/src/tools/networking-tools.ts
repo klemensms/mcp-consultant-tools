@@ -47,7 +47,7 @@ export function registerNetworkingTools(server: any, ctx: ServiceContext): void 
 
   server.tool(
     'list-event-grid-topics',
-    'List Event Grid topics. By default returns only custom topics (system topics often have GUID names and add noise).',
+    'List Event Grid topics. Both custom and system topics are always counted, so summary.total is what exists; by default only custom topics are listed, because system topics have GUID-shaped names and add bulk. summary.note says how many were counted but not listed.',
     {
       resourceGroup: z
         .string()

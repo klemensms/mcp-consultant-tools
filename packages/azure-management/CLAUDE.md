@@ -102,7 +102,7 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 - `get-front-door` - Get Front Door configuration
 
 ### Event Grid
-- `list-event-grid-topics` - List Event Grid topics
+- `list-event-grid-topics` - List Event Grid topics (custom and system topics are always counted; system topics are listed only on request)
 
 ## Common Workflows
 
@@ -146,6 +146,8 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 **`list-diagnostic-settings` distinguishes "nothing configured" from "could not look".** A resource type that does not support diagnostic settings answers `200 []`. A `403` or `404` *rejects*. The si source bucketed every rejection as "not configured", turning a permissions gap into a clean audit result. `ArmClient` errors now carry `.status` (`getArmErrorStatus()`) so the two stay apart. Any new fan-out across resources must do the same.
 
 **`list-role-assignments` returns `roleDefinitionName: null`, never `"Unknown"`,** when a role definition cannot be read — a fabricated `Unknown` reads like a real role in `byRole`. The whole-lowercased-id join is correct **only** against ARG's `authorizationresources` table; the raw ARM REST APIs put a subscription prefix on one side and not the other.
+
+**`list-event-grid-topics` counts both topic types, and lists only one by default.** `includeSystemTopics` decides what appears in `topics`, not what is looked for, so `summary.total` is what exists and `summary.listed` is what came back. This is deliberate: the command used to enumerate custom topics only and report a subscription holding 15 system topics as a clean `total: 0`, indistinguishable from a subscription holding nothing. `summary.note` names the shortfall when there is one, and a refused query sets `systemTopicsUnavailable` / `customTopicsUnavailable` rather than leaving a zero that looks like a count. Any new command that enumerates one type out of several must do the same.
 
 **`list-subscriptions` returning `[]` is a permissions signal.** `GET /subscriptions` is RBAC-filtered and answers `200 []`, never `403`, when the principal holds no role assignment. Partial subscription access is equally invisible to Resource Graph: it returns a clean `200` with only the readable subscriptions.
 
@@ -194,7 +196,7 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 
 ```bash
 npm run build --workspace=packages/azure-management
-npm test --workspace=packages/azure-management   # 71 tests, no live API
+npm test --workspace=packages/azure-management   # 87 tests, no live API
 ```
 
 Services take injected clients, so the suite uses plain stub objects and needs no `vi.mock`. Query builders are exported as pure `buildXQuery(opts) => string` functions and tested without a subscription.

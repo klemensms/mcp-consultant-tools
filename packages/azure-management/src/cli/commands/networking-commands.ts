@@ -49,16 +49,19 @@ export function registerNetworkingCommands(program: Command, ctx: ServiceContext
     .command('event-grid-topics')
     .description('List Event Grid topics')
     .option('-g, --resource-group <name>', 'Filter by resource group')
-    .option('--include-system-topics', 'Include system topics with GUID names')
+    .option('--include-system-topics', 'List system topics too (they are always counted)')
     .action(async (opts: any) => {
       try {
         const result = await ctx.management.networking.listEventGridTopics({
           resourceGroup: opts.resourceGroup,
           includeSystemTopics: opts.includeSystemTopics,
         });
-        const count = result.summary?.total ?? '?';
+        const { total, custom, system, note } = result.summary;
+        const summary =
+          `Found ${total} Event Grid topic(s): ${custom} custom, ${system} system` +
+          (note ? ` - ${note}` : '');
         outputResult(
-          { fileName: 'event-grid-topics', data: result, summary: `Found ${count} Event Grid topic(s)` },
+          { fileName: 'event-grid-topics', data: result, summary },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'list event grid topics'); }

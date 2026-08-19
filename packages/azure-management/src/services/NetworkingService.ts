@@ -135,7 +135,14 @@ export class NetworkingService {
 
   /**
    * List all Event Grid topics.
-   * By default excludes system topics to reduce response size (they often have GUID names).
+   *
+   * `includeSystemTopics` controls whether system topics are **listed**, not whether they
+   * are **looked for**. Both types are always enumerated, so `summary.total` is the number
+   * that exist rather than the number that happened to be in scope: a subscription holding
+   * 15 system topics and no custom ones used to report a clean `total: 0`, which is
+   * indistinguishable from a subscription holding nothing at all. System topics stay out of
+   * `topics` by default because they carry GUID-shaped names and add bulk; `summary.note`
+   * says how many were left out and how to ask for them.
    */
   async listEventGridTopics(options: {
     resourceGroup?: string;
@@ -143,20 +150,44 @@ export class NetworkingService {
   } = {}): Promise<{
     topics: EventGridTopicSummary[];
     summary: {
+      /** Topics that exist in scope, whether or not they are in `topics`. */
       total: number;
+      /** Entries in `topics`. Short of `total` when a type was counted but not listed. */
+      listed: number;
       custom: number;
       system: number;
+      systemTopicsListed: boolean;
+      /** Present only when the system-topic query was refused, so 0 is not a count. */
+      systemTopicsUnavailable?: true;
+      /** Present only when the custom-topic query was refused, so 0 is not a count. */
+      customTopicsUnavailable?: true;
       byInputSchema: Record<string, number>;
+      /** Present only when topics exist that this call did not list. */
+      note?: string;
     };
+    fanOut: FanOutInfo;
   }> {
     const { resourceGroup, includeSystemTopics = false } = options;
 
+    const fanOut = new FanOutRecorder();
     const results: EventGridTopicSummary[] = [];
     const summary = {
       total: 0,
+      listed: 0,
       custom: 0,
       system: 0,
+      systemTopicsListed: includeSystemTopics,
       byInputSchema: {} as Record<string, number>,
+    } as {
+      total: number;
+      listed: number;
+      custom: number;
+      system: number;
+      systemTopicsListed: boolean;
+      systemTopicsUnavailable?: true;
+      customTopicsUnavailable?: true;
+      byInputSchema: Record<string, number>;
+      note?: string;
     };
 
     // Get custom topics
@@ -164,44 +195,65 @@ export class NetworkingService {
       ? this.client.resourceGroupPath(resourceGroup, '/providers/Microsoft.EventGrid/topics')
       : this.client.subscriptionPath('/providers/Microsoft.EventGrid/topics');
 
-    const customTopics = await this.client.paginate<EventGridTopic>(
-      customPath,
-      getApiVersion('Microsoft.EventGrid/topics')
+    const customTopics = await fanOut.run(
+      resourceGroup || 'subscription',
+      'customTopics',
+      () =>
+        this.client.paginate<EventGridTopic>(
+          customPath,
+          getApiVersion('Microsoft.EventGrid/topics')
+        )
     );
 
-    for (const topic of customTopics) {
-      const processed = this.processEventGridTopic(topic);
-      results.push(processed);
-      summary.custom++;
-
-      const schema = processed.inputSchema || 'Unknown';
-      summary.byInputSchema[schema] = (summary.byInputSchema[schema] || 0) + 1;
-    }
-
-    // Get system topics if requested
-    if (includeSystemTopics) {
-      const systemPath = resourceGroup
-        ? this.client.resourceGroupPath(
-            resourceGroup,
-            '/providers/Microsoft.EventGrid/systemTopics'
-          )
-        : this.client.subscriptionPath('/providers/Microsoft.EventGrid/systemTopics');
-
-      const systemTopics = await this.client.paginate<EventGridSystemTopic>(
-        systemPath,
-        getApiVersion('Microsoft.EventGrid/systemTopics')
-      );
-
-      for (const topic of systemTopics) {
-        const processed = this.processEventGridSystemTopic(topic);
+    if (customTopics === null) {
+      summary.customTopicsUnavailable = true;
+    } else {
+      for (const topic of customTopics) {
+        const processed = this.processEventGridTopic(topic);
         results.push(processed);
-        summary.system++;
+        summary.custom++;
+
+        const schema = processed.inputSchema || 'Unknown';
+        summary.byInputSchema[schema] = (summary.byInputSchema[schema] || 0) + 1;
       }
     }
 
-    summary.total = results.length;
+    // System topics are always counted; `includeSystemTopics` only decides whether they
+    // are listed. A partial scope reported as a clean zero is the defect this closes.
+    const systemPath = resourceGroup
+      ? this.client.resourceGroupPath(resourceGroup, '/providers/Microsoft.EventGrid/systemTopics')
+      : this.client.subscriptionPath('/providers/Microsoft.EventGrid/systemTopics');
 
-    return { topics: results, summary };
+    const systemTopics = await fanOut.run(
+      resourceGroup || 'subscription',
+      'systemTopics',
+      () =>
+        this.client.paginate<EventGridSystemTopic>(
+          systemPath,
+          getApiVersion('Microsoft.EventGrid/systemTopics')
+        )
+    );
+
+    if (systemTopics === null) {
+      summary.systemTopicsUnavailable = true;
+    } else {
+      for (const topic of systemTopics) {
+        summary.system++;
+        if (includeSystemTopics) results.push(this.processEventGridSystemTopic(topic));
+      }
+    }
+
+    summary.listed = results.length;
+    summary.total = summary.custom + summary.system;
+
+    const unlisted = summary.total - summary.listed;
+    if (unlisted > 0) {
+      summary.note =
+        `${unlisted} of ${summary.total} topic(s) are system topics and are counted but not ` +
+        `listed. Pass includeSystemTopics to list them.`;
+    }
+
+    return { topics: results, summary, fanOut: fanOut.result() };
   }
 
   /**
