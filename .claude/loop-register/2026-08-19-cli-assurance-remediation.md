@@ -356,3 +356,23 @@ anything matching the trigger checklist.
   checkout even though the stale pins remain. Whoever takes the pin bump should re-measure
   rather than trusting either number: the count and the symptom now disagree, and the reason
   is not established here.
+
+### ⚑25 · T9 (X1) cannot be fixed from this repo, and the plan listed it as if it could
+- **Kind:** dropped-scope
+- **Hop:** L3 · T9 triage
+- **State:** open
+- **Matters because:** the plan queued T9 as "documentation only, every `SKILL.md` and
+  `cli-reference.md`", which reads as a cheap sweep a hop could take. Those files are not in
+  this repository. Verified three ways at L3: no file named `cli-reference.md` exists in the
+  tree; **zero** tracked `.md` files assign an `npx` or `node` command string to a shell
+  variable; and no `.md` uses a bare `$VAR` as a command. This repo's own docs use the direct
+  inline form, which is correct under zsh. `docs/release-notes/v35.0.0-beta.11.md` and
+  `v35.0.0-beta.14.md` both already say the sweep belongs in the consuming skills - so the
+  plan restated, as an open task here, something the release notes had already ruled out
+  twice. Left open rather than closed because **the defect itself is not fixed**: every
+  command documented that way still fails on macOS, and one measured failure exited 0 having
+  written zero files, which is the silent direction. The work is a sweep of six files in the
+  private skills repo, replacing the string variable with a shell function
+  (`arm() { npx -y --package=... "$@"; }`). That is Klemens's to do or to delegate; no hop of
+  this chain can reach those files. The moved plan section now says so, so a later hop does
+  not spend a session rediscovering it.

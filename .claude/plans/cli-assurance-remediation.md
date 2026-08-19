@@ -102,16 +102,6 @@ A fix that only proves the happy path does not close its task.
 Ordered by the source report's own priority. One task per heading; a hop may take
 more than one when its context measurement allows.
 
-### T9 · X1 — the documented invocation idiom fails on macOS, in all six CLIs
-- **Scope:** documentation only, every `SKILL.md` and `cli-reference.md`.
-- **Severity:** Major by blast radius.
-- **Cause:** the docs show `ARM="npx -y --package=... mcp-azure-mgmt ..."` then `$ARM ...`.
-  zsh does not word-split an unquoted variable and is the macOS default shell, so **every
-  documented command fails** with `no such file or directory: npx -y --package=...`.
-- **Measured cost:** once failing loudly, and once far worse — a collection ran to
-  completion, **exited 0 and wrote zero files**.
-- **Fix:** document a shell function or ship a wrapper script, not a string variable.
-
 ### T10 · D14 — Defender assessment list omits identity- and subscription-scoped assessments
 - **Package:** `azure-defender`
 - **Severity:** Major.
@@ -208,6 +198,28 @@ more than one when its context measurement allows.
 - **D23 (`log-analytics`):** two transient `Bad request` failures in ~180 `query execute`
   invocations, both succeeding unchanged on immediate retry. Exit code is correct.
   Consider a bounded internal retry, since the flat cache leaves no trace of a gap.
+
+## Not actionable in this repo
+
+### T9 · X1 — the documented invocation idiom fails on macOS, in all six CLIs
+- **Severity:** Major by blast radius. **Status: cannot be fixed here.**
+- **The defect is real:** the docs show `ARM="npx -y --package=... mcp-azure-mgmt ..."` then
+  `$ARM ...`. zsh does not word-split an unquoted variable and is the macOS default shell, so
+  every command documented that way fails with `no such file or directory: npx -y
+  --package=...`. Measured cost: once failing loudly, and once far worse - a collection ran
+  to completion, **exited 0 and wrote zero files**. The working form is a shell function:
+  `arm() { npx -y --package=@mcp-consultant-tools/azure-management@beta mcp-azure-mgmt "$@"; }`.
+- **But the files are not in this repository.** The `SKILL.md` and `cli-reference.md` files
+  carrying the idiom live in the consuming assurance skills, which are private and outside
+  this repo. Verified at hop L3 by three independent checks: no file named `cli-reference.md`
+  anywhere in the tree; **zero** matches for a shell variable assigned an `npx`/`node`
+  command string across every tracked `.md`; and zero matches for a bare `$VAR` used as a
+  command. This repo's own docs use the direct inline form
+  (`npx --package=... mcp-ado-cli wiki list MyProject`), which is correct under zsh.
+- **Already recorded** in `docs/release-notes/v35.0.0-beta.11.md` and
+  `v35.0.0-beta.14.md`, both of which say the sweep has to happen in the consuming skills.
+- **What is left is Klemens's, not the loop's:** sweep the six skill files in the private
+  skills repo. Register item 25.
 
 ## Carried over from the beta.17 work, not in the source report
 
