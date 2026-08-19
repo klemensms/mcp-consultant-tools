@@ -10,6 +10,8 @@ export const ARM_API_VERSIONS: Record<string, string> = {
   'Microsoft.Resources/tags': '2021-04-01',
 
   // Compute & Web
+  // VirtualMachines_ListAll / VirtualMachines_List / VirtualMachines_InstanceView.
+  'Microsoft.Compute/virtualMachines': '2024-07-01',
   'Microsoft.Web/sites': '2022-09-01',
   'Microsoft.Web/serverfarms': '2022-09-01',
   'Microsoft.Web/sites/functions': '2022-09-01',
@@ -43,7 +45,17 @@ export const ARM_API_VERSIONS: Record<string, string> = {
   // the portal, `az monitor diagnostic-settings` and Microsoft's own ARM samples
   // use. It is a deliberate pin, not a stale one.
   'Microsoft.Insights/diagnosticSettings': '2021-05-01-preview',
+  // Log-search alert rules. Separate provider surface from metricAlerts above, and
+  // separate again from the legacy `2018-04-16` Log Search Alert v1 API - a v1 rule
+  // still shows up here, flagged by `properties.isLegacyLogAnalyticsRule`.
+  'Microsoft.Insights/scheduledQueryRules': '2023-12-01',
   'Microsoft.AlertsManagement/smartDetectorAlertRules': '2021-04-01',
+
+  // Logic Apps. `Microsoft.Web/connections` is the API-connection resource a
+  // workflow authenticates a connector through; 2016-06-01 is the only stable
+  // version that has ever shipped for it.
+  'Microsoft.Logic/workflows': '2019-05-01',
+  'Microsoft.Web/connections': '2016-06-01',
 
   // Networking
   'Microsoft.Cdn/profiles': '2023-05-01',

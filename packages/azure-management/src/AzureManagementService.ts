@@ -1,5 +1,6 @@
 import { ArmClient, type ArmClientConfig } from './client/ArmClient.js';
 import { ResourceService } from './services/ResourceService.js';
+import { ComputeService } from './services/ComputeService.js';
 import { FunctionAppService } from './services/FunctionAppService.js';
 import { AppServiceService } from './services/AppServiceService.js';
 import { KeyVaultService } from './services/KeyVaultService.js';
@@ -32,6 +33,7 @@ export interface AzureManagementConfig {
 export class AzureManagementService {
   private client: ArmClient;
   private _resourceService: ResourceService | null = null;
+  private _computeService: ComputeService | null = null;
   private _functionAppService: FunctionAppService | null = null;
   private _appServiceService: AppServiceService | null = null;
   private _keyVaultService: KeyVaultService | null = null;
@@ -72,6 +74,16 @@ export class AzureManagementService {
       this._resourceService = new ResourceService(this.client);
     }
     return this._resourceService;
+  }
+
+  /**
+   * Get the Compute Service (lazy initialization).
+   */
+  get compute(): ComputeService {
+    if (!this._computeService) {
+      this._computeService = new ComputeService(this.client);
+    }
+    return this._computeService;
   }
 
   /**

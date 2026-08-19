@@ -712,3 +712,134 @@ export interface AzureLocation {
     }>;
   };
 }
+
+/**
+ * Virtual machine (Microsoft.Compute/virtualMachines).
+ *
+ * `properties` is left as the open `ArmResource` record rather than narrowed. The
+ * block is large and version-dependent, and this repo has had a
+ * documentation-derived field list discard live payload more than once, so the raw
+ * block is passed through and only the fields the summary needs are read off it.
+ */
+export interface VirtualMachine extends ArmResource {
+  zones?: string[];
+}
+
+/**
+ * One entry from a VM's `instanceView.statuses` array.
+ * `code` is the interesting part: `PowerState/running`, `PowerState/deallocated`,
+ * `ProvisioningState/succeeded` and so on.
+ */
+export interface InstanceViewStatus {
+  code?: string;
+  level?: string;
+  displayStatus?: string;
+  message?: string;
+  time?: string;
+}
+
+/**
+ * Runtime view of a VM (`VirtualMachines_InstanceView`).
+ * The list operation does not return this; it has to be asked for per VM.
+ */
+export interface VirtualMachineInstanceView {
+  computerName?: string;
+  osName?: string;
+  osVersion?: string;
+  hyperVGeneration?: string;
+  vmAgent?: {
+    vmAgentVersion?: string;
+    statuses?: InstanceViewStatus[];
+  };
+  maintenanceRedeployStatus?: Record<string, unknown>;
+  statuses?: InstanceViewStatus[];
+}
+
+/**
+ * Logic App workflow (Microsoft.Logic/workflows).
+ */
+export interface LogicWorkflow extends ArmResource {
+  properties?: {
+    provisioningState?: string;
+    createdTime?: string;
+    changedTime?: string;
+    state?: string;
+    version?: string;
+    accessEndpoint?: string;
+    integrationAccount?: { id?: string; name?: string; type?: string };
+    integrationServiceEnvironment?: { id?: string; name?: string; type?: string };
+    definition?: Record<string, unknown>;
+    parameters?: Record<string, { type?: string; value?: unknown; metadata?: unknown }>;
+    accessControl?: Record<string, unknown>;
+    endpointsConfiguration?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+}
+
+/**
+ * API connection (Microsoft.Web/connections) - the credential-holding resource a
+ * Logic App workflow uses to reach a connector.
+ */
+export interface ApiConnection extends ArmResource {
+  properties?: {
+    displayName?: string;
+    statuses?: Array<{
+      status?: string;
+      target?: string;
+      error?: { properties?: { code?: string; message?: string } };
+    }>;
+    parameterValues?: Record<string, string>;
+    customParameterValues?: Record<string, string>;
+    nonSecretParameterValues?: Record<string, string>;
+    createdTime?: string;
+    changedTime?: string;
+    api?: { id?: string; name?: string; displayName?: string; type?: string };
+    testLinks?: Array<{ requestUri?: string; method?: string }>;
+    [key: string]: unknown;
+  };
+}
+
+/**
+ * Scheduled query rule (Microsoft.Insights/scheduledQueryRules) - a log-search
+ * alert rule. Distinct from `Microsoft.Insights/metricAlerts`, which is what
+ * {@link MetricAlertRule} covers.
+ */
+export interface ScheduledQueryRule extends ArmResource {
+  /** `LogAlert` or `LogToMetric`. A `LogToMetric` rule emits a metric, it does not alert. */
+  kind?: string;
+  properties?: {
+    createdWithApiVersion?: string;
+    isLegacyLogAnalyticsRule?: boolean;
+    description?: string;
+    displayName?: string;
+    severity?: number;
+    enabled?: boolean;
+    scopes?: string[];
+    evaluationFrequency?: string;
+    windowSize?: string;
+    overrideQueryTimeRange?: string;
+    targetResourceTypes?: string[];
+    criteria?: {
+      allOf?: Array<{
+        query?: string;
+        timeAggregation?: string;
+        metricMeasureColumn?: string;
+        resourceIdColumn?: string;
+        operator?: string;
+        threshold?: number;
+        metricName?: string;
+        failingPeriods?: {
+          numberOfEvaluationPeriods?: number;
+          minFailingPeriodsToAlert?: number;
+        };
+      }>;
+    };
+    muteActionsDuration?: string;
+    autoMitigate?: boolean;
+    actions?: {
+      actionGroups?: string[];
+      customProperties?: Record<string, string>;
+    };
+    [key: string]: unknown;
+  };
+}

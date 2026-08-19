@@ -1,5 +1,6 @@
 import type { ServiceContext } from '../types.js';
 import { registerResourceTools } from './resource-tools.js';
+import { registerComputeTools } from './compute-tools.js';
 import { registerFunctionAppTools } from './function-app-tools.js';
 import { registerAppServiceTools } from './app-service-tools.js';
 import { registerKeyVaultTools } from './key-vault-tools.js';
@@ -12,6 +13,7 @@ import { registerLogStreamTools } from './log-stream-tools.js';
 
 export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerResourceTools(server, ctx);
+  registerComputeTools(server, ctx);
   registerFunctionAppTools(server, ctx);
   registerAppServiceTools(server, ctx);
   registerKeyVaultTools(server, ctx);
@@ -25,6 +27,7 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
 
 export {
   registerResourceTools,
+  registerComputeTools,
   registerFunctionAppTools,
   registerAppServiceTools,
   registerKeyVaultTools,
