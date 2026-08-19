@@ -882,6 +882,8 @@ Error messages include the specific missing permission and role assignment instr
 - **KQL syntax error:** Test query in Azure Portal → Log Analytics → Logs before using in MCP. Pipe operator (`|`) is required between operators.
 - **Invalid table/column:** Use `la-get-metadata` to discover valid table and column names. It lists every table the workspace could hold, so a name being present there is not evidence the workspace holds any of it - `la-list-workspace-tables` answers that.
 - **Query timeout:** 30-second default timeout. Reduce timespan, add `| take N`, or use `| summarize` to aggregate.
+- **A 400 that is neither `SyntaxError` nor `SemanticError` reports the code ARM sent:** `Bad request (<code>): <message>`, or `Bad request (no error code): <message>` when ARM sent none. The code is the only thing that separates a malformed query from a transient refusal, and an assurance run has already seen two 400s in roughly 180 queries that both succeeded unchanged on immediate retry and could not be classified afterwards.
+- **Nothing here is retried, deliberately for 400 and by omission otherwise.** `executeQuery` makes exactly one request: a 400 is normally deterministic, so retrying one would hide a malformed query from every caller. `429`, `503` and other transient statuses are not retried either, which is a gap rather than a decision - the sibling Azure packages retry `[429, 500, 502, 503, 504]` with backoff and this package has no retry policy at all.
 
 **Common KQL mistake:**
 ```kql

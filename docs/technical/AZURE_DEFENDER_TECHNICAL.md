@@ -394,6 +394,7 @@ Every list tool surfaces `truncated`, and every `summary` describes exactly the 
 - Missing configuration throws `Missing Azure Defender configuration: AZURE_TENANT_ID, ...` naming every absent variable. All four are demanded up front because every tool is subscription-scoped.
 - ARM error bodies become `Error("<code>: <message>")`, with nested `details` appended one per line.
 - Other axios failures become `Error("Defender API error: <message> (status: <status>)")`.
+- **Every `regulatoryCompliance*` failure carries a trailing hint naming `defender-list-plans`.** That surface needs a paid Defender plan and ARM refuses the call outright without one, which a batch caller cannot tell from a real fault. The hint is appended to ARM's own code and message, phrased as a condition rather than a diagnosis, and it changes nothing else: the call still throws and the CLI still exits 1. It is not turned into a `notApplicable: true` success payload, because no captured response records which error code the refusal carries and a guessed match would turn a genuine failure into a clean compliance report.
 - `429/500/502/503/504` retry up to 3 times with exponential backoff, honouring a `Retry-After` header when present.
 - Every MCP tool wraps its service call in `runTool()`, which returns `{ content: [...], isError: true }` rather than throwing across the protocol boundary.
 - CLI commands route failures through `handleCliError` and validate enums/integers before the service is reached, so a bad `--status` names the allowed values instead of silently matching nothing.
