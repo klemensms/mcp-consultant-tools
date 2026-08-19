@@ -69,4 +69,26 @@ export function registerMonitoringTools(server: any, ctx: ServiceContext): void 
       }
     }
   );
+
+  server.tool(
+    'list-scheduled-query-rules',
+    'List log-search alert rules (Microsoft.Insights/scheduledQueryRules). A DIFFERENT provider surface from list-alert-rules, which reads Microsoft.Insights/metricAlerts - neither count is the whole alerting configuration, and summary.note says so on every result including an empty one. Quote summary.alerting rather than summary.total as coverage: a disabled rule fires nothing, and a kind LogToMetric rule emits a metric instead of alerting. Rules with no action group are counted separately, because they evaluate and then notify nobody.',
+    {
+      resourceGroup: z
+        .string()
+        .optional()
+        .describe(descWithExamples('Filter by resource group', RESOURCE_GROUP_EXAMPLES)),
+    },
+    { readOnlyHint: true, openWorldHint: true },
+    async (args: any) => {
+      try {
+        const result = await ctx.management.monitoring.listScheduledQueryRules(args);
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('Error listing scheduled query rules:', error);
+        return { content: [{ type: 'text', text: `Failed: ${message}` }], isError: true };
+      }
+    }
+  );
 }

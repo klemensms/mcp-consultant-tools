@@ -1,5 +1,5 @@
 /**
- * Monitoring CLI Commands - 3 commands mapping to monitoring MCP tools
+ * Monitoring CLI Commands - 4 commands mapping to monitoring MCP tools
  */
 
 import type { Command } from 'commander';
@@ -61,5 +61,26 @@ export function registerMonitoringCommands(program: Command, ctx: ServiceContext
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'list smart detector alerts'); }
+    });
+
+  monitoring
+    .command('log-alerts')
+    .description('List log-search alert rules (a different surface from metric alerts)')
+    .option('-g, --resource-group <name>', 'Filter by resource group')
+    .action(async (opts: any) => {
+      try {
+        const result = await ctx.management.monitoring.listScheduledQueryRules({
+          resourceGroup: opts.resourceGroup,
+        });
+        const { total, alerting, note } = result.summary;
+        outputResult(
+          {
+            fileName: 'scheduled-query-rules',
+            data: result,
+            summary: `Found ${total} log-search alert rule(s), ${alerting} able to raise an alert\n${note}`,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'list scheduled query rules'); }
     });
 }
