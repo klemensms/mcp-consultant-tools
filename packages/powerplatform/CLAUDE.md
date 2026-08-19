@@ -142,6 +142,20 @@ POWERPLATFORM_ENABLE_DELETE=false
 { birthdate: '1990-01-15' }
 ```
 
+### Plugin assembly payloads are decoded, not raw
+
+`plugin list` and `plugin get` return the **same** assembly shape, and both come from
+`formatPluginAssembly` / `formatPluginAssemblyDetail` in `powerplatform-core`'s
+`PluginService.ts`. Fields are camelCase and option sets are decoded: `isManaged`,
+`isolationMode: "Sandbox"`, `sourceType: "Database"`, `modifiedBy` as a display name,
+`modifiedOn`. The raw Dataverse keys (`ismanaged`, `isolationmode: 2`, `modifiedon`) and
+`@odata.etag` are **not** in the payload - carrying both spellings of one fact is its own
+defect. `plugin get` adds `description`, `culture`, `publicKeyToken`, `sourceType`,
+`createdOn` and `isHidden` on top of what `plugin list` returns; nothing it shares is named
+differently. **Add a field to the formatter, not to a call site**, or the two shapes diverge
+again - `plugin get` used to return the raw row, so a consumer written against `plugin list`
+read `undefined` for every decoded field with no error.
+
 ### Plugin Deployment Workflow
 1. `create-plugin-assembly` - Upload compiled .NET DLL
 2. `register-plugin-step` - Register on SDK message (Create, Update, Delete)

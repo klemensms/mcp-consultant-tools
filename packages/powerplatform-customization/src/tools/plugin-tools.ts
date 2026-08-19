@@ -450,10 +450,10 @@ server.tool(
       statusReport += `Name: ${result.assembly.name}\n`;
       statusReport += `Version: ${result.assembly.version}\n`;
       statusReport += `ID: ${result.assembly.pluginassemblyid}\n`;
-      statusReport += `Isolation Mode: ${result.assembly.isolationmode === 2 ? 'Sandbox' : 'None'}\n`;
-      statusReport += `Is Managed: ${result.assembly.ismanaged ? 'Yes' : 'No'}\n`;
-      statusReport += `Modified: ${result.assembly.modifiedon}\n`;
-      statusReport += `Modified By: ${result.assembly.modifiedby?.fullname || 'Unknown'}\n\n`;
+      statusReport += `Isolation Mode: ${result.assembly.isolationMode}\n`;
+      statusReport += `Is Managed: ${result.assembly.isManaged ? 'Yes' : 'No'}\n`;
+      statusReport += `Modified: ${result.assembly.modifiedOn}\n`;
+      statusReport += `Modified By: ${result.assembly.modifiedBy || 'Unknown'}\n\n`;
 
       statusReport += `PLUGIN TYPES (${result.pluginTypes.length})\n`;
       statusReport += `-------------\n`;

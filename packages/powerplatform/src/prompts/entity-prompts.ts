@@ -209,10 +209,10 @@ export function registerEntityPrompts(server: any, ctx: ServiceContext): void {
 
         report += `## Assembly Information\n`;
         report += `- **Version**: ${assembly.version}\n`;
-        report += `- **Isolation Mode**: ${assembly.isolationmode === 2 ? 'Sandbox' : 'None'}\n`;
-        report += `- **Source**: ${assembly.sourcetype === 0 ? 'Database' : assembly.sourcetype === 1 ? 'Disk' : 'GAC'}\n`;
-        report += `- **Last Modified**: ${assembly.modifiedon} by ${assembly.modifiedby?.fullname || 'Unknown'}\n`;
-        report += `- **Managed**: ${assembly.ismanaged ? 'Yes' : 'No'}\n\n`;
+        report += `- **Isolation Mode**: ${assembly.isolationMode}\n`;
+        report += `- **Source**: ${assembly.sourceType}\n`;
+        report += `- **Last Modified**: ${assembly.modifiedOn} by ${assembly.modifiedBy || 'Unknown'}\n`;
+        report += `- **Managed**: ${assembly.isManaged ? 'Yes' : 'No'}\n\n`;
 
         report += `## Plugin Types (${result.pluginTypes.length} total)\n`;
         result.pluginTypes.forEach((type: any, idx: number) => {

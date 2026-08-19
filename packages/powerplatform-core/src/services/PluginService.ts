@@ -52,6 +52,96 @@ export interface PluginAssembliesResult {
   assemblies: unknown[];
 }
 
+/**
+ * Decoding one `pluginassemblies` row.
+ *
+ * `plugin list` decoded the row and `plugin get` returned it raw, so the same assembly
+ * came back under two different sets of field names: `isManaged` / `ismanaged`,
+ * `isolationMode: "Sandbox"` / `isolationmode: 2`, `modifiedOn` / `modifiedon`. A consumer
+ * written against one read `undefined` for every one of those fields in the other, with no
+ * error - a shape mismatch that looks like an assembly with nothing set. Both calls now go
+ * through here, so the two cannot drift again.
+ */
+
+/** `isolationmode` option set. An unrecognised value says so rather than being called External. */
+function decodeIsolationMode(raw: unknown): string {
+  if (raw === 1) return 'None';
+  if (raw === 2) return 'Sandbox';
+  if (raw === 3) return 'External';
+  return `Unknown (${raw})`;
+}
+
+/** `sourcetype` option set. */
+function decodeSourceType(raw: unknown): string {
+  if (raw === 0) return 'Database';
+  if (raw === 1) return 'Disk';
+  if (raw === 2) return 'GAC';
+  return `Unknown (${raw})`;
+}
+
+/**
+ * Unwrap a Dataverse managed property, which arrives as `{ Value: boolean }` on an expanded
+ * row and bare on some projections.
+ */
+function decodeManagedProperty(raw: unknown): boolean {
+  const wrapped = (raw as { Value?: boolean } | null)?.Value;
+  return Boolean(wrapped !== undefined ? wrapped : raw);
+}
+
+/** The assembly fields both `plugin list` and `plugin get` return, decoded. */
+export interface PluginAssemblySummary {
+  pluginassemblyid: unknown;
+  name: unknown;
+  version: unknown;
+  isolationMode: string;
+  isManaged: unknown;
+  modifiedOn: unknown;
+  modifiedBy: string | undefined;
+  major: unknown;
+  minor: unknown;
+}
+
+/** The extra fields `plugin get` selects, on top of the shared ones. */
+export interface PluginAssemblyDetail extends PluginAssemblySummary {
+  description: unknown;
+  culture: unknown;
+  publicKeyToken: unknown;
+  sourceType: string;
+  createdOn: unknown;
+  isHidden: boolean;
+}
+
+export function formatPluginAssembly(row: Record<string, unknown>): PluginAssemblySummary {
+  return {
+    pluginassemblyid: row.pluginassemblyid,
+    name: row.name,
+    version: row.version,
+    isolationMode: decodeIsolationMode(row.isolationmode),
+    isManaged: row.ismanaged,
+    modifiedOn: row.modifiedon,
+    modifiedBy: (row.modifiedby as { fullname?: string })?.fullname,
+    major: row.major,
+    minor: row.minor,
+  };
+}
+
+/**
+ * The same shape `plugin list` returns, plus the columns only `plugin get` selects. The raw
+ * lowercase keys and `@odata.etag` are deliberately dropped: carrying both spellings of one
+ * fact is the next defect rather than the fix for this one.
+ */
+export function formatPluginAssemblyDetail(row: Record<string, unknown>): PluginAssemblyDetail {
+  return {
+    ...formatPluginAssembly(row),
+    description: row.description,
+    culture: row.culture,
+    publicKeyToken: row.publickeytoken,
+    sourceType: decodeSourceType(row.sourcetype),
+    createdOn: row.createdon,
+    isHidden: decodeManagedProperty(row.ishidden),
+  };
+}
+
 export class PluginService {
   constructor(private client: PowerPlatformClient) {}
 
@@ -72,11 +162,7 @@ export class PluginService {
       endpoint: `api/data/v9.2/pluginassemblies?${managedFilter}$select=pluginassemblyid,name,version,culture,publickeytoken,isolationmode,sourcetype,major,minor,createdon,modifiedon,ismanaged,ishidden&$expand=modifiedby($select=fullname)&$orderby=name`,
       maxRecords,
       keep: (assembly) => {
-        const isHidden =
-          (assembly.ishidden as { Value?: boolean })?.Value !== undefined
-            ? (assembly.ishidden as { Value: boolean }).Value
-            : assembly.ishidden;
-        if (isHidden) {
+        if (decodeManagedProperty(assembly.ishidden)) {
           ootbExcluded++;
           return false;
         }
@@ -84,22 +170,7 @@ export class PluginService {
       },
     });
 
-    const formattedAssemblies = rows.map((assembly) => ({
-      pluginassemblyid: assembly.pluginassemblyid,
-        name: assembly.name,
-      version: assembly.version,
-      isolationMode:
-        assembly.isolationmode === 1
-          ? 'None'
-          : assembly.isolationmode === 2
-            ? 'Sandbox'
-            : 'External',
-      isManaged: assembly.ismanaged,
-      modifiedOn: assembly.modifiedon,
-      modifiedBy: (assembly.modifiedby as { fullname?: string })?.fullname,
-      major: assembly.major,
-      minor: assembly.minor,
-    }));
+    const formattedAssemblies = rows.map(formatPluginAssembly);
 
     return {
       totalCount: formattedAssemblies.length,
@@ -121,7 +192,7 @@ export class PluginService {
     assemblyName: string,
     includeDisabled: boolean = false
   ): Promise<{
-    assembly: unknown;
+    assembly: PluginAssemblyDetail;
     pluginTypes: unknown[];
     steps: unknown[];
     validation: {
@@ -142,8 +213,10 @@ export class PluginService {
       throw new Error(`Plugin assembly '${assemblyName}' not found`);
     }
 
-    const assembly = assemblies.value[0];
-    const assemblyId = assembly.pluginassemblyid as string;
+    const assemblyRow = assemblies.value[0];
+    const assemblyId = assemblyRow.pluginassemblyid as string;
+    // Decoded through the same formatter `plugin list` uses, so the two shapes agree.
+    const assembly = formatPluginAssemblyDetail(assemblyRow);
 
     // Get plugin types
     const pluginTypes = await this.client.makeRequest<ApiCollectionResponse<Record<string, unknown>>>(
