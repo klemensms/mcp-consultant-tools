@@ -261,6 +261,35 @@ A fix that only proves the happy path does not close its task.
         four CLI commands render `--help`, and each fails loudly and exits 1 with empty
         stdout against fake credentials. See register items 45 to 49.
 
+- [x] **T19 · D19, D23 - optional polish. Both halves taken, neither as the plan
+      proposed, and the reason is the same in both: the suggested fix would have hidden
+      the evidence that is missing.**
+      - **D19 (`azure-defender`).** Every `regulatoryCompliance*` failure now carries a
+        trailing hint naming `defender-list-plans`, the command that already answers "does
+        this subscription have a paid plan". ARM's own code and message stay first; the
+        call still throws and the CLI still exits 1. **Not** returned as a
+        `notApplicable: true` payload, because nothing in this repo records which ARM error
+        code a paid-plan refusal carries, so recognising it would mean matching a guessed
+        string - and a wrong match turns a real failure into a clean compliance report,
+        while also flipping the exit code for every batch caller. One live run against a
+        plan-less subscription makes the payload version possible; see register item 50.
+        The wrapper sits on the three ARM call sites, so `getComplianceSummary`'s own
+        unknown-standard error keeps its own message and a summary failing through
+        `listStandards` carries the hint exactly once. Both tested.
+      - **D23 (`log-analytics`).** The 400 branch computed ARM's error code into an
+        `errorDetails` local and **never read it**, so the message carried the text and
+        dropped the code. That is why the two measured failures could not be classified,
+        and why the next one could not have been either. The message now reads
+        `Bad request (<code>): <message>`; the dead local is gone. **No retry was added.**
+        A 400 is normally deterministic, so retrying one masks a malformed query for every
+        caller in order to paper over two failures nobody has identified, and the two
+        original responses are not reachable from this repo. A test named `does not retry a
+        400` pins the decision. Register items 51 and 52.
+      - 9 new tests, repo 1117 to **1126** attributable to this chain. Unit-verified plus
+        the credential-free checks: both MCP servers list their tools over stdio, both CLIs
+        render `--help`, and both fail loudly and exit 1 with empty stdout against fake
+        credentials, with the defender hint visible on stderr.
+
 ## Queue
 
 Ordered by the source report's own priority. One task per heading; a hop may take
@@ -343,15 +372,6 @@ more than one when its context measurement allows.
     but an optional field ARM does not populate is **absent**, not null. Either the
     consumer rendered absent as null or ARM sent explicit nulls, and those have different
     causes. See register item 34.
-
-### T19 · D19, D23 — optional polish
-- **D19 (`azure-defender`):** regulatory-compliance commands hard-fail on subscriptions
-  with no paid plan, on 8 of 16. The CLI behaves correctly and the message is clear;
-  consider returning an empty result with `notApplicable: true` so a batch consumer does
-  not special-case an error string.
-- **D23 (`log-analytics`):** two transient `Bad request` failures in ~180 `query execute`
-  invocations, both succeeding unchanged on immediate retry. Exit code is correct.
-  Consider a bounded internal retry, since the flat cache leaves no trace of a gap.
 
 ## Not actionable in this repo
 

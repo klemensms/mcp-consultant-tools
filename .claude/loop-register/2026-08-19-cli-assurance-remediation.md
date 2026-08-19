@@ -991,3 +991,96 @@ anything matching the trigger checklist.
   mapper, rather than `KNOWN_ISSUES.md` phrased as a defect. The closing hop should pick
   one home and say which, because it is currently recorded only in this register and in
   four commit messages.
+
+### ⚑50 · D19 was answered with a hint rather than a `notApplicable` payload, and the payload version is still open
+- **Kind:** klemens-call
+- **Hop:** L9 · T19 (D19)
+- **State:** open
+- **Matters because:** the plan file's suggestion was to return an empty result with
+  `notApplicable: true` so a batch consumer stops parsing an error string. L9 did not do
+  that, and the reason is evidence rather than taste: **nothing anywhere in this repo
+  records which ARM error code a paid-plan refusal carries.** Recognising it would mean
+  matching on a guessed string, and a wrong match converts a genuine failure - a 403, a
+  wrong subscription id, an ARM outage - into a clean compliance report showing no gaps.
+  In a compliance command that is the worst possible direction to fail in. It would also
+  flip the exit code for every batch caller (⚑10's class). What landed instead is a
+  trailing hint naming `defender-list-plans`, appended to ARM's own code and message, with
+  the throw and the exit code unchanged.
+- **What settles it:** one live run of any `compliance list-*` command against a
+  subscription with no paid Defender plan, capturing the ARM error code and status
+  verbatim. With that code in hand, `notApplicable: true` becomes a real option rather than
+  a guess, and Klemens can then decide whether the payload change is worth the exit-code
+  behaviour change. Until then the hint is the honest answer, not a placeholder for a
+  better one. No Azure credentials on this machine.
+- **Known trade-off, accepted deliberately:** the hint is attached to **every** failure of
+  those four commands, including an authentication failure, because `DefenderClient`
+  collapses an ARM error to a plain `Error` and discards the HTTP status, so the service
+  cannot tell a 400 from a 403. Verified against fake credentials: an `AADSTS90002` tenant
+  error now ends with the plan hint. The original error is first and unmistakable and the
+  hint is phrased as a condition, so it misleads nobody, but it is noise on failures that
+  have nothing to do with plans. Carrying the status through `DefenderClient.handleError`
+  would let the hint be conditional; that is a client-wide change, not a T19 one.
+
+### ⚑51 · `log-analytics` retries nothing at all, and only the 400 case is a decision
+- **Kind:** deferred
+- **Hop:** L9 · T19 (D23)
+- **State:** open
+- **Matters because:** found while reading the error path for D23.
+  `LogAnalyticsService.executeQuery` makes exactly one `axios.post` and throws on any
+  failure. It does not retry `429`, `503`, `500` or a socket reset, while `DefenderClient`
+  and `azure-management`'s `ArmClient` both retry `[429, 500, 502, 503, 504]` with
+  exponential backoff and honour `Retry-After`. The 429 branch even reads the `Retry-After`
+  header, purely to print it in the error message. So an assurance run that queries a
+  workspace 180 times has no protection against the one failure class everybody agrees is
+  transient, and every such failure is a hard stop.
+- **Not fixed here on purpose.** Adding a retry policy to this package is a behaviour change
+  to every command in it, not a T19 polish item, and T19 is explicitly optional. It also
+  wants doing once for the package rather than once for `executeQuery`.
+- **Note for whoever takes it:** `log-analytics` still pins `@mcp-consultant-tools/core`
+  at `33.0.0` (see ⚑5), so if the retry helper is hoisted into `core` the pin must be
+  bumped and `packages/log-analytics/node_modules/@mcp-consultant-tools/core` removed
+  before `npm install`, or the stale copy stays on disk.
+
+### ⚑52 · The two transient `Bad request` failures are still unexplained, and now they are at least diagnosable
+- **Kind:** assumption
+- **Hop:** L9 · T19 (D23)
+- **State:** open
+- **Matters because:** D23's two failures in roughly 180 `query execute` invocations both
+  succeeded unchanged on immediate retry, which is the signature of something transient
+  surfacing as a 400. **L9 did not identify them and could not:** the two original
+  responses exist only in the assurance run's output, which is held outside this repo, and
+  the code path that produced the message computed ARM's error code into a local and then
+  discarded it, so even the run itself never had the code. That is now fixed - the message
+  reads `Bad request (<code>): <message>` - but the fix makes the **next** occurrence
+  answerable, it does not explain these two.
+- **What settles it:** the next `Bad request` from a real workspace, read with its code.
+  A `BadArgumentError` or `PathNotFoundError` means the query or the workspace id was the
+  problem; anything that looks like throttling or a gateway means the 400 is a mislabelled
+  transient and a bounded retry becomes defensible.
+- **Until then, no retry.** A blind "retry once on Bad request" would mask a genuinely
+  malformed query for every caller of the package in order to paper over two failures
+  nobody has identified. A test named `does not retry a 400` pins that decision so it has
+  to be changed on purpose rather than drifted into.
+
+### ⚑10 update (L9) · the exit-code class was faced and declined for the first time
+- Recorded here rather than by editing ⚑10, per the append-only rule.
+- ⚑10 registered that changing an exit code is a behaviour change for any batch caller
+  keyed on it, arising from `outputResult` exiting 1 on a lossy fan-out. T19's D19 is the
+  first item in this chain where the *opposite* change was on the table: turning a hard
+  failure into a success payload, which would move an exit code from 1 to 0 on 8 of 16
+  subscriptions in the measured run. **It was declined** (see ⚑50), for evidence reasons
+  rather than for the exit code alone, but the exit code is the reason it should not be
+  done casually later either.
+- **What this means for the release notes:** ⚑10 still needs its breaking-change decision
+  from Klemens. T19 adds nothing to that list - the defender hint and the Log Analytics
+  error code are both message-only changes, no exit code and no payload shape moves.
+
+### ⚑5 update (L9) · `log-analytics` is on the stale pin, and it did not matter this time
+- Recorded here rather than by editing ⚑5, per the append-only rule.
+- The L8 handoff warned to check the pin before editing `log-analytics`. Measured this hop:
+  `packages/log-analytics/package.json` does pin `@mcp-consultant-tools/core` at `33.0.0`,
+  while `azure-defender` is on `34.1.0`. **No bump was needed**, because the T19 change
+  touches only `LogAnalyticsService`'s own error path and uses nothing from `core`, and the
+  package built and tested clean. Recorded so the next hop knows the pin is still there and
+  still untested rather than assuming L9 cleared it: the moment a fix in that package needs
+  a `core` export, ⚑5's full procedure applies.
