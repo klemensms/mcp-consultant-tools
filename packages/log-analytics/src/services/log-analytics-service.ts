@@ -62,7 +62,10 @@ export interface MetadataResult {
 /** One data type the workspace has actually ingested, from the `Usage` table. */
 export interface WorkspaceTable {
   dataType: string;
-  totalVolumeMB: number;
+  /** Summed `Usage.Quantity`. Meaningless without `quantityUnit`, so never labelled MB here. */
+  quantity: number;
+  /** `Usage.QuantityUnit`, carried verbatim. Usually `MBytes`, but not guaranteed to be. */
+  quantityUnit: string;
 }
 
 /** What a workspace actually holds, as opposed to what its schema allows. */
@@ -313,11 +316,15 @@ export class LogAnalyticsService {
     resourceId: string,
     timespan: string = 'P7D'
   ): Promise<WorkspaceTablesResult> {
+    // Group by QuantityUnit as well as DataType. `Usage.Quantity` is unitless on its own
+    // and the unit is per-row, so summing across units would produce a plausible number
+    // that means nothing. Grouping makes a mixed-unit workspace show two rows rather than
+    // one wrong one.
     const query = `
       Usage
       | where TimeGenerated > ago(${this.convertTimespanToKQL(timespan)})
-      | summarize TotalVolumeMB = round(sum(Quantity), 2) by DataType
-      | order by TotalVolumeMB desc
+      | summarize Quantity = round(sum(Quantity), 2) by DataType, QuantityUnit
+      | order by Quantity desc
     `.trim();
 
     const result = await this.executeQuery(resourceId, query, timespan);
@@ -325,11 +332,13 @@ export class LogAnalyticsService {
     const primary = result.tables?.[0];
     const columns = primary?.columns ?? [];
     const typeIndex = columns.findIndex((c) => c.name === 'DataType');
-    const volumeIndex = columns.findIndex((c) => c.name === 'TotalVolumeMB');
+    const unitIndex = columns.findIndex((c) => c.name === 'QuantityUnit');
+    const quantityIndex = columns.findIndex((c) => c.name === 'Quantity');
 
     const tables: WorkspaceTable[] = (primary?.rows ?? []).map((row) => ({
       dataType: typeIndex >= 0 ? String(row[typeIndex]) : '',
-      totalVolumeMB: volumeIndex >= 0 ? Number(row[volumeIndex] ?? 0) : 0,
+      quantity: quantityIndex >= 0 ? Number(row[quantityIndex] ?? 0) : 0,
+      quantityUnit: unitIndex >= 0 ? String(row[unitIndex] ?? '') : '',
     }));
 
     const summary: WorkspaceTablesResult['summary'] = {
@@ -338,7 +347,8 @@ export class LogAnalyticsService {
       caveat:
         'Derived from the Usage table, which records ingestion-metered data types. A table ' +
         'populated outside that metering would not appear here, so this is a lower bound on ' +
-        'what the workspace holds, not a closed set.',
+        'what the workspace holds, not a closed set. Quantity carries its own unit per row ' +
+        'and is not assumed to be MB; do not sum across rows with different quantityUnit.',
     };
 
     if (tables.length === 0) {

@@ -268,7 +268,7 @@ Parameters:
 - `resourceId` (required): Resource ID
 - `timespan` (optional): ISO 8601 window to measure. Default `P7D`
 
-Returns: `WorkspaceTablesResult` - `tables[]` of `{ dataType, totalVolumeMB }` ordered by volume, plus a `summary`.
+Returns: `WorkspaceTablesResult` - `tables[]` of `{ dataType, quantity, quantityUnit }` ordered by quantity, plus a `summary`.
 
 The companion to `la-get-metadata`: it answers the question a consumer usually means by "which tables does this workspace have". Backed by `Usage | summarize by DataType`, which is cheap and was the workaround used once the catalogue turned out not to answer it.
 
@@ -277,6 +277,8 @@ The companion to `la-get-metadata`: it answers the question a consumer usually m
 | `summary.total` | Data types with ingestion in the window |
 | `summary.timespan` | The window measured - a zero is only ever a claim about this window |
 | `summary.caveat` | Always present: `Usage` records ingestion-metered data types, so this is a lower bound |
+
+**`quantityUnit` is carried, never assumed.** `Usage.Quantity` has no unit of its own - `Usage.QuantityUnit` supplies it, per row, and it is usually `MBytes` but not guaranteed to be. The query groups by `DataType, QuantityUnit`, so a workspace whose rows carry different units returns one row per unit rather than one plausible-looking wrong total. **Do not sum `quantity` across rows with different `quantityUnit`.**
 | `summary.note` | Present only when nothing was ingested, so an empty list is never a bare zero |
 
 </tool>

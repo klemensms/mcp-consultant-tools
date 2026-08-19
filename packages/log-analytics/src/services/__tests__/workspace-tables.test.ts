@@ -57,7 +57,8 @@ const usageResponse = (rows: unknown[][]) => ({
         name: 'PrimaryResult',
         columns: [
           { name: 'DataType', type: 'string' },
-          { name: 'TotalVolumeMB', type: 'real' },
+          { name: 'QuantityUnit', type: 'string' },
+          { name: 'Quantity', type: 'real' },
         ],
         rows,
       },
@@ -108,8 +109,8 @@ describe('LogAnalyticsService.listWorkspaceTables', () => {
 
     mockedPost.mockResolvedValueOnce(
       usageResponse([
-        ['AppTraces', 1024.5],
-        ['FunctionAppLogs', 12.25],
+        ['AppTraces', 'MBytes', 1024.5],
+        ['FunctionAppLogs', 'MBytes', 12.25],
       ])
     );
     const busy = await service.listWorkspaceTables('ws-busy', 'P7D');
@@ -136,12 +137,30 @@ describe('LogAnalyticsService.listWorkspaceTables', () => {
     mockedPost.mockResolvedValueOnce(usageResponse([]));
     const empty = await service.listWorkspaceTables('ws-empty');
 
-    mockedPost.mockResolvedValueOnce(usageResponse([['AppTraces', 5]]));
+    mockedPost.mockResolvedValueOnce(usageResponse([['AppTraces', 'MBytes', 5]]));
     const busy = await service.listWorkspaceTables('ws-busy');
 
     expect(empty.summary.note).toBeTruthy();
     expect(busy.summary.note).toBeUndefined();
     expect(busy.summary.caveat).toContain('Usage');
+  });
+
+  it('carries the unit rather than assuming MB, so quantities are never summed blind', async () => {
+    mockedPost.mockResolvedValueOnce(
+      usageResponse([
+        ['AppTraces', 'MBytes', 1024.5],
+        ['AppMetrics', 'Nodes', 3],
+      ])
+    );
+
+    const result = await makeService().listWorkspaceTables('ws-busy');
+
+    expect(result.tables).toEqual([
+      { dataType: 'AppTraces', quantity: 1024.5, quantityUnit: 'MBytes' },
+      { dataType: 'AppMetrics', quantity: 3, quantityUnit: 'Nodes' },
+    ]);
+    expect(result.summary.caveat).toContain('quantityUnit');
+    expect((mockedPost.mock.calls[0][1] as any).query).toContain('by DataType, QuantityUnit');
   });
 
   it('queries the Usage table over the requested window, not the default', async () => {
