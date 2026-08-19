@@ -202,6 +202,26 @@ A fix that only proves the happy path does not close its task.
       half remains unproven: whether a clone now fails in seconds instead of hanging needs
       a machine with a controlling terminal and a real organisation, exactly as
       `v35.0.0-beta.14.md` states. See the ⚑6 update.
+- [x] **T18 half 1 · D18 — the `azure-defender` coverage gap**. Two new read-only
+      commands. **`defender-list-alerts`** returns security alerts across the subscription
+      with status and severity breakdowns, and names every entity carrying more than one,
+      because clustering is the finding rather than the count. `Alerts_List` takes no
+      server-side filter at any api-version, so `status` and `severity` run client-side and
+      the payload reports `matchedOf` beside `total` with a note naming the shortfall -
+      otherwise a filter that matched nothing is byte-for-byte an empty subscription.
+      `maxResults` bounds the **fetch**, so it runs before the filter, and a truncated
+      filtered call says so rather than presenting a lower bound as a total. Uses the
+      subscription-wide operation, not the region-scoped `locations/{location}/alerts`,
+      which silently omits any region the caller did not name. **`defender-list-plans`**
+      reports which plans are Standard vs Free, with `cspmEnabled` **three-state** - true,
+      false, or null when `CloudPosture` was absent from the response, which means unknown
+      and not off. That command is what settles T12 and ⚑33: an empty attack-path or
+      assessment-risk result is now either explained by the configuration or a finding
+      about the estate, and the note says which in a sentence a report can quote. Both
+      api-versions read from the swagger (`alerts` `2022-01-01` is the newest stable that
+      surface has; `pricings` `2024-01-01`). No field allowlist on the alert mapper,
+      deliberately. 18 new tests, `azure-defender` 97 to 115, repo 1063 to 1081.
+      Unit-verified only. See register items 43 and 44.
 
 ## Queue
 
@@ -286,19 +306,22 @@ more than one when its context measurement allows.
     consumer rendered absent as null or ARM sent explicit nulls, and those have different
     causes. See register item 34.
 
-### T18 · D13, D18 — coverage gaps (new commands, largest tasks)
-- **Severity:** coverage gaps, not defects. Take these last.
+### T18 half 2 · D13 — the `azure-management` coverage gap (the largest task left)
+- **Severity:** coverage gap, not a defect. **D18, the `azure-defender` half, is done** -
+  see Done above. What remains is D13 only.
+- **Read before starting:** the Defender half established the shape to copy. Four things
+  it settled that D13 should inherit rather than rediscover: read the ARM swagger for each
+  resource type via `gh api search/code` before writing a mapper (`api.github.com` 401s
+  through WebFetch); pass `properties` through without a field allowlist, because a
+  documentation-derived allowlist has now discarded live payload three times in this repo;
+  where a list operation offers a `detailed`-style parameter, pass it (T14's D10 was
+  exactly that defect); and where filtering is client-side, report the pre-filter count
+  beside the post-filter one so an empty filtered result is not read as an empty estate.
 - **D13 (`azure-management`):** no command for `Microsoft.Logic/workflows`,
   `Microsoft.Web/connections`, `Microsoft.Compute/virtualMachines` or
   `Microsoft.Insights/scheduledqueryrules`. In the estate measured, VMs and their
   dependants alone were 244 of 1,117 resources, and 19 log-based alert rules were
   invisible, which overstates any "alerting gap" finding.
-- **D18 (`azure-defender`):** no command for `Microsoft.Security/locations/alerts` or
-  `Microsoft.Security/pricings`. Alerts were the most operationally urgent Defender data
-  in the estate measured — 32 existed, 25 Active, clustered on domain controllers — and
-  the CLI cannot see any of them. Pricing plans are what distinguishes "no attack paths
-  found" from "Defender CSPM is not enabled". Both were reachable from ARM and Resource
-  Graph with the credential already held.
 
 ### T19 · D19, D23 — optional polish
 - **D19 (`azure-defender`):** regulatory-compliance commands hard-fail on subscriptions

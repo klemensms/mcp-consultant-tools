@@ -810,3 +810,47 @@ anything matching the trigger checklist.
   on, which is not this task's scope. Left for whoever next touches that file, or for a
   deliberate sweep - a repo-wide `grep -rn '—' packages/*/src` is the work-list.
 
+### ⚑33 update (L7) · the question is now answerable from this package, in one call
+- `defender-list-plans` reads `Microsoft.Security/pricings` and reports `cspmEnabled` for
+  the subscription it is pointed at, plus a note stating what an empty CSPM result means
+  under that configuration. So the inference ⚑33 warns about - reasoning from an attack path
+  in one subscription to assessment risk in another - is no longer necessary: run the command
+  per subscription and read the answer. **Left open deliberately**, because the item is about
+  a claim that still stands unverified until someone with credentials runs it across the
+  subscriptions the measurements came from. What has changed is the cost: it is one command
+  per subscription rather than a reconstruction from the source report.
+- `cspmEnabled` is three-state for exactly this reason. A `null` (the plan was absent from
+  the response) must not be read as "CSPM off", which is the same conflation ⚑33 warns about
+  in the other direction.
+
+### ⚑43 · The two new Defender surfaces have never seen a live row
+- **Kind:** assumption
+- **Hop:** L7 · T18 half 1 (D18)
+- **State:** open
+- **Matters because:** every field the alert and pricing commands name, and every enum they
+  validate against, comes from the ARM swagger rather than from a captured response. That is
+  the best available source on this machine and it has been right twice this chain - but the
+  same chain also found a mapper built from Microsoft's *documentation* discarding live
+  payload twice, and the `2022-01-01` alert schema is four years old, so a live tenant may
+  carry keys it does not define. The alert mapper passes `properties` through whole
+  specifically so that cannot silently happen, but nothing has confirmed it. **First live run
+  should:** check `defender-list-alerts` returns rows with `compromisedEntity` populated
+  (`topEntities` is empty and useless without it), and confirm `defender-list-plans` names
+  `CloudPosture` rather than some other spelling - `cspmEnabled` returns `null` if Microsoft
+  ever renames that plan, which is the safe direction but is indistinguishable from a
+  response that genuinely omitted it. Klemens has the credentials.
+
+### ⚑44 · `defender-list-alerts` cannot give a filtered subscription-wide total
+- **Kind:** dropped-scope
+- **Hop:** L7 · T18 half 1 (D18)
+- **State:** open
+- **Matters because:** `Alerts_List` accepts no `$filter`, so `maxResults` bounds the fetch
+  and the filter can only ever see the rows already fetched. A caller asking for Active
+  alerts on a tenant with more than `maxResults` alerts gets Active alerts *from the first
+  page*, and the payload says so in `summary.note` rather than pretending otherwise. The
+  honest fix - fetch every page whenever a filter is set, ignoring `maxResults` - was not
+  taken, because an unbounded fetch on a large tenant is its own failure and this chain has
+  no measurement of how many alerts a real estate carries. The default of 200 is a guess.
+  Registered so raising it, or making a filtered call exhaustive, is a deliberate later
+  choice informed by one live run rather than a surprise on a big tenant.
+
