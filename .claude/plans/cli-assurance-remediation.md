@@ -222,6 +222,44 @@ A fix that only proves the happy path does not close its task.
       surface has; `pricings` `2024-01-01`). No field allowlist on the alert mapper,
       deliberately. 18 new tests, `azure-defender` 97 to 115, repo 1063 to 1081.
       Unit-verified only. See register items 43 and 44.
+- [x] **T18 half 2 · D13 - the `azure-management` coverage gap**. All four resource types
+      done in one hop: four new read-only commands across three surfaces. Every ARM swagger
+      was read before its mapper was written, per the lesson T14 paid for, and each one
+      changed the design.
+      - **`list-virtual-machines`** / `compute list-vms`. Power state is not in the ARM list
+        response, so it is opt-in via `includeStatus` and collected per VM through
+        `VirtualMachines_InstanceView` and `FanOutRecorder`. Neither of the list
+        operation's own parameters works for a plain listing: `$expand=instanceView` is
+        accepted only alongside a `$filter`, and `statusOnly=true` exists at subscription
+        scope only. **Without the flag no row carries `powerState` and every VM sits in a
+        `not collected` bucket** - defaulting an uncollected state to anything is how a
+        deallocated VM comes to look like a running one. A refused `instanceView` lands in
+        `unavailable` with its 403 in `fanOut.failures`, a VM that answered without a
+        `PowerState/` entry lands in `unknown`, and a test asserts the buckets sum to the
+        total.
+      - **`list-scheduled-query-rules`** / `monitoring log-alerts`, on `MonitoringService`.
+        `summary.alerting` is the coverage number and `summary.total` is not: a disabled
+        rule fires nothing, a `kind: LogToMetric` rule emits a metric instead of alerting,
+        and a rule with no action group notifies nobody. Each is counted apart. `note`
+        names all **three** disjoint alerting surfaces on every result including an empty
+        one, which is the specific fix for the measured failure - "0 log alert rules" is
+        not "no alerting". Legacy Log Search v1 rules are flagged, not blended in.
+      - **`list-logic-app-workflows`** and **`list-api-connections`** / `logic-apps
+        list-workflows` and `list-connections`, one service because they are one thing
+        operationally. Workflows withhold `definition` and `parameters` by default and name
+        them in each row's `propertiesWithheld`, with `triggerNames`, `actionCount` and
+        `parameterNames` derived *before* withholding - so an absent definition is never
+        read as a workflow that has none, and the counts survive without the payload.
+        **`Connections_List` is resource-group scoped only**: ARM ships no subscription-wide
+        list, so a subscription-wide answer is a resource-group sweep, each group is one
+        `fanOut` attempt, and `summary.complete` is false whenever one refuses.
+        `parameterValues` is redacted to its keys by field rather than by key name, because
+        ARM's own naming says which of the two maps can hold secrets.
+      - No field allowlist on any of the four mappers. 36 new tests, `azure-management` 92
+        to 128, repo 1081 to **1117**. Unit-verified plus the credential-free end-to-end
+        checks: all four tools appear in `tools/list` over stdio with their parameters, all
+        four CLI commands render `--help`, and each fails loudly and exits 1 with empty
+        stdout against fake credentials. See register items 45 to 49.
 
 ## Queue
 
@@ -305,23 +343,6 @@ more than one when its context measurement allows.
     but an optional field ARM does not populate is **absent**, not null. Either the
     consumer rendered absent as null or ARM sent explicit nulls, and those have different
     causes. See register item 34.
-
-### T18 half 2 · D13 — the `azure-management` coverage gap (the largest task left)
-- **Severity:** coverage gap, not a defect. **D18, the `azure-defender` half, is done** -
-  see Done above. What remains is D13 only.
-- **Read before starting:** the Defender half established the shape to copy. Four things
-  it settled that D13 should inherit rather than rediscover: read the ARM swagger for each
-  resource type via `gh api search/code` before writing a mapper (`api.github.com` 401s
-  through WebFetch); pass `properties` through without a field allowlist, because a
-  documentation-derived allowlist has now discarded live payload three times in this repo;
-  where a list operation offers a `detailed`-style parameter, pass it (T14's D10 was
-  exactly that defect); and where filtering is client-side, report the pre-filter count
-  beside the post-filter one so an empty filtered result is not read as an empty estate.
-- **D13 (`azure-management`):** no command for `Microsoft.Logic/workflows`,
-  `Microsoft.Web/connections`, `Microsoft.Compute/virtualMachines` or
-  `Microsoft.Insights/scheduledqueryrules`. In the estate measured, VMs and their
-  dependants alone were 244 of 1,117 resources, and 19 log-based alert rules were
-  invisible, which overstates any "alerting gap" finding.
 
 ### T19 · D19, D23 — optional polish
 - **D19 (`azure-defender`):** regulatory-compliance commands hard-fail on subscriptions
