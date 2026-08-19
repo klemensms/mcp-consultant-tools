@@ -63,8 +63,39 @@ export function compliancePercentage(passed: number, failed: number): number {
   return assessed > 0 ? Math.round((passed / assessed) * 1000) / 10 : 0;
 }
 
+/**
+ * Regulatory compliance is a paid-plan surface. On a subscription with no paid Defender
+ * plan ARM refuses the call outright, and once that refusal reaches a batch caller it
+ * looks exactly like a fault in the estate. A measured assurance run hit it on 8 of 16
+ * subscriptions. The hint names the command that answers whether this subscription has
+ * a plan, so nobody has to parse an error string to find out.
+ *
+ * Deliberately NOT turned into a `notApplicable: true` success payload. Nothing in this
+ * repo records which ARM error code the refusal carries, so recognising it would mean
+ * matching on a guessed string, and a wrong match turns a genuine failure into a clean
+ * compliance report. It would also flip the exit code for every batch caller keyed on it.
+ */
+const PLAN_HINT =
+  'Hint: if this subscription has no paid Defender for Cloud plan, regulatory compliance is ' +
+  'unavailable and this failure is expected rather than a gap in the estate. Run ' +
+  'defender-list-plans (CLI: plan list-plans) to check before recording a finding.';
+
 export class ComplianceService {
   constructor(private client: DefenderClient) {}
+
+  /**
+   * Rethrow an ARM failure with `PLAN_HINT` appended, ARM's own code and message first.
+   * Wraps the ARM calls only, never a whole public method, so an error this service
+   * raises itself (an unknown standard name) does not collect a hint about plans.
+   */
+  private async withPlanHint<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`${message}\n${PLAN_HINT}`, { cause: error });
+    }
+  }
 
   private standardsPath(): string {
     return this.client.subscriptionPath(
@@ -73,9 +104,11 @@ export class ComplianceService {
   }
 
   async listStandards(): Promise<StandardsResult> {
-    const { items } = await this.client.paginate<RegulatoryComplianceStandard>(
-      this.standardsPath(),
-      DEFENDER_API_VERSIONS.regulatoryCompliance
+    const { items } = await this.withPlanHint(() =>
+      this.client.paginate<RegulatoryComplianceStandard>(
+        this.standardsPath(),
+        DEFENDER_API_VERSIONS.regulatoryCompliance
+      )
     );
 
     return { standards: items, summary: { total: items.length, byState: countByState(items) } };
@@ -86,9 +119,11 @@ export class ComplianceService {
     stateFilter?: ComplianceState;
   }): Promise<ControlsResult> {
     const path = `${this.standardsPath()}/${encodeURIComponent(options.standardName)}/regulatoryComplianceControls`;
-    const { items } = await this.client.paginate<RegulatoryComplianceControl>(
-      path,
-      DEFENDER_API_VERSIONS.regulatoryCompliance
+    const { items } = await this.withPlanHint(() =>
+      this.client.paginate<RegulatoryComplianceControl>(
+        path,
+        DEFENDER_API_VERSIONS.regulatoryCompliance
+      )
     );
 
     const controls = options.stateFilter
@@ -108,9 +143,11 @@ export class ComplianceService {
       `/regulatoryComplianceControls/${encodeURIComponent(options.controlName)}` +
       `/regulatoryComplianceAssessments`;
 
-    const { items } = await this.client.paginate<RegulatoryComplianceAssessment>(
-      path,
-      DEFENDER_API_VERSIONS.regulatoryCompliance
+    const { items } = await this.withPlanHint(() =>
+      this.client.paginate<RegulatoryComplianceAssessment>(
+        path,
+        DEFENDER_API_VERSIONS.regulatoryCompliance
+      )
     );
 
     const assessments = options.stateFilter

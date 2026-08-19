@@ -121,3 +121,55 @@ describe('ComplianceService.getComplianceSummary', () => {
     );
   });
 });
+
+describe('ComplianceService failure hint', () => {
+  // Measured: the regulatory-compliance commands hard-failed on 8 of 16 subscriptions in
+  // an assurance run, and every one of those failures is indistinguishable from a real
+  // fault once it reaches a batch caller. The compliance surface needs a paid Defender
+  // plan; the hint names the command that answers whether this subscription has one.
+  const armRefusal = () =>
+    vi.fn().mockRejectedValue(new Error('BadRequest: The subscription is not onboarded'));
+
+  it("keeps ARM's own code and message ahead of the hint", async () => {
+    const service = new ComplianceService(fakeClient(armRefusal()));
+
+    await expect(service.listStandards()).rejects.toThrow(
+      /^BadRequest: The subscription is not onboarded\n/
+    );
+  });
+
+  it('names defender-list-plans so a caller does not have to parse the error string', async () => {
+    const service = new ComplianceService(fakeClient(armRefusal()));
+
+    await expect(service.listStandards()).rejects.toThrow(/defender-list-plans/);
+  });
+
+  it('hints on a control-assessments failure too, not only on the standards list', async () => {
+    const service = new ComplianceService(fakeClient(armRefusal()));
+
+    await expect(
+      service.listControlAssessments({ standardName: 'CIS', controlName: '1.1' })
+    ).rejects.toThrow(/defender-list-plans/);
+  });
+
+  it('attaches the hint exactly once when the summary fails through listStandards', async () => {
+    const service = new ComplianceService(fakeClient(armRefusal()));
+
+    const error = await service.getComplianceSummary().catch((e: Error) => e);
+
+    expect(error.message.match(/defender-list-plans/g)).toHaveLength(1);
+  });
+
+  it('leaves an unknown-standard error alone, because that is a typo and not a missing plan', async () => {
+    const paginate = vi
+      .fn()
+      .mockResolvedValue({ items: [standard('CIS', 1, 0)], truncated: false });
+    const service = new ComplianceService(fakeClient(paginate));
+
+    const error = await service
+      .getComplianceSummary({ standardName: 'Azure-CIS-1.1.0' })
+      .catch((e: Error) => e);
+
+    expect(error.message).not.toMatch(/defender-list-plans/);
+  });
+});
