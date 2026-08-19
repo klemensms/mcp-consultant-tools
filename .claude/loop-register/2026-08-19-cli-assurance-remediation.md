@@ -139,3 +139,19 @@ anything matching the trigger checklist.
   is the correct default and the reason the fix exists, so this is not a defect; it does
   need saying out loud in the release notes as a behaviour change rather than shipping as
   a silent one. Klemens's call whether it warrants the breaking-change block.
+
+### ⚑11 · T3's root cause is inferred from the evidence, not confirmed live
+- **Kind:** assumption
+- **Hop:** L1 · T3
+- **State:** open
+- **Matters because:** the measured facts are that 752 of 752 names were unresolved with
+  `roleDefinitionsTruncated` false, while all 52 distinct GUIDs resolved when fetched
+  directly. Two causes fit that equally well: the role-definition query returned rows
+  whose ids did not match the assignments' (a scope-prefix mismatch), or it returned no
+  rows at all. Without Azure credentials neither can be ruled out here, so the fix does
+  both jobs - it joins on the trailing GUID, which is correct under the first cause and
+  harmless under the second, and it adds `roleDefinitionsFound` plus a `note`, which makes
+  the second cause declare itself instead of looking like a plain count of unknown roles.
+  What still needs one live run is which cause it actually was. If `roleDefinitionsFound`
+  comes back zero on a real subscription, the join was never the problem and the
+  role-definition query needs its own investigation.

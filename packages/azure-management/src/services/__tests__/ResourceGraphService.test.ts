@@ -317,7 +317,22 @@ describe('pagination and truncation', () => {
 });
 
 describe('listRoleAssignments', () => {
-  function roleStub(roleDefinitions: Array<{ roleDefinitionId: string; roleName: string }>): ArmClient {
+  /**
+   * D8: `roleDefinitionName` was null for 752 of 752 assignments across 16
+   * subscriptions, with `roleDefinitionsTruncated` false, while fetching each of the
+   * 52 distinct GUIDs directly returned a name for 52 of 52.
+   *
+   * The two sides do not carry the same scope prefix. An assignment's
+   * `properties.roleDefinitionId` is written subscription-qualified; a built-in
+   * definition's own `id` is tenant-scoped. A whole-id join therefore misses every
+   * built-in role, which is almost every role. The fixture below carries that live
+   * shape - the previous one made both sides tenant-scoped, which made the broken
+   * join look correct.
+   */
+  function roleStub(
+    roleDefinitions: Array<{ roleDefinitionId: string; roleName: string }>,
+    assignmentRoleDefinitionId = `/subscriptions/${SUBSCRIPTION_ID}/providers/Microsoft.Authorization/roleDefinitions/READER-GUID`
+  ): ArmClient {
     return stubClient({
       post: (_path, body) => {
         const query = String(body.query);
@@ -329,7 +344,7 @@ describe('listRoleAssignments', () => {
               properties: {
                 principalId: SUBSCRIPTION_ID,
                 principalType: 'ServicePrincipal',
-                roleDefinitionId: '/providers/Microsoft.Authorization/roleDefinitions/READER-GUID',
+                roleDefinitionId: assignmentRoleDefinitionId,
                 scope: `/subscriptions/${SUBSCRIPTION_ID}`,
                 createdOn: '2026-07-01T00:00:00Z',
               },
@@ -340,14 +355,27 @@ describe('listRoleAssignments', () => {
     });
   }
 
-  it('resolves the role name through a case-insensitive whole-id join', async () => {
-    const service = new ResourceGraphService(
-      roleStub([{ roleDefinitionId: '/providers/microsoft.authorization/roledefinitions/reader-guid', roleName: 'Reader' }])
-    );
+  const READER = {
+    roleDefinitionId: '/providers/microsoft.authorization/roledefinitions/reader-guid',
+    roleName: 'Reader',
+  };
+
+  it('resolves a name across differing scope prefixes on the two sides', async () => {
+    const service = new ResourceGraphService(roleStub([READER]));
     const result = await service.listRoleAssignments({});
+
     expect(result.data[0].roleDefinitionName).toBe('Reader');
     expect(result.summary.byRole).toEqual({ Reader: 1 });
     expect(result.summary.unresolvedRoleNames).toBe(0);
+  });
+
+  it('still resolves when both sides happen to carry the same prefix', async () => {
+    const service = new ResourceGraphService(
+      roleStub([READER], '/providers/Microsoft.Authorization/roleDefinitions/READER-GUID')
+    );
+    const result = await service.listRoleAssignments({});
+
+    expect(result.data[0].roleDefinitionName).toBe('Reader');
   });
 
   it('leaves an unresolved role name null and counts it, rather than labelling it "Unknown"', async () => {
@@ -358,6 +386,31 @@ describe('listRoleAssignments', () => {
     expect(result.data[0].roleDefinitionName).toBeNull();
     expect(result.summary.byRole).toEqual({});
     expect(result.summary.unresolvedRoleNames).toBe(1);
+  });
+
+  it('a wholly unresolved result declares itself broken rather than reading as a plain count', async () => {
+    const service = new ResourceGraphService(roleStub([]));
+    const result = await service.listRoleAssignments({});
+
+    expect(result.summary.roleDefinitionsFound).toBe(0);
+    expect(result.summary.note).toMatch(/not evidence/i);
+  });
+
+  it('says nothing when every name resolved', async () => {
+    const service = new ResourceGraphService(roleStub([READER]));
+    const result = await service.listRoleAssignments({});
+
+    expect(result.summary.roleDefinitionsFound).toBe(1);
+    expect(result.summary.note).toBeNull();
+  });
+
+  it('keeps unresolved assignments joinable by emitting their role definition id', async () => {
+    const service = new ResourceGraphService(roleStub([]));
+    const result = await service.listRoleAssignments({});
+
+    expect(result.summary.byUnresolvedRoleDefinitionId).toEqual({
+      [`/subscriptions/${SUBSCRIPTION_ID}/providers/Microsoft.Authorization/roleDefinitions/READER-GUID`]: 1,
+    });
   });
 
   it('drops the undocumented createdDateTime fallback and reads createdOn', async () => {

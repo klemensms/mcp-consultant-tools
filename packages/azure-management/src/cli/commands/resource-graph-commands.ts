@@ -85,8 +85,12 @@ export function registerResourceGraphCommands(program: Command, ctx: ServiceCont
               'By principal type:',
               ...Object.entries(result.summary.byPrincipalType).map(([type, count]) => `  ${type}: ${count}`),
               ...(result.summary.unresolvedRoleNames > 0
-                ? ['', `WARNING: ${result.summary.unresolvedRoleNames} assignment(s) have an unresolved role name.`]
+                ? [
+                    '',
+                    `WARNING: ${result.summary.unresolvedRoleNames} of ${result.summary.total} assignment(s) have an unresolved role name (${result.summary.roleDefinitionsFound} role definition(s) read).`,
+                  ]
                 : []),
+              ...(result.summary.note ? ['', `WARNING: ${result.summary.note}`] : []),
               ...truncationNote(result.truncated),
             ].join('\n'),
           },

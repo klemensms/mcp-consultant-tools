@@ -38,25 +38,17 @@ A fix that only proves the happy path does not close its task.
 - [x] **T7 · D12 — `--include-configuration` fails silently**. Closed by T2 in the same
       edit: the 403s are now counted and named, and each site carries
       `configurationUnavailable: true` so a blank cannot read as "no settings".
+- [x] **T3 · D8 — `graph role-assignments` resolves no role name**. The lookup now joins
+      on the trailing GUID rather than the whole id, because the two sides carry
+      different scope prefixes. A wholly unresolved result declares itself via
+      `summary.note`, and `roleDefinitionsFound` separates "lookup returned nothing"
+      from "returned definitions that did not match". Root cause is inferred from the
+      measured evidence, not confirmed live - see register item 11.
 
 ## Queue
 
 Ordered by the source report's own priority. One task per heading; a hop may take
 more than one when its context measurement allows.
-
-### T3 · D8 — `graph role-assignments` resolves no role name
-- **Package:** `azure-management`
-- **Severity:** Major.
-- **Measured:** `roleDefinitionName` is `null` for **752 of 752** assignments across 16
-  subscriptions. `summary.byRole` empty, `summary.unresolvedRoleNames` equals
-  `summary.total`, `roleDefinitionsTruncated` false.
-- **Not permissions:** fetching each of the 52 distinct `roleDefinitionId` GUIDs from
-  `roleDefinitions/{guid}?api-version=2022-04-01` with the same credential returned a
-  name for **52 of 52**, including Owner, Contributor, User Access Administrator.
-- **Fix:** repair resolution. Failing that, emit the `roleDefinitionId` GUID in `byRole`
-  so the data is at least joinable.
-- **Failure-case test:** unresolved names must surface as an error condition, not as a
-  plain count that reads like expected behaviour.
 
 ### T4 · D9 — `networking event-grid-topics` reports zero while topics exist
 - **Package:** `azure-management`

@@ -701,9 +701,13 @@ An NSG with `associated: 0` enforces nothing. A rule missing `direction` or `acc
 | `scope` | string | No | — | Exact assignment scope |
 | `maxResults` | number | No | 500 | 1–5000 |
 
-**Returns:** `{ data: RoleAssignmentSummary[], truncated, summary: { total, byRole, byPrincipalType, unresolvedRoleNames, roleDefinitionsTruncated } }`
+**Returns:** `{ data: RoleAssignmentSummary[], truncated, summary: { total, byRole, byPrincipalType, unresolvedRoleNames, byUnresolvedRoleDefinitionId, roleDefinitionsFound, roleDefinitionsTruncated, note } }`
 
-`roleDefinitionName` is `string | null`. **It is `null`, never the literal `"Unknown"`, when the role definition could not be read** — a fabricated `Unknown` would appear in `byRole` as though Azure had a role by that name. Unresolved assignments are excluded from `byRole` and counted in `summary.unresolvedRoleNames`. `roleDefinitionsTruncated` says the lookup itself was cut short, which is a distinct cause of missing names.
+`roleDefinitionName` is `string | null`. **It is `null`, never the literal `"Unknown"`, when the role definition could not be read** — a fabricated `Unknown` would appear in `byRole` as though Azure had a role by that name. Unresolved assignments are excluded from `byRole`, counted in `summary.unresolvedRoleNames`, and listed by their raw id in `summary.byUnresolvedRoleDefinitionId` so the data stays joinable. `roleDefinitionsTruncated` says the lookup itself was cut short, which is a distinct cause of missing names.
+
+**The name lookup joins on the trailing GUID, not the whole id.** An assignment's `properties.roleDefinitionId` is written subscription-qualified while a built-in definition's own `id` is tenant-scoped, so a whole-id join misses every built-in role — which is almost every role. Do not "simplify" this back to a whole-id comparison.
+
+`summary.note` is set only when **every** assignment is unresolved. That is a failed lookup rather than a finding, and `roleDefinitionsFound` distinguishes the two causes: zero means the role-definition query itself returned nothing, non-zero means it returned definitions that did not match.
 
 `principalType` values: `User`, `Group`, `ServicePrincipal`, `ForeignGroup`, `Device`.
 

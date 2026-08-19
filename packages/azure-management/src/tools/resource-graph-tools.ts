@@ -59,7 +59,7 @@ export function registerResourceGraphTools(server: any, ctx: ServiceContext): vo
 
   server.tool(
     'list-role-assignments',
-    "List Azure RBAC role assignments with resolved role names, via Azure Resource Graph. 'roleDefinitionName' is null when the role definition could not be read - check summary.unresolvedRoleNames rather than assuming the role is unknown to Azure.",
+    "List Azure RBAC role assignments with resolved role names, via Azure Resource Graph. 'roleDefinitionName' is null when the role definition could not be read - check summary.unresolvedRoleNames rather than assuming the role is unknown to Azure. When every name is unresolved, summary.note says so and summary.roleDefinitionsFound reports whether the lookup returned anything at all; summary.byUnresolvedRoleDefinitionId keeps the raw ids joinable.",
     {
       principalId: z
         .string()
