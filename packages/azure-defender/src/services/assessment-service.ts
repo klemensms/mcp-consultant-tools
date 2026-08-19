@@ -48,7 +48,15 @@ export interface AssessmentsResult {
       arm: AssessmentSourceReport;
       resourceGraph: AssessmentSourceReport;
     };
-    /** Present only when the list is known not to be complete. */
+    /**
+     * Distinct `properties` key names the Resource Graph mapper did not recognise,
+     * across every row it read — including rows the union shadowed and `maxResults`
+     * trimmed. Present only when there were any. A field arriving here is payload
+     * this package is not reading yet, so it belongs in the summary rather than
+     * buried on one row of thousands.
+     */
+    unmappedPropertyKeys?: string[];
+    /** Present only when the result cannot be read at face value. */
     note?: string;
   };
   fanOut: FanOutInfo;
@@ -73,17 +81,40 @@ export const ASSESSMENT_GRAPH_QUERY = [
   `| where type =~ ${kqlString('microsoft.security/assessments')}`,
 ].join('\n');
 
+/** Every `properties` key this mapper names. Anything else lands in `unmappedProperties`. */
+const MAPPED_PROPERTY_KEYS = [
+  'displayName',
+  'status',
+  'resourceDetails',
+  'risk',
+  'additionalData',
+  'metadata',
+  'links',
+] as const;
+
 /**
  * Resource Graph returns the same assessments through a different door, in a
  * different shape: the `id` is lower-cased, `resourceDetails` uses `Id`/`Source`
  * rather than `id`/`source`, and everything under `properties` is an untyped
  * dynamic column. Map defensively, so a missing field reads as absent rather than
  * as a value.
+ *
+ * This list came from Microsoft's documentation, not from a row anyone has seen, and
+ * on the sibling attack-path surface that documentation turned out to be behind the
+ * live API — a fixed allowlist there discarded the whole risk payload of every path.
+ * So whatever this list does not name is carried in `unmappedProperties` rather than
+ * dropped: a field this package is not reading yet arrives visibly, instead of making
+ * "no assessment carries risk data" look like a fact about Azure.
  */
 export function mapAssessmentGraphRow(row: Record<string, unknown>): SecurityAssessment {
   const props = (row.properties ?? {}) as Record<string, unknown>;
   const status = (props.status ?? {}) as Record<string, unknown>;
   const details = (props.resourceDetails ?? {}) as Record<string, unknown>;
+
+  const unmapped: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(props)) {
+    if (!(MAPPED_PROPERTY_KEYS as readonly string[]).includes(key)) unmapped[key] = value;
+  }
 
   return {
     id: (row.id ?? '') as string,
@@ -104,6 +135,7 @@ export function mapAssessmentGraphRow(row: Record<string, unknown>): SecurityAss
       additionalData: props.additionalData as Record<string, unknown> | undefined,
       metadata: props.metadata as SecurityAssessment['properties']['metadata'],
       links: props.links as SecurityAssessment['properties']['links'],
+      unmappedProperties: Object.keys(unmapped).length > 0 ? unmapped : undefined,
     },
   };
 }
@@ -205,9 +237,16 @@ export class AssessmentService {
     const seen = new Set(armItems.map(assessmentKey));
     const graphKeys = new Set<string>();
     const merged = [...armItems];
+    // Collected across every row, before the union drops the duplicates and before
+    // `maxResults` trims: a field this package does not read yet must not be invisible
+    // just because the one row carrying it lost a tie or fell past the cut.
+    const unmappedKeys = new Set<string>();
 
     for (const row of graphRows) {
       const mapped = mapAssessmentGraphRow(row);
+      for (const key of Object.keys(mapped.properties.unmappedProperties ?? {})) {
+        unmappedKeys.add(key);
+      }
       const key = assessmentKey(mapped);
       graphKeys.add(key);
       if (seen.has(key)) continue;
@@ -232,6 +271,15 @@ export class AssessmentService {
       );
     }
 
+    if (unmappedKeys.size > 0) {
+      notes.push(
+        `Resource Graph returned ${unmappedKeys.size} properties field(s) this package does ` +
+          `not map: ${[...unmappedKeys].join(', ')}. They are carried verbatim in each row's ` +
+          '`properties.unmappedProperties`. If any of them holds risk data, a report keyed on ' +
+          '`properties.risk` is reading the wrong field rather than finding no risk.'
+      );
+    }
+
     return {
       assessments,
       truncated: trimmed || graph?.truncated === true,
@@ -249,6 +297,7 @@ export class AssessmentService {
             available: graph !== null,
           },
         },
+        ...(unmappedKeys.size > 0 ? { unmappedPropertyKeys: [...unmappedKeys] } : {}),
         ...(notes.length > 0 ? { note: notes.join(' ') } : {}),
       },
       fanOut: fanOut.result(),

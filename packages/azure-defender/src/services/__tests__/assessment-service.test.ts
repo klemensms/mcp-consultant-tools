@@ -4,6 +4,7 @@ import {
   normalizeArmResourceId,
   summariseAssessments,
   summariseAssessmentMetadata,
+  mapAssessmentGraphRow,
 } from '../assessment-service.js';
 import type { DefenderClient } from '../../defender-client.js';
 import type { SecurityAssessment, AssessmentMetadata } from '../../models/defender-types.js';
@@ -333,5 +334,106 @@ describe('AssessmentService.listAssessments, scope coverage', () => {
 
     expect(result.summary.total).toBe(2);
     expect(result.summary.byStatus).toEqual({ Unhealthy: 2 });
+  });
+});
+
+// ─── ⚑34 / T12: the Resource Graph mapper's allowlist ───
+
+/**
+ * A live Resource Graph row carrying risk data under keys the mapper's allowlist does
+ * not name. `extra` is spread *inside* `properties`, so it merges with the mapped keys
+ * rather than replacing them — a fixture that replaced them would pass for the wrong
+ * reason, which is exactly how L5's first attack-path fixtures lied.
+ */
+const graphRowWithExtras = (extra: Record<string, unknown>): Record<string, unknown> => ({
+  id: `/subscriptions/${SUB}/providers/microsoft.security/assessments/55555555-5555-5555-5555-555555555555`,
+  name: '55555555-5555-5555-5555-555555555555',
+  type: 'microsoft.security/assessments',
+  subscriptionId: SUB,
+  properties: {
+    displayName: 'Machines should have vulnerability findings resolved',
+    status: { code: 'Unhealthy' },
+    resourceDetails: { Source: 'Azure', Id: `/subscriptions/${SUB}` },
+    ...extra,
+  },
+});
+
+describe('mapAssessmentGraphRow', () => {
+  it('carries a properties key the allowlist does not name instead of discarding it', () => {
+    // The exact T11 failure, in the sibling mapper: risk data under a name the
+    // allowlist never heard of vanishes, and "no assessment carries risk" then reads
+    // as a fact about Azure rather than an artefact of this mapper.
+    const mapped = mapAssessmentGraphRow(
+      graphRowWithExtras({ riskLevel: 'High', riskFactors: ['Internet exposure'] })
+    );
+
+    expect(mapped.properties.unmappedProperties).toEqual({
+      riskLevel: 'High',
+      riskFactors: ['Internet exposure'],
+    });
+  });
+
+  it('still maps every named key, so the passthrough is additive', () => {
+    const mapped = mapAssessmentGraphRow(
+      graphRowWithExtras({ risk: { level: 'High' }, riskLevel: 'High' })
+    );
+
+    expect(mapped.properties.displayName).toBe(
+      'Machines should have vulnerability findings resolved'
+    );
+    expect(mapped.properties.status.code).toBe('Unhealthy');
+    expect(mapped.properties.resourceDetails.id).toBe(`/subscriptions/${SUB}`);
+    expect(mapped.properties.risk).toEqual({ level: 'High' });
+    // Only the unnamed key rides along; a named one is not duplicated into it.
+    expect(mapped.properties.unmappedProperties).toEqual({ riskLevel: 'High' });
+  });
+
+  it('omits unmappedProperties entirely when the row carries nothing unnamed', () => {
+    const mapped = mapAssessmentGraphRow(graphRowWithExtras({}));
+    expect(mapped.properties.unmappedProperties).toBeUndefined();
+  });
+});
+
+describe('AssessmentService.listAssessments, unmapped payload', () => {
+  it('names the unmapped keys in the summary, so an unread field is visible without reading 4,886 rows', async () => {
+    const paginate = vi.fn().mockResolvedValue({ items: [], truncated: false });
+    const post = vi.fn().mockResolvedValue({
+      data: [
+        graphRowWithExtras({ riskLevel: 'High' }),
+        { ...graphRowWithExtras({ riskFactors: ['Internet exposure'] }), id: '/other', name: 'other' },
+      ],
+    });
+    const service = new AssessmentService(fakeClient({ paginate, post }));
+
+    const result = await service.listAssessments();
+
+    // Distinct key names across every graph row, aggregated before maxResults trims
+    // and before the ARM row wins a shared id — either of which could otherwise hide
+    // the only row that carried the field.
+    expect(result.summary.unmappedPropertyKeys).toEqual(['riskLevel', 'riskFactors']);
+    expect(result.summary.note).toMatch(/unmappedProperties/);
+  });
+
+  it('aggregates the keys across all rows even when maxResults trims the row that carried them', async () => {
+    const paginate = vi.fn().mockResolvedValue({ items: [armScoped()], truncated: false });
+    const post = vi.fn().mockResolvedValue({ data: [graphRowWithExtras({ riskLevel: 'High' })] });
+    const service = new AssessmentService(fakeClient({ paginate, post }));
+
+    const result = await service.listAssessments({ maxResults: 1 });
+
+    expect(result.assessments).toHaveLength(1);
+    expect(result.assessments[0].properties.unmappedProperties).toBeUndefined();
+    expect(result.summary.unmappedPropertyKeys).toEqual(['riskLevel']);
+  });
+
+  it('says nothing when every key was named, so the note stays a signal', async () => {
+    const paginate = vi.fn().mockResolvedValue({ items: [], truncated: false });
+    const post = vi.fn().mockResolvedValue({ data: [graphRowWithExtras({})] });
+    const service = new AssessmentService(fakeClient({ paginate, post }));
+
+    const result = await service.listAssessments();
+
+    expect(result.summary.unmappedPropertyKeys).toBeUndefined();
+    expect(result.summary.note).toBeUndefined();
   });
 });

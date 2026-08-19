@@ -64,6 +64,8 @@ Attack paths additionally need the **Defender CSPM plan** enabled (plus agentles
 
 **`defender-list-assessments` reads TWO sources, and each covers the other's blind spot.** The ARM list at subscription scope only returns assessments on resources *inside* the subscription, so everything scoped to the subscription itself or to an identity object is invisible to it: that is the whole RBAC set (disabled accounts with owner permissions, guest accounts with write permissions, overprovisioned identities), which is the highest-value content a Defender report carries. Those come from Resource Graph's `securityresources` instead. Resource Graph has the reverse blind spot: it returns nothing on a subscription with no paid Defender plan, where ARM still returns data. The two are unioned on the **lower-cased** id, because Resource Graph lower-cases every id it returns and ARM does not. `summary.sources` reports what each contributed; `summary.note` appears whenever the list is known to be incomplete. Never report `summary.total` without reading `note`.
 
+**The assessment Resource Graph mapper names seven `properties` keys, and that list came from documentation rather than a captured row.** `displayName`, `status`, `resourceDetails`, `risk`, `additionalData`, `metadata`, `links` — anything else arrives in `properties.unmappedProperties`, and the distinct names are aggregated into `summary.unmappedPropertyKeys` plus a sentence in `summary.note`. The aggregate is collected before the union drops duplicates and before `maxResults` trims, so one row out of thousands cannot hide the field. This is the same defect class as the attack-path mapper above, found by looking rather than by breaking: **check `unmappedPropertyKeys` before reporting that no assessment carries risk data.** A real estate measured zero `properties.risk` objects across 4,886 unhealthy assessments and zero `Critical` severities, and until a live call reports this field there is no way to tell an API that returns neither from a mapper that discards both.
+
 **`statusFilter` on `defender-list-assessments` makes it slower, not faster,** and `maxResults` no longer makes it cheaper. Neither source filters on status server-side, so both are scanned in full and trimmed afterwards. Handing `maxResults` to the ARM list would decide the answer before the second source was read: the cut falls on ARM's rows, so the identity- and subscription-scoped assessments would be exactly what is lost.
 
 **A Resource Graph refusal does not fail `defender-list-assessments`.** It is recorded through `FanOutRecorder`, so `sources.resourceGraph.available` goes false, `note` says what is missing, `fanOut.failures` carries the error and the CLI exits 1. Attack paths, which have no second source, still fail loudly.
@@ -91,7 +93,7 @@ A stale api-version does not fail loudly. It 400s, or silently returns an older 
 
 ```bash
 npm run build --workspace=packages/azure-defender
-npm test --workspace=packages/azure-defender   # 78 tests, no live API
+npm test --workspace=packages/azure-defender   # 97 tests, no live API
 ```
 
 `axios` and `@azure/identity` are mocked at the module boundary, so the suite runs offline.

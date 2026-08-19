@@ -130,7 +130,7 @@ Security assessments (recommendations) against resources. **Reads two sources an
 | `statusFilter` | `Healthy` \| `Unhealthy` \| `NotApplicable` | No | Applied client-side, to the union |
 | `maxResults` | integer > 0 | No | Omit for subscription-wide totals |
 
-Returns `{ assessments, truncated, summary: { total, byStatus, sources, note? }, fanOut }`.
+Returns `{ assessments, truncated, summary: { total, byStatus, sources, unmappedPropertyKeys?, note? }, fanOut }`.
 
 ⚠️ **Neither source is complete on its own, which is why both are read.**
 
@@ -146,6 +146,8 @@ The union keys on the assessment id, **lower-cased**: Resource Graph lower-cases
 Resource Graph is queried through `FanOutRecorder`, so a refusal there does **not** fail the call: `sources.resourceGraph.available` goes false, `summary.note` says the identity- and subscription-scoped assessments are missing, `fanOut.failures` names the error, and the CLI exits 1. Reading `summary.total` without reading `note` is how a partial list gets reported as a complete one.
 
 Neither source filters on status server-side, so setting `statusFilter` forces a full scan before trimming, which is slower rather than faster. `maxResults` is never handed to the ARM list: the cut would fall on ARM's rows and take out exactly the assessments only Resource Graph can see.
+
+⚠️ **The Resource Graph mapper names seven `properties` keys** (`displayName`, `status`, `resourceDetails`, `risk`, `additionalData`, `metadata`, `links`) and that list came from Microsoft's documentation, not from a row anyone has captured. Anything it does not name is carried verbatim in `properties.unmappedProperties` on the row, and the distinct key names are aggregated into `summary.unmappedPropertyKeys` with a sentence in `summary.note`. The aggregate is collected across **every** row Resource Graph returned, before the union drops duplicates and before `maxResults` trims, so a field carried by one row of thousands cannot disappear behind a tie or a cut. **Read it before reporting that no assessment carries risk data:** on the sibling attack-path surface the same documentation-derived allowlist discarded the entire risk payload of every row, and a measured "none of 4,886 unhealthy assessments carries a `properties.risk` object" cannot be told apart from that failure without it.
 </tool>
 
 <tool name="defender-get-assessment">

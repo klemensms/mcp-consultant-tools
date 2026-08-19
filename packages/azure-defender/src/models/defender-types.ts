@@ -102,6 +102,13 @@ export interface SecurityAssessment {
     links?: {
       azurePortalUri?: string;
     };
+    /**
+     * Set only on a row recovered from Resource Graph, and only for `properties` keys
+     * the mapper does not name. An allowlist built from Microsoft's documentation is
+     * what hid the entire risk payload of every attack path on a live tenant, so
+     * anything unrecognised rides along here instead of being discarded.
+     */
+    unmappedProperties?: Record<string, unknown>;
   };
 }
 
