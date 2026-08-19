@@ -75,6 +75,8 @@ Attack paths additionally require the **Defender CSPM plan** to be enabled on th
 
 **An empty attack-path list is not a clean bill of health.** Attack paths only exist when the Defender CSPM plan is enabled. `defender-list-attack-paths` cannot distinguish "CSPM disabled" from "no attack paths", so it returns `[]` in both cases. Confirm the plan is on before reading an empty result as "no risk".
 
+**A path with no risk level is unrated, not low risk.** Attack paths arrive in two shapes depending on the tenant, and both are read. When a path's payload names no risk level under either shape it is counted in `summary.riskLevelNotReported`, bucketed as `NotReported`, and `summary.note` says so; the CLI prints "not reported by the API". Report those paths as unrated.
+
 **An empty compliance-standards list means none are enabled**, not that the subscription is compliant. Standards must be switched on in Defender for Cloud's regulatory compliance settings before they appear.
 
 **`defender-list-assessments` reads two sources, because neither is complete.** The ARM list only covers assessments on resources inside the subscription, so the identity and RBAC recommendations (disabled accounts with owner permissions, guest accounts with write permissions, overprovisioned identities) are invisible to it; those come from Azure Resource Graph. Resource Graph in turn returns nothing on a subscription with no paid Defender plan, where ARM still returns data. `summary.sources` says what each contributed, and `summary.note` appears whenever the list is known to be incomplete, including when Resource Graph could not be read at all. Do not report `summary.total` without reading `note`.

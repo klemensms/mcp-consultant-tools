@@ -45,21 +45,22 @@ Produce:
 export const ATTACK_PATH_ANALYSIS_TEMPLATE = `Investigate the attack paths Microsoft Defender for Cloud has identified in this subscription.
 
 Start by:
-1. defender-list-attack-paths with no filters — this also reveals which potentialImpact and riskCategories values this subscription uses
-2. Triage by potentialImpact and riskCategories
+1. defender-list-attack-paths with no filters — this also reveals which risk level and risk factor values this subscription uses
+2. Triage by summary.byRiskLevel and summary.byRiskFactor
 3. For each significant path, defender-get-attack-path for the full chain
 
 For each path, analyse:
-- The entry point and the target (entryPointEntityInternalID / targetEntityInternalID, resolved through the assessments map)
-- The chain of misconfigurations that connects them, from graphComponent.entities and graphComponent.connections
+- The entry point and the target (entryPoint / target, or the legacy entryPointEntityInternalID / targetEntityInternalID resolved through the assessments map)
+- The chain of misconfigurations that connects them, from attackPathSteps where present, otherwise graphComponent.entities and graphComponent.connections
 - manualRemediationSteps, and which single fix breaks the most paths
 
-Two traps to avoid:
+Three traps to avoid:
 - An empty result almost certainly means the Defender CSPM plan is not enabled on this subscription. Verify the plan before reporting "no attack paths" — that conclusion is a security claim and it would be wrong.
-- An attack path has no 'riskLevel' and no 'riskFactors' field. Use potentialImpact and riskCategories. graphComponent holds insights/entities/connections, not nodes/edges.
+- Two row shapes exist and this subscription returns one of them: riskLevel / riskFactors / entryPoint / target / attackPathSteps / attackStory (Microsoft Security Exposure Management), or potentialImpact / riskCategories / entryPointEntityInternalID / targetEntityInternalID (legacy Defender CSPM). Read both names for anything you report. graphComponent holds insights/entities/connections, not nodes/edges.
+- summary.riskLevelNotReported counts paths whose payload named no risk level under either spelling, and those sit in the 'NotReported' bucket. Report them as unrated, never as low risk, and read summary.note.
 
 Produce:
-- Path counts by potentialImpact and by risk category
+- Path counts by risk level and by risk factor
 - Detailed analysis of the highest-impact paths
 - The resources appearing in the most paths
 - A remediation plan ordered by how many paths each fix breaks`;

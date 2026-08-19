@@ -215,13 +215,18 @@ Attack paths identified by Defender CSPM.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
-| `riskCategory` | string | No | Case-insensitive substring match against `riskCategories` |
+| `riskCategory` | string | No | Case-insensitive substring match against **both** `riskFactors` and `riskCategories` |
+| `riskLevel` | string | No | Case-insensitive substring match against **both** `riskLevel` and `potentialImpact`, e.g. `High` |
 | `displayNameContains` | string | No | Case-insensitive substring match against `displayName` |
 | `maxResults` | integer 1–500 | No | Default 100 |
 
-Returns `{ attackPaths, truncated, summary: { total, byPotentialImpact, byRiskCategory } }`. `byRiskCategory` counts each category on each path, so it sums to more than `total`.
+Returns `{ attackPaths, truncated, summary: { total, byRiskLevel, byRiskFactor, riskLevelNotReported, note? } }`. `byRiskFactor` counts each factor on each path, so it sums to more than `total`.
 
-Microsoft does not enumerate the allowed values of `potentialImpact` or `riskCategories`, so neither filter is an enum. Run once with no filter to discover the values a subscription actually uses.
+Each risk filter emits an `or` across both spellings of its field, because a clause on one name alone matches nothing on a tenant returning the other shape — and an empty filtered list is indistinguishable from a subscription with no such paths.
+
+`riskLevelNotReported` counts paths whose payload named no risk level under either spelling; they are bucketed under `NotReported` and `summary.note` appears. That is a gap in the payload, never evidence of low risk.
+
+Microsoft enumerates the allowed values of none of these fields, so neither filter is an enum. Run once with no filter to discover the values a subscription actually uses.
 </tool>
 
 <tool name="defender-get-attack-path">
@@ -249,7 +254,9 @@ securityresources
 
 The scope comes from the request body's `subscriptions` array, not a `where subscriptionId ==` clause — one less place to interpolate a value into KQL.
 
-Fields, verbatim from Microsoft's documented response schema:
+⚠️ **Two row shapes exist and a tenant returns one of them.** Microsoft's published field table describes only the legacy Defender CSPM shape. Live rows on a tenant whose attack paths come from Microsoft Security Exposure Management carry a different, undocumented set. Read **both** names for anything you filter, count or display: keying on one alone printed a `riskLevel: High` path as impact `Unknown` with no risk categories, on every path of a real estate.
+
+Shared by both shapes:
 
 | Field | Notes |
 |-------|-------|
@@ -258,17 +265,37 @@ Fields, verbatim from Microsoft's documented response schema:
 | `properties.attackPathType` | |
 | `properties.manualRemediationSteps` | |
 | `properties.refreshInterval` | |
-| `properties.potentialImpact` | Impact of the path being breached |
-| `properties.riskCategories` | Array of risk categories |
-| `properties.entryPointEntityInternalID` | Internal graph-node ID, not a resource ID |
-| `properties.targetEntityInternalID` | Internal graph-node ID, not a resource ID |
 | `properties.assessments` | Map of entity internal ID → assessments on that entity |
 | `properties.graphComponent.insights` | |
 | `properties.graphComponent.entities` | |
 | `properties.graphComponent.connections` | |
 | `properties.AttackPathID` | |
 
-⚠️ **There is no `riskLevel` and no `riskFactors` on an attack path**, and `graphComponent` does **not** hold `nodes`/`edges`. Those names belong to the unrelated `risk` object on `Microsoft.Security/assessments@2025-05-04`. Conflating the two produces a filter that silently matches nothing — which, for a security tool, reads as "no risk found".
+Legacy Defender CSPM shape, verbatim from Microsoft's documented response schema (`learn.microsoft.com/azure/defender-for-cloud/attack-path-api`, unchanged as of 2026-08-19):
+
+| Field | Notes |
+|-------|-------|
+| `properties.potentialImpact` | Impact of the path being breached |
+| `properties.riskCategories` | Array of risk categories |
+| `properties.entryPointEntityInternalID` | Internal graph-node ID, not a resource ID |
+| `properties.targetEntityInternalID` | Internal graph-node ID, not a resource ID |
+
+Exposure Management shape, **absent from Microsoft's field table** and measured on live rows:
+
+| Field | Notes |
+|-------|-------|
+| `properties.riskLevel` | e.g. `High`. The Exposure Management name for `potentialImpact` |
+| `properties.riskFactors` | e.g. `Internet exposure`, `Weak authorization` |
+| `properties.entryPoint` | The entity itself, not an internal ID |
+| `properties.target` | The entity itself, not an internal ID |
+| `properties.attackPathSteps` | Ordered steps from entry point to target |
+| `properties.mITRETacticsAndTechniques` | Casing is Microsoft's |
+| `properties.attackStory` | Narrative description |
+| `properties.isPartialAttackPath` | True when the path is incomplete, so its steps are a lower bound |
+
+`properties.unmappedProperties` carries every `properties` key neither shape above names, verbatim. A named allowlist that dropped the remainder is what hid the whole Exposure Management payload, so an unrecognised field now arrives visibly. Read it before concluding a field is absent.
+
+`riskLevel` and `riskFactors` also exist, separately, on the `risk` object of `Microsoft.Security/assessments@2025-05-04`. They are different fields that share a name; do not read one for the other. `graphComponent` holds `insights`/`entities`/`connections`, never `nodes`/`edges`.
 
 **Defender CSPM required.** Attack paths only exist when the Defender CSPM plan is enabled (plus agentless VM scanning, or Defender for Servers vulnerability assessment). With the plan off, the Resource Graph query succeeds and returns zero rows. The tool cannot tell that apart from a genuinely clean subscription.
 
@@ -417,7 +444,7 @@ Coverage is targeted at the behaviours that are easy to get wrong:
 - `listAssessments` scanning fully before trimming when a status filter is set
 - `getComplianceSummary` throwing on an unknown standard rather than reporting 0%
 - `normalizeArmResourceId` rejecting a bare name and a full URL
-- the attack-path query containing **no** `riskLevel` clause, and the mapper reading the documented field names
+- the attack-path mapper keeping the whole Exposure Management risk payload of a live-shape row, and each risk filter emitting a clause for **both** spellings of its field
 
 </testing>
 

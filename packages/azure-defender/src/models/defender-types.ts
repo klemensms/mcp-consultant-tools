@@ -184,13 +184,26 @@ export interface RegulatoryComplianceAssessment {
  * so every `properties` field arrives as an untyped `dynamic` column and is mapped
  * defensively.
  *
- * Field names below are taken verbatim from Microsoft's documented response schema
- * (learn.microsoft.com/azure/defender-for-cloud/attack-path-api, checked 2026-07-10).
- * Note what is NOT here: there is no `riskLevel`, no `riskFactors`, and no
- * `target`/`entryPoint` object, and `graphComponent` holds insights/entities/connections
- * rather than nodes/edges. Those names belong to the unrelated `risk` object on
- * `Microsoft.Security/assessments@2025-05-04` — see `AssessmentRisk` above. Conflating
- * the two yields filters that silently match nothing.
+ * **Two shapes reach this type, and a row carries one or the other.** Microsoft's
+ * published field table (learn.microsoft.com/azure/defender-for-cloud/attack-path-api,
+ * still unchanged as of 2026-08-19) describes only the legacy Defender CSPM shape:
+ * `potentialImpact`, `riskCategories`, `entryPointEntityInternalID`,
+ * `targetEntityInternalID`. Live rows on a tenant whose attack paths come from
+ * Microsoft Security Exposure Management instead carry `riskLevel`, `riskFactors`,
+ * `entryPoint`, `target`, `attackPathSteps`, `mITRETacticsAndTechniques`,
+ * `attackStory` and `isPartialAttackPath` — measured on a real estate, where a path
+ * of `riskLevel: High` printed as impact `Unknown` with no risk categories because
+ * only the documented names were mapped.
+ *
+ * Both name sets are therefore mapped, `unmappedProperties` carries anything neither
+ * set names, and `effectiveRiskLevel` / `effectiveRiskFactors` in
+ * `services/attack-path-service.ts` read whichever shape arrived. Never key a filter,
+ * a count or a display line on one spelling alone.
+ *
+ * `graphComponent` holds insights/entities/connections, not nodes/edges. `riskLevel`
+ * and `riskFactors` also exist, differently, on the `risk` object of
+ * `Microsoft.Security/assessments@2025-05-04` — see `AssessmentRisk` above; they are
+ * separate fields that happen to share a name.
  */
 export interface AttackPath {
   id: string;
@@ -211,6 +224,29 @@ export interface AttackPath {
     riskCategories?: string[];
     entryPointEntityInternalID?: string;
     targetEntityInternalID?: string;
+
+    // --- Exposure Management shape. Undocumented in the attack-path field table,
+    // --- measured on live rows. Absent on a legacy Defender CSPM row.
+    /** Risk level of the path, e.g. `High`. The Exposure Management name for `potentialImpact`. */
+    riskLevel?: string;
+    /**
+     * Risk factors driving the level, e.g. `Internet exposure`. Measured as strings;
+     * typed loosely because a factor object would otherwise be coerced to
+     * `[object Object]` in any breakdown keyed on it.
+     */
+    riskFactors?: unknown[];
+    /** Entry-point entity. Replaces the legacy internal-ID reference with the entity itself. */
+    entryPoint?: unknown;
+    /** Target entity. Replaces the legacy internal-ID reference with the entity itself. */
+    target?: unknown;
+    /** Ordered steps from entry point to target. */
+    attackPathSteps?: unknown[];
+    /** MITRE tactics and techniques attributed to the path. Casing is Microsoft's. */
+    mITRETacticsAndTechniques?: unknown[];
+    /** Narrative description of the path. */
+    attackStory?: string;
+    /** True when the path is known to be incomplete, so its steps are a lower bound. */
+    isPartialAttackPath?: boolean;
     /** Map of entity internal ID → the security assessments on that entity. */
     assessments?: Record<string, unknown>;
     graphComponent?: {
@@ -219,5 +255,13 @@ export interface AttackPath {
       connections?: unknown[];
     };
     AttackPathID?: string;
+
+    /**
+     * Every `properties` key neither shape above names, carried verbatim. A named
+     * allowlist that dropped the rest is what hid the whole Exposure Management risk
+     * payload, so an unrecognised field now arrives visibly instead of vanishing.
+     * Absent when there was nothing left over.
+     */
+    unmappedProperties?: Record<string, unknown>;
   };
 }
