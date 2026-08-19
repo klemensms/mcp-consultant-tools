@@ -549,7 +549,7 @@ anything matching the trigger checklist.
 ### ⚑34 · T13 is not a mapper drop, and the assessment mapper may still carry T11's defect class
 - **Kind:** deferred
 - **Hop:** L5 · T11
-- **State:** open
+- **State:** part-closed-by-L6
 - **Matters because:** two separate things, both measured this hop while reading the
   assessment service for T11's sake, and both worth a hop's first ten minutes:
   1. **T13 cannot be fixed by changing a mapper, because there is no mapper.**
@@ -607,3 +607,83 @@ anything matching the trigger checklist.
   from a captured response can be silently dropping payload. Whoever runs the closing hop
   should decide whether that belongs in `docs/KNOWN_ISSUES.md` as a class, not just as
   instances.
+
+### ⚑34 update (L6) · half 2 is closed; half 1 is answered but not fixed
+- Recorded here rather than by editing ⚑34, per the append-only rule. ⚑34's `State` moves to
+  `part-closed-by-L6`.
+- **Half 2 (the assessment mapper's allowlist) is done.** `mapAssessmentGraphRow` now carries
+  every unnamed `properties` key in `properties.unmappedProperties`, and `listAssessments`
+  aggregates the distinct names into `summary.unmappedPropertyKeys` plus a sentence in
+  `summary.note`. The aggregate is taken across all Resource Graph rows **before** the union
+  drops duplicates and **before** `maxResults` trims, because an ARM row wins a shared id and
+  the cut falls somewhere - so the surface an assurance run actually reads cannot lose a field
+  that only one row of thousands carried. 6 tests, 4 of which failed against the shipped
+  mapper. T12's mapper-artefact candidate is therefore decided by reading one field on the
+  first live run, which is what this half existed to achieve.
+- **Half 1 (T13) is answered, and the answer is that it is credential-blocked.** The L5 lead
+  was that the ranking fields might exist only at tenant/default scope. **Refuted from the
+  published schema:** the subscription-scoped operation returns the same
+  `SecurityAssessmentMetadataList` definition and its own published sample carries both
+  fields. Also refuted: that `2025-05-04` might be unrecognised on this surface - it is a real
+  `stable/` folder in `Azure/azure-rest-api-specs` with subscription-scope metadata examples.
+  What is left is in ⚑36. **No code was written for T13**, deliberately: there is nothing to
+  fix until a live call says which side of the version boundary the fields live on.
+- **Still open inside ⚑34 half 1, and unresolvable here:** the report says the two fields were
+  `null`, but an optional field ARM does not populate arrives **absent**, not null. Either the
+  reporting consumer rendered absent as null, or ARM sent explicit nulls, and those have
+  different causes. Settling it needs the source report (held outside this repo) or one live
+  call.
+
+### ⚑36 · T13's remaining cause is one live comparison, and the likely fix is a capability trade-off Klemens has to make
+- **Kind:** klemens-call
+- **Hop:** L6 · ⚑34
+- **State:** open
+- **Matters because:** L6 narrowed T13 to a single testable hypothesis. At `2025-05-04` both
+  `implementationEffort` and `userImpact` are **optional** in the response model and **absent
+  from every 2025-05-04 example**, while the 2020-01-01 examples for the same operation carry
+  them. The one test is to call `assessmentMetadata` twice against the same subscription, once
+  at each api-version, and compare. **If the old version populates them and the new one does
+  not, there is no patch that keeps everything:** `2025-05-04` is exactly what this package
+  needs for `Critical` severity (that is T12's subject, and the pin's stated reason), so the
+  options are to make two calls per invocation and merge the two shapes, or to accept losing
+  either `Critical` severity or any effort/impact ranking. Two calls per invocation is a
+  performance and behaviour change to a command an assurance run makes per subscription - the
+  same class as ⚑10, ⚑12, ⚑20 and ⚑28 - and choosing which capability matters more is a
+  product call, not a loop's. No Azure credentials on this machine. Same blocker as ⚑1, ⚑7,
+  ⚑8, ⚑9, ⚑26, ⚑27, ⚑29, ⚑31.
+
+### ⚑37 · The assessment passthrough is unit-verified only, and covers just one of the two sources
+- **Kind:** assumption
+- **Hop:** L6 · ⚑34
+- **State:** open
+- **Matters because:** two things a reader could get wrong. First, **nothing has seen a live
+  assessment row through this code.** The passthrough's whole value is diagnostic - it exists
+  so one live run tells T12 whether the mapper was discarding risk data - and until that run
+  happens, "no assessment carries a `properties.risk` object" is still unexplained rather than
+  explained. The fixtures prove the mechanism, not the finding. Second, **the passthrough only
+  covers the Resource Graph half of the union.** ARM's rows are returned verbatim with no
+  mapper at all, so they can drop nothing and need no passthrough - but that also means
+  `summary.unmappedPropertyKeys` is silent about anything unexpected in an ARM row, and an
+  empty list must be read as "Resource Graph carried nothing unrecognised", never as "this
+  command now reads every field both sources return". Same class as ⚑29, which anticipated
+  exactly this on the same mapper, and the reason ⚑29's L5 update asked whether
+  "mappers built from vendor docs" belongs in `docs/KNOWN_ISSUES.md` as a class.
+- **What settles it:** one `defender-list-assessments` against a subscription with a paid
+  Defender plan. Read `summary.unmappedPropertyKeys`, then read
+  `properties.unmappedProperties` on a row that has one.
+
+### ⚑38 · `summary.note` now carries a list that a live tenant could make long
+- **Kind:** decision
+- **Hop:** L6 · ⚑34
+- **State:** open
+- **Matters because:** the unmapped-key sentence names every distinct key, and the CLI prints
+  `summary.note` verbatim. On a tenant whose rows carry many unrecognised fields the note
+  grows with them, and `note` is the same field that carries the "this list is incomplete"
+  warning - the one message that must not be skimmed. The judgement taken was that naming the
+  keys is worth it, because a note saying only "some fields were not mapped" would send the
+  reader back to the rows, which is the cost the aggregate exists to remove, and because a
+  long list is itself the finding. If a live run shows the note becoming unreadable, the fix is
+  to cap the names in the note (the full set stays in `unmappedPropertyKeys`), not to drop the
+  sentence. Recorded so the cap is a deliberate later choice rather than a surprise. Payload
+  change is additive - `unmappedPropertyKeys` is new and `note` was always variable text - so
+  unlike ⚑32 this needs no breaking-change block.

@@ -138,6 +138,26 @@ A fix that only proves the happy path does not close its task.
       commit, seeded the defect, and is corrected in all four. Unit-verified only. See
       register items 31 to 34.
 
+- [x] **⚑34 (register, not a report defect) · the assessment Resource Graph mapper carried
+      T11's defect class**. `mapAssessmentGraphRow` named a fixed allowlist of seven
+      `properties` keys taken from Microsoft's documentation, exactly as `mapAttackPathRow`
+      did, and discarded everything else - so **T12's "none of 4,886 unhealthy assessments
+      carries a `properties.risk` object" could not be told apart from this repo throwing
+      the field away.** Whatever the allowlist does not name now rides along in
+      `properties.unmappedProperties`, and the distinct key names are aggregated into
+      `summary.unmappedPropertyKeys` with a sentence in `summary.note`, which the CLI
+      already prints. The aggregate is collected across every row Resource Graph returned,
+      **before** the union drops duplicates and **before** `maxResults` trims: an ARM row
+      wins a shared id and a cut falls somewhere, so a field carried by one row of thousands
+      would otherwise vanish from the only surface an assurance run reads. The ARM half of
+      the union is untouched and needs no passthrough - it is returned verbatim, with no
+      mapper to drop anything. The assessment tool description, the technical doc and the
+      package `CLAUDE.md` all now say to read `unmappedPropertyKeys` before reporting that
+      no assessment carries risk data; the tool description previously promised a `risk`
+      object from api-version 2025-05-04 with no hint that a real estate returned none.
+      6 new tests, `azure-defender` 91 to 97, repo 1049 to 1055. Unit-verified only. See
+      register items 36 to 38 and the ⚑34 update.
+
 ## Queue
 
 Ordered by the source report's own priority. One task per heading; a hop may take
@@ -156,15 +176,21 @@ more than one when its context measurement allows.
   since the package's first commit, the only commit that file has ever had, so every
   published build already asks for it. The task is now to find out **why** the fields are
   absent, and the candidates have changed since the register first listed them:
-  - **Most likely, and new at L5: the same defect class as T11.** T11 proved that this
-    package's Resource Graph mappers were built from Microsoft's documentation rather than
-    from a live row, and that the documentation was behind the API. `mapAssessmentGraphRow`
-    names a fixed allowlist too (`displayName`, `status`, `resourceDetails`, `risk`,
-    `additionalData`, `metadata`, `links`). If a live row carries the risk data under any
-    other key, it is discarded exactly as the attack-path payload was, and "no assessment
-    carries a `properties.risk` object" would be a mapper artefact rather than an API fact.
-    **Check this before anything else** - it is testable by adding a passthrough for
-    unmapped keys, the way T11 did, and reading what arrives.
+  - **The mapper-artefact candidate is closed at source, at hop L6, and is now measured on
+    every call.** It was the leading candidate: `mapAssessmentGraphRow` named a
+    documentation-derived allowlist exactly as `mapAttackPathRow` did, so a live row
+    carrying risk data under any other key was discarded and "no assessment carries a
+    `properties.risk` object" could have been a mapper artefact. The passthrough is now in
+    (see the ⚑34 entry above), so **the first live run answers this without another
+    investigation hop**: read `summary.unmappedPropertyKeys`. Non-empty and naming a risk
+    field means the mapper was the cause; empty means it never was.
+  - **The api-version cannot be the cause of either symptom, confirmed at L6 against the
+    ARM spec.** At `2025-05-04`, `Common.Severity` is `Low | Medium | High | Critical`, and
+    `properties.risk` is on `SecurityAssessmentPropertiesBase`, which
+    `SecurityAssessmentPropertiesResponse` extends - so both a `Critical` severity and a
+    `risk` object are in the documented **response** model of the version this package
+    already asks for. The pin's stated reason in `src/utils/defender-api-versions.ts` is
+    correct.
   - The payload may need an `$expand` the code does not send.
   - The estate may genuinely hold neither. Weakened at L5: the same report measured live
     attack paths carrying `riskLevel: High`, which means Defender CSPM was producing risk
@@ -184,12 +210,36 @@ more than one when its context measurement allows.
   `client.paginate<AssessmentMetadata>` items straight through, and a TypeScript cast
   discards nothing at runtime. So unlike T11, no allowlist in this repo can be removing
   the two fields; whatever ARM returned is what the caller saw. That rules out the cheap
-  fix and leaves the cause in the request or in the API. Untested lead for whoever takes
-  it: the call is subscription-scoped
-  (`/subscriptions/{sub}/providers/Microsoft.Security/assessmentMetadata`), and the
-  built-in definition catalogue that the portal ranks by effort and impact may only carry
-  those fields at tenant/default scope. Verify against a live response before writing
-  code. See register item 34.
+  fix and leaves the cause in the request or in the API.
+- **⚠️ Re-scoped at hop L6 against Microsoft's published schema and the ARM spec. The L5
+  lead is refuted, and one specific live comparison now settles the cause.**
+  - **Refuted: scope is not the discriminator.** Microsoft documents two operations, one at
+    tenant/default scope and one at subscription scope, and **both** return the same
+    `SecurityAssessmentMetadataList` definition. The subscription-scoped operation's own
+    published sample response carries `userImpact` and `implementationEffort` on every
+    item. Reading the catalogue at a different scope would not add the fields.
+  - **Refuted: the api-version is not unrecognised.** `stable/2025-05-04` exists in
+    `Azure/azure-rest-api-specs` for this surface, with its own subscription-scope
+    `ListAssessmentsMetadata` example, so the pinned version is real and the call is a
+    documented one.
+  - **What the spec does say, and it is the whole lead:** at `2025-05-04` both fields are
+    **optional** (`required` is only `displayName`, `severity`, `assessmentType`) and the
+    2025-05-04 examples **omit them both**, while the 2020-01-01 examples for the same
+    operation include them. The response model still defines them
+    (`SecurityAssessmentMetadataPropertiesResponse` extends
+    `SecurityAssessmentMetadataProperties`, which carries both), so the service is
+    permitted to return them and permitted not to.
+  - **The one test that settles it:** call `assessmentMetadata` twice against the same
+    subscription, once at `2020-01-01` and once at `2025-05-04`, and compare the two
+    fields. Needs credentials this machine does not have.
+  - **If the older version populates them and the newer does not, the fix is a trade-off,
+    not a patch:** `2025-05-04` is exactly what this package needs for `Critical` severity,
+    which is T12's subject, so the choices are to read both versions and merge, or to lose
+    one capability. That is Klemens's call, not the loop's - see register item 36.
+  - Also unresolved, and unresolvable from here: the report says the fields were `null`,
+    but an optional field ARM does not populate is **absent**, not null. Either the
+    consumer rendered absent as null or ARM sent explicit nulls, and those have different
+    causes. See register item 34.
 
 ### T14 · D10, D11 — App Service and Front Door payload gaps
 - **Package:** `azure-management`
