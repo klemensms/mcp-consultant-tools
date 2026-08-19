@@ -27,26 +27,14 @@ A fix that only proves the happy path does not close its task.
 - [x] **X3 · one truncation contract** across `powerplatform` list commands. Shipped in
       `v35.0.0-beta.17`. Closed D1, D2, D3, D4 and D6. See
       `docs/release-notes/v35.0.0-beta.17.md`.
+- [x] **T1 · D5 — `plugin trace-logs --exception-only`**. Filter now excludes the empty
+      string as well as null, and the payload carries `exceptionCount` alongside
+      `totalCount`. Not yet published; lands on `release/35.0`.
 
 ## Queue
 
 Ordered by the source report's own priority. One task per heading; a hop may take
 more than one when its context measurement allows.
-
-### T1 · D5 — `plugin trace-logs --exception-only` is a no-op
-- **Package:** `powerplatform` / `powerplatform-core`
-- **Severity:** Major. Fails towards **false alarm**.
-- **Measured:** returns the identical 147 records as the same command without the flag;
-  `parsed.hasException` is `false` on all 147. The source table held 147 rows for the
-  window and `exceptiondetails ne null and ne ''` matched **0**.
-- **Root cause (confirmed):** `PluginService.getPluginTraceLogs` builds
-  `exceptiondetails ne null`. Dataverse stores an empty string rather than null on a
-  clean run, so the filter matches every row.
-- **Fix:** filter on `exceptiondetails ne null and exceptiondetails ne ''`. Also return
-  `exceptionCount` alongside `totalCount` so the figure is checkable without reading
-  `parsed.hasException` on every record.
-- **Failure-case test:** a window whose rows all have empty `exceptiondetails` must
-  return zero records under the flag, and must not equal the unfiltered result.
 
 ### T2 · X2 — no CLI surfaces an aggregate failure count
 - **Package:** cross-cutting, architectural.

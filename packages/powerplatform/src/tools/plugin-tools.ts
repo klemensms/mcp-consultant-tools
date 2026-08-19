@@ -197,7 +197,7 @@ export function registerPluginTools(server: any, ctx: ServiceContext): void {
           content: [
             {
               type: "text",
-              text: `Plugin trace logs (found ${result.totalCount}):\n\n${resultStr}`,
+              text: `Plugin trace logs (found ${result.totalCount}, ${result.exceptionCount} with exceptions):\n\n${resultStr}`,
             },
           ],
         };

@@ -273,7 +273,7 @@ export class PowerPlatformService {
     exceptionOnly?: boolean;
     hoursBack?: number;
     maxRecords?: number;
-  }): Promise<{ totalCount: number; logs: unknown[] }> {
+  }): Promise<{ totalCount: number; exceptionCount: number; logs: unknown[] }> {
     return this.plugin.getPluginTraceLogs(options);
   }
 

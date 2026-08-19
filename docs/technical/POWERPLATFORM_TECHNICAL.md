@@ -181,7 +181,7 @@ For `get-flow-run-details` (Power Automate Management API):
 | `get-plugin-asm-full` | `assemblyName`, `includeDisabled?` (default: false) | Assembly + all types, steps, images + automatic validation |
 | `get-entity-plugins` | `entityName`, `messageFilter?`, `includeDisabled?` (default: false) | All plugin steps on entity, organized by message and execution order |
 | `get-all-plugin-steps` | `includeDisabled?` (default: **true**), `maxRecords?` (default: 0 = all) | Environment-wide step inventory across all assemblies — for registration comparison between environments |
-| `get-plugin-trace-logs` | `entityName?`, `messageName?`, `correlationId?`, `exceptionOnly?`, `hoursBack?` (default: 24), `maxRecords?` (default: 50), `pluginStepId?` | Trace logs with parsed exception details (type, message, stack trace) |
+| `get-plugin-trace-logs` | `entityName?`, `messageName?`, `correlationId?`, `exceptionOnly?`, `hoursBack?` (default: 24), `maxRecords?` (default: 50), `pluginStepId?` | Trace logs with parsed exception details (type, message, stack trace), plus `exceptionCount` alongside `totalCount`. `exceptionOnly` excludes both null and empty `exceptiondetails`, so a clean window returns nothing rather than everything |
 
 **Automatic validation in `get-plugin-asm-full`:**
 - Identifies Update/Delete steps without `filteringattributes` (performance concern)

@@ -394,7 +394,7 @@ export class PluginService {
     exceptionOnly?: boolean;
     hoursBack?: number;
     maxRecords?: number;
-  }): Promise<{ totalCount: number; logs: unknown[] }> {
+  }): Promise<{ totalCount: number; exceptionCount: number; logs: unknown[] }> {
     const {
       entityName,
       messageName,
@@ -417,7 +417,10 @@ export class PluginService {
     if (correlationId) filters.push(`correlationid eq '${correlationId}'`);
     if (pluginStepId)
       filters.push(`_sdkmessageprocessingstepid_value eq ${pluginStepId}`);
-    if (exceptionOnly) filters.push(`exceptiondetails ne null`);
+    // Dataverse stores an empty string, not null, on a clean run, so `ne null`
+    // alone matches every row.
+    if (exceptionOnly)
+      filters.push(`exceptiondetails ne null and exceptiondetails ne ''`);
 
     const filterString = filters.join(' and ');
 
@@ -444,6 +447,7 @@ export class PluginService {
 
     return {
       totalCount: parsedLogs.length,
+      exceptionCount: parsedLogs.filter((log) => log.parsed.hasException).length,
       logs: parsedLogs,
     };
   }

@@ -101,7 +101,11 @@ export function registerPluginCommands(program: Command, ctx: ServiceContext): v
           maxRecords: parseInt(opts.max),
         });
         outputResult(
-          { fileName: 'plugin-trace-logs', data: result, summary: `Plugin trace logs (found ${result.totalCount})` },
+          {
+            fileName: 'plugin-trace-logs',
+            data: result,
+            summary: `Plugin trace logs (found ${result.totalCount}, ${result.exceptionCount} with exceptions)`,
+          },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'get plugin trace logs'); }
