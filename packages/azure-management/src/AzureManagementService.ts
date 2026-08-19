@@ -1,6 +1,7 @@
 import { ArmClient, type ArmClientConfig } from './client/ArmClient.js';
 import { ResourceService } from './services/ResourceService.js';
 import { ComputeService } from './services/ComputeService.js';
+import { LogicAppService } from './services/LogicAppService.js';
 import { FunctionAppService } from './services/FunctionAppService.js';
 import { AppServiceService } from './services/AppServiceService.js';
 import { KeyVaultService } from './services/KeyVaultService.js';
@@ -34,6 +35,7 @@ export class AzureManagementService {
   private client: ArmClient;
   private _resourceService: ResourceService | null = null;
   private _computeService: ComputeService | null = null;
+  private _logicAppService: LogicAppService | null = null;
   private _functionAppService: FunctionAppService | null = null;
   private _appServiceService: AppServiceService | null = null;
   private _keyVaultService: KeyVaultService | null = null;
@@ -152,6 +154,18 @@ export class AzureManagementService {
       this._monitoringService = new MonitoringService(this.client);
     }
     return this._monitoringService;
+  }
+
+  /**
+   * Get the Logic App Service (lazy initialization).
+   */
+  get logicApps(): LogicAppService {
+    if (!this._logicAppService) {
+      this._logicAppService = new LogicAppService(this.client, {
+        redactSecrets: this.redactSecrets,
+      });
+    }
+    return this._logicAppService;
   }
 
   /**
