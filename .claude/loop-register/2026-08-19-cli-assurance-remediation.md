@@ -55,7 +55,7 @@ anything matching the trigger checklist.
 ### ⚑4 · Two `powerplatform-core` services still use the `$top = maxRecords + 1` check
 - **Kind:** deferred
 - **Hop:** origin · 6729aa0
-- **State:** closed-by-L10 · the KNOWN_ISSUES record is accurate, and it names three services rather than two: `FlowService.getFlows` still carries the pattern at `FlowService.ts:357`
+- **State:** closed-by-L10 · the KNOWN_ISSUES record was **wrong in both directions** and is now corrected: `FlowService.getFlows` was listed as affected but was fixed in beta.17, while **`FlowService.searchWorkflows:357` and `FlowService.getFlowRuns:796` were in no record at all**. Four methods carry the pattern, not two or three. Found by sweeping both spellings (`maxRecords + 1` and `limit + 1`) rather than counting the named services
 - **Matters because:** `MetadataService.getGlobalOptionSets` and
   `WorkflowService.getWorkflows` will report `hasMore: false` on a truncated result
   wherever the result set can reach the 5,000-row page cap. Already recorded in
@@ -1104,7 +1104,7 @@ found almost nothing, which is itself the result: **one item closes, one has adv
 |---|---|---|
 | ⚑2 | `grep -rn "FanOutRecorder\|fanOut.run" packages/*/src` | **Advanced, not closed.** `core` (18 sites), `azure-management` (43), `azure-defender` (3). L1's stated work-list grep now returns two hits and neither is a collection fan-out, so the grep is spent and the remaining scope is unmeasured. |
 | ⚑3 | `IntegrationAuditService.ts:822`, `:835`, `:1027`, `:861` | **Still live.** `maxRecords` defaults to 100 and neither `hasMore` nor `truncationReason` is read anywhere in the method. |
-| ⚑4 | `MetadataService.ts:293`, `WorkflowService.ts:357`, `FlowService.ts:357`, `docs/KNOWN_ISSUES.md` | **Closed.** Its only job was to make this hop check the durable record. The record is accurate and names **three** services; ⚑4 said two. `FlowService.getFlows` is the third and still carries the pattern. |
+| ⚑4 | `MetadataService.ts:293`, `WorkflowService.ts:26`, `FlowService.ts:357`, `FlowService.ts:796`, `docs/KNOWN_ISSUES.md` | **Closed, and the record was wrong.** It named `FlowService.getFlows`, which beta.17 fixed, and missed `FlowService.searchWorkflows` and `FlowService.getFlowRuns` entirely. Four methods carry the pattern. `getFlowRuns` uses `limit + 1` rather than `maxRecords + 1`, so a grep for one spelling misses it, which is how it stayed hidden. `KNOWN_ISSUES.md` corrected. |
 | ⚑5 | every `packages/*/package.json` | **Still live, re-measured at 16.** ⚑5's title says 14, L1 said 15, L3 measured 16. Sixteen is the current number. |
 | ⚑21 | both log-analytics files | **Still live:** 7 and 8 occurrences. |
 | ⚑23 | `PluginService.ts:136` against `:162` and `:209` | **Still live.** The list query omits `description`; the single-assembly query has it. |

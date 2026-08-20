@@ -59,10 +59,10 @@ message together. Do not leave it half-live.
 
 ---
 
-## `$top`-based completeness checks survive in three PowerPlatform services
+## `$top`-based completeness checks survive in four PowerPlatform methods
 
-**Status:** confirmed in source. **Affects:** `MetadataService.getGlobalOptionSets`,
-`WorkflowService.getWorkflows`, `FlowService.getFlows`.
+**Status:** confirmed in source, re-swept 2026-08-20. **Affects:** `MetadataService.getGlobalOptionSets:293`,
+`WorkflowService.getWorkflows:26`, `FlowService.searchWorkflows:357`, `FlowService.getFlowRuns:796`.
 
 Each requests `$top = maxRecords + 1` and infers `hasMore` from the returned row count:
 
@@ -77,12 +77,21 @@ false, and the caller is told a truncated result set is complete. `$top` cannot 
 truncation either — it is client-driven paging, so no `@odata.nextLink` accompanies it, and
 Dataverse ignores `$top` outright when `Prefer: odata.maxpagesize` is present.
 
-The exposure is lower than it was for `query-records` — these three query metadata and workflow
-tables, which reach 5,000 rows far less often than a filtered data query does — but the failure mode
-is identical and silent when it happens.
+Exposure differs per method. `getGlobalOptionSets`, `getWorkflows` and `searchWorkflows` read metadata
+and workflow tables, which reach 5,000 rows far less often than a filtered data query does.
+`getFlowRuns` reads the `flowruns` table for one flow, and a busy flow passes 5,000 runs easily, so
+that one is the most likely of the four to bite. The failure mode is identical and silent in all four.
 
-`FlowService.getFlowInventory` is **not** affected: it already pages via `@odata.nextLink` and
-derives its truncation flag from the continuation token.
+`FlowService.getFlows` and `FlowService.getFlowInventory` are **not** affected. `getFlows` was fixed in
+v35.0.0-beta.17 and now pages via `paginateDataverse`; `getFlowInventory` always paged via
+`@odata.nextLink` and derives its truncation flag from the continuation token.
+
+The full sweep that produced this list is
+`grep -rn "maxRecords + 1\|maxResults + 1\|limit + 1" packages/powerplatform-core/src` plus its
+`hasMore` companion `grep -rn "\.length > max\|\.length > limit" packages/powerplatform-core/src`.
+Run both rather than trusting a count: `searchWorkflows` and `getFlowRuns` were absent from every
+earlier record of this defect, and `getFlowRuns` uses `limit` rather than `maxRecords`, so a grep
+for one spelling misses it.
 
 **Fix:** the same change made in `DataService.queryRecords` — drop `$top`, send
 `Prefer: odata.maxpagesize=<n>`, follow `@odata.nextLink` until the cap is satisfied or the set is

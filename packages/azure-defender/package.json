@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/azure-defender",
-  "version": "35.0.0-beta.2",
+  "version": "35.0.0-beta.3",
   "description": "MCP server for Microsoft Defender for Cloud - secure score, security assessments, regulatory compliance, and attack paths",
   "type": "module",
   "main": "./build/index.js",
@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "@azure/identity": "^4.13.0",
-    "@mcp-consultant-tools/core": "34.1.0",
+    "@mcp-consultant-tools/core": "35.0.0-beta.1",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "axios": "^1.8.3",
     "commander": "^14.0.3",
