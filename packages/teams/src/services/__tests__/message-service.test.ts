@@ -32,6 +32,7 @@ function createGraphStub() {
     expand: undefined as string | undefined,
     select: undefined as string | undefined,
     postBody: undefined as any,
+    patchBody: undefined as any,
   };
 
   let getResult: any = { value: [] };
@@ -46,6 +47,7 @@ function createGraphStub() {
     select: (v: string) => { calls.select = v; return request; },
     get: async () => { if (thrown) throw thrown; return getResult; },
     post: async (body: any) => { calls.postBody = body; if (thrown) throw thrown; return postResult; },
+    patch: async (body: any) => { calls.patchBody = body; if (thrown) throw thrown; return undefined; },
   };
 
   const client = {
@@ -618,5 +620,173 @@ describe('MessageService.getChannelMessagesDelta', () => {
     expect(result.messages).toEqual([]);
     expect(result.deltaLink).toBeUndefined();
     expect(result.truncated).toBe(false);
+  });
+});
+
+/**
+ * A Graph 403 as the client actually throws it: the inner error that identifies
+ * what really went wrong lives in `body`, not in `message`. Both of the 403s
+ * these tests pin would be misdiagnosed if only `message` were read.
+ */
+function graph403(innerMessage: string, outerMessage = 'Forbidden') {
+  return Object.assign(new Error(outerMessage), {
+    statusCode: 403,
+    body: JSON.stringify({ error: { code: 'Forbidden', message: outerMessage, innerError: { message: innerMessage } } }),
+  });
+}
+
+describe('MessageService.updateChatMessage', () => {
+  let stub: ReturnType<typeof createGraphStub>;
+
+  beforeEach(() => { stub = createGraphStub(); });
+
+  it('PATCHes the chat message endpoint with a converted html body', async () => {
+    const service = createService(stub);
+
+    await service.updateChatMessage(CHAT_ID, '1616990032035', 'Corrected *properly*');
+
+    expect(stub.calls.path).toBe(`/chats/${CHAT_ID}/messages/1616990032035`);
+    expect(stub.calls.patchBody.body.contentType).toBe('html');
+    expect(stub.calls.patchBody.body.content).toContain('<em>properly</em>');
+    // No mention markers in the content, so no mentions array should be sent.
+    expect(stub.calls.patchBody.mentions).toBeUndefined();
+  });
+
+  it('sends a text body untouched when format is text', async () => {
+    const service = createService(stub);
+
+    await service.updateChatMessage(CHAT_ID, '1616990032035', 'Corrected *properly*', { format: 'text' });
+
+    expect(stub.calls.patchBody.body).toEqual({ contentType: 'text', content: 'Corrected *properly*' });
+  });
+
+  it('never POSTs - an edit that falls through to POST would send a second message', async () => {
+    const service = createService(stub);
+
+    await service.updateChatMessage(CHAT_ID, '1616990032035', 'Corrected');
+
+    expect(stub.calls.postBody).toBeUndefined();
+  });
+});
+
+describe('MessageService.deleteChatMessage', () => {
+  let stub: ReturnType<typeof createGraphStub>;
+
+  beforeEach(() => { stub = createGraphStub(); });
+
+  it('posts softDelete under the signed-in user segment, not the bare chat path', async () => {
+    const service = createService(stub);
+
+    await service.deleteChatMessage(CHAT_ID, '1616990032035');
+
+    // POST /chats/{chat}/messages/{id}/softDelete answers 405 - the users-segment
+    // form is the only one Graph exposes, and MY_USER_ID must be the signed-in
+    // user rather than the chat.
+    expect(stub.calls.path).toBe(`/users/${MY_USER_ID}/chats/${CHAT_ID}/messages/1616990032035/softDelete`);
+  });
+
+  it('restores via undoSoftDelete on the same path', async () => {
+    const service = createService(stub);
+
+    await service.undoDeleteChatMessage(CHAT_ID, '1616990032035');
+
+    expect(stub.calls.path).toBe(`/users/${MY_USER_ID}/chats/${CHAT_ID}/messages/1616990032035/undoSoftDelete`);
+  });
+});
+
+describe('MessageService channel edit and delete', () => {
+  let stub: ReturnType<typeof createGraphStub>;
+
+  beforeEach(() => { stub = createGraphStub(); });
+
+  it('PATCHes the channel message endpoint', async () => {
+    const service = createService(stub);
+
+    await service.updateChannelMessage('1616990032035', 'Corrected *properly*');
+
+    expect(stub.calls.path).toBe(`/teams/${TEAM_ID}/channels/${CHANNEL_ID}/messages/1616990032035`);
+    expect(stub.calls.patchBody.body.content).toContain('<em>properly</em>');
+  });
+
+  it('addresses a thread reply when replyId is given', async () => {
+    const service = createService(stub);
+
+    await service.updateChannelMessage('1616990032035', 'x', { replyId: '1616990032099' });
+
+    expect(stub.calls.path).toBe(
+      `/teams/${TEAM_ID}/channels/${CHANNEL_ID}/messages/1616990032035/replies/1616990032099`
+    );
+  });
+
+  it('deletes without a /users segment - the team and channel already scope it', async () => {
+    const service = createService(stub);
+
+    await service.deleteChannelMessage('1616990032035');
+
+    expect(stub.calls.path).toBe(`/teams/${TEAM_ID}/channels/${CHANNEL_ID}/messages/1616990032035/softDelete`);
+    expect(stub.calls.path).not.toContain('/users/');
+  });
+
+  it('restores a thread reply on the same path', async () => {
+    const service = createService(stub);
+
+    await service.undoDeleteChannelMessage('1616990032035', { replyId: '1616990032099' });
+
+    expect(stub.calls.path).toBe(
+      `/teams/${TEAM_ID}/channels/${CHANNEL_ID}/messages/1616990032035/replies/1616990032099/undoSoftDelete`
+    );
+  });
+});
+
+describe('wrapGraphError 403 disambiguation', () => {
+  let stub: ReturnType<typeof createGraphStub>;
+
+  beforeEach(() => { stub = createGraphStub(); });
+
+  it('reports an out-of-range message id as an id problem, not a permissions one', async () => {
+    stub.setThrow(graph403('MessageIdNotInAllowedRange-The messageId is not in the allowed range of messages.', 'InsufficientPrivileges'));
+    const service = createService(stub);
+
+    await expect(service.updateChatMessage(CHAT_ID, '1600000000000', 'x')).rejects.toThrow(
+      /outside the range Graph will act on/
+    );
+    // The generic advice would send the reader after a consent problem that is not there.
+    await expect(service.updateChatMessage(CHAT_ID, '1600000000000', 'x')).rejects.not.toThrow(
+      /run 'logout' then 'authenticate'/
+    );
+  });
+
+  it('names the administrator when Graph asks for ChannelMessage.ReadWrite', async () => {
+    stub.setThrow(
+      Object.assign(new Error("Missing scope permissions on the request. API requires one of 'ChannelMessage.ReadWrite, Group.ReadWrite.All'."), {
+        statusCode: 403,
+      })
+    );
+    const service = createService(stub);
+
+    await expect(service.updateChatMessage(CHAT_ID, '1616990032035', 'x')).rejects.toThrow(
+      /admin-consent gated/
+    );
+  });
+
+  it('reports an AclCheckFailed as a Teams policy refusal, not a scope problem', async () => {
+    stub.setThrow(graph403('AclCheckFailed-Delete Message: Initiator (8:orgid:...) is not allowed to delete message', 'AclCheckFailed'));
+    const service = createService(stub);
+
+    await expect(service.deleteChatMessage(CHAT_ID, '1616990032035')).rejects.toThrow(
+      /Teams administrator has to change the messaging policy/
+    );
+    await expect(service.deleteChatMessage(CHAT_ID, '1616990032035')).rejects.not.toThrow(
+      /run 'logout' then 'authenticate'/
+    );
+  });
+
+  it('still gives the re-authenticate advice for an ordinary 403', async () => {
+    stub.setThrow(Object.assign(new Error('Forbidden'), { statusCode: 403 }));
+    const service = createService(stub);
+
+    await expect(service.updateChatMessage(CHAT_ID, '1616990032035', 'x')).rejects.toThrow(
+      /run 'logout' then 'authenticate'/
+    );
   });
 });

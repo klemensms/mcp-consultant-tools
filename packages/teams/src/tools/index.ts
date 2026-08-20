@@ -10,12 +10,18 @@ import {
   registerGetChannelMessagesTool,
   registerGetMessageRepliesTool,
   registerReplyToMessageTool,
+  registerUpdateChannelMessageTool,
+  registerDeleteChannelMessageTool,
+  registerUndoDeleteChannelMessageTool,
 } from './read-channel.js';
 import {
   registerListChatsTool,
   registerGetChatMessagesTool,
   registerSendChatMessageTool,
   registerMarkChatReadTool,
+  registerUpdateChatMessageTool,
+  registerDeleteChatMessageTool,
+  registerUndoDeleteChatMessageTool,
 } from './chats.js';
 import {
   registerReactToChannelMessageTool,
@@ -43,12 +49,18 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerGetChannelMessagesTool(server, ctx);
   registerGetMessageRepliesTool(server, ctx);
   registerReplyToMessageTool(server, ctx);
+  registerUpdateChannelMessageTool(server, ctx);
+  registerDeleteChannelMessageTool(server, ctx);
+  registerUndoDeleteChannelMessageTool(server, ctx);
 
   // Chat tools
   registerListChatsTool(server, ctx);
   registerGetChatMessagesTool(server, ctx);
   registerSendChatMessageTool(server, ctx);
   registerMarkChatReadTool(server, ctx);
+  registerUpdateChatMessageTool(server, ctx);
+  registerDeleteChatMessageTool(server, ctx);
+  registerUndoDeleteChatMessageTool(server, ctx);
 
   // Reaction tools
   registerReactToChannelMessageTool(server, ctx);
@@ -62,7 +74,7 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerSearchMessagesTool(server, ctx);
   registerGetChannelMessagesDeltaTool(server, ctx);
 
-  console.error("teams tools registered: 20 tools");
+  console.error("teams tools registered: 26 tools");
 }
 
 export { registerAuthenticateTool, registerAuthStatusTool, registerLogoutTool } from './authenticate.js';
@@ -73,12 +85,18 @@ export {
   registerGetChannelMessagesTool,
   registerGetMessageRepliesTool,
   registerReplyToMessageTool,
+  registerUpdateChannelMessageTool,
+  registerDeleteChannelMessageTool,
+  registerUndoDeleteChannelMessageTool,
 } from './read-channel.js';
 export {
   registerListChatsTool,
   registerGetChatMessagesTool,
   registerSendChatMessageTool,
   registerMarkChatReadTool,
+  registerUpdateChatMessageTool,
+  registerDeleteChatMessageTool,
+  registerUndoDeleteChatMessageTool,
 } from './chats.js';
 export {
   registerReactToChannelMessageTool,

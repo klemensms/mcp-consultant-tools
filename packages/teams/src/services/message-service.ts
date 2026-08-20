@@ -15,6 +15,20 @@
  *   markChatReadForUser         -> Chat.ReadWrite (only listed permission)
  *   channel message reactions   -> ChannelMessage.Send
  *   chat message reactions      -> Chat.ReadWrite
+ *   update/softDelete chat msg  -> Chat.ReadWrite
+ *   update/softDelete channel    -> ChannelMessage.ReadWrite
+ *
+ * ChannelMessage.ReadWrite is admin-consent gated, and it is deliberately NOT in
+ * DEVICE_CODE_SCOPES. Entra returns every admin-consented scope in the token
+ * regardless of what MSAL requests, so asking for it buys nothing here - while a
+ * registration in someone else's tenant that has not consented it would fail at
+ * SIGN-IN rather than on the call, taking the whole server down instead of one
+ * tool. So the channel edit/delete methods below run on a scope the code never
+ * asks for, and degrade to a clear 403 where it is absent. Do not "fix" this by
+ * adding it to the array.
+ *
+ * ChannelMessage.Edit is also consented and grants nothing on any published
+ * method - Graph rejects it. Confirmed live 2026-08-19.
  */
 
 import type { TeamsService } from "./teams-service.js";
@@ -388,6 +402,157 @@ export class MessageService {
       throw wrapGraphError(error, `mark chat ${chatId} as read`);
     }
   }
+
+  /**
+   * Replace the body of a channel message, or of one reply within its thread.
+   *
+   * Same whole-body replacement semantics as updateChatMessage. Needs
+   * ChannelMessage.ReadWrite, which the code never requests - see the note at
+   * the top of this file.
+   */
+  async updateChannelMessage(
+    messageId: string,
+    content: string,
+    options: {
+      teamId?: string;
+      channelId?: string;
+      replyId?: string;
+      format?: "text" | "markdown";
+    } = {}
+  ): Promise<void> {
+    const client = await this.teams.getGraphClient();
+
+    try {
+      const outbound = await buildOutboundMessage(client, content, options.format);
+
+      await client
+        .api(this.channelMessagePath(messageId, options))
+        .patch({ body: outbound.body, ...(outbound.mentions ? { mentions: outbound.mentions } : {}) });
+    } catch (error) {
+      throw wrapGraphError(error, `update channel message ${options.replyId ?? messageId}`);
+    }
+  }
+
+  /**
+   * Soft-delete a channel message, or one reply within its thread. Reversible.
+   */
+  async deleteChannelMessage(
+    messageId: string,
+    options: { teamId?: string; channelId?: string; replyId?: string } = {}
+  ): Promise<void> {
+    return this.setChannelMessageDeleted(messageId, "softDelete", options);
+  }
+
+  /**
+   * Restore a channel message that was soft-deleted.
+   */
+  async undoDeleteChannelMessage(
+    messageId: string,
+    options: { teamId?: string; channelId?: string; replyId?: string } = {}
+  ): Promise<void> {
+    return this.setChannelMessageDeleted(messageId, "undoSoftDelete", options);
+  }
+
+  private async setChannelMessageDeleted(
+    messageId: string,
+    action: "softDelete" | "undoSoftDelete",
+    options: { teamId?: string; channelId?: string; replyId?: string } = {}
+  ): Promise<void> {
+    const client = await this.teams.getGraphClient();
+    const verb = action === "softDelete" ? "delete" : "restore";
+
+    try {
+      await client.api(`${this.channelMessagePath(messageId, options)}/${action}`).post({});
+    } catch (error) {
+      throw wrapGraphError(error, `${verb} channel message ${options.replyId ?? messageId}`);
+    }
+  }
+
+  /**
+   * The path to a channel message, or to one reply inside its thread.
+   *
+   * Unlike the chat delete, this needs no /users/{me} segment - the team and
+   * channel already scope it. Shared by edit, delete and restore so a reply can
+   * never be addressed correctly by one and wrongly by another.
+   */
+  private channelMessagePath(
+    messageId: string,
+    options: { teamId?: string; channelId?: string; replyId?: string }
+  ): string {
+    const teamId = this.teams.getTeamId(options.teamId);
+    const channelId = this.teams.getChannelId(options.channelId);
+    const base = `/teams/${teamId}/channels/${channelId}/messages/${messageId}`;
+    return options.replyId ? `${base}/replies/${options.replyId}` : base;
+  }
+
+  /**
+   * Replace the body of a chat message the signed-in user sent.
+   *
+   * Graph offers no partial update: `content` replaces the whole body, so a
+   * mention present in the original and absent from the replacement is dropped.
+   * Conversion, sanitisation and @[Name] resolution run through the same
+   * buildOutboundMessage the send path uses, so a corrected message cannot
+   * render differently from the one it replaces.
+   *
+   * Only the sender can edit their own message. That is left to Graph rather
+   * than pre-checked, since a pre-check costs a read on every call to prevent
+   * an error Graph already returns.
+   */
+  async updateChatMessage(
+    chatId: string,
+    messageId: string,
+    content: string,
+    options: { format?: "text" | "markdown" } = {}
+  ): Promise<void> {
+    const client = await this.teams.getGraphClient();
+
+    try {
+      const outbound = await buildOutboundMessage(client, content, options.format);
+
+      await client
+        .api(`/chats/${chatId}/messages/${messageId}`)
+        .patch({ body: outbound.body, ...(outbound.mentions ? { mentions: outbound.mentions } : {}) });
+    } catch (error) {
+      throw wrapGraphError(error, `update message ${messageId} in chat ${chatId}`);
+    }
+  }
+
+  /**
+   * Soft-delete a chat message the signed-in user sent. Reversible - see
+   * undoDeleteChatMessage.
+   */
+  async deleteChatMessage(chatId: string, messageId: string): Promise<void> {
+    return this.setChatMessageDeleted(chatId, messageId, "softDelete");
+  }
+
+  /**
+   * Restore a chat message that was soft-deleted.
+   */
+  async undoDeleteChatMessage(chatId: string, messageId: string): Promise<void> {
+    return this.setChatMessageDeleted(chatId, messageId, "undoSoftDelete");
+  }
+
+  /**
+   * Both delete actions share a path, and that path must go through /users/{id}.
+   * `POST /chats/{chat}/messages/{id}/softDelete` answers 405 Method Not Allowed -
+   * the users-segment form is the only one Graph exposes, which is why this needs
+   * getMe() where the edit path does not.
+   */
+  private async setChatMessageDeleted(
+    chatId: string,
+    messageId: string,
+    action: "softDelete" | "undoSoftDelete"
+  ): Promise<void> {
+    const client = await this.teams.getGraphClient();
+    const me = await this.teams.getMe();
+    const verb = action === "softDelete" ? "delete" : "restore";
+
+    try {
+      await client.api(`/users/${me.id}/chats/${chatId}/messages/${messageId}/${action}`).post({});
+    } catch (error) {
+      throw wrapGraphError(error, `${verb} message ${messageId} in chat ${chatId}`);
+    }
+  }
 }
 
 /** Clamp a caller-supplied page size into Graph's accepted range. */
@@ -454,13 +619,70 @@ function applyDateRange(messages: MessageInfo[], options: MessageReadOptions): M
 }
 
 /**
+ * Everything Graph said about a failure, message and raw body together.
+ * The Graph client puts the inner error only in `body`, and the inner error is
+ * where the two most misleading 403s in this package identify themselves.
+ */
+function graphErrorText(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const body = (error as { body?: unknown })?.body;
+  return typeof body === "string" ? `${message} ${body}` : message;
+}
+
+/**
  * Turn a Graph failure into an actionable message.
  * A 403 here almost always means the token predates a scope change, which is
- * invisible from the error text alone.
+ * invisible from the error text alone - but two 403s mean something else
+ * entirely and are checked first, because the generic advice actively misleads
+ * on both.
  */
 export function wrapGraphError(error: unknown, action: string): Error {
   const message = error instanceof Error ? error.message : String(error);
   const statusCode = (error as { statusCode?: number })?.statusCode;
+  const detail = graphErrorText(error);
+
+  // Graph refuses to act on a message older than a recent window, and reports it
+  // as 403 InsufficientPrivileges with MessageIdNotInAllowedRange buried in the
+  // inner error. It is an id-range rejection wearing a permissions error, and the
+  // re-authenticate advice below sends the reader after a problem that is not there.
+  if (statusCode === 403 && /MessageIdNotInAllowedRange/i.test(detail)) {
+    return new Error(
+      `Failed to ${action}: the message id is outside the range Graph will act on.\n\n` +
+        `Despite the 403, this is NOT a permissions problem and re-authenticating will not help. ` +
+        `Graph only edits or deletes reasonably recent messages. Check the id came from a recent ` +
+        `get-chat-messages read; an older message cannot be changed through the API at all.`
+    );
+  }
+
+  // Teams, not Graph, refusing the action. The scope and the path were both
+  // accepted - the ACL check inside Teams said no. The usual cause is a tenant
+  // messaging policy that stops users deleting their own sent messages, which
+  // no scope change can fix. Observed on a message the signed-in user had sent
+  // seconds earlier, in a chat they were the sole member of, 2026-08-19.
+  if (statusCode === 403 && /AclCheckFailed/i.test(detail)) {
+    return new Error(
+      `Failed to ${action}: Teams refused this, with AclCheckFailed.\n\n` +
+        `The permission and the request are both fine - Graph accepted them and the refusal came ` +
+        `from Teams itself. The usual cause is a tenant messaging policy that stops users editing ` +
+        `or deleting their own sent messages. Check whether the Teams client offers the same action ` +
+        `on the same message: if it does not, no scope change or re-authentication will help and a ` +
+        `Teams administrator has to change the messaging policy.`
+    );
+  }
+
+  // The channel edit/delete path. Naming the scope and the fact that it needs an
+  // administrator is the whole answer - the generic advice below would have the
+  // reader re-authenticating forever against a scope nobody has consented.
+  if (statusCode === 403 && /ChannelMessage\.ReadWrite/.test(detail)) {
+    return new Error(
+      `Failed to ${action}: this needs the delegated scope ChannelMessage.ReadWrite, which is ` +
+        `admin-consent gated and is not consented on this app registration.\n\n` +
+        `Re-authenticating will not help - an administrator has to grant it on the registration, ` +
+        `after which the existing cached token picks it up on its next silent refresh. Note that ` +
+        `ChannelMessage.Edit does NOT substitute: Graph rejects it on every published method. ` +
+        `The chat equivalents are unaffected and run on Chat.ReadWrite.`
+    );
+  }
 
   if (statusCode === 403) {
     return new Error(

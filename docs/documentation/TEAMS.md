@@ -21,10 +21,16 @@ Read, send and manage Microsoft Teams channel messages and chats via the Microso
 | `get-channel-messages` | Read recent channel messages (default 20, newest first, replies excluded) |
 | `get-message-replies` | Read the replies to one channel message |
 | `reply-to-message` | Post a reply into an existing channel thread |
+| `update-channel-message` | Correct a channel message already posted, in place |
+| `delete-channel-message` | Withdraw a channel message already posted (soft delete, reversible) |
+| `undo-delete-channel-message` | Restore a channel message that was soft-deleted |
 | `list-chats` | List the signed-in user's chats (1:1, group, meeting) |
 | `get-chat-messages` | Read recent messages in a chat (default 20, newest first) |
 | `send-chat-message` | Send a message to an existing chat |
 | `mark-chat-read` | Clear a chat's unread state for the signed-in user |
+| `update-chat-message` | Correct a chat message already sent, in place |
+| `delete-chat-message` | Withdraw a chat message already sent (soft delete, reversible) |
+| `undo-delete-chat-message` | Restore a chat message that was soft-deleted |
 | `react-to-channel-message` | Add or remove an emoji reaction on a channel message or thread reply |
 | `react-to-chat-message` | Add or remove an emoji reaction on a chat message |
 | `find-user` | Find people in the directory by name, email or UPN (returns the AAD id an @-mention needs) |
@@ -113,7 +119,8 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 
 - **`TEAMS_CLIENT_ID` is always required** — both device-code and client-credentials modes require your own Azure AD app registration.
 - **Device-code mode needs no client secret.** Leave `TEAMS_CLIENT_SECRET` empty and enable "Allow public client flows" on the registration. A registration used only in device-code mode holds no standing credential, which is the point — actions run solely in the signed-in user's context.
-- **Delegated permissions required (device-code mode).** Grant admin consent for all ten, or sign-in itself fails: `User.Read`, `User.ReadBasic.All`, `Team.ReadBasic.All`, `Channel.ReadBasic.All`, `ChannelMessage.Read.All`, `ChannelMessage.Send`, `Chat.ReadWrite`, `Chat.Create`, `Group.Read.All`, `offline_access`. Do **not** add `ChannelMessage.Edit` — no published Graph method accepts it, so it widens the token without enabling anything.
+- **Delegated permissions required (device-code mode).** Grant admin consent for all ten, or sign-in itself fails: `User.Read`, `User.ReadBasic.All`, `Team.ReadBasic.All`, `Channel.ReadBasic.All`, `ChannelMessage.Read.All`, `ChannelMessage.Send`, `Chat.ReadWrite`, `Chat.Create`, `Group.Read.All`, `offline_access`. Do **not** add `ChannelMessage.Edit` — Entra returns it in the token whether or not you ask for it, and Graph rejects it on every published method, so it enables nothing.
+- **Editing or deleting a *channel* message needs one further scope: `ChannelMessage.ReadWrite`.** It is admin-consent gated, and the server deliberately never requests it. Entra returns every admin-consented scope in the token regardless of what is asked for, so granting it on the registration is enough — no code change, and no need to sign in again, since the cached refresh token picks it up on its next silent renewal. It is left out of the requested list on purpose: a registration that has *not* consented it would fail at **sign-in** rather than on the one call that needed it, taking the whole server down instead of three tools.
 - **Device-code flow:** Call the `authenticate` tool first to get a URL and one-time code, complete sign-in in a browser. Sign-in is then persistent — see token caching below.
 - **Silent token refresh.** The MSAL token cache is stored encrypted (AES-256-GCM, machine-derived key, mode 0600) at `~/.mcp-consultant-tools/teams-token-cache-{clientId}.enc`. Because `offline_access` is requested, an expired access token is renewed from the cached refresh token without user interaction, so you are not sent back to the device-code flow every hour. Clear it with `logout`.
 - **Upgrading from an earlier version:** the previous plaintext token file `~/.mcp-consultant-tools/teams-auth.json` carried a narrower scope set and no refresh token. It is deleted automatically on first run — authenticate once more to get a token with the full scope set.
@@ -129,4 +136,8 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 - **An ambiguous name is never guessed at.** Several matches are reported back with the candidates and nothing is sent; an exact email, UPN or full display name beats partial hits.
 - **`search-messages` covers channels and chats in one call**, and each hit carries the ids and a link for reading the surrounding thread. `total` is Graph's estimate over the whole matching set, so "20 of about 340" means you are looking at the first page. Widen with `top` (max 50) or page with `from`.
 - **A cold `get-channel-messages-delta` is expensive.** Graph does not honour "give me a token from here", so the first call must page to the end of the channel's history to earn a `deltaLink`. `maxPages` (default 10) bounds that, and a walk that stops early returns **no** deltaLink rather than one that would silently skip everything past the cut. For a one-off skim, `get-channel-messages` is cheaper.
-- **Not supported by design:** no team or channel administration (no creating channels, managing members, or changing team settings), and no editing or deleting of messages — nothing this server posts can be removed by it.
+- **A sent message can be corrected in place, in a chat or a channel.** `update-chat-message` and `update-channel-message` replace the whole body of a message you sent, and Teams marks it "Edited" as it would for any manual edit. The channel tools also take a `replyId` to act on one reply inside a thread. The channel three need `ChannelMessage.ReadWrite`; without it they return a 403 that says so plainly rather than failing obscurely.
+- **An edit replaces the entire body, not part of it.** Graph offers no partial update, so an @-mention in the original must be restated in the replacement or it is lost.
+- **Your tenant may forbid deleting sent messages, and this is common.** If a delete returns `AclCheckFailed`, Teams refused it rather than Graph: the scope and the request were both accepted. That is a Teams messaging policy set by an administrator, it applies to chats and channels alike, and no scope change or re-authentication will help. The quick check is whether the Teams client offers **Delete** on the same message. Editing is governed by a separate policy switch, so edit frequently works where delete does not.
+- **Graph will not edit or delete an old message.** Beyond a recent window it answers `403 InsufficientPrivileges` with `MessageIdNotInAllowedRange`, which reads like a permissions failure and is not one. The tools name the real cause.
+- **Not supported by design:** no team or channel administration — no creating channels, managing members, or changing team settings.

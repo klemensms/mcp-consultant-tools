@@ -4,6 +4,13 @@
  * - get-channel-messages: recent messages in a channel, without replies
  * - get-message-replies:  replies to one message
  * - reply-to-message:     post a reply into a thread
+ * - update-channel-message / delete-channel-message / undo-delete-channel-message:
+ *                        correct or withdraw a message already posted
+ *
+ * The last three need ChannelMessage.ReadWrite, which is admin-consent gated and
+ * which the device-code flow deliberately never requests - see the note at the
+ * top of services/message-service.ts. They work where an administrator has
+ * granted it and return a clear 403 naming it where they have not.
  *
  * Reads default to 20 messages. get-channel-messages deliberately does not fetch
  * each thread's replies, so a wide skim stays cheap; use get-message-replies on
@@ -165,6 +172,153 @@ export function registerReplyToMessageTool(server: any, ctx: ServiceContext): vo
         };
       } catch (error: any) {
         return errorResult(`❌ Failed to post reply: ${error.message}`);
+      }
+    }
+  );
+}
+
+const editTeamIdParam = z
+  .string()
+  .optional()
+  .describe("Team ID (optional if TEAMS_DEFAULT_TEAM_ID is set). Use list-teams to find it.");
+
+const editChannelIdParam = z
+  .string()
+  .optional()
+  .describe("Channel ID (optional if TEAMS_DEFAULT_CHANNEL_ID is set). Use list-channels to find it.");
+
+const editMessageIdParam = z
+  .string()
+  .describe(descWithExamples("ID of the channel message. Get it from get-channel-messages.", MESSAGE_ID_EXAMPLES));
+
+const editReplyIdParam = z
+  .string()
+  .optional()
+  .describe(
+    descWithExamples(
+      "Act on this reply inside the thread instead of the parent message. Get it from get-message-replies.",
+      MESSAGE_ID_EXAMPLES
+    )
+  );
+
+export const updateChannelMessageSchema = {
+  messageId: editMessageIdParam,
+  message: z
+    .string()
+    .describe(
+      descWithExamples(
+        "The replacement content, in full. This replaces the entire message body rather than patching part of it, so an @-mention in the original must be restated here or it is lost." +
+          MENTION_SYNTAX_HINT,
+        MESSAGE_CONTENT_EXAMPLES
+      )
+    ),
+  replyId: editReplyIdParam,
+  teamId: editTeamIdParam,
+  channelId: editChannelIdParam,
+  format: z
+    .enum(["text", "markdown"])
+    .optional()
+    .default("markdown")
+    .describe(descWithExamples("Message format: 'text' for plain text, 'markdown' for rich formatting", MESSAGE_FORMAT_EXAMPLES)),
+};
+
+export const deleteChannelMessageSchema = {
+  messageId: editMessageIdParam,
+  replyId: editReplyIdParam,
+  teamId: editTeamIdParam,
+  channelId: editChannelIdParam,
+};
+
+export const undoDeleteChannelMessageSchema = deleteChannelMessageSchema;
+
+export function registerUpdateChannelMessageTool(server: any, ctx: ServiceContext): void {
+  server.tool(
+    "update-channel-message",
+    "Correct a Microsoft Teams channel message that has already been posted, in place. Works on messages the signed-in user sent themselves, and on a thread reply via replyId. The replacement content is the whole new body, not a patch. Needs the ChannelMessage.ReadWrite permission; if it is not granted the tool says so explicitly.",
+    updateChannelMessageSchema,
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    async (args: {
+      messageId: string;
+      message: string;
+      replyId?: string;
+      teamId?: string;
+      channelId?: string;
+      format?: "text" | "markdown";
+    }) => {
+      try {
+        await ctx.messages.updateChannelMessage(args.messageId, args.message, {
+          teamId: args.teamId,
+          channelId: args.channelId,
+          replyId: args.replyId,
+          format: args.format,
+        });
+
+        const target = args.replyId ? `reply ${args.replyId}` : `message ${args.messageId}`;
+        return {
+          content: [
+            {
+              type: "text",
+              text: `✅ Channel ${target} updated.\n\nTeams marks an edited message as "Edited" for everyone who can see it.`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        return errorResult(`❌ Failed to update channel message: ${error.message}`);
+      }
+    }
+  );
+}
+
+export function registerDeleteChannelMessageTool(server: any, ctx: ServiceContext): void {
+  server.tool(
+    "delete-channel-message",
+    "Withdraw a Microsoft Teams channel message that has already been posted. This is a soft delete and can be reversed with undo-delete-channel-message. Works on messages the signed-in user sent themselves, and on a thread reply via replyId. Prefer update-channel-message when the message can be corrected rather than withdrawn.",
+    deleteChannelMessageSchema,
+    { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    async (args: { messageId: string; replyId?: string; teamId?: string; channelId?: string }) => {
+      try {
+        await ctx.messages.deleteChannelMessage(args.messageId, {
+          teamId: args.teamId,
+          channelId: args.channelId,
+          replyId: args.replyId,
+        });
+
+        const target = args.replyId ? `reply ${args.replyId}` : `message ${args.messageId}`;
+        return {
+          content: [
+            {
+              type: "text",
+              text: `✅ Channel ${target} deleted.\n\nThis was a soft delete - undo-delete-channel-message restores it with the same IDs.`,
+            },
+          ],
+        };
+      } catch (error: any) {
+        return errorResult(`❌ Failed to delete channel message: ${error.message}`);
+      }
+    }
+  );
+}
+
+export function registerUndoDeleteChannelMessageTool(server: any, ctx: ServiceContext): void {
+  server.tool(
+    "undo-delete-channel-message",
+    "Restore a Microsoft Teams channel message that was soft-deleted with delete-channel-message. Takes the same IDs the delete used.",
+    undoDeleteChannelMessageSchema,
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    async (args: { messageId: string; replyId?: string; teamId?: string; channelId?: string }) => {
+      try {
+        await ctx.messages.undoDeleteChannelMessage(args.messageId, {
+          teamId: args.teamId,
+          channelId: args.channelId,
+          replyId: args.replyId,
+        });
+
+        const target = args.replyId ? `reply ${args.replyId}` : `message ${args.messageId}`;
+        return {
+          content: [{ type: "text", text: `✅ Channel ${target} restored.` }],
+        };
+      } catch (error: any) {
+        return errorResult(`❌ Failed to restore channel message: ${error.message}`);
       }
     }
   );

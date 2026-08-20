@@ -4,7 +4,7 @@
 
 Microsoft Teams integration for reading, sending and managing channel messages and chats. Originally built for automated release announcements; extended in v35 so an agent can read and act on Teams on the user's behalf.
 
-- **Tools:** 20 tools
+- **Tools:** 26 tools
 - **Authentication:** Device Code (default, personal credentials) or Client Credentials (app-only)
 - **Services:** `TeamsService` (auth, discovery, channel sends), `MessageService` (message reads, replies, chats, channel delta), `PeopleService` (directory lookup, direct messaging) and `SearchService` (keyword search). All three share `TeamsService`'s authenticated Graph client rather than owning auth, so there is one token cache and one sign-in for the package.
 
@@ -18,7 +18,19 @@ ChannelMessage.Read.All, ChannelMessage.Send, Chat.ReadWrite, Chat.Create,
 Group.Read.All, offline_access
 ```
 
-An eleventh scope, **`ChannelMessage.Edit`, is consented but deliberately not requested**. No published Graph method accepts it. Editing a channel message's content is `PATCH /teams/{t}/channels/{c}/messages/{m}`, whose delegated permission is `ChannelMessage.ReadWrite` or `Group.ReadWrite.All` — neither consented. Requesting it would widen the token without buying a capability, so **there is no `edit-channel-message` tool and cannot be one on this registration.**
+Two further scopes are consented on this registration and **deliberately absent from that array**: `ChannelMessage.Edit` and `ChannelMessage.ReadWrite`.
+
+**`ChannelMessage.ReadWrite` is what channel edit and delete actually need, and leaving it out of the array is correct.** Entra returns every admin-consented scope in the `scp` claim regardless of what MSAL requests, so the token already carries it and the three channel tools work with no code change — verified 2026-08-20, including that an existing cached refresh token picks up a newly granted scope on its next silent renewal, so no fresh device-code sign-in is needed after an administrator grants it. Adding it to the array would gain nothing here and would **break every other tenant that has not consented it**, because an unconsented scope fails at *sign-in* rather than on the call that needed it: 26 tools down instead of 3. This is the one place where the "request what you use" instinct is actively wrong.
+
+**`ChannelMessage.Edit` is consented and grants nothing.** Leaving it out of the array above changes nothing either: **Entra returns the whole admin-consented set in the `scp` claim regardless of what MSAL requests**, so every token this package issues already carries it. Graph rejects it anyway. Editing or deleting a channel message is `PATCH` / `softDelete` on `/teams/{t}/channels/{c}/messages/{m}`, whose delegated permission is `ChannelMessage.ReadWrite` or `Group.ReadWrite.All` — neither consented. Verified live on 2026-08-19 with a byte-identical PATCH against a real channel message:
+
+```
+403 Missing scope permissions on the request.
+    API requires one of 'ChannelMessage.ReadWrite, Group.ReadWrite.All'.
+    Scopes on the request '… ChannelMessage.Edit, ChannelMessage.Send, Chat.ReadWrite, …'
+```
+
+Do not treat a scope's presence in a token as evidence of a capability — decode `scp` **and then try the call**. `ChannelMessage.Edit` sat in every token this package issued while granting nothing at all.
 
 **Do not add a scope to that array unless it has tenant-wide admin consent.** An unconsented scope cannot be self-consented in a tenant that classifies it as anything other than low impact, so it fails at *sign-in* rather than degrading gracefully on the call that needed it — which takes the whole server down, not one tool. If a new capability needs a ninth scope, stop and raise it rather than implementing it.
 
@@ -35,6 +47,11 @@ Verified against the Graph v1.0 permission tables, these are reachable on the se
 | `POST /chats/{c}/markChatReadForUser` | `Chat.ReadWrite` (only permission listed) |
 | `POST .../messages/{m}/setReaction` (channel) | `ChannelMessage.Send` |
 | `POST /chats/{c}/messages/{m}/setReaction` | `Chat.ReadWrite` |
+| `PATCH /chats/{c}/messages/{m}` | `Chat.ReadWrite` |
+| `POST /users/{me}/chats/{c}/messages/{m}/softDelete` | `Chat.ReadWrite` |
+| `POST /users/{me}/chats/{c}/messages/{m}/undoSoftDelete` | `Chat.ReadWrite` |
+| `PATCH /teams/{t}/channels/{c}/messages/{m}` | `ChannelMessage.ReadWrite` (not requested; see above) |
+| `POST /teams/{t}/channels/{c}/messages/{m}/softDelete` | `ChannelMessage.ReadWrite` (not requested; see above) |
 
 | `GET /users?$search=...` | `User.ReadBasic.All` |
 | `POST /chats` (create one-on-one) | `Chat.Create` (`Chat.ReadWrite` is higher) |
@@ -43,7 +60,7 @@ Verified against the Graph v1.0 permission tables, these are reachable on the se
 
 Deliberately **not** implemented, and why:
 
-- **`edit-channel-message`** — needs `ChannelMessage.ReadWrite`, which is not consented. See the Scope Boundary note above: the consented `ChannelMessage.Edit` has no published Graph method. Do not route around it.
+- **Team/channel administration** stays out of scope. The message edit and delete tools exist for both surfaces.
 - **Team/channel administration** — out of scope entirely: no creating channels, no managing members, no changing team settings.
 
 **Search permission note.** The Graph reference lists `Chat.Read` for `entityTypes: ["chatMessage"]`, which is *not* consented. Graph does not enforce that list literally — live testing on 2026-08-12 returned 200 with real hits on `Chat.ReadWrite` alone. `search-messages` is built on that observed behaviour rather than the documented table, so if Graph ever tightens enforcement this is the first tool to break, and the fix is a scope request, not a code change.
@@ -291,6 +308,48 @@ Cannot create a chat — use `list-chats` to find an existing one.
 ```
 
 Posts the signed-in user's own AAD identity (resolved via `User.Read`), which the Graph action requires.
+
+### Message Edit and Delete Tools (chats only)
+
+All three run on the already-consented `Chat.ReadWrite`. **They exist for chats and not channels** — see the Scope Boundary note.
+
+#### update-chat-message
+
+```typescript
+{ chatId: string, messageId: string, message: string, format?: "text" | "markdown" }
+```
+
+`PATCH /chats/{c}/messages/{m}`. **Replaces the whole body** — Graph has no partial update, so an @-mention in the original must be restated in the replacement or it is dropped. Content goes through the same `buildOutboundMessage` the send path uses, so an edit cannot render differently from the message it replaces. Only the sender may edit; that is left to Graph rather than pre-checked, since a pre-check costs a read on every call to prevent an error Graph already returns.
+
+#### delete-chat-message / undo-delete-chat-message
+
+```typescript
+{ chatId: string, messageId: string }
+```
+
+**The path must go through `/users/{me}`.** `POST /chats/{c}/messages/{m}/softDelete` answers **405 Method Not Allowed**; the users-scoped form is the only one Graph exposes, which is why these two call `getMe()` and the edit does not. The id in that segment is the signed-in user, not the chat. Soft delete is reversible, which is why the undo ships alongside rather than later.
+
+**Three 403s here do not mean a permissions problem, and `wrapGraphError` checks all three before the generic re-authenticate advice.** Getting this wrong costs an hour, because the generic advice is plausible and wrong:
+
+| Inner error (in the client's `body`, **not** `message`) | What it actually means |
+|---|---|
+| `MessageIdNotInAllowedRange` | The message is too old for Graph to act on. Outer code reads `InsufficientPrivileges`, which is a lie. |
+| `AclCheckFailed` | Graph accepted scope and request; **Teams** refused. Normally a tenant messaging policy forbidding users to delete their own sent messages. |
+| `Missing scope permissions … ChannelMessage.ReadWrite` | The channel path. Needs an administrator, not a re-auth. |
+
+### update-channel-message / delete-channel-message / undo-delete-channel-message
+
+```typescript
+{ messageId: string, message: string, replyId?: string, teamId?: string, channelId?: string, format?: "text" | "markdown" }
+{ messageId: string, replyId?: string, teamId?: string, channelId?: string }
+```
+
+Same semantics as the chat three. Two differences that matter:
+
+- **They need `ChannelMessage.ReadWrite`, which the code never requests.** See the Scope Boundary note — that is deliberate, not an omission.
+- **No `/users/{me}` segment.** The team and channel already scope a channel message, so unlike the chat delete these need no `getMe()`. All three share `channelMessagePath()` so a `replyId` cannot be honoured by one and dropped by another.
+
+⚠️ **DELETE IS BLOCKED ON THIS TENANT AND EDIT IS NOT. Do not spend an hour on it.** Confirmed live 2026-08-20 across both surfaces: chat and channel `softDelete` both return 403 `AclCheckFailed` — *"Initiator is not allowed to delete message"* — on a message the signed-in user posted seconds earlier. The scope, path and request shape are all correct: a nonexistent id returns 404 on the very same endpoint, so the call reaches Teams and Teams refuses it. **Editing works on both surfaces, live, including on a 35-hour-old message.** Teams governs edit and delete with separate messaging-policy switches and this tenant permits one and not the other. Nothing in this package can change that; it needs a Teams administrator. The delete and undo code paths are therefore **shipped but never successfully exercised end to end** — the failure mode is proven, the success path is not.
 
 ### People Tools
 

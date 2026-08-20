@@ -41,7 +41,10 @@ packages/teams/src/
     send-card.ts              # send-adaptive-card tool
     list-channels.ts          # list-teams, list-channels tools
     read-channel.ts           # get-channel-messages, get-message-replies, reply-to-message
-    chats.ts                  # list-chats, get-chat-messages, send-chat-message, mark-chat-read
+    chats.ts                  # list-chats, get-chat-messages, send-chat-message, mark-chat-read,
+                              # update-chat-message, delete-chat-message, undo-delete-chat-message
+    read-channel.ts           # get-channel-messages, get-message-replies, reply-to-message,
+                              # update/delete/undo-delete-channel-message
     reactions.ts              # react-to-channel-message, react-to-chat-message
     format-messages.ts        # Shared reader-facing rendering for messages and chats
     __tests__/
@@ -569,6 +572,100 @@ Graph requires a `teamworkUserIdentity` body identifying the user to mark read:
 The ID comes from `TeamsService.getMe()` (`GET /me`, `User.Read`, cached for the process lifetime) and the tenant from config — which is why `User.Read` is a required scope rather than incidental. Returns `204 No Content`.
 
 </tool>
+
+<tool name="update-chat-message">
+
+#### update-chat-message
+
+`PATCH /chats/{chatId}/messages/{messageId}` — delegated `Chat.ReadWrite`. Returns `204 No Content`.
+
+**Parameters:** `chatId` (required), `messageId` (required), `message` (required), `format?` (`"text"` | `"markdown"`, default `"markdown"`)
+
+Replaces the whole body; Graph offers no partial update, so an @-mention present in the original and absent from the replacement is dropped. Content goes through the same `buildOutboundMessage` helper as `send-chat-message`, so markdown conversion, HTML sanitisation and `@[Name]` resolution behave identically on an edit and on a send. Only the sender can edit their own message, which is enforced by Graph rather than pre-checked.
+
+The channel equivalent is `update-channel-message`, which needs a different scope — see below.
+
+</tool>
+
+<tool name="delete-chat-message">
+
+#### delete-chat-message
+
+`POST /users/{signed-in user id}/chats/{chatId}/messages/{messageId}/softDelete` — delegated `Chat.ReadWrite`. Returns `204 No Content`.
+
+**Parameters:** `chatId` (required), `messageId` (required)
+
+**The `/users/{id}` segment is mandatory.** `POST /chats/{chatId}/messages/{messageId}/softDelete` answers `405 Method Not Allowed`; the users-scoped form is the only one Graph exposes, which is why this path calls `TeamsService.getMe()` where the edit path does not. The id in the segment is the signed-in user, not the chat.
+
+Soft delete, so `undo-delete-chat-message` restores the message under the same IDs. Carries `destructiveHint: true`.
+
+</tool>
+
+<tool name="undo-delete-chat-message">
+
+#### undo-delete-chat-message
+
+`POST /users/{signed-in user id}/chats/{chatId}/messages/{messageId}/undoSoftDelete` — delegated `Chat.ReadWrite`. Returns `204 No Content`.
+
+**Parameters:** `chatId` (required), `messageId` (required)
+
+Same path shape and the same `/users/{id}` requirement as the delete. Shipped alongside the delete rather than later, because an agent-driven delete that cannot be reversed is a sharper edge than the problem being solved.
+
+</tool>
+
+<tool name="update-channel-message">
+
+#### update-channel-message
+
+`PATCH /teams/{teamId}/channels/{channelId}/messages/{messageId}` — delegated `ChannelMessage.ReadWrite` (or `Group.ReadWrite.All`, which is far broader and not worth taking). With `replyId`, `…/messages/{messageId}/replies/{replyId}`. Returns `204 No Content`.
+
+**Parameters:** `messageId` (required), `message` (required), `replyId?`, `teamId?`, `channelId?`, `format?`
+
+Same whole-body replacement semantics as `update-chat-message`, and the same `buildOutboundMessage` path for markdown, sanitisation and `@[Name]` resolution.
+
+**`ChannelMessage.ReadWrite` is deliberately absent from `DEVICE_CODE_SCOPES`.** Entra returns every admin-consented scope in the `scp` claim regardless of what MSAL requests, so a registration that has it works with no code change and no fresh sign-in — the cached refresh token picks it up on its next silent renewal. Requesting it explicitly would gain nothing and would break registrations that lack it at **sign-in**, killing all 26 tools instead of these 3.
+
+`ChannelMessage.Edit` does **not** substitute for it, despite the name and despite being consentable without an administrator. Graph rejects it on every published method.
+
+</tool>
+
+<tool name="delete-channel-message">
+
+#### delete-channel-message
+
+`POST /teams/{teamId}/channels/{channelId}/messages/{messageId}/softDelete` — delegated `ChannelMessage.ReadWrite`. With `replyId`, the `…/replies/{replyId}/softDelete` form. Returns `204 No Content`.
+
+**Parameters:** `messageId` (required), `replyId?`, `teamId?`, `channelId?`
+
+**Unlike the chat delete, this takes no `/users/{id}` segment** — the team and channel already scope the message. Edit, delete and restore share one path builder so a reply cannot be addressed correctly by one and wrongly by another. Carries `destructiveHint: true`.
+
+</tool>
+
+<tool name="undo-delete-channel-message">
+
+#### undo-delete-channel-message
+
+`POST /teams/{teamId}/channels/{channelId}/messages/{messageId}/undoSoftDelete` — delegated `ChannelMessage.ReadWrite`. Returns `204 No Content`.
+
+**Parameters:** `messageId` (required), `replyId?`, `teamId?`, `channelId?`
+
+</tool>
+
+<error-handling name="chat-edit-delete-403s">
+
+#### Three 403s that do not mean what they say
+
+`wrapGraphError` in `services/message-service.ts` checks these ahead of the generic "your token predates a scope change" advice, because that advice actively misleads on all three.
+
+| Inner error | Actual cause | Remedy |
+|---|---|---|
+| `MessageIdNotInAllowedRange` | The message is older than the window Graph will act on. Nothing to do with permissions, despite the outer code reading `InsufficientPrivileges`. | Use an id from a recent read. An older message cannot be changed through the API at all. |
+| `AclCheckFailed` | Graph accepted the scope and the request; **Teams** refused the action. A tenant messaging policy forbidding users to delete their own sent messages, which applies to chats and channels alike. Edit and delete are separate policy switches, so edit often works where delete does not. | Check whether the Teams client offers the same action on the same message. If not, a Teams administrator has to change the messaging policy — no scope change helps. |
+| `Missing scope permissions … ChannelMessage.ReadWrite` | The channel edit/delete path on a registration without that admin-consented scope. | An administrator grants it on the registration. No code change and no fresh sign-in needed afterwards — the cached refresh token picks the scope up on its next silent renewal. |
+
+The inner error lives in the Graph client's `body` property, not in `message`, so all three are matched against both.
+
+</error-handling>
 
 <tool name="react-to-channel-message">
 

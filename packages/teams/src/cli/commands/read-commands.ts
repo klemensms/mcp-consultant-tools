@@ -4,6 +4,8 @@
  *
  * CLI parity: get-channel-messages, get-message-replies, reply-to-message,
  * list-chats, get-chat-messages, send-chat-message, mark-chat-read,
+ * update-chat-message, delete-chat-message, undo-delete-chat-message,
+ * update-channel-message, delete-channel-message, undo-delete-channel-message,
  * react-to-channel-message, react-to-chat-message.
  */
 
@@ -220,6 +222,148 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'mark chat as read'); }
+    });
+
+  // ── update-channel-message ──────────────────────────────────
+  program
+    .command('update-channel-message')
+    .description('Correct a channel message already posted, in place (needs ChannelMessage.ReadWrite)')
+    .argument('<messageId>', 'ID of the channel message (from get-channel-messages)')
+    .argument('<message>', 'Replacement content in full - this replaces the whole body, so restate any @[Name or email] mention')
+    .option('-t, --team-id <id>', 'Team ID (uses TEAMS_DEFAULT_TEAM_ID if not set)')
+    .option('-c, --channel-id <id>', 'Channel ID (uses TEAMS_DEFAULT_CHANNEL_ID if not set)')
+    .option('-r, --reply-id <id>', 'Correct this reply inside the thread instead of the parent message')
+    .option('-f, --format <format>', 'Message format: text or markdown', 'markdown')
+    .action(async (messageId: string, message: string, opts: any) => {
+      try {
+        await ctx.messages.updateChannelMessage(messageId, message, {
+          teamId: opts.teamId, channelId: opts.channelId, replyId: opts.replyId, format: opts.format,
+        });
+        outputResult(
+          {
+            fileName: 'update-channel-message',
+            data: { messageId, replyId: opts.replyId, status: 'updated' },
+            summary: `Channel ${opts.replyId ? `reply ${opts.replyId}` : `message ${messageId}`} updated. Teams marks it as "Edited" for everyone who can see it.`,
+            persist: false,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'update channel message'); }
+    });
+
+  // ── delete-channel-message ──────────────────────────────────
+  program
+    .command('delete-channel-message')
+    .description('Withdraw a channel message already posted - soft delete, reversible (needs ChannelMessage.ReadWrite)')
+    .argument('<messageId>', 'ID of the channel message (from get-channel-messages)')
+    .option('-t, --team-id <id>', 'Team ID (uses TEAMS_DEFAULT_TEAM_ID if not set)')
+    .option('-c, --channel-id <id>', 'Channel ID (uses TEAMS_DEFAULT_CHANNEL_ID if not set)')
+    .option('-r, --reply-id <id>', 'Withdraw this reply inside the thread instead of the parent message')
+    .action(async (messageId: string, opts: any) => {
+      try {
+        await ctx.messages.deleteChannelMessage(messageId, {
+          teamId: opts.teamId, channelId: opts.channelId, replyId: opts.replyId,
+        });
+        outputResult(
+          {
+            fileName: 'delete-channel-message',
+            data: { messageId, replyId: opts.replyId, status: 'deleted' },
+            summary: `Channel ${opts.replyId ? `reply ${opts.replyId}` : `message ${messageId}`} deleted. Reversible with undo-delete-channel-message.`,
+            persist: false,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'delete channel message'); }
+    });
+
+  // ── undo-delete-channel-message ─────────────────────────────
+  program
+    .command('undo-delete-channel-message')
+    .description('Restore a channel message that was soft-deleted')
+    .argument('<messageId>', 'ID of the deleted channel message')
+    .option('-t, --team-id <id>', 'Team ID (uses TEAMS_DEFAULT_TEAM_ID if not set)')
+    .option('-c, --channel-id <id>', 'Channel ID (uses TEAMS_DEFAULT_CHANNEL_ID if not set)')
+    .option('-r, --reply-id <id>', 'Restore this reply inside the thread instead of the parent message')
+    .action(async (messageId: string, opts: any) => {
+      try {
+        await ctx.messages.undoDeleteChannelMessage(messageId, {
+          teamId: opts.teamId, channelId: opts.channelId, replyId: opts.replyId,
+        });
+        outputResult(
+          {
+            fileName: 'undo-delete-channel-message',
+            data: { messageId, replyId: opts.replyId, status: 'restored' },
+            summary: `Channel ${opts.replyId ? `reply ${opts.replyId}` : `message ${messageId}`} restored.`,
+            persist: false,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'restore channel message'); }
+    });
+
+  // ── update-chat-message ─────────────────────────────────────
+  program
+    .command('update-chat-message')
+    .description('Correct a chat message already sent, in place (own messages, chats only)')
+    .argument('<chatId>', 'Chat ID (use list-chats to find it)')
+    .argument('<messageId>', 'ID of the message to correct (from get-chat-messages)')
+    .argument('<message>', 'Replacement content in full - this replaces the whole body, so restate any @[Name or email] mention')
+    .option('-f, --format <format>', 'Message format: text or markdown', 'markdown')
+    .action(async (chatId: string, messageId: string, message: string, opts: any) => {
+      try {
+        await ctx.messages.updateChatMessage(chatId, messageId, message, { format: opts.format });
+        outputResult(
+          {
+            fileName: 'update-chat-message',
+            data: { chatId, messageId, status: 'updated' },
+            summary: `Message ${messageId} updated. Teams marks it as "Edited" for everyone who can see it.`,
+            persist: false,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'update chat message'); }
+    });
+
+  // ── delete-chat-message ─────────────────────────────────────
+  program
+    .command('delete-chat-message')
+    .description('Withdraw a chat message already sent - soft delete, reversible (own messages, chats only)')
+    .argument('<chatId>', 'Chat ID (use list-chats to find it)')
+    .argument('<messageId>', 'ID of the message to withdraw (from get-chat-messages)')
+    .action(async (chatId: string, messageId: string) => {
+      try {
+        await ctx.messages.deleteChatMessage(chatId, messageId);
+        outputResult(
+          {
+            fileName: 'delete-chat-message',
+            data: { chatId, messageId, status: 'deleted' },
+            summary: `Message ${messageId} deleted. Reversible with: undo-delete-chat-message ${chatId} ${messageId}`,
+            persist: false,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'delete chat message'); }
+    });
+
+  // ── undo-delete-chat-message ────────────────────────────────
+  program
+    .command('undo-delete-chat-message')
+    .description('Restore a chat message that was soft-deleted')
+    .argument('<chatId>', 'Chat ID (use list-chats to find it)')
+    .argument('<messageId>', 'ID of the deleted message')
+    .action(async (chatId: string, messageId: string) => {
+      try {
+        await ctx.messages.undoDeleteChatMessage(chatId, messageId);
+        outputResult(
+          {
+            fileName: 'undo-delete-chat-message',
+            data: { chatId, messageId, status: 'restored' },
+            summary: `Message ${messageId} restored.`,
+            persist: false,
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) { handleCliError(error, 'restore chat message'); }
     });
 
   // ── react-to-channel-message ────────────────────────────────
