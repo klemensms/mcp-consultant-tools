@@ -115,7 +115,13 @@ this chain's actual work.
 ### ⚑7 · The em-dash sweep is in this chain's queue but was never part of the assurance report
 - **Kind:** dropped-scope
 - **Hop:** origin · c3edf18
-- **State:** open
+- **State:** open · **explicitly dropped by L6**, not skipped. The chain ran six tasks in one
+  session and this was queued last precisely so it could be dropped. Stated in three places a
+  reader will hit rather than only here: the `docs/KNOWN_ISSUES.md` entry, the beta.19 per-iteration
+  notes, and the master release notes' Known Issues section, each saying it was dropped
+  deliberately and why (it touches user-facing strings that tests match on, and it was never part
+  of the assurance report). Work-list unchanged:
+  `grep -rn "$(printf '\xe2\x80\x94\\|\xe2\x80\x93')" packages/*/src`, 535 occurrences.
 - **Matters because:** 535 occurrences of U+2014 / U+2013 across `packages/*/src`, including
   strings the CLIs print, violate a standing house rule that bars the character from every
   output channel including code. It is real work and it is queued last, deliberately, because it
@@ -308,3 +314,35 @@ this chain's actual work.
   undeclared-partial values / 14 non-defects is by reading each one, not by regex. Anyone who
   disagrees with a classification can re-run the sweep and argue with a named line, which is the
   point of committing the script.
+
+### ⚑19 · beta.19 is committed and scanned but NOT published: `op read` is refused here
+- **Kind:** decision
+- **Hop:** L6 · ecae329
+- **State:** open · **needs Klemens, and nothing else does**
+- **Matters because:** every prerequisite for the publish is done and verified - versions bumped,
+  three shipping-breaking pins corrected, release notes written, clean from-scratch build, 1,205
+  tests green, `scan-tarball.sh` clean on all six packages, committed at `ecae329`. The only
+  remaining step is six `npm publish --tag beta` calls, and the token cannot be read from inside
+  the agent process tree: `op read` returns `error initializing client: authorization timeout`,
+  which is the refusal already recorded as a chain gotcha. **One earlier probe in this session
+  exited 0**, which briefly suggested the refusal had lifted; it had not, and the retry failed the
+  same way. Do not read a single successful `op` call as the refusal being gone.
+- **Nothing was published.** The token-fetch step has a size guard that aborts before any publish
+  when the file comes back short or empty, and it fired.
+- **What Klemens has to do:** run the `op read` line himself with a `!` prefix, then the six
+  publishes in dependency order (`powerplatform-core` first, `meta` last). The exact commands are
+  in the L6 handoff and in the terminal reply.
+
+### ⚑20 · The release-notes skill's filename derivation is wrong in this repo, again
+- **Kind:** premise-wrong
+- **Hop:** L6 · ecae329
+- **State:** closed-by-L6 · ecae329
+- **Matters because:** `/product-releasenotes` derives its per-iteration filename from
+  `packages/core/package.json`, which sits at `35.0.0-beta.1` here because `core` joined the 35.0
+  train late and is off the branch version line. Following the skill would have written
+  `docs/release-notes/v35.0.0-beta.1.md` and **overwritten June's beta.1 notes**. The real
+  iteration counter is `packages/meta/package.json`, which matches the existing beta.13 through
+  beta.18 file series. The incoming handoff warned about this and it was correct - the one
+  recorded claim in this chain that held up first time. **The skill itself is still wrong** and
+  will do the same thing next release; fixing it is a change to
+  `~/.claude/commands/product-releasenotes.md` or the repo's copy, not to this branch.
