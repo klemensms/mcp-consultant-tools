@@ -248,3 +248,35 @@ this chain's actual work.
   block, since it was structurally always null - would have removed a field consumers may read and
   lost real information the estate holds. Recorded because the release notes must state it: a
   consumer that enumerates keys, or snapshots the payload, sees a new one.
+
+### ⚑16 · `log-analytics` excludes 504 from its retry set, diverging from its two sibling clients
+- **Kind:** decision
+- **Hop:** L4 · d6d2585
+- **State:** open
+- **Matters because:** the task said `DefenderClient` and `ArmClient` both retry
+  `[429, 500, 502, 503, 504]` and to add the policy for this package. I retried four of the five.
+  On a control-plane list a 504 is a gateway hiccup worth retrying; on the Log Analytics **query**
+  API it means the query itself did not finish inside the service's own window, so an identical
+  retry costs the caller another 30-second wait and returns the same answer. The existing 504
+  message already says the useful thing (narrow the range, simplify the query) and retrying only
+  delays them from reading it. **The cost of being wrong:** a genuinely transient gateway 504 on
+  the query endpoint now fails where it would have recovered. One line to reverse, and the test
+  `does not retry 504, where the query itself is what did not finish` pins the current answer.
+  Documented in `packages/log-analytics/CLAUDE.md` as a deliberate divergence so nobody
+  "harmonises" it back without reading the reason. **Also a behaviour change worth a release-notes
+  line:** a command that used to fail fast on a transient error may now take up to 7 seconds longer
+  before failing.
+
+### ⚑17 · `investigate-app` was already extracted; only `investigate-sync` was duplicated
+- **Kind:** premise-wrong
+- **Hop:** L4 · d6d2585
+- **State:** closed-by-L4 · d6d2585
+- **Matters because:** the task and the `docs/KNOWN_ISSUES.md` entry both said "`investigate-app`
+  and `investigate-sync` still write their KQL out twice". Grepped before extracting: both surfaces
+  already call `ctx.logAnalytics.investigateApp(...)` and render through
+  `formatInvestigateAppMarkdown`, so `investigate-app` had been done in an earlier hop and the
+  entry was stale. Only `investigate-sync` carried two copies. Eighth consecutive instance in this
+  chain of a recorded claim being a lead rather than a fact - and the first where the stale claim
+  was in `docs/KNOWN_ISSUES.md`, which is the committed, public record. **Worth noting for the
+  closing hop:** entries in that file are written when a defect is found and are not revisited when
+  a later hop fixes part of it, so any entry there needs re-verifying before it is worked from.
