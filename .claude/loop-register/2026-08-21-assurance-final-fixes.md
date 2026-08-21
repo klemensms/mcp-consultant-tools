@@ -214,3 +214,37 @@ this chain's actual work.
   consistency cost a reader could reasonably object to. Reversible in one line, and the test
   `resolves maxRecords 0 to the documented 250-run ceiling` pins the current answer. Recorded so
   the release notes state it rather than let a user discover it.
+
+### ⚑14 · `IntegrationAuditService` has three more `$top` collections and three swallowed failures
+- **Kind:** dropped-scope
+- **Hop:** L3 · b2991a0
+- **State:** open
+- **Matters because:** Task 3 was scoped by two `docs/KNOWN_ISSUES.md` entries, and both were
+  accurate. Reading the file to fix them turned up that the same defect class runs through it:
+  `getServiceEndpoints:326`, `getEnvironmentVariables:490` and `getWebhookRegistrations:597` all
+  fetch with `&$top=${maxRecords}` and return a summary whose `total` is just the returned row
+  count, with no `hasMore` and no `truncation` block; all three also apply their OOTB exclusion
+  **after** fetching, so a filtered full page reads as exhausted. Plus three swallowed failures:
+  the `$top=5000` step-count query behind `messageStepCount` (bare `catch {}` at line 335), the
+  `getFlows` truncation `analyzeFlowComplexity` discards at line 709, and the per-flow
+  `getFlowDefinition` failures it drops uncounted at line 751. **Deliberately not fixed** - the
+  sanctioned scope was the two recorded entries, and widening a bug fix into a four-method
+  conversion is a release-shaped change. **What stops it being lost:** the report's own
+  `summary.completeness.unverified` list names all four collections, the markdown says in as many
+  words that those figures may be a capped page, and `UNVERIFIED_AUDIT_COLLECTIONS` in the
+  service is the single place to shorten as each conversion lands. Written up in
+  `docs/KNOWN_ISSUES.md`. **This is Klemens's call to schedule, not the loop's to take.**
+
+### ⚑15 · `plugin list` gained a field, which is additive but is still a payload change
+- **Kind:** decision
+- **Hop:** L3 · b2991a0
+- **State:** open
+- **Matters because:** fixing the always-null audit description required `description` to move
+  from `PluginAssemblyDetail` into `PluginAssemblySummary`, so `plugin list` and every consumer of
+  `getPluginAssemblies` now receives a `description` key it did not have. It is additive and the
+  predecessor chain's stated reason for the summary/detail split was avoiding **two spellings of
+  one fact**, not withholding this column, so the change is consistent with that split rather than
+  a reversal of it. The alternative - dropping `description` from the audit's `externalPlugins`
+  block, since it was structurally always null - would have removed a field consumers may read and
+  lost real information the estate holds. Recorded because the release notes must state it: a
+  consumer that enumerates keys, or snapshots the payload, sees a new one.
