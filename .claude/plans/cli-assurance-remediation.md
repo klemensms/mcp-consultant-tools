@@ -642,13 +642,16 @@ one command and the one thing to read in its output, ordered by what a wrong ans
 
 Nothing in this chain will do these, and none is scheduled.
 
-- **The fan-out sweep is two thirds done and its work-list is exhausted.** `core`,
-  `azure-management` (43 sites) and `azure-defender` (3 sites) use the contract. L1's stated
-  work-list, `grep -rn "console.error(\`Failed to" packages/*/src`, now returns two hits and
-  **neither is a collection fan-out**: `azure-devops/src/sync/template-loader.ts:72` is a fallback
-  chain and `azure-sql/src/services/connection-service.ts:231` is a connection failure. So the
-  grep is spent and the sweep's remaining scope across the other packages is **unmeasured** rather
-  than small. Register item 2.
+- **X2's remaining scope is now measured: 17 unrecorded fan-outs in 4 packages**
+  (`powerplatform-core` 6, `azure-devops` 5, `code-review` 5, `audit-cli` 1), out of 42
+  candidates across 12 of 29 packages, with 17 packages carrying no candidates at all. Measured
+  by shape rather than by log wording, because the recorded grep was exhausted; the sweep is
+  committed as `scripts/sweep-fanout-candidates.mjs` so the number is re-runnable rather than a
+  claim, and every candidate was classified by reading. The full work-list, the 5 partial-record
+  sites, the 6 undeclared-partial-value sites and the 14 that are deliberately not defects are in
+  `docs/KNOWN_ISSUES.md`. **Not converted:** three of the four packages need their `core` pin
+  checked and possibly moved first, which makes it a release-shaped change. Register items 2 and
+  18.
 - **Three `IntegrationAuditService` collections still fetch with `$top` and report no truncation**
   (`getServiceEndpoints`, `getEnvironmentVariables`, `getWebhookRegistrations`), and three failure
   paths in the same file are swallowed. Found while closing the two recorded audit defects, and
