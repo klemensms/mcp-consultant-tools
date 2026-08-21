@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/powerplatform-core",
-  "version": "35.0.0-beta.5",
+  "version": "35.0.0-beta.6",
   "description": "Shared core infrastructure for PowerPlatform MCP packages - authentication, HTTP client, and modular services",
   "type": "module",
   "main": "./build/index.js",
