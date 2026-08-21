@@ -318,7 +318,22 @@ this chain's actual work.
 ### ⚑19 · beta.19 is committed and scanned but NOT published: `op read` is refused here
 - **Kind:** decision
 - **Hop:** L6 · ecae329
-- **State:** open · **needs Klemens, and nothing else does**
+- **State:** closed-by-L6. Klemens ran the `op read` line himself with a `!` prefix and all six
+  packages published to the `beta` tag, verified against the registry: `powerplatform-core`
+  beta.6, `powerplatform` beta.8, `powerplatform-customization` beta.5, `powerplatform-data`
+  beta.7, `log-analytics` beta.5, `mcp-consultant-tools` beta.19. **Two dist-tags read stale on
+  the first check** (`log-analytics` beta.4, the bundle beta.17); that was registry CDN caching,
+  and `npm view ... --prefer-online` returned the correct tags. Do not treat a stale dist-tag read
+  immediately after a publish as a failed publish - check the versions list and re-read with
+  `--prefer-online` first.
+- **⚠️ The token reached the conversation transcript** and must be rotated. `op read` writes to
+  stdout, so running it in-session put the npm automation token in plaintext in the session
+  history. That is inherent to the `!` workaround for the process-tree refusal, not a mistake in
+  how it was run. **A future hop must not ask for the token this way.** The safe shape is for
+  Klemens to write the temp `.npmrc` himself, in one command that pipes the secret straight to the
+  file and never prints it, with the agent then publishing via `--userconfig` against that path
+  without ever handling the value. The exact command, with the real credential coordinates, is in
+  the untracked `.claude/publish-auth.local.md`. Recorded as ⚑21.
 - **Matters because:** every prerequisite for the publish is done and verified - versions bumped,
   three shipping-breaking pins corrected, release notes written, clean from-scratch build, 1,205
   tests green, `scan-tarball.sh` clean on all six packages, committed at `ecae329`. The only
@@ -346,3 +361,26 @@ this chain's actual work.
   recorded claim in this chain that held up first time. **The skill itself is still wrong** and
   will do the same thing next release; fixing it is a change to
   `~/.claude/commands/product-releasenotes.md` or the repo's copy, not to this branch.
+
+### ⚑21 · The `!`-prefix workaround for the 1Password refusal leaks the secret into the transcript
+- **Kind:** decision
+- **Hop:** L6 · published beta.19
+- **State:** open · **needs a credential rotation now, and a convention change before the next release**
+- **Matters because:** the documented workaround for the agent process-tree refusal is "hand
+  Klemens the `op read` line to run himself with a `!` prefix". That works, and it also prints the
+  secret to stdout, which lands it in the session transcript in plaintext. It happened this hop
+  with the npm automation token, so **that credential needs rotating**. Its 1Password coordinates
+  are in the untracked `.claude/publish-auth.local.md`; they are deliberately not repeated here,
+  because this register is committed to a public repo.
+- **The fix is a change to the convention, not to anyone's behaviour:** the `!` command should
+  build the temp `.npmrc` rather than print the token, piping `op read` straight into the file so
+  nothing sensitive is ever displayed. The agent then publishes with `--userconfig` against that
+  path and never handles the value. `.claude/publish-auth.local.md` already carries a snippet of
+  exactly that shape for the case where `op read` works from inside the agent; what it does not say
+  is that the **fallback** path must use the same shape. The root `CLAUDE.md` rule says only "hand
+  him the `op read` line", which is what produced this. Both want the wording tightened, and that
+  is a claude-config change rather than a change to this branch, so it is Klemens's to make.
+- **Worth noting for whoever tightens it:** the pre-commit internal-identifier hook caught the
+  first attempt at writing this item, because it quoted the vault and account names. That guard
+  works and is not bypassable, which is the right outcome - but it means the safe snippet cannot
+  live in a tracked file, so the untracked local doc is the only correct home for it.
