@@ -52,7 +52,12 @@ this chain's actual work.
 ### ⚑3 · D17 is closed on a specification read, not on live data
 - **Kind:** assumption
 - **Hop:** origin · c3edf18
-- **State:** open
+- **State:** closed-by-L1 · 5acd89c. The distinction is now written where a reader will hit it,
+  in three places, each saying "investigation closed" and not "fixed": a new
+  `docs/KNOWN_ISSUES.md` entry, the plan file's T12 section and heading, and the package
+  `CLAUDE.md`. The residual estate verification did not disappear - it is the
+  `defender-list-plans` line in the plan file's live-run list, now marked as the ONLY thing
+  left on T12, and predecessor register item 33.
 - **Matters because:** the origin hop closed D17's last credential-free candidate by reading the
   current TypeSpec: `ExpandEnum` has exactly two members (`links`, `metadata`), the `list`
   operation accepts no `$expand` at all, and `risk?` is optional on
@@ -112,3 +117,53 @@ this chain's actual work.
   touches user-facing strings that tests match on and it is **not** one of the defects the
   assurance agent raised. If the chain runs long, this is the task to drop, and dropping it must
   be stated rather than silently skipped.
+
+---
+
+### ⚑8 · The tenant-scope metadata path is taken from the spec and has never been exercised
+- **Kind:** assumption
+- **Hop:** L1 · 5acd89c
+- **State:** open
+- **Matters because:** `diagnoseMetadataFields` calls
+  `/providers/Microsoft.Security/assessmentMetadata` for its two tenant-scope probes, read off
+  the ARM spec's `AssessmentsMetadata_List`. Nothing in this package has ever called it, and it
+  cannot be exercised here: with fake credentials all four probes fail at token acquisition, so
+  the only thing verified is that the command asks for the right four URLs. **The failure mode
+  is contained by design** - a wrong path returns 404, which lands in `fanOut.failures` as a
+  probe that could not be read, not as a probe that found the fields unpopulated, and the
+  verdict says "unknown, not empty" for it. So a wrong path cannot produce a false negative.
+  It can still waste a live run, which is worth knowing before someone reads a tenant 404 as an
+  answer.
+- **Also unverified for the same reason:** the two tenant probes are the ones most likely to
+  403 on a subscription-scoped service principal, which is expected and documented, but the
+  distinction between "403 because the role is subscription-scoped" and "404 because the path is
+  wrong" has never been seen on the wire.
+
+### ⚑9 · The handoff artifact's own premise was wrong: D17 was not in `docs/KNOWN_ISSUES.md`
+- **Kind:** premise-wrong
+- **Hop:** L1 · 5acd89c
+- **State:** closed-by-L1 · 5acd89c
+- **Matters because:** the artifact instructed "three documents still describe `$expand` as an
+  open candidate" and named `docs/KNOWN_ISSUES.md` as one of them. It was not there at all -
+  the file had no D17 entry, no `$expand` mention and nothing about `Critical` severity. The
+  predecessor chain's closing hop drained six defects into it and D17 was not one of them. The
+  correction was to **write** the entry rather than edit one, and D16 needed one too for the
+  same reason. This is the fifth consecutive instance of the pattern the artifact itself warned
+  about, and the first where the wrong claim was in the artifact rather than the plan file:
+  **grep for the text before trusting a document list, including one written by the previous
+  hop.**
+
+### ⚑10 · Tool counts drift silently across four documents, and were already wrong by two
+- **Kind:** premise-wrong
+- **Hop:** L1 · 5acd89c
+- **State:** open
+- **Matters because:** `packages/azure-defender/CLAUDE.md` said "Tools: 12", the technical doc
+  said "All 12 tools", the user doc said "All 14 tools" and `README.md` said 14 - for the same
+  package, at the same commit. The two commands beta.18 added (`defender-list-alerts`,
+  `defender-list-plans`) were listed in the prose of every one of those files while two of the
+  four counts stayed at 12. All four now say 15, but **nothing enforces it**: the count is
+  hand-maintained in four places and the release-notes checklist's "tool counts in `README.md`
+  need updating" names only one of them. A published tool count that is wrong by two is a
+  small thing that reads as carelessness in exactly the audience this repo is public for.
+  Either the counts get derived from the registration functions, or the checklist has to name
+  all four files. Not fixed here - it is a repo-convention change, not part of a defect fix.
