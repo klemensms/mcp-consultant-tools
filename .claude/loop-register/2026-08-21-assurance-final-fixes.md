@@ -85,7 +85,12 @@ this chain's actual work.
 ### ⚑5 · X2's remaining scope is unmeasured, so the sweep task must measure before it fixes
 - **Kind:** dropped-scope
 - **Hop:** origin · c3edf18
-- **State:** open
+- **State:** closed-by-L5 · 0a8f150 for the **scoping** half, which is what this item asked for.
+  42 candidates across 12 of 29 packages, every one read, **17 are the defect** in 4 packages
+  (`powerplatform-core` 6, `azure-devops` 5, `code-review` 5, `audit-cli` 1). 17 packages have no
+  candidates at all. The measurement is committed as `scripts/sweep-fanout-candidates.mjs` rather
+  than asserted, so it can be re-run and argued with, and the full classification is in
+  `docs/KNOWN_ISSUES.md`. **The conversion half is NOT done** and is carried forward as ⚑18.
 - **Matters because:** X2 as raised was "every command that fans out, in every package". The
   contract is landed in `core` and applied to `azure-management` (43 sites) and `azure-defender`
   (3). The work-list the origin chain recorded for the rest,
@@ -280,3 +285,26 @@ this chain's actual work.
   was in `docs/KNOWN_ISSUES.md`, which is the committed, public record. **Worth noting for the
   closing hop:** entries in that file are written when a defect is found and are not revisited when
   a later hop fixes part of it, so any entry there needs re-verifying before it is worked from.
+
+### ⚑18 · X2's conversion half: 17 measured sites, none converted
+- **Kind:** dropped-scope
+- **Hop:** L5 · 0a8f150
+- **State:** open
+- **Matters because:** ⚑5 asked for the scope to be measured before anything was fixed, and said
+  the scoping step was its own deliverable. It is now measured and none of it is converted, so X2
+  is **not** closed and the reply to the assurance agent must not say it is. The 17 sites, and what
+  goes missing at each, are tabulated in `docs/KNOWN_ISSUES.md`; the candidate list is re-runnable
+  with `node scripts/sweep-fanout-candidates.mjs --list`.
+- **Why it was not taken here:** three of the four packages (`code-review`, `audit-cli`, and
+  `azure-devops` to check) need their `@mcp-consultant-tools/core` pin verified and possibly moved
+  before `FanOutRecorder` is importable, and the root `CLAUDE.md` list of 16 stale pins has proved
+  wrong in **both** directions this chain - `azure-defender` and `powerplatform-core` are listed but
+  resolve to the workspace, while `log-analytics` genuinely does carry a vendored `33.0.0`. A
+  16-package pin bump is a release-shaped change and CLAUDE.md says to do it deliberately, not
+  inside a fix. **This is Klemens's to schedule.**
+- **What the number is worth, stated honestly:** the iteration test looks back 60 lines, which
+  covers every loop body in this repo today but is a heuristic, so **42 candidates is a floor
+  rather than a total**. The classification of those 42 into 17 defects / 5 partial records / 6
+  undeclared-partial values / 14 non-defects is by reading each one, not by regex. Anyone who
+  disagrees with a classification can re-run the sweep and argue with a named line, which is the
+  point of committing the script.
