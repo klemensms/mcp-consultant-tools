@@ -59,46 +59,33 @@ message together. Do not leave it half-live.
 
 ---
 
-## `$top`-based completeness checks survive in four PowerPlatform methods
+## `ValidationService.validateBestPractices` truncates its entity list and says nothing
 
-**Status:** confirmed in source, re-swept 2026-08-20. **Affects:** `MetadataService.getGlobalOptionSets:293`,
-`WorkflowService.getWorkflows:26`, `FlowService.searchWorkflows:357`, `FlowService.getFlowRuns:796`.
+**Status:** confirmed in source. **Affects:** `packages/powerplatform-core/src/services/ValidationService.ts:102`.
 
-Each requests `$top = maxRecords + 1` and infers `hasMore` from the returned row count:
+The solution-scoped path builds the entity list one `EntityDefinitions` read at a time, then applies
+the cap client-side and discards the surplus with no flag anywhere in the returned shape:
 
 ```ts
-const hasMore = response.value.length > maxRecords;   // wrong at the page cap
+if (maxEntities > 0 && entities.length > maxEntities) {
+  entities = entities.slice(0, maxEntities);
+}
 ```
 
-This is the defect fixed in `DataService.queryRecords` in v35.0.0-beta.5, left in place elsewhere.
-Dataverse caps every response at 5,000 rows whatever `$top` asks for, so once `maxRecords` reaches
-5,000 the sentinel row can never come back: the server returns exactly 5,000, `5000 > 5000` is
-false, and the caller is told a truncated result set is complete. `$top` cannot detect the
-truncation either — it is client-driven paging, so no `@odata.nextLink` accompanies it, and
-Dataverse ignores `$top` outright when `Prefer: odata.maxpagesize` is present.
+Nothing in `EntityValidationResult` or the aggregate report records that a cap was hit, so a
+validation report over the first `maxEntities` tables of a large solution is indistinguishable from
+one that covered the whole solution. This is the same false-completeness class as the `$top`
+defects, arriving by a different route: there is no `hasMore` field to get wrong because there is no
+`hasMore` field at all.
 
-Exposure differs per method. `getGlobalOptionSets`, `getWorkflows` and `searchWorkflows` read metadata
-and workflow tables, which reach 5,000 rows far less often than a filtered data query does.
-`getFlowRuns` reads the `flowruns` table for one flow, and a busy flow passes 5,000 runs easily, so
-that one is the most likely of the four to bite. The failure mode is identical and silent in all four.
+The per-entity loop above it also swallows every failure (`catch {}` at line 96, commented "Skip
+entities that can't be queried"), so an entity the service principal cannot read is dropped with no
+trace and no count. A validation pass that could not see half the solution reports clean.
 
-`FlowService.getFlows` and `FlowService.getFlowInventory` are **not** affected. `getFlows` was fixed in
-v35.0.0-beta.17 and now pages via `paginateDataverse`; `getFlowInventory` always paged via
-`@odata.nextLink` and derives its truncation flag from the continuation token.
-
-The full sweep that produced this list is
-`grep -rn "maxRecords + 1\|maxResults + 1\|limit + 1" packages/powerplatform-core/src` plus its
-`hasMore` companion `grep -rn "\.length > max\|\.length > limit" packages/powerplatform-core/src`.
-Run both rather than trusting a count: `searchWorkflows` and `getFlowRuns` were absent from every
-earlier record of this defect, and `getFlowRuns` uses `limit` rather than `maxRecords`, so a grep
-for one spelling misses it.
-
-**Fix:** the same change made in `DataService.queryRecords` — drop `$top`, send
-`Prefer: odata.maxpagesize=<n>`, follow `@odata.nextLink` until the cap is satisfied or the set is
-exhausted, and derive `hasMore` from the continuation token. See
-`packages/powerplatform-core/src/services/DataService.ts` and its
-`__tests__/DataService.queryRecords.test.ts` for the shape, including a stub that reproduces the
-real Dataverse page-cap behaviour.
+**Fix:** return a `TruncationInfo` block built by `buildTruncation` from `@mcp-consultant-tools/core`
+alongside the results, and record the skipped entities as a counted, named list rather than a bare
+`catch`. The paging contract in `packages/powerplatform-core/src/services/paginate.ts` covers the
+first half; the fan-out recorder used by `azure-management` and `azure-defender` covers the second.
 
 ---
 

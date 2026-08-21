@@ -4,8 +4,10 @@
  * Read-only service for entity metadata, attributes, relationships, and option sets.
  */
 
+import { buildTruncation, type TruncationInfo } from '@mcp-consultant-tools/core';
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
 import type { ApiCollectionResponse } from '../client/types.js';
+import { paginateDataverse } from './paginate.js';
 
 export class MetadataService {
   constructor(private client: PowerPlatformClient) {}
@@ -283,33 +285,57 @@ export class MetadataService {
   }
 
   /**
-   * Get all global option sets
+   * Get all global option sets.
+   *
+   * Paged via `paginateDataverse`, so `hasMore` comes from the source and not from
+   * comparing the returned row count against a `$top`. The old form asked for
+   * `$top = maxRecords + 1` and read the sentinel row back, which cannot work once
+   * `maxRecords` reaches Dataverse's 5,000-row response cap: the server returns
+   * exactly 5,000, the sentinel never arrives, and a truncated list is reported as
+   * complete.
+   *
+   * `GlobalOptionSetDefinitions` is a metadata endpoint, and metadata endpoints
+   * ignore both `$top` and `Prefer: odata.maxpagesize` and never offer an
+   * `@odata.nextLink`. The paginator still answers correctly there, because it also
+   * treats a fetched-but-unreturned surplus row as proof of more, independently of
+   * any continuation token. Do not "optimise" the `$top` back in.
    */
   async getGlobalOptionSets(options?: {
     maxRecords?: number;
     prefix?: string;
-  }): Promise<{ value: unknown[]; hasMore: boolean; totalCount: number }> {
-    const maxRecords = options?.maxRecords || 100;
-    const requestLimit = maxRecords + 1;
+  }): Promise<{
+    value: unknown[];
+    hasMore: boolean;
+    totalCount: number;
+    requestedMax: number;
+    truncation: TruncationInfo;
+  }> {
+    const maxRecords = options?.maxRecords ?? 100;
 
     let filter = '';
     if (options?.prefix) {
       filter = `&$filter=startswith(Name,'${options.prefix}')`;
     }
 
-    const response = await this.client.makeRequest<ApiCollectionResponse<unknown>>(
-      `api/data/v9.2/GlobalOptionSetDefinitions?$select=Name,DisplayName,MetadataId,OptionSetType${filter}&$top=${requestLimit}`
+    const { rows, hasMore, truncationReason } = await paginateDataverse<unknown>(
+      this.client,
+      {
+        endpoint: `api/data/v9.2/GlobalOptionSetDefinitions?$select=Name,DisplayName,MetadataId,OptionSetType${filter}`,
+        maxRecords,
+      }
     );
 
-    const hasMore = response.value.length > maxRecords;
-    const trimmedValue = hasMore
-      ? response.value.slice(0, maxRecords)
-      : response.value;
-
     return {
-      value: trimmedValue,
+      value: rows,
       hasMore,
-      totalCount: trimmedValue.length,
+      totalCount: rows.length,
+      requestedMax: maxRecords,
+      truncation: buildTruncation({
+        returnedCount: rows.length,
+        requestedMax: maxRecords,
+        hasMore,
+        truncationReason,
+      }),
     };
   }
 }

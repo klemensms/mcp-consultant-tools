@@ -4,14 +4,23 @@
  * Read-only service for classic Dynamics workflows.
  */
 
+import { buildTruncation, type TruncationInfo } from '@mcp-consultant-tools/core';
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
-import type { ApiCollectionResponse } from '../client/types.js';
+import { paginateDataverse } from './paginate.js';
 
 export class WorkflowService {
   constructor(private client: PowerPlatformClient) {}
 
   /**
-   * Get all classic Dynamics workflows in the environment
+   * Get all classic Dynamics workflows in the environment.
+   *
+   * Paged via `paginateDataverse`, so `hasMore` comes from the source rather than from
+   * comparing the returned row count against a `$top`. The old form asked for
+   * `$top = maxRecords + 1` and read the sentinel row back, which stops working at
+   * Dataverse's 5,000-row response cap: the server returns exactly 5,000, the sentinel
+   * never arrives, and a truncated list is reported as complete.
+   *
+   * `maxRecords` of 0 means uncapped, up to the paginator's safety ceiling.
    */
   async getWorkflows(
     activeOnly: boolean = false,
@@ -20,23 +29,19 @@ export class WorkflowService {
     totalCount: number;
     hasMore: boolean;
     requestedMax: number;
+    truncation: TruncationInfo;
     workflows: unknown[];
   }> {
     const stateFilter = activeOnly ? ' and statecode eq 1' : '';
-    const requestLimit = maxRecords + 1;
 
-    const workflows = await this.client.makeRequest<
-      ApiCollectionResponse<Record<string, unknown>>
-    >(
-      `api/data/v9.2/workflows?$filter=category eq 0${stateFilter}&$select=workflowid,name,statecode,statuscode,description,createdon,modifiedon,type,ismanaged,iscrmuiworkflow,primaryentity,mode,subprocess,ondemand,triggeroncreate,triggerondelete,syncworkflowlogonfailure,_ownerid_value&$expand=modifiedby($select=fullname)&$orderby=modifiedon desc&$top=${requestLimit}`
-    );
+    const { rows, hasMore, truncationReason } = await paginateDataverse<
+      Record<string, unknown>
+    >(this.client, {
+      endpoint: `api/data/v9.2/workflows?$filter=category eq 0${stateFilter}&$select=workflowid,name,statecode,statuscode,description,createdon,modifiedon,type,ismanaged,iscrmuiworkflow,primaryentity,mode,subprocess,ondemand,triggeroncreate,triggerondelete,syncworkflowlogonfailure,_ownerid_value&$expand=modifiedby($select=fullname)&$orderby=modifiedon desc`,
+      maxRecords,
+    });
 
-    const hasMore = workflows.value.length > maxRecords;
-    const trimmedWorkflows = hasMore
-      ? workflows.value.slice(0, maxRecords)
-      : workflows.value;
-
-    const formattedWorkflows = trimmedWorkflows.map((workflow) => ({
+    const formattedWorkflows = rows.map((workflow) => ({
       workflowid: workflow.workflowid,
       name: workflow.name,
       description: workflow.description,
@@ -71,6 +76,12 @@ export class WorkflowService {
       totalCount: formattedWorkflows.length,
       hasMore,
       requestedMax: maxRecords,
+      truncation: buildTruncation({
+        returnedCount: formattedWorkflows.length,
+        requestedMax: maxRecords,
+        hasMore,
+        truncationReason,
+      }),
       workflows: formattedWorkflows,
     };
   }

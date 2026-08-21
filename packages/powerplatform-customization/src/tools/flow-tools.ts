@@ -375,7 +375,7 @@ server.tool(
       return {
         content: [{
           type: "text",
-          text: `Found ${result.totalCount} flow runs for flow ${flowId}${result.hasMore ? ' (more available)' : ''}:\n\nStats:\n- Succeeded: ${stats.succeeded}\n- Failed: ${stats.failed}\n- In Progress: ${stats.inProgress}\n- Cancelled: ${stats.cancelled}\n- Other: ${stats.other}${failedSummary}\n\nFilters Applied: ${JSON.stringify(result.filterApplied)}\n\n${resultStr}`
+          text: `Found ${result.totalCount} flow runs for flow ${flowId}${result.hasMore ? ` [TRUNCATED at ${result.totalCount} runs of an unknown total; this command caps at 250. Narrow the window with startedAfter/startedBefore]` : ''}:\n\nStats:\n- Succeeded: ${stats.succeeded}\n- Failed: ${stats.failed}\n- In Progress: ${stats.inProgress}\n- Cancelled: ${stats.cancelled}\n- Other: ${stats.other}${failedSummary}\n\nFilters Applied: ${JSON.stringify(result.filterApplied)}\n\n${resultStr}`
         }]
       };
     } catch (error: any) {

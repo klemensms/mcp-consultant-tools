@@ -61,7 +61,11 @@ import {
 } from '@mcp-consultant-tools/powerplatform-core';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { basename, extname, dirname, join } from 'node:path';
-import { resolveSafePath, assertNoTraversal } from '@mcp-consultant-tools/core';
+import {
+  resolveSafePath,
+  assertNoTraversal,
+  type TruncationInfo,
+} from '@mcp-consultant-tools/core';
 
 // Re-export types for backward compatibility
 export type { PowerPlatformConfig, ApiCollectionResponse };
@@ -248,6 +252,8 @@ export class PowerPlatformService {
     value: unknown[];
     hasMore: boolean;
     totalCount: number;
+    requestedMax: number;
+    truncation: TruncationInfo;
   }> {
     return this.metadata.getGlobalOptionSets(options);
   }

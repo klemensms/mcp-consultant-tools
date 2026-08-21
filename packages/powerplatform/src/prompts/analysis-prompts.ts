@@ -102,6 +102,12 @@ export function registerAnalysisPrompts(server: any, ctx: ServiceContext): void 
         let report = `# Classic Dynamics Workflows Report\n\n`;
         report += `**Total Workflows**: ${result.totalCount}\n\n`;
 
+        // The report caps at 100 workflows, so it has to say so rather than present a
+        // capped count as the environment's total.
+        if (result.truncation.hasMore) {
+          report += `> ⚠️ TRUNCATED: this report covers the ${result.totalCount} most recently modified workflows of an unknown total. More exist in the environment.\n\n`;
+        }
+
         if (result.workflows.length === 0) {
           report += `No classic workflows found in this environment.\n`;
         } else {

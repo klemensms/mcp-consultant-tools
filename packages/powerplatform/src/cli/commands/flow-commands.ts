@@ -58,7 +58,7 @@ export function registerFlowCommands(program: Command, ctx: ServiceContext): voi
           maxResults: parseInt(opts.max),
         });
         outputResult(
-          { fileName: 'workflow-search', data: result, summary: `Found ${result.totalCount} workflow(s)${result.hasMore ? ' (more available)' : ''}` },
+          { fileName: 'workflow-search', data: result, summary: `Found ${result.totalCount} workflow(s)${truncationSuffix(result.truncation)}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'search workflows'); }
@@ -97,7 +97,7 @@ export function registerFlowCommands(program: Command, ctx: ServiceContext): voi
           maxRecords: parseInt(opts.max),
         });
         outputResult(
-          { fileName: `flow-runs-${flowId}`, data: result, summary: `Found ${result.totalCount} flow runs for ${flowId}${result.hasMore ? ' (more available)' : ''}` },
+          { fileName: `flow-runs-${flowId}`, data: result, summary: `Found ${result.totalCount} flow runs for ${flowId}${result.hasMore ? ` [TRUNCATED at ${result.totalCount} runs of an unknown total; this command caps at 250. Narrow the window with --started-after/--started-before]` : ''}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'get flow runs'); }
@@ -171,7 +171,7 @@ export function registerFlowCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.pp.getWorkflows(opts.activeOnly, parseInt(opts.max));
         outputResult(
-          { fileName: 'classic-workflows', data: result, summary: `Found ${result.totalCount} classic Dynamics workflows${result.hasMore ? ' (more available)' : ''}` },
+          { fileName: 'classic-workflows', data: result, summary: `Found ${result.totalCount} classic Dynamics workflows${truncationSuffix(result.truncation)}` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'list workflows'); }

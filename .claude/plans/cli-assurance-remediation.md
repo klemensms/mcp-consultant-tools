@@ -422,8 +422,14 @@ more than one when its context measurement allows.
 - **`IntegrationAuditService.generateAuditReport` still caps plugin assemblies at 100** and
   discards the `truncation` block, so `gen-integration-audit` presents a truncated assembly
   list as complete — the same defect class beta.17 closed elsewhere.
-- **Two `powerplatform-core` services still use the `$top = maxRecords + 1` check:**
-  `MetadataService.getGlobalOptionSets` and `WorkflowService.getWorkflows`.
+- **`ValidationService.validateBestPractices` caps its entity list by slicing it client-side**
+  (`ValidationService.ts:102`) and returns no truncation flag of any kind, so a validation pass
+  over the first `maxEntities` tables of a large solution is indistinguishable from one that
+  covered the whole solution. The per-entity loop above it also swallows every read failure in a
+  bare `catch {}`, so an entity the service principal cannot see is dropped uncounted. Found by
+  the L2 sweep for the `$top` defect, which it matches in effect and not in mechanism - there is
+  no `hasMore` field to get wrong because there is no `hasMore` field. Written up in
+  `docs/KNOWN_ISSUES.md`. Register item 11.
 - **14 packages remain pinned to `core@33.0.0`**, so npm installs a stale registry copy
   under their own `node_modules` instead of linking the workspace. They compile against
   published code and cannot see local changes. `npm ls <pkg>` reports these as `invalid`.
@@ -472,6 +478,24 @@ runs, and the first four need Klemens's decision on whether they get the breakin
   to the read-only `numberOfWorkers`. Same key, same type, different quantity on any plan
   configured to scale. Register item 41, and whether it needs the breaking-change block depends on
   the live run in the verification list below.
+- **Four PowerPlatform list methods gained a `truncation` block and now page honestly.**
+  `MetadataService.getGlobalOptionSets`, `WorkflowService.getWorkflows`,
+  `FlowService.searchWorkflows` and `FlowService.getFlowRuns` no longer ask for
+  `$top = max + 1` and no longer infer `hasMore` from the returned row count; they page on
+  `Prefer: odata.maxpagesize` plus `@odata.nextLink` through `paginateDataverse`. Each payload
+  gains `truncation` (`returnedCount`, `requestedMax`, `hasMore`, `totalAvailable`,
+  `truncationReason`) and `getGlobalOptionSets` gains `requestedMax`. A consumer reading
+  `totalCount` as a population total was already wrong; it now has a field that says so. Three
+  commands carry the change to users - `flow search`, `flow runs` and `flow workflows`, plus
+  their MCP twins `search-workflows`, `get-flow-runs` and `get-workflows` across
+  `powerplatform`, `powerplatform-customization` and `powerplatform-data`.
+  `getGlobalOptionSets` has no MCP tool and no CLI command, so its change is library-only.
+- **`flow runs` / `get-flow-runs`: `maxRecords: 0` now returns 250 runs, not zero.** The method
+  has always documented a 250-run ceiling; 0 used to become `$top=1`, return no runs at all and
+  claim more were available. It now resolves to the documented ceiling rather than to the
+  paginator's uncapped 50,000-row path, which a documented max of 250 does not promise.
+- **`workflows-report` prompt now declares its own cap.** It reads 100 workflows and used to
+  print that count as **Total Workflows** with no qualification.
 - **New commands:** two `azure-defender` surfaces (security alerts, Defender plan configuration)
   and four `azure-management` ones (virtual machines, log-search alert rules, Logic App workflows,
   API connections). Tool counts in `README.md` need updating.

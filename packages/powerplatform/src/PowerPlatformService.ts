@@ -8,7 +8,7 @@
  * For customization operations, use @mcp-consultant-tools/powerplatform-customization.
  */
 
-import { UNCAPPED } from '@mcp-consultant-tools/core';
+import { UNCAPPED, type TruncationInfo } from '@mcp-consultant-tools/core';
 import {
   // Client and types
   PowerPlatformClient,
@@ -218,7 +218,13 @@ export class PowerPlatformService {
   async getGlobalOptionSets(options?: {
     maxRecords?: number;
     prefix?: string;
-  }): Promise<{ value: unknown[]; hasMore: boolean; totalCount: number }> {
+  }): Promise<{
+    value: unknown[];
+    hasMore: boolean;
+    totalCount: number;
+    requestedMax: number;
+    truncation: TruncationInfo;
+  }> {
     return this.metadata.getGlobalOptionSets(options);
   }
 
@@ -304,6 +310,7 @@ export class PowerPlatformService {
     totalCount: number;
     hasMore: boolean;
     requestedMax: number;
+    truncation: TruncationInfo;
     workflows: unknown[];
   }> {
     return this.flow.searchWorkflows(options);
@@ -347,6 +354,7 @@ export class PowerPlatformService {
     totalCount: number;
     hasMore: boolean;
     requestedMax: number;
+    truncation: TruncationInfo;
     workflows: unknown[];
   }> {
     return this.workflow.getWorkflows(activeOnly, maxRecords);

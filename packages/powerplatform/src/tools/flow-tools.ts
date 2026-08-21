@@ -123,9 +123,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
           message += ` matching: ${filters.join(', ')}`;
         }
 
-        if (result.hasMore) {
-          message += `\n⚠️ More workflows available - increase maxResults (currently ${result.requestedMax}) to retrieve more`;
-        }
+        message += truncationSuffix(result.truncation);
 
         return {
           content: [
@@ -236,7 +234,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
           content: [
             {
               type: "text",
-              text: `Found ${result.totalCount} flow runs for flow ${flowId}${result.hasMore ? ' (more available)' : ''}:\n\nStats:\n- Succeeded: ${stats.succeeded}\n- Failed: ${stats.failed}\n- In Progress: ${stats.inProgress}\n- Cancelled: ${stats.cancelled}\n- Other: ${stats.other}${failedSummary}\n\nFilters Applied: ${JSON.stringify(result.filterApplied)}\n\n${resultStr}`,
+              text: `Found ${result.totalCount} flow runs for flow ${flowId}${result.hasMore ? ` [TRUNCATED at ${result.totalCount} runs of an unknown total; this command caps at 250. Narrow the window with startedAfter/startedBefore]` : ''}:\n\nStats:\n- Succeeded: ${stats.succeeded}\n- Failed: ${stats.failed}\n- In Progress: ${stats.inProgress}\n- Cancelled: ${stats.cancelled}\n- Other: ${stats.other}${failedSummary}\n\nFilters Applied: ${JSON.stringify(result.filterApplied)}\n\n${resultStr}`,
             },
           ],
         };
@@ -421,9 +419,7 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
         const resultStr = JSON.stringify(result, null, 2);
 
         let message = `Found ${result.totalCount} classic Dynamics workflows`;
-        if (result.hasMore) {
-          message += `\n⚠️ More workflows available - increase maxRecords (currently ${result.requestedMax}) to retrieve more`;
-        }
+        message += truncationSuffix(result.truncation);
 
         return {
           content: [

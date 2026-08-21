@@ -40,7 +40,7 @@ export function registerFlowCommands(program: Command, ctx: ServiceContext): voi
           {
             fileName: `flow-runs-${flowId}`,
             data: result,
-            summary: `Flow ${flowId}: ${(result as any).totalCount} runs (OK: ${stats.succeeded}, Failed: ${stats.failed}, Running: ${stats.inProgress})`,
+            summary: `Flow ${flowId}: ${(result as any).totalCount} runs (OK: ${stats.succeeded}, Failed: ${stats.failed}, Running: ${stats.inProgress})${(result as any).hasMore ? ` [TRUNCATED at ${(result as any).totalCount} runs of an unknown total; this command caps at 250. Narrow the window with --started-after/--started-before]` : ''}`,
           },
           getGlobalFlags(program)
         );

@@ -5,7 +5,11 @@
  */
 
 import axios from 'axios';
-import { buildTruncation, UNCAPPED } from '@mcp-consultant-tools/core';
+import {
+  buildTruncation,
+  UNCAPPED,
+  type TruncationInfo,
+} from '@mcp-consultant-tools/core';
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
 import { paginateDataverse } from './paginate.js';
 import type {
@@ -73,8 +77,11 @@ export interface FlowRunSummary {
 export interface FlowRunsResult {
   flowId: string;
   environmentId: string;
+  /** Runs in this payload. Read `truncation.totalAvailable` for the population. */
   totalCount: number;
+  /** Mirrors `truncation.hasMore`; kept at the top level for existing consumers. */
   hasMore: boolean;
+  truncation: TruncationInfo;
   filterApplied: {
     status?: string;
     startedAfter?: string;
@@ -300,7 +307,15 @@ export class FlowService {
   }
 
   /**
-   * Search workflows (both classic workflows and Power Automate flows)
+   * Search workflows (both classic workflows and Power Automate flows).
+   *
+   * Paged via `paginateDataverse`, so `hasMore` comes from the source rather than from
+   * comparing the returned row count against a `$top`. The old form asked for
+   * `$top = maxResults + 1` and read the sentinel row back, which stops working at
+   * Dataverse's 5,000-row response cap: the server returns exactly 5,000, the sentinel
+   * never arrives, and a truncated result set is reported as complete.
+   *
+   * `maxResults` of 0 means uncapped, up to the paginator's safety ceiling.
    */
   async searchWorkflows(
     options: {
@@ -316,6 +331,7 @@ export class FlowService {
     totalCount: number;
     hasMore: boolean;
     requestedMax: number;
+    truncation: TruncationInfo;
     workflows: unknown[];
   }> {
     const {
@@ -354,26 +370,20 @@ export class FlowService {
 
     const filterString =
       filterConditions.length > 0 ? filterConditions.join(' and ') : '';
-    const requestLimit = maxResults + 1;
 
     const selectFields = includeDescription
       ? 'workflowid,name,description,statecode,statuscode,category,type,primaryentity,ismanaged,createdon,modifiedon,_ownerid_value'
       : 'workflowid,name,statecode,statuscode,category,type,primaryentity,ismanaged,createdon,modifiedon,_ownerid_value';
 
     const endpoint = filterString
-      ? `api/data/v9.2/workflows?$filter=${filterString}&$select=${selectFields}&$expand=modifiedby($select=fullname),createdby($select=fullname)&$orderby=modifiedon desc&$top=${requestLimit}`
-      : `api/data/v9.2/workflows?$select=${selectFields}&$expand=modifiedby($select=fullname),createdby($select=fullname)&$orderby=modifiedon desc&$top=${requestLimit}`;
+      ? `api/data/v9.2/workflows?$filter=${filterString}&$select=${selectFields}&$expand=modifiedby($select=fullname),createdby($select=fullname)&$orderby=modifiedon desc`
+      : `api/data/v9.2/workflows?$select=${selectFields}&$expand=modifiedby($select=fullname),createdby($select=fullname)&$orderby=modifiedon desc`;
 
-    const response = await this.client.makeRequest<
-      ApiCollectionResponse<Record<string, unknown>>
-    >(endpoint);
+    const { rows, hasMore, truncationReason } = await paginateDataverse<
+      Record<string, unknown>
+    >(this.client, { endpoint, maxRecords: maxResults });
 
-    const hasMore = response.value.length > maxResults;
-    const workflows = hasMore
-      ? response.value.slice(0, maxResults)
-      : response.value;
-
-    const formattedWorkflows = workflows.map((workflow) => ({
+    const formattedWorkflows = rows.map((workflow) => ({
       workflowid: workflow.workflowid,
       name: workflow.name,
       description: includeDescription ? workflow.description : undefined,
@@ -412,6 +422,12 @@ export class FlowService {
       totalCount: formattedWorkflows.length,
       hasMore,
       requestedMax: maxResults,
+      truncation: buildTruncation({
+        returnedCount: formattedWorkflows.length,
+        requestedMax: maxResults,
+        hasMore,
+        truncationReason,
+      }),
       workflows: formattedWorkflows,
     };
   }
@@ -767,8 +783,11 @@ export class FlowService {
       maxRecords = 50,
     } = options;
 
-    // Enforce max limit
-    const limit = Math.min(maxRecords, 250);
+    // This method has always documented a hard ceiling of 250 runs, so UNCAPPED (0)
+    // resolves to that ceiling rather than to the paginator's 50,000-row one. Passing
+    // 0 through unchanged would treat it as "everything" and pull up to 50,000 rows
+    // out of an elastic table, which is not what a documented max of 250 promises.
+    const limit = maxRecords === UNCAPPED ? 250 : Math.min(maxRecords, 250);
 
     try {
       // Build OData filter conditions for the flowruns Elastic table
@@ -789,18 +808,21 @@ export class FlowService {
 
       const filterString = filterConditions.join(' and ');
 
-      // Query the flowruns Elastic table via Dataverse API
-      const response = await this.client.makeRequest<
-        ApiCollectionResponse<Record<string, unknown>>
-      >(
-        `api/data/v9.2/flowruns?$filter=${filterString}&$select=flowrunid,status,starttime,endtime,errorcode,errormessage,duration,triggertype&$orderby=starttime desc&$top=${limit + 1}`
-      );
+      // Query the flowruns Elastic table via Dataverse, paged on `@odata.nextLink`.
+      // The old form asked for `$top = limit + 1` and inferred `hasMore` from whether
+      // the sentinel row came back. That cannot work at Dataverse's 5,000-row response
+      // cap - the server returns exactly 5,000, the sentinel never arrives, and a
+      // truncated run history is reported as complete. Of the four sites that carried
+      // this defect, this is the one most likely to hit the cap: a busy flow passes
+      // 5,000 runs easily.
+      const { rows, hasMore, truncationReason } = await paginateDataverse<
+        Record<string, unknown>
+      >(this.client, {
+        endpoint: `api/data/v9.2/flowruns?$filter=${filterString}&$select=flowrunid,status,starttime,endtime,errorcode,errormessage,duration,triggertype&$orderby=starttime desc`,
+        maxRecords: limit,
+      });
 
-      const runsData = response.value || [];
-      const hasMore = runsData.length > limit;
-      const trimmedRuns = hasMore ? runsData.slice(0, limit) : runsData;
-
-      const formattedRuns: FlowRunSummary[] = trimmedRuns.map((run: Record<string, unknown>) => {
+      const formattedRuns: FlowRunSummary[] = rows.map((run: Record<string, unknown>) => {
         const errorCode = run.errorcode as string | null;
         const errorMessage = run.errormessage as string | null;
         const triggerType = run.triggertype as string | null;
@@ -832,6 +854,12 @@ export class FlowService {
         environmentId,
         totalCount: formattedRuns.length,
         hasMore,
+        truncation: buildTruncation({
+          returnedCount: formattedRuns.length,
+          requestedMax: limit,
+          hasMore,
+          truncationReason,
+        }),
         filterApplied: {
           status,
           startedAfter,
