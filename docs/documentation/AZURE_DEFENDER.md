@@ -59,7 +59,8 @@ All four variables are required. Every tool is subscription-scoped, so the serve
 
 | Role | Scope | Purpose |
 |------|-------|---------|
-| `Security Reader` | Subscription | All 14 tools |
+| `Security Reader` | Subscription | All 15 tools |
+| `Security Reader` | Tenant root | Only the two tenant-scope probes inside `defender-diagnose-metadata-fields`. Without it those two probes return 403, which is recorded in `fanOut.failures` rather than failing the call |
 
 Attack paths additionally require the **Defender CSPM plan** to be enabled on the subscription (plus agentless VM scanning, or the vulnerability assessment capability on Defender for Servers). Without it, `defender-list-attack-paths` returns an empty list - it does **not** error. `defender-list-plans` reports whether that plan is on.
 
@@ -88,6 +89,8 @@ Attack paths additionally require the **Defender CSPM plan** to be enabled on th
 **Compliance percentage excludes skipped and unsupported controls.** `compliancePercentage` is `passed / (passed + failed)`, matching the Azure portal — so it will not equal `passedControls / totalControls`.
 
 **`averageScorePercentage` is not the secure score.** `defender-list-score-controls` returns an *unweighted* mean across controls; controls carry a `weight`. Use `defender-get-secure-score` for the actual score.
+
+**`implementationEffort` and `userImpact` can come back unpopulated on every assessment definition, and `defender-diagnose-metadata-fields` finds out why.** On a real estate both were empty on all 1,302 definitions, which makes an effort/impact ranking uncomputable. Nothing in this package removes them - the catalogue is returned exactly as ARM sent it - so the cause is the request or the service. The diagnostic reads the catalogue at four combinations, subscription and tenant scope at each of two api-versions, and reports per combination how many definitions carry each field, how many carry it empty, how many omit it entirely, and one example value. Read `summary.verdict`, then `fanOut.failures`: a probe that could not be read is unknown, not empty.
 
 **Severity includes `Critical`.** This package pins the `2025-05-04` assessments API. The older `2020-01-01` version cannot express a Critical severity at all — its enum stops at High.
 

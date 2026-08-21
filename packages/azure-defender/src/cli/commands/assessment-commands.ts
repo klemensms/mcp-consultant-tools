@@ -1,9 +1,9 @@
 /**
- * Assessment CLI commands — 3 commands mapping to the assessment MCP tools.
+ * Assessment CLI commands - 4 commands mapping to the assessment MCP tools.
  */
 
 import type { Command } from 'commander';
-import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
+import { getGlobalFlags, handleCliError, fanOutSuffix } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../types.js';
 import { outputResult } from '../output.js';
 import {
@@ -107,6 +107,45 @@ export function registerAssessmentCommands(program: Command, ctx: ServiceContext
         );
       } catch (error) {
         handleCliError(error, 'list assessment metadata');
+      }
+    });
+
+  assessment
+    .command('diagnose-metadata-fields')
+    .description(
+      'Diagnostic: which scope and api-version, if any, populates implementationEffort / userImpact'
+    )
+    .action(async () => {
+      try {
+        const result = await ctx.assessment.diagnoseMetadataFields();
+        outputResult(
+          {
+            fileName: 'defender-metadata-field-diagnostic',
+            data: result,
+            summary: [
+              `Probed ${result.summary.probesRun} combination(s), ${result.summary.probesSucceeded} returned`,
+              ...result.probes.map((probe) =>
+                probe.ok
+                  ? `  ${probe.label}: ${probe.total} definition(s), ` +
+                    `implementationEffort ${probe.implementationEffort.populated} populated / ` +
+                    `${probe.implementationEffort.presentButEmpty} empty / ${probe.implementationEffort.absent} absent, ` +
+                    `userImpact ${probe.userImpact.populated} populated / ` +
+                    `${probe.userImpact.presentButEmpty} empty / ${probe.userImpact.absent} absent`
+                  : `  ${probe.label}: NOT READ - ${probe.error}`
+              ),
+              result.summary.populatedBy.length > 0
+                ? `Populated by: ${result.summary.populatedBy.join(', ')}`
+                : 'Populated by: none of the combinations that returned',
+              `Verdict: ${result.summary.verdict}`,
+              fanOutSuffix(result.fanOut).trim(),
+            ]
+              .filter(Boolean)
+              .join('\n'),
+          },
+          getGlobalFlags(program)
+        );
+      } catch (error) {
+        handleCliError(error, 'diagnose assessment-metadata fields');
       }
     });
 }

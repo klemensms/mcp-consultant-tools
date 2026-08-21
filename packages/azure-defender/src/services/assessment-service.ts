@@ -1,6 +1,9 @@
 import { FanOutRecorder, type FanOutInfo } from '@mcp-consultant-tools/core';
 import type { DefenderClient } from '../defender-client.js';
-import { DEFENDER_API_VERSIONS } from '../utils/defender-api-versions.js';
+import {
+  DEFENDER_API_VERSIONS,
+  DEFENDER_DIAGNOSTIC_API_VERSIONS,
+} from '../utils/defender-api-versions.js';
 import { kqlString } from '../utils/kql.js';
 import { queryResourceGraph } from '../utils/resource-graph.js';
 import type {
@@ -196,6 +199,190 @@ export function summariseAssessmentMetadata(
   return { total: metadata.length, bySeverity, byCategory };
 }
 
+/**
+ * Request path for the assessment-definition catalogue. Prefixed with a
+ * `/subscriptions/{id}` scope by the subscription-scoped operation, used bare by the
+ * tenant-scoped one.
+ */
+const METADATA_PROVIDER_PATH = '/providers/Microsoft.Security/assessmentMetadata';
+
+/** Where the assessment-metadata catalogue was read from. */
+export type MetadataScope = 'subscription' | 'tenant';
+
+/**
+ * How one optional field is populated across a catalogue.
+ *
+ * `populated`, `presentButEmpty` and `absent` are counted separately on purpose. The
+ * report behind this diagnostic said the two ranking fields were "null on all 1,302
+ * definitions", but an optional field ARM does not populate is ABSENT, not null, and
+ * the two have different causes: absent means the service never sent the field,
+ * present-but-empty means it sent the field and had nothing to put in it. Collapsing
+ * them throws away the only clue about which end of the wire the problem is at.
+ */
+export interface FieldPopulation {
+  /** Key present, carrying a usable value. */
+  populated: number;
+  /** Key present but `null` or an empty string - sent and emptied, not omitted. */
+  presentButEmpty: number;
+  /** Key not on the item at all - what an unpopulated optional field looks like. */
+  absent: number;
+  /** First item found carrying a value, so the shape can be read rather than assumed. */
+  example: { name: string; displayName: string; value: string } | null;
+}
+
+/** One (scope, api-version) combination, and what it returned. */
+export type MetadataFieldProbe =
+  | {
+      /** `<scope>@<api-version>`, the handle the summary and verdict refer to. */
+      label: string;
+      scope: MetadataScope;
+      apiVersion: string;
+      /** Request path. `{subscriptionId}` stands in for the configured subscription. */
+      path: string;
+      ok: true;
+      /** Definitions this combination returned. Compare across probes before choosing one. */
+      total: number;
+      implementationEffort: FieldPopulation;
+      userImpact: FieldPopulation;
+    }
+  | {
+      label: string;
+      scope: MetadataScope;
+      apiVersion: string;
+      path: string;
+      ok: false;
+      /** Why this combination could not be read. Also in `fanOut.failures`. */
+      error: string;
+    };
+
+export interface MetadataFieldDiagnosticResult {
+  /** What this command answers, so a payload read on its own is not ambiguous. */
+  question: string;
+  probes: MetadataFieldProbe[];
+  summary: {
+    probesRun: number;
+    probesSucceeded: number;
+    /** Labels of the probes where either field was populated on at least one item. */
+    populatedBy: string[];
+    /** One reading of the probes, saying what they do not settle as well as what they do. */
+    verdict: string;
+  };
+  fanOut: FanOutInfo;
+}
+
+/**
+ * Counts how one optional ranking field is populated across a catalogue.
+ * Exported for unit tests.
+ */
+export function countFieldPopulation(
+  items: AssessmentMetadata[],
+  field: 'implementationEffort' | 'userImpact'
+): FieldPopulation {
+  const population: FieldPopulation = {
+    populated: 0,
+    presentButEmpty: 0,
+    absent: 0,
+    example: null,
+  };
+
+  for (const item of items) {
+    const properties = (item.properties ?? {}) as Record<string, unknown>;
+
+    if (!(field in properties)) {
+      population.absent++;
+      continue;
+    }
+
+    const value = properties[field];
+    if (value === null || value === undefined || value === '') {
+      population.presentButEmpty++;
+      continue;
+    }
+
+    population.populated++;
+    population.example ??= {
+      name: item.name,
+      displayName: item.properties?.displayName ?? '',
+      value: String(value),
+    };
+  }
+
+  return population;
+}
+
+/**
+ * One line per DISTINCT reason, naming every probe that hit it.
+ *
+ * Collapsing only exact duplicates is lossless: a bad credential fails all four probes
+ * with the same 900-character AAD error, and printing it four times buries the one
+ * thing worth reading. Two probes failing differently still get two lines.
+ * Exported for unit tests.
+ */
+export function groupFailuresByReason(failures: FanOutInfo['failures']): string {
+  const byReason = new Map<string, string[]>();
+  for (const failure of failures) {
+    byReason.set(failure.reason, [...(byReason.get(failure.reason) ?? []), failure.item]);
+  }
+  return [...byReason.entries()]
+    .map(([reason, items]) => `${items.join(', ')}: ${reason}`)
+    .join('; ');
+}
+
+/**
+ * The one sentence a reader takes away, and the only place the four probes are turned
+ * into a conclusion.
+ *
+ * It says what is NOT settled as well as what is. A probe that could not be read is
+ * not a probe that found nothing, and this whole investigation exists because those
+ * two were once reported as the same thing. Exported for unit tests.
+ */
+export function metadataFieldVerdict(
+  probes: MetadataFieldProbe[],
+  populatedBy: string[]
+): string {
+  const failed = probes.filter((p) => !p.ok).map((p) => p.label);
+  const caveat =
+    failed.length > 0
+      ? ` Not settled for ${failed.join(', ')}, which could not be read (see fanOut.failures): that is unknown, not empty.`
+      : '';
+
+  const current = `subscription@${DEFENDER_API_VERSIONS.assessmentMetadata}`;
+
+  if (populatedBy.length === 0) {
+    return (
+      'Neither implementationEffort nor userImpact is populated on any definition at any ' +
+      'combination that returned, so an effort/impact ranking cannot be computed from this ' +
+      "catalogue, and the absence belongs to the estate or the service rather than to this " +
+      "package's request." +
+      caveat
+    );
+  }
+
+  if (populatedBy.includes(current)) {
+    return (
+      `The combination this package already reads (${current}) populates the fields here, so an ` +
+      'all-null measurement did not come from the request. Look at the subscription it was ' +
+      'measured against, or at whatever rendered the fields.' +
+      caveat
+    );
+  }
+
+  const legacy = DEFENDER_DIAGNOSTIC_API_VERSIONS.assessmentMetadataLegacy;
+  const versionNote = populatedBy.every((label) => label.endsWith(`@${legacy}`))
+    ? ` Every combination that populates them is at api-version ${legacy}, whose severity enum has ` +
+      "no 'Critical' value, so reading the catalogue there instead trades one capability for the " +
+      'other rather than adding one.'
+    : '';
+
+  return (
+    `The fields are populated at ${populatedBy.join(', ')} but not at ${current}, which is what ` +
+    "this package reads today. Compare each probe's total before changing anything: a combination " +
+    'that populates the fields over a smaller catalogue is a trade-off, not a fix.' +
+    versionNote +
+    caveat
+  );
+}
+
 export class AssessmentService {
   constructor(private client: DefenderClient) {}
 
@@ -330,5 +517,114 @@ export class AssessmentService {
       : items;
 
     return { metadata, summary: summariseAssessmentMetadata(metadata) };
+  }
+
+  /**
+   * Probes four (scope, api-version) combinations of the assessment-definition
+   * catalogue and reports which of them, if any, populates `implementationEffort`
+   * and `userImpact`.
+   *
+   * Both axes are here because neither has been ruled out and neither has been
+   * tried. The api-version axis is the recorded hypothesis and it is weaker than it
+   * looks: both versions mark the two fields optional, so the only evidence of a
+   * version difference is which published examples happen to include them. The scope
+   * axis has never been called at all - `listAssessmentMetadata` only ever reads the
+   * subscription-scoped path, and a shared response definition says nothing about
+   * whether the service populates an optional field the same way at both scopes.
+   *
+   * Each combination is recorded rather than thrown, so one refusal - a tenant-scope
+   * 403, an api-version the surface rejects - still leaves the other three answers in
+   * the payload. If every combination fails, the whole call fails: four refusals and a
+   * catalogue that genuinely carries neither field must not come back looking the same.
+   */
+  async diagnoseMetadataFields(): Promise<MetadataFieldDiagnosticResult> {
+    const specs: Array<{ scope: MetadataScope; apiVersion: string }> = [
+      // What the package does today, first, so it reads as the baseline.
+      { scope: 'subscription', apiVersion: DEFENDER_API_VERSIONS.assessmentMetadata },
+      {
+        scope: 'subscription',
+        apiVersion: DEFENDER_DIAGNOSTIC_API_VERSIONS.assessmentMetadataLegacy,
+      },
+      { scope: 'tenant', apiVersion: DEFENDER_API_VERSIONS.assessmentMetadata },
+      { scope: 'tenant', apiVersion: DEFENDER_DIAGNOSTIC_API_VERSIONS.assessmentMetadataLegacy },
+    ];
+
+    const fanOut = new FanOutRecorder();
+    const probes: MetadataFieldProbe[] = [];
+
+    for (const spec of specs) {
+      const label = `${spec.scope}@${spec.apiVersion}`;
+      const path =
+        spec.scope === 'subscription'
+          ? `/subscriptions/{subscriptionId}${METADATA_PROVIDER_PATH}`
+          : METADATA_PROVIDER_PATH;
+
+      // The subscription path is resolved inside the callback on purpose: an
+      // unconfigured subscription throws there, which belongs in this probe's failure
+      // rather than abandoning the two tenant-scope probes that never needed one.
+      const page = await fanOut.run(label, 'assessmentMetadata', () =>
+        this.client.paginate<AssessmentMetadata>(
+          spec.scope === 'subscription'
+            ? this.client.subscriptionPath(METADATA_PROVIDER_PATH)
+            : METADATA_PROVIDER_PATH,
+          spec.apiVersion
+        )
+      );
+
+      if (page === null) {
+        const failures = fanOut.result().failures;
+        probes.push({
+          ...spec,
+          label,
+          path,
+          ok: false,
+          error: failures[failures.length - 1]?.reason ?? 'unknown',
+        });
+        continue;
+      }
+
+      probes.push({
+        ...spec,
+        label,
+        path,
+        ok: true,
+        total: page.items.length,
+        implementationEffort: countFieldPopulation(page.items, 'implementationEffort'),
+        userImpact: countFieldPopulation(page.items, 'userImpact'),
+      });
+    }
+
+    const succeeded = probes.filter((probe) => probe.ok);
+    if (succeeded.length === 0) {
+      throw new Error(
+        `All ${specs.length} assessment-metadata probes failed, so nothing was measured. ` +
+          'Returning an empty result here would be indistinguishable from a catalogue that ' +
+          'carries neither ranking field, which is the exact confusion this command exists to ' +
+          `remove. Failures: ${groupFailuresByReason(fanOut.result().failures)}`
+      );
+    }
+
+    const populatedBy = probes
+      .filter(
+        (probe) =>
+          probe.ok &&
+          (probe.implementationEffort.populated > 0 || probe.userImpact.populated > 0)
+      )
+      .map((probe) => probe.label);
+
+    return {
+      question:
+        'Which scope and api-version, if any, populates implementationEffort and userImpact on ' +
+        'the assessment-definition catalogue? Read summary.populatedBy and summary.verdict first, ' +
+        'then fanOut.failures before treating any probe as an answer.',
+      probes,
+      summary: {
+        probesRun: specs.length,
+        probesSucceeded: succeeded.length,
+        populatedBy,
+        verdict: metadataFieldVerdict(probes, populatedBy),
+      },
+      fanOut: fanOut.result(),
+    };
   }
 }

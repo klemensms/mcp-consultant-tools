@@ -295,7 +295,7 @@ A fix that only proves the happy path does not close its task.
 Ordered by the source report's own priority. One task per heading; a hop may take
 more than one when its context measurement allows.
 
-### T12 · D17 — find out why `Critical` severity and `properties.risk` are absent
+### T12 · D17 - why `Critical` severity and `properties.risk` are absent (investigation closed)
 - **Package:** `azure-defender`
 - **Severity:** Major.
 - **Measured:** no assessment carries `Critical` severity (catalogue is High 410, Medium
@@ -303,11 +303,12 @@ more than one when its context measurement allows.
   object. Both arrived with api-version **2025-05-04**.
 - **Effect:** a "Critical" row always reads 0, indistinguishable from "checked and none
   found", when the tier may never have been available.
-- **⚠️ Re-scoped at hop L5. The original fix - "raise the api-version" - is a no-op.**
+- **⚠️ Status: every candidate that could be settled without credentials has been, and none
+  of them leaves work in this package. What is left is a question about the estate, not a
+  defect.** The original fix - "raise the api-version" - was a no-op:
   `DEFENDER_API_VERSIONS.assessments` and `.assessmentMetadata` have been `2025-05-04`
   since the package's first commit, the only commit that file has ever had, so every
-  published build already asks for it. The task is now to find out **why** the fields are
-  absent, and the candidates have changed since the register first listed them:
+  published build already asks for it. The candidates, and where each of them ended:
   - **The mapper-artefact candidate is closed at source, at hop L6, and is now measured on
     every call.** It was the leading candidate: `mapAssessmentGraphRow` named a
     documentation-derived allowlist exactly as `mapAttackPathRow` did, so a live row
@@ -323,13 +324,24 @@ more than one when its context measurement allows.
     `risk` object are in the documented **response** model of the version this package
     already asks for. The pin's stated reason in `src/utils/defender-api-versions.ts` is
     correct.
-  - The payload may need an `$expand` the code does not send.
-  - The estate may genuinely hold neither. Weakened at L5: the same report measured live
-    attack paths carrying `riskLevel: High`, which means Defender CSPM was producing risk
-    data somewhere on that estate, so "CSPM is off everywhere" no longer explains it on its
-    own. Inferred across two measurements that may not be the same subscription - see
-    register item 33.
-  - Cannot be settled from this machine either way: no Azure credentials.
+  - **The `$expand` candidate is closed, read against the published TypeSpec at
+    `2025-05-04`.** `ExpandEnum` has exactly two members, `links` and `metadata`; the `list`
+    operation accepts no `$expand` parameter at all, only `get` does; and `risk?` is optional
+    on `SecurityAssessmentPropertiesBase`, which the list response inherits. So no
+    request-side change exists that could deliver a risk object, and the mapper already
+    passes unnamed keys through. Nothing here is left to build.
+  - **The investigation is therefore closed, and one explanation is left standing: the
+    estate.** That is a statement about the API, not about the subscriptions that were
+    measured, so **T12 is not "fixed"** - there is no defect left in this package to fix.
+    What remains is a question about the estate, and `defender-list-plans` answers it in one
+    run per subscription: with the `CloudPosture` plan on Free, an absent `risk` object and a
+    zero `Critical` count are explained by the configuration rather than being findings about
+    the estate. `summary.cspmEnabled` is three-state, so `null` means unknown and not off.
+  - Weakened at L5, and it is the reason the estate explanation needs the plan check rather
+    than being assumed: the same report measured live attack paths carrying `riskLevel: High`,
+    which means Defender CSPM was producing risk data somewhere on that estate, so "CSPM is
+    off everywhere" does not explain it on its own. Inferred across two measurements that may
+    not be the same subscription - see register item 33.
 
 ### T13 · D16 — `assessment list-assessment-metadata` returns null for the ranking fields
 - **Package:** `azure-defender`
@@ -345,25 +357,35 @@ more than one when its context measurement allows.
   fix and leaves the cause in the request or in the API.
 - **⚠️ Re-scoped at hop L6 against Microsoft's published schema and the ARM spec. The L5
   lead is refuted, and one specific live comparison now settles the cause.**
-  - **Refuted: scope is not the discriminator.** Microsoft documents two operations, one at
-    tenant/default scope and one at subscription scope, and **both** return the same
-    `SecurityAssessmentMetadataList` definition. The subscription-scoped operation's own
-    published sample response carries `userImpact` and `implementationEffort` on every
-    item. Reading the catalogue at a different scope would not add the fields.
+  - **Not refuted, and never tried: scope.** Microsoft documents two operations, one at
+    tenant/default scope and one at subscription scope, and both return the same
+    `SecurityAssessmentMetadataList` definition - but that is a fact about the **schema** and
+    says nothing about whether the service **populates** an optional field the same way at
+    both scopes. `listAssessmentMetadata` has only ever called the subscription-scoped path;
+    the tenant-scope `AssessmentsMetadata_List` at
+    `/providers/Microsoft.Security/assessmentMetadata` has never been called by anything in
+    this package. If tenant scope populates the fields, the fix is one call at a different
+    path with no version juggling and no capability trade-off. See register ⚑2.
   - **Refuted: the api-version is not unrecognised.** `stable/2025-05-04` exists in
     `Azure/azure-rest-api-specs` for this surface, with its own subscription-scope
     `ListAssessmentsMetadata` example, so the pinned version is real and the call is a
     documented one.
-  - **What the spec does say, and it is the whole lead:** at `2025-05-04` both fields are
+  - **What the spec says, and it is weaker than a lead:** at `2025-05-04` both fields are
     **optional** (`required` is only `displayName`, `severity`, `assessmentType`) and the
     2025-05-04 examples **omit them both**, while the 2020-01-01 examples for the same
-    operation include them. The response model still defines them
-    (`SecurityAssessmentMetadataPropertiesResponse` extends
-    `SecurityAssessmentMetadataProperties`, which carries both), so the service is
-    permitted to return them and permitted not to.
-  - **The one test that settles it:** call `assessmentMetadata` twice against the same
-    subscription, once at `2020-01-01` and once at `2025-05-04`, and compare the two
-    fields. Needs credentials this machine does not have.
+    operation include them. But `2020-01-01` marks the same two fields optional as well, so
+    the **only** evidence of a version difference is which autogenerated examples happen to
+    include them, and this repo has already been bitten once by treating an example as
+    evidence. Do not build on the version hypothesis as if it were established. See
+    register ⚑1.
+  - **The test that settles it is now one built command.**
+    `defender-diagnose-metadata-fields` / `assessment diagnose-metadata-fields` reads the
+    catalogue at **four** combinations - subscription and tenant scope, each at `2025-05-04`
+    and `2020-01-01` - and reports per combination how many definitions carry each field,
+    how many carry it empty, how many omit it entirely, and one example value. Both axes are
+    probed because neither was ruled out. It counts absent separately from present-but-empty,
+    which also answers register ⚑34. Still needs credentials this machine does not have, but
+    it is now one run rather than four hand-made calls and a comparison.
   - **If the older version populates them and the newer does not, the fix is a trade-off,
     not a patch:** `2025-05-04` is exactly what this package needs for `Critical` severity,
     which is T12's subject, so the choices are to read both versions and merge, or to lose
@@ -473,13 +495,19 @@ one command and the one thing to read in its output, ordered by what a wrong ans
 
 **Settles a product decision:**
 
-- `assessmentMetadata` twice against the same subscription, once at api-version `2020-01-01` and
-  once at `2025-05-04`, comparing `implementationEffort` and `userImpact`. If the old version
-  populates them and the new one does not, there is no patch that keeps everything, because
-  `2025-05-04` is what the package needs for `Critical` severity. Register item 36, task T13.
+- `assessment diagnose-metadata-fields` against any subscription. Read `summary.populatedBy`
+  and `summary.verdict`, then `fanOut.failures` - a probe that could not be read is unknown,
+  not empty, and a tenant-scope 403 is expected on a subscription-scoped service principal.
+  If only the `2020-01-01` probes populate the fields there is no patch that keeps everything,
+  because `2025-05-04` is what the package needs for `Critical` severity; the verdict says so
+  when that is what the probes show. If a tenant-scope probe at `2025-05-04` populates them,
+  the fix is one path change and there is no trade-off at all. Register items 36, 34 and ⚑1,
+  ⚑2 of the follow-on chain; task T13.
 - `defender-list-plans` per subscription, reading `summary.cspmEnabled` (three-state: `null` means
-  the plan was absent from the response, **not** that CSPM is off). This is what T12's remaining
-  explanation now rests on. Register item 33.
+  the plan was absent from the response, **not** that CSPM is off). **This is now the only thing
+  left on T12.** Every candidate that could be settled from source has been, and no request-side
+  change exists, so a zero `Critical` count and an absent `risk` object are either explained by
+  the plan configuration or they are a finding about the estate. Register item 33.
 - `defender-list-assessments` against a subscription with a paid Defender plan, reading
   `summary.unmappedPropertyKeys` and then `properties.unmappedProperties` on a row that has one.
   Non-empty and naming a risk field means the mapper was T12's cause; empty means it never was.

@@ -4,7 +4,7 @@
 
 MCP server for Microsoft Defender for Cloud: secure score, security assessments, regulatory compliance, and Defender CSPM attack paths.
 
-**Tools:** 12 (all read-only) | **Prompts:** 3 | **Auth:** Entra ID (Service Principal)
+**Tools:** 15 (all read-only) | **Prompts:** 3 | **Auth:** Entra ID (Service Principal)
 
 There are no write operations and no feature flags. Nothing in this package mutates Azure.
 
@@ -24,7 +24,8 @@ Same four variables as `azure-management`. One service principal can serve both,
 
 | Role | Scope | Purpose |
 |------|-------|---------|
-| `Security Reader` | Subscription | All 12 tools |
+| `Security Reader` | Subscription | All 15 tools |
+| `Security Reader` | Tenant root | Only the two tenant-scope probes inside `defender-diagnose-metadata-fields`; a 403 there is recorded, not fatal |
 
 Attack paths additionally need the **Defender CSPM plan** enabled (plus agentless VM scanning, or Defender for Servers vulnerability assessment).
 
@@ -39,6 +40,7 @@ Attack paths additionally need the **Defender CSPM plan** enabled (plus agentles
 - `defender-list-assessments` — recommendations against resources, filterable by status
 - `defender-get-assessment` — one assessment for one ARM resource
 - `defender-list-assessment-metadata` — the definition catalogue: severity, categories, remediation
+- `defender-diagnose-metadata-fields` - diagnostic: which scope and api-version, if any, populates `implementationEffort` / `userImpact`
 
 **Compliance**
 - `defender-list-compliance-standards` — standards enabled on the subscription
@@ -82,6 +84,10 @@ writing or widening any mapper here.
 
 **A Resource Graph refusal does not fail `defender-list-assessments`.** It is recorded through `FanOutRecorder`, so `sources.resourceGraph.available` goes false, `note` says what is missing, `fanOut.failures` carries the error and the CLI exits 1. Attack paths, which have no second source, still fail loudly.
 
+**`defender-diagnose-metadata-fields` is a diagnostic, and it is the only place an older api-version is allowed.** `implementationEffort` and `userImpact` were unpopulated on all 1,302 assessment definitions of a real estate, and `listAssessmentMetadata` does no mapping at all, so nothing in this repo removed them. Two explanations are open and **neither is established**: the api-version (the `2025-05-04` examples omit both fields while the `2020-01-01` examples carry them - but both versions mark them optional, so the examples are not evidence) and the scope (the tenant-scope operation at `/providers/Microsoft.Security/assessmentMetadata` has never been called by this package; a shared response definition says nothing about whether the service populates an optional field the same way at both scopes). The command probes all four combinations, records each failure rather than throwing, and fails the whole call only when all four fail. It counts `absent` separately from `presentButEmpty` because an optional field the service never sent is absent, not null, and the original report said "null". **Do not turn the `2020-01-01` pin into a general `--api-version` flag** - a caller-chosen version on a read command silently returns an older schema with fields missing, which is the exact failure the pins exist to prevent, and `2020-01-01`'s severity enum has no `Critical`.
+
+**`Critical` severity and `properties.risk` being absent is no longer an open investigation in this package.** Every candidate that could be settled from the contract has been: the api-version is right, the mapper now passes unnamed keys through, and `$expand` cannot deliver a risk object (at `2025-05-04` the `ExpandEnum` has two members, `links` and `metadata`, and the *list* operation accepts no `$expand` at all - only *get* does). What is left is a question about the estate, answered by `defender-list-plans` per subscription. **Closing an investigation is not the same as verifying an estate** - do not report this as fixed.
+
 **`defender-list-plans` is how you tell "Defender CSPM disabled" from "no findings".** Attack paths and assessment `risk` objects are CSPM-only artefacts, so with the `CloudPosture` plan on the Free tier an empty result from either is explained by the configuration rather than being evidence of a clean estate. `summary.cspmEnabled` is three-state on purpose - `true`, `false`, or `null` when the plan was absent from the response, which means UNKNOWN and not off. Collapsing that to a boolean turns "we never saw the plan" into "the plan is disabled". Read it before reporting an empty CSPM result.
 
 **`defender-list-alerts` filters client-side, because `Alerts_List` accepts no `$filter` at any api-version.** So `summary.matchedOf` (what ARM returned) and `summary.total` (what matched) are both reported, and `summary.note` names the shortfall - without the pair, a filter that matched nothing is byte-for-byte a subscription with no alerts. `maxResults` bounds the **fetch**, which runs before the filter, so a truncated filtered call may be hiding matches beyond the limit and says so. It uses the subscription-wide `Alerts_List`, not the region-scoped `locations/{location}/alerts`, because the region-scoped one silently omits any region the caller did not name. Also: **alert severity has no `Critical`** - it stops at `High`, unlike assessment severity, and the CLI rejects `--severity Critical` rather than filtering to nothing.
@@ -109,7 +115,7 @@ A stale api-version does not fail loudly. It 400s, or silently returns an older 
 
 ```bash
 npm run build --workspace=packages/azure-defender
-npm test --workspace=packages/azure-defender   # 97 tests, no live API
+npm test --workspace=packages/azure-defender   # 136 tests, no live API
 ```
 
 `axios` and `@azure/identity` are mocked at the module boundary, so the suite runs offline.
@@ -137,6 +143,7 @@ mcp-defender-cli score list-score-controls --max-results 10
 
 mcp-defender-cli assessment list-assessments --status Unhealthy --max-results 50
 mcp-defender-cli assessment list-assessment-metadata --severity Critical
+mcp-defender-cli assessment diagnose-metadata-fields
 
 mcp-defender-cli compliance list-compliance-standards
 mcp-defender-cli compliance list-compliance-controls Azure-CIS-1.1.0 --state Failed

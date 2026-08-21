@@ -5,6 +5,10 @@ import {
   summariseAssessments,
   summariseAssessmentMetadata,
   mapAssessmentGraphRow,
+  countFieldPopulation,
+  metadataFieldVerdict,
+  groupFailuresByReason,
+  type MetadataFieldProbe,
 } from '../assessment-service.js';
 import type { DefenderClient } from '../../defender-client.js';
 import type { SecurityAssessment, AssessmentMetadata } from '../../models/defender-types.js';
@@ -435,5 +439,276 @@ describe('AssessmentService.listAssessments, unmapped payload', () => {
 
     expect(result.summary.unmappedPropertyKeys).toBeUndefined();
     expect(result.summary.note).toBeUndefined();
+  });
+});
+
+// ─── D16: the assessment-metadata field diagnostic ───
+
+const CURRENT_VERSION = '2025-05-04';
+const LEGACY_VERSION = '2020-01-01';
+const TENANT_PATH = '/providers/Microsoft.Security/assessmentMetadata';
+const SUB_PATH = `/subscriptions/SUB${TENANT_PATH}`;
+
+/** A definition carrying whatever the caller wants of the two ranking fields. */
+const definition = (
+  name: string,
+  properties: Record<string, unknown>
+): AssessmentMetadata =>
+  ({
+    id: `/id/${name}`,
+    name,
+    type: 'Microsoft.Security/assessmentMetadata',
+    properties: { displayName: `Definition ${name}`, severity: 'High', assessmentType: 'BuiltIn', ...properties },
+  }) as AssessmentMetadata;
+
+describe('countFieldPopulation', () => {
+  it('separates a value from an emptied field from a field that was never sent', () => {
+    const population = countFieldPopulation(
+      [
+        definition('a', { implementationEffort: 'Low' }),
+        definition('b', { implementationEffort: null }),
+        definition('c', { implementationEffort: '' }),
+        definition('d', {}),
+      ],
+      'implementationEffort'
+    );
+
+    expect(population).toEqual({
+      populated: 1,
+      presentButEmpty: 2,
+      absent: 1,
+      example: { name: 'a', displayName: 'Definition a', value: 'Low' },
+    });
+  });
+
+  it('does not report an absent field as an emptied one, because the causes differ', () => {
+    const absent = countFieldPopulation([definition('a', {}), definition('b', {})], 'userImpact');
+    const emptied = countFieldPopulation(
+      [definition('a', { userImpact: null }), definition('b', { userImpact: null })],
+      'userImpact'
+    );
+
+    expect(absent).not.toEqual(emptied);
+    expect(absent.absent).toBe(2);
+    expect(absent.presentButEmpty).toBe(0);
+    expect(emptied.presentButEmpty).toBe(2);
+    expect(emptied.absent).toBe(0);
+  });
+
+  it('keeps the first example found rather than the last', () => {
+    const population = countFieldPopulation(
+      [definition('a', { userImpact: 'High' }), definition('b', { userImpact: 'Low' })],
+      'userImpact'
+    );
+
+    expect(population.example).toEqual({
+      name: 'a',
+      displayName: 'Definition a',
+      value: 'High',
+    });
+  });
+});
+
+describe('AssessmentService.diagnoseMetadataFields', () => {
+  it('probes both scopes at both api-versions, four combinations, none of them assumed', async () => {
+    const paginate = vi.fn().mockResolvedValue({ items: [definition('a', {})], truncated: false });
+    const service = new AssessmentService(fakeClient({ paginate }));
+
+    const result = await service.diagnoseMetadataFields();
+
+    expect(paginate.mock.calls.map((call) => [call[0], call[1]])).toEqual([
+      [SUB_PATH, CURRENT_VERSION],
+      [SUB_PATH, LEGACY_VERSION],
+      [TENANT_PATH, CURRENT_VERSION],
+      [TENANT_PATH, LEGACY_VERSION],
+    ]);
+    expect(result.summary.probesRun).toBe(4);
+    expect(result.summary.probesSucceeded).toBe(4);
+    expect(result.probes.map((probe) => probe.label)).toEqual([
+      `subscription@${CURRENT_VERSION}`,
+      `subscription@${LEGACY_VERSION}`,
+      `tenant@${CURRENT_VERSION}`,
+      `tenant@${LEGACY_VERSION}`,
+    ]);
+  });
+
+  it('reports which combination populated the fields, and reads the others as unpopulated', async () => {
+    const paginate = vi.fn().mockImplementation((path: string, apiVersion: string) =>
+      Promise.resolve({
+        items:
+          path === TENANT_PATH && apiVersion === CURRENT_VERSION
+            ? [definition('a', { implementationEffort: 'Low', userImpact: 'Moderate' })]
+            : [definition('a', {})],
+        truncated: false,
+      })
+    );
+    const service = new AssessmentService(fakeClient({ paginate }));
+
+    const result = await service.diagnoseMetadataFields();
+
+    expect(result.summary.populatedBy).toEqual([`tenant@${CURRENT_VERSION}`]);
+    const tenantProbe = result.probes.find((probe) => probe.label === `tenant@${CURRENT_VERSION}`);
+    expect(tenantProbe?.ok && tenantProbe.implementationEffort.populated).toBe(1);
+    expect(tenantProbe?.ok && tenantProbe.userImpact.example?.value).toBe('Moderate');
+  });
+
+  it('records one refused combination rather than abandoning the other three', async () => {
+    const paginate = vi.fn().mockImplementation((path: string) =>
+      path === TENANT_PATH
+        ? Promise.reject(Object.assign(new Error('AuthorizationFailed'), { response: { status: 403 } }))
+        : Promise.resolve({ items: [definition('a', {})], truncated: false })
+    );
+    const service = new AssessmentService(fakeClient({ paginate }));
+
+    const result = await service.diagnoseMetadataFields();
+
+    expect(result.summary.probesSucceeded).toBe(2);
+    expect(result.fanOut.failed).toBe(2);
+    expect(result.fanOut.failures.map((failure) => failure.statusCode)).toEqual([403, 403]);
+    const refused = result.probes.filter((probe) => !probe.ok);
+    expect(refused).toHaveLength(2);
+    expect(refused[0].ok === false && refused[0].error).toBe('AuthorizationFailed');
+  });
+
+  it('names the unread combinations in the verdict, so unknown is not read as empty', async () => {
+    const paginate = vi.fn().mockImplementation((path: string) =>
+      path === TENANT_PATH
+        ? Promise.reject(new Error('AuthorizationFailed'))
+        : Promise.resolve({ items: [definition('a', {})], truncated: false })
+    );
+    const service = new AssessmentService(fakeClient({ paginate }));
+
+    const result = await service.diagnoseMetadataFields();
+
+    expect(result.summary.verdict).toContain(`tenant@${CURRENT_VERSION}`);
+    expect(result.summary.verdict).toContain('unknown, not empty');
+  });
+
+  it('fails loudly when every combination fails, rather than returning an empty success', async () => {
+    const paginate = vi.fn().mockRejectedValue(new Error('invalid_client'));
+    const service = new AssessmentService(fakeClient({ paginate }));
+
+    await expect(service.diagnoseMetadataFields()).rejects.toThrow(
+      /All 4 assessment-metadata probes failed/
+    );
+    await expect(service.diagnoseMetadataFields()).rejects.toThrow(/invalid_client/);
+  });
+
+  it('records an unconfigured subscription as two probe failures, leaving tenant scope readable', async () => {
+    const paginate = vi.fn().mockResolvedValue({ items: [definition('a', {})], truncated: false });
+    const service = new AssessmentService({
+      subscriptionPath: () => {
+        throw new Error('AZURE_SUBSCRIPTION_ID is required for this operation but was not configured.');
+      },
+      getSubscriptionId: () => {
+        throw new Error('AZURE_SUBSCRIPTION_ID is required for this operation but was not configured.');
+      },
+      paginate,
+    } as unknown as DefenderClient);
+
+    const result = await service.diagnoseMetadataFields();
+
+    expect(result.summary.probesSucceeded).toBe(2);
+    expect(result.probes.filter((probe) => probe.scope === 'subscription').every((probe) => !probe.ok)).toBe(true);
+    expect(paginate.mock.calls.map((call) => call[0])).toEqual([TENANT_PATH, TENANT_PATH]);
+  });
+});
+
+describe('metadataFieldVerdict', () => {
+  const okProbe = (label: string, populated: number): MetadataFieldProbe => ({
+    label,
+    scope: label.startsWith('tenant') ? 'tenant' : 'subscription',
+    apiVersion: label.split('@')[1],
+    path: TENANT_PATH,
+    ok: true,
+    total: 10,
+    implementationEffort: { populated, presentButEmpty: 0, absent: 10 - populated, example: null },
+    userImpact: { populated, presentButEmpty: 0, absent: 10 - populated, example: null },
+  });
+
+  const failedProbe = (label: string): MetadataFieldProbe => ({
+    label,
+    scope: label.startsWith('tenant') ? 'tenant' : 'subscription',
+    apiVersion: label.split('@')[1],
+    path: TENANT_PATH,
+    ok: false,
+    error: 'AuthorizationFailed',
+  });
+
+  it('puts the absence on the estate or the service when nothing populated the fields', () => {
+    const verdict = metadataFieldVerdict([okProbe(`subscription@${CURRENT_VERSION}`, 0)], []);
+
+    expect(verdict).toContain('cannot be computed');
+    expect(verdict).toContain('rather than to this package');
+  });
+
+  it('sends the reader back to the subscription when the current call already populates them', () => {
+    const label = `subscription@${CURRENT_VERSION}`;
+    const verdict = metadataFieldVerdict([okProbe(label, 3)], [label]);
+
+    expect(verdict).toContain('did not come from the request');
+  });
+
+  it('flags the severity trade-off when only the legacy api-version populates them', () => {
+    const label = `subscription@${LEGACY_VERSION}`;
+    const verdict = metadataFieldVerdict(
+      [okProbe(`subscription@${CURRENT_VERSION}`, 0), okProbe(label, 5)],
+      [label]
+    );
+
+    expect(verdict).toContain("no 'Critical' value");
+    expect(verdict).toContain('trades one capability for the other');
+  });
+
+  it('does not raise the severity trade-off when a current-version combination also populates them', () => {
+    const label = `tenant@${CURRENT_VERSION}`;
+    const verdict = metadataFieldVerdict(
+      [okProbe(`subscription@${CURRENT_VERSION}`, 0), okProbe(label, 5)],
+      [label]
+    );
+
+    expect(verdict).not.toContain("no 'Critical' value");
+  });
+
+  it('appends the unread combinations whatever the finding, because a gap outranks a conclusion', () => {
+    const populated = metadataFieldVerdict(
+      [okProbe(`tenant@${CURRENT_VERSION}`, 5), failedProbe(`subscription@${LEGACY_VERSION}`)],
+      [`tenant@${CURRENT_VERSION}`]
+    );
+    const empty = metadataFieldVerdict(
+      [okProbe(`tenant@${CURRENT_VERSION}`, 0), failedProbe(`subscription@${LEGACY_VERSION}`)],
+      []
+    );
+
+    expect(populated).toContain('Not settled for');
+    expect(empty).toContain('Not settled for');
+  });
+});
+
+describe('groupFailuresByReason', () => {
+  const failure = (item: string, reason: string) => ({
+    item,
+    operation: 'assessmentMetadata',
+    reason,
+    statusCode: null,
+  });
+
+  it('collapses one identical reason across every probe that hit it', () => {
+    const grouped = groupFailuresByReason([
+      failure('subscription@a', 'tenant not found'),
+      failure('subscription@b', 'tenant not found'),
+      failure('tenant@a', 'tenant not found'),
+    ]);
+
+    expect(grouped).toBe('subscription@a, subscription@b, tenant@a: tenant not found');
+  });
+
+  it('keeps two different reasons apart, so a real difference is not collapsed away', () => {
+    const grouped = groupFailuresByReason([
+      failure('subscription@a', 'tenant not found'),
+      failure('tenant@a', 'AuthorizationFailed'),
+    ]);
+
+    expect(grouped).toBe('subscription@a: tenant not found; tenant@a: AuthorizationFailed');
   });
 });

@@ -96,7 +96,7 @@ A stale api-version does not fail loudly — it either 400s or returns an older 
 
 ## Tools
 
-All 12 tools carry `readOnlyHint: true, openWorldHint: true`. All are subscription-scoped.
+All 15 tools carry `readOnlyHint: true, openWorldHint: true`. All are subscription-scoped, except the two tenant-scope probes inside `defender-diagnose-metadata-fields`.
 
 ### Secure score
 
@@ -175,6 +175,27 @@ The catalogue of assessment definitions: severity, categories, remediation text,
 | `severityFilter` | `Critical` \| `High` \| `Medium` \| `Low` | No | Matched case-insensitively |
 
 Returns `{ metadata, summary: { total, bySeverity, byCategory } }`. `byCategory` counts every category an assessment belongs to, so it sums to more than `total`.
+</tool>
+
+<tool name="defender-diagnose-metadata-fields">
+**Diagnostic, not a report.** Answers why `implementationEffort` and `userImpact` are unpopulated on the assessment-definition catalogue. No parameters.
+
+Reads the catalogue at **four** combinations and reports each independently:
+
+| Scope | Path | api-version |
+|-------|------|-------------|
+| subscription | `/subscriptions/{id}/providers/Microsoft.Security/assessmentMetadata` | `2025-05-04` |
+| subscription | same | `2020-01-01` |
+| tenant | `/providers/Microsoft.Security/assessmentMetadata` | `2025-05-04` |
+| tenant | same | `2020-01-01` |
+
+Returns `{ question, probes, summary: { probesRun, probesSucceeded, populatedBy, verdict }, fanOut }`. Each probe is either `{ ok: true, total, implementationEffort, userImpact }` or `{ ok: false, error }`, and each field report is `{ populated, presentButEmpty, absent, example }`.
+
+⚠️ **`absent` and `presentButEmpty` are counted separately, and the difference is the point.** An optional field the service never sent is absent, not null. The report that prompted this said the fields were "null on all 1,302 definitions", and those two states have different causes.
+
+⚠️ **A probe that could not be read is unknown, not empty.** Read `fanOut.failures`. Tenant-scope reads need the role at tenant root, so a 403 on those two probes is expected with a subscription-scoped service principal and is recorded rather than fatal. If **all four** fail the call fails, because four refusals and a catalogue carrying neither field must not come back looking the same.
+
+The `2020-01-01` api-version exists **only** inside this diagnostic. No read command takes an api-version override: a caller-chosen version silently returns an older schema with fields missing, which is the failure `src/utils/defender-api-versions.ts` is pinned to prevent. If only the `2020-01-01` probes populate the fields, that version's severity enum has no `Critical`, so switching would trade one capability for the other; `summary.verdict` says so when the probes show it.
 </tool>
 
 ### Compliance
@@ -431,6 +452,7 @@ mcp-defender-cli assessment get-assessment \
   --resource-id /subscriptions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/resourceGroups/my-rg/providers/Microsoft.Compute/virtualMachines/my-vm \
   --assessment-name aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
 mcp-defender-cli assessment list-assessment-metadata --severity Critical
+mcp-defender-cli assessment diagnose-metadata-fields
 
 # Compliance
 mcp-defender-cli compliance list-compliance-standards
@@ -450,7 +472,7 @@ Global flags (`--json`, `--no-cache`, `--env-file`) come from `createCliProgram`
 | Group | Commands |
 |-------|----------|
 | `score` | `get-secure-score`, `list-secure-scores`, `list-score-controls` |
-| `assessment` | `list-assessments`, `get-assessment`, `list-assessment-metadata` |
+| `assessment` | `list-assessments`, `get-assessment`, `list-assessment-metadata`, `diagnose-metadata-fields` |
 | `compliance` | `list-compliance-standards`, `list-compliance-controls`, `list-compliance-assessments`, `get-compliance-summary` |
 | `attack-path` | `list-attack-paths`, `get-attack-path` |
 | `alert` | `list-alerts` |

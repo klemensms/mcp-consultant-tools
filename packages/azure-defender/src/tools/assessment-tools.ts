@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import type { ServiceContext } from '../types.js';
 import { runTool, READ_ONLY, SECURITY_READER } from './tool-helpers.js';
+import {
+  DEFENDER_API_VERSIONS,
+  DEFENDER_DIAGNOSTIC_API_VERSIONS,
+} from '../utils/defender-api-versions.js';
 import type { AssessmentStatusCode, AssessmentSeverity } from '../models/defender-types.js';
 
 export function registerAssessmentTools(server: any, ctx: ServiceContext): void {
@@ -54,5 +58,16 @@ export function registerAssessmentTools(server: any, ctx: ServiceContext): void 
     READ_ONLY,
     async (args: { severityFilter?: AssessmentSeverity }) =>
       runTool('listing assessment metadata', () => ctx.assessment.listAssessmentMetadata(args))
+  );
+
+  server.tool(
+    'defender-diagnose-metadata-fields',
+    `DIAGNOSTIC, not a report. Answers one question: why are implementationEffort and userImpact absent from the assessment-definition catalogue that defender-list-assessment-metadata returns? On a real estate they were missing from all 1,302 definitions, which makes any effort/impact ranking uncomputable and renders a "top remediation opportunities" section empty. This command reads the catalogue at FOUR combinations - subscription scope and tenant scope, each at api-version ${DEFENDER_API_VERSIONS.assessmentMetadata} and at ${DEFENDER_DIAGNOSTIC_API_VERSIONS.assessmentMetadataLegacy} - and reports, per combination, how many definitions carry each field, how many carry it empty, how many omit it entirely, and one example value where there is one. Absent and present-but-empty are counted separately because they have different causes: an optional field the service never sent is absent, not null. Read summary.populatedBy and summary.verdict, then fanOut.failures: a combination that could not be read is unknown, not empty, and the two must not be confused. If all four combinations fail the call fails rather than returning an empty success. The older api-version exists ONLY inside this diagnostic - no read command takes an api-version override, because a caller-chosen version silently returns an older schema with fields missing. ${SECURITY_READER} Tenant-scope reads need the role at tenant root, so a 403 on those two probes is expected with a subscription-scoped service principal and is reported rather than fatal.`,
+    {},
+    READ_ONLY,
+    async () =>
+      runTool('diagnosing assessment-metadata fields', () =>
+        ctx.assessment.diagnoseMetadataFields()
+      )
   );
 }

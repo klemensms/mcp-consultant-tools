@@ -41,3 +41,24 @@ export const DEFENDER_API_VERSIONS = {
   /** Resource Graph query POST. Current GA; `2021-03-01` differs only by an additive option field. */
   resourceGraph: '2024-04-01',
 } as const;
+
+/**
+ * Api-versions used ONLY by the metadata-field diagnostic, never by a read command.
+ *
+ * `defender-diagnose-metadata-fields` calls one surface at two versions to find out
+ * which of them populates a field. That is a deliberate, contained comparison with
+ * both answers in the same payload. It is deliberately NOT a general
+ * `--api-version` override: letting a caller choose the version on a read command is
+ * how a request comes back on an older schema with fields quietly missing, which is
+ * exactly what the header above warns about.
+ */
+export const DEFENDER_DIAGNOSTIC_API_VERSIONS = {
+  /**
+   * The GA generation before `2025-05-04`. Its published examples for
+   * `assessmentMetadata` carry `implementationEffort` and `userImpact`, while the
+   * `2025-05-04` examples omit them - but both versions mark the two fields
+   * optional, so the examples are not evidence of a version difference. That is
+   * what the diagnostic exists to settle.
+   */
+  assessmentMetadataLegacy: '2020-01-01',
+} as const;
