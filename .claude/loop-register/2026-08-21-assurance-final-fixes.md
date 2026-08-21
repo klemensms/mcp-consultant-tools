@@ -167,3 +167,50 @@ this chain's actual work.
   small thing that reads as carelessness in exactly the audience this repo is public for.
   Either the counts get derived from the registration functions, or the checklist has to name
   all four files. Not fixed here - it is a repo-convention change, not part of a defect fix.
+
+### ⚑11 · `ValidationService` truncates its entity list silently, and swallows every read failure
+- **Kind:** dropped-scope
+- **Hop:** L2 · 5005061
+- **State:** open
+- **Matters because:** the sweep for the `$top` defect turned up a fifth site of the same
+  false-completeness class at `ValidationService.ts:102`. It is not a `$top` bug: the cap is
+  applied by slicing the entity list client-side, and there is no `hasMore` field to get wrong
+  because the returned shape has none. So a `validateBestPractices` pass over the first
+  `maxEntities` tables of a large solution is indistinguishable from one that covered the whole
+  solution. The per-entity loop above it (line 96) also swallows every read failure in a bare
+  `catch {}` commented "Skip entities that can't be queried", so an entity the service principal
+  cannot see is dropped uncounted - which makes this an **X2-shaped fan-out as well**, and a lead
+  for Task 5's scoping step rather than only a truncation defect. **Not fixed here:** Task 2's
+  scope was the four `$top` sites, and this is a second defect in a service the task never named.
+  Written up in `docs/KNOWN_ISSUES.md`, where it took the place of the closed `$top` entry, and
+  carried in the plan file's "carried over from the beta.17 work" list.
+
+### ⚑12 · The incoming task's "four commands" was wrong: it is three, plus one library-only method
+- **Kind:** premise-wrong
+- **Hop:** L2 · 5005061
+- **State:** closed-by-L2 · 5005061
+- **Matters because:** the artifact said "adding a `truncation` object to a returned shape is a
+  payload change on four commands, so note it for the beta.19 release notes". Grepped before
+  writing the note: `getGlobalOptionSets` is reachable only through the two `PowerPlatformService`
+  façades. It has **no MCP tool and no CLI command** anywhere in the monorepo, so its change is a
+  library API change and not a command payload change. The caller-visible count is **three**
+  commands and their MCP twins (`flow search`, `flow runs`, `flow workflows`), spread across
+  `powerplatform`, `powerplatform-customization` and `powerplatform-data`. The release-notes lines
+  in the plan file say so. This is the seventh consecutive instance of a recorded claim being a
+  lead rather than a fact, and the second running where the wrong claim was in the handoff
+  artifact rather than the plan file.
+
+### ⚑13 · `getFlowRuns` with `maxRecords: 0` was decided, not asked
+- **Kind:** decision
+- **Hop:** L2 · 5005061
+- **State:** open
+- **Matters because:** repo convention is that `UNCAPPED` (0) means "everything", and
+  `paginateDataverse` honours that up to a 50,000-row safety ceiling. But `getFlowRuns` has always
+  documented a hard ceiling of 250 runs, so passing 0 through unchanged would have quietly turned
+  a documented max of 250 into a 50,000-row fetch against an elastic table. **Decided:** 0
+  resolves to 250. It is a strict improvement on what it replaced - 0 used to become `$top=1`,
+  return no runs at all, and report that more were available - but it does mean `-m 0` behaves
+  differently on `flow runs` than on every other list command in the package, which is a
+  consistency cost a reader could reasonably object to. Reversible in one line, and the test
+  `resolves maxRecords 0 to the documented 250-run ceiling` pins the current answer. Recorded so
+  the release notes state it rather than let a user discover it.
