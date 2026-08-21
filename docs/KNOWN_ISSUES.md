@@ -111,44 +111,40 @@ behave unpredictably. Fix those first, then re-test whether a symptom remains.
 
 ---
 
-## `gen-integration-audit` presents a capped plugin-assembly list as complete
+## Three `IntegrationAuditService` collections still fetch with `$top` and report no truncation
 
-**Status:** confirmed in source. **Affects:** `IntegrationAuditService.generateAuditReport`.
+**Status:** confirmed in source. **Affects:**
+`packages/powerplatform-core/src/services/IntegrationAuditService.ts` -
+`getServiceEndpoints:326`, `getEnvironmentVariables:490`, `getWebhookRegistrations:597`.
 
-`generateAuditReport` defaults `maxRecords` to 100
-(`packages/powerplatform-core/src/services/IntegrationAuditService.ts:822`) and passes it to
-`getPluginAssemblies` at line 835. That call returns `{ rows, hasMore, truncationReason }`, but the
-report reads only the rows: `assemblies: pluginAssemblies.assemblies` at line 1027, and the
-`externalPlugins` filter at line 861. **Neither `hasMore` nor `truncationReason` is read anywhere in
-the method**, so an environment holding more than 100 assemblies produces a report that names 100 and
-says nothing about the rest.
+Each fetches with `&$top=${maxRecords}` and returns a summary whose `total` is the returned row
+count, with no `hasMore`, no `truncation` block and nothing else a caller could read to tell a
+capped page from a population. `gen-integration-audit` calls all three at a default cap of 100, so
+`Service Endpoints: 100` in the report can mean "there are 100" or "there are 400 and you were
+shown the first 100", and the report cannot say which. The audit's `summary.completeness.unverified`
+names these three plus flows for exactly that reason.
 
-This is the same false-completeness class that `v35.0.0-beta.17` closed for the five `powerplatform`
-list commands, still live inside a command whose entire purpose is to produce a report someone acts
-on.
+All three also apply their OOTB exclusion **after** fetching (`filterOotb`), so filtering a full
+page below the cap makes a truncated fetch look exhausted - the client-side-filter half of the same
+defect, which `paginateDataverse`'s `keep` callback exists to close.
 
-**Fix:** carry `hasMore` and `truncationReason` into the report's `plugins` block, and surface them
-in the summary the same way the beta.17 commands do. Changing the report's output contract is why it
-was left out of beta.17.
+Two more silent gaps in the same file, found in the same sweep:
 
----
+- **`getServiceEndpoints`' step-count query is capped at `$top=5000` and wrapped in a bare
+  `catch {}`** (line 335). When it fails or caps out, every affected endpoint reports
+  `messageStepCount: 0`, which reads as "no steps registered" rather than "not counted".
+- **`analyzeFlowComplexity` discards the `truncation` block `getFlows` now returns** (line 709) and
+  swallows every per-flow `getFlowDefinition` failure in a `catch {}` (line 751), so a flow that
+  could not be parsed vanishes from the analysis uncounted and `summary.total` under-reports with no
+  trace. Its `queryEnvironmentVariables` failure is swallowed too (line 676), which silently
+  degrades URL resolution.
 
-## `plugin list` and the integration audit always report a null assembly description
-
-**Status:** confirmed in source. **Affects:** `PluginService.getPluginAssemblies`,
-`IntegrationAuditService.generateAuditReport`.
-
-`formatPluginAssembly` reads `row.description`
-(`packages/powerplatform-core/src/services/PluginService.ts:136`), but the list query at line 162
-does not `$select` it. The single-assembly query at line 209 does. So every assembly from
-`plugin list` carries `description: undefined`, and the audit's `externalPlugins` block renders it
-as `null` (`IntegrationAuditService.ts:865`), which reads as "this assembly has no description"
-rather than "not asked for".
-
-**Fix:** two lines. Add `description` to the `$select` in `getPluginAssemblies` and confirm
-`formatPluginAssembly` passes it through. It changes `plugin list`'s payload and the audit report's
-content, which is why it was not taken inside a task scoped to making `plugin get` and `plugin list`
-agree.
+**Fix:** convert the three collection methods to `paginateDataverse` with the OOTB predicate moved
+into `keep`, and return a `TruncationInfo` from `buildTruncation` the way
+`PluginService.getPluginAssemblies` does. Then remove the collections from
+`UNVERIFIED_AUDIT_COLLECTIONS` as each one lands, so the report's own scope note shrinks with the
+work. For the swallowed failures, count and name them rather than dropping them - the fan-out
+recorder used by `azure-management` and `azure-defender` is the existing pattern.
 
 ---
 

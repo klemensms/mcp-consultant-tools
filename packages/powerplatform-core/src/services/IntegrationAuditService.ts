@@ -9,6 +9,7 @@
  * - Combined integration audit reports
  */
 
+import type { TruncationInfo } from '@mcp-consultant-tools/core';
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
 import type { ApiCollectionResponse } from '../client/types.js';
 import {
@@ -134,14 +135,39 @@ export interface FlowComplexityResult_Full {
 // Integration Audit Report Types
 // ============================================================================
 
+/**
+ * What this report's counts are known to cover.
+ *
+ * Deliberately scoped, and it names its own limits. `pluginAssemblies` is verified
+ * against the source because `getPluginAssemblies` pages and reports truncation.
+ * `unverified` lists the collections that do not yet, so a reader who sees a
+ * completeness block does not assume it covers the whole report - a partial guarantee
+ * read as a total one is worse than none.
+ */
+export interface AuditCompleteness {
+  /** The row cap the report asked every collection for. 0 means uncapped. */
+  requestedMax: number;
+  /** The plugin-assembly inventory, verified against the source. */
+  pluginAssemblies: TruncationInfo;
+  /**
+   * Collections this report caps but cannot yet say anything about, because the
+   * methods behind them fetch with `$top` and report no truncation. Recorded in
+   * `docs/KNOWN_ISSUES.md`.
+   */
+  unverified: string[];
+}
+
 export interface IntegrationAuditSummary {
   generatedAt: string;
   environment: string;
+  /** Flows analysed. Not necessarily every flow in the environment - see `completeness`. */
   flowCount: number;
+  /** Assemblies in this report. Read `completeness.pluginAssemblies.totalAvailable` for the population. */
   pluginCount: number;
   webhookCount: number;
   serviceEndpointCount: number;
   overallRiskLevel: RiskLevel;
+  completeness: AuditCompleteness;
 }
 
 export interface OutboundIntegration {
@@ -182,6 +208,7 @@ export interface IntegrationAuditReport {
   };
   plugins: {
     assemblies: unknown[];
+    truncation: TruncationInfo;
     byEntity: Record<string, number>;
   };
   riskAssessment: {
@@ -298,6 +325,21 @@ const STAGE_NAMES: Record<number, string> = {
 
 const SENSITIVE_NAME_PATTERNS = /secret|password|apikey|api_?key|token|connection_?string|saskey|sas_?key|credential|function_?key|functions_?key|functionapp_?key/i;
 const SENSITIVE_VALUE_PATTERNS = /SharedAccessKey=|AccountKey=|[?&]code=[A-Za-z0-9+/=_-]{20,}|sig=[A-Za-z0-9%+/=]{20,}/i;
+
+/**
+ * Collections `generateAuditReport` caps but cannot yet vouch for.
+ *
+ * `getServiceEndpoints`, `getWebhookRegistrations` and `getEnvironmentVariables` all fetch
+ * with `$top=${maxRecords}` and return no truncation information, so the report has nothing
+ * to read. Naming them is the honest alternative to a completeness block that quietly covers
+ * one collection out of four. Recorded in `docs/KNOWN_ISSUES.md`.
+ */
+const UNVERIFIED_AUDIT_COLLECTIONS = [
+  'serviceEndpoints',
+  'webhooks',
+  'environmentVariables',
+  'flows',
+];
 
 // ============================================================================
 // IntegrationAuditService
@@ -857,13 +899,15 @@ export class IntegrationAuditService {
         triggerType: f.triggerType,
       }));
 
-    // External plugins (sandbox/external isolation mode)
-    const externalPlugins = (pluginAssemblies.assemblies as Record<string, unknown>[])
+    // External plugins (sandbox/external isolation mode). Typed rather than cast to
+    // `Record<string, unknown>`: the cast is what let `description` be read off a shape
+    // that never carried it, so every assembly reported a null description.
+    const externalPlugins = pluginAssemblies.assemblies
       .filter((p) => p.isolationMode === 'Sandbox' || p.isolationMode === 'External')
       .map((p) => ({
         assemblyName: p.name as string,
         description: (p.description as string) || null,
-        isolationMode: p.isolationMode as string,
+        isolationMode: p.isolationMode,
       }));
 
     // Plugin by entity (simplified - would need more queries for full data)
@@ -964,8 +1008,15 @@ export class IntegrationAuditService {
       .filter((f) => f.urls && f.urls.length > 0)
       .map((f) => ({ flowName: f.name, urls: f.urls! }));
 
+    const completeness: AuditCompleteness = {
+      requestedMax: maxRecords,
+      pluginAssemblies: pluginAssemblies.truncation,
+      unverified: UNVERIFIED_AUDIT_COLLECTIONS,
+    };
+
     // Generate markdown report using extracted formatter
     const markdownReport = generateAuditMarkdownReport({
+      completeness,
       environment: this.client.getOrganizationUrl(),
       endpointsResult,
       webhooksResult,
@@ -1001,6 +1052,7 @@ export class IntegrationAuditService {
         webhookCount: webhooksResult.summary.total,
         serviceEndpointCount: endpointsResult.summary.total,
         overallRiskLevel: overallRisk,
+        completeness,
       },
       outbound: {
         serviceEndpoints: endpointsResult.endpoints,
@@ -1025,6 +1077,7 @@ export class IntegrationAuditService {
       },
       plugins: {
         assemblies: pluginAssemblies.assemblies,
+        truncation: pluginAssemblies.truncation,
         byEntity: pluginByEntity,
       },
       riskAssessment: {

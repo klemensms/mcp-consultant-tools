@@ -419,9 +419,15 @@ more than one when its context measurement allows.
 
 ## Carried over from the beta.17 work, not in the source report
 
-- **`IntegrationAuditService.generateAuditReport` still caps plugin assemblies at 100** and
-  discards the `truncation` block, so `gen-integration-audit` presents a truncated assembly
-  list as complete — the same defect class beta.17 closed elsewhere.
+- **Three `IntegrationAuditService` collections still fetch with `$top` and report no
+  truncation:** `getServiceEndpoints:326`, `getEnvironmentVariables:490` and
+  `getWebhookRegistrations:597`. All three are called by `gen-integration-audit` at a default
+  cap of 100, and all three apply their OOTB exclusion after fetching, so a filtered full page
+  also reads as exhausted. The report's `summary.completeness.unverified` names them, so its own
+  scope note shrinks as each one lands. Written up in `docs/KNOWN_ISSUES.md` together with three
+  swallowed failures in the same file (the `$top=5000` step-count query behind
+  `messageStepCount`, the discarded `getFlows` truncation, and the per-flow parse failures
+  `analyzeFlowComplexity` drops uncounted). Register item 14.
 - **`ValidationService.validateBestPractices` caps its entity list by slicing it client-side**
   (`ValidationService.ts:102`) and returns no truncation flag of any kind, so a validation pass
   over the first `maxEntities` tables of a large solution is indistinguishable from one that
@@ -478,6 +484,20 @@ runs, and the first four need Klemens's decision on whether they get the breakin
   to the read-only `numberOfWorkers`. Same key, same type, different quantity on any plan
   configured to scale. Register item 41, and whether it needs the breaking-change block depends on
   the live run in the verification list below.
+- **`gen-integration-audit` gained a completeness block, and its counts are no longer
+  presented as a population.** `report.summary.completeness` carries `requestedMax`, the
+  plugin-assembly `TruncationInfo`, and an `unverified` list naming the four collections the
+  report caps but cannot yet vouch for. `report.plugins.truncation` carries the same block. The
+  markdown report states the scope of its counts under the executive summary, and the CLI
+  summary no longer opens with the word "complete". A consumer reading
+  `summary.pluginCount` as the environment's assembly total was already wrong; it now has a
+  field that says so, and one that says which other figures are still unverified.
+- **`plugin list` now returns each assembly's `description`.** It was selected only by
+  `plugin get`, so the audit report's `externalPlugins` block rendered every description as
+  `null` - which reads as "this assembly has no description" rather than "the query did not ask
+  for it". `PluginAssembliesResult.assemblies` is also typed `PluginAssemblySummary[]` rather
+  than `unknown[]`, because the `unknown[]` plus a cast at the call site is what let the
+  missing field compile.
 - **Four PowerPlatform list methods gained a `truncation` block and now page honestly.**
   `MetadataService.getGlobalOptionSets`, `WorkflowService.getWorkflows`,
   `FlowService.searchWorkflows` and `FlowService.getFlowRuns` no longer ask for

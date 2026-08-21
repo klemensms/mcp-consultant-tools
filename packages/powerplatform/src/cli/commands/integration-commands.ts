@@ -3,7 +3,7 @@
  */
 
 import type { Command } from 'commander';
-import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
+import { getGlobalFlags, handleCliError, truncationSuffix } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../types.js';
 import { outputResult } from '../output.js';
 
@@ -93,7 +93,17 @@ export function registerIntegrationCommands(program: Command, ctx: ServiceContex
           parseInt(opts.maxRecords)
         );
         outputResult(
-          { fileName: 'integration-audit', data: result, summary: `Integration audit complete - ${result.summary.flowCount} flows, ${result.summary.webhookCount} webhooks, ${result.summary.serviceEndpointCount} endpoints, ${result.summary.pluginCount} plugins` },
+          {
+            fileName: 'integration-audit',
+            data: result,
+            // Not "audit complete": the report caps every collection it reads, and only the
+            // plugin inventory currently knows whether its cap was hit.
+            summary:
+              `Integration audit: ${result.summary.flowCount} flows, ${result.summary.webhookCount} webhooks, ` +
+              `${result.summary.serviceEndpointCount} endpoints, ${result.summary.pluginCount} plugins` +
+              `${truncationSuffix(result.summary.completeness.pluginAssemblies)}` +
+              `${result.summary.completeness.unverified.length > 0 ? ` [completeness not verified for: ${result.summary.completeness.unverified.join(', ')}]` : ''}`,
+          },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'generate integration audit'); }

@@ -49,7 +49,12 @@ export interface PluginAssembliesResult {
    * declares no filter is indistinguishable from an unfiltered one.
    */
   ootbExcluded: number;
-  assemblies: unknown[];
+  /**
+   * Typed rather than `unknown[]`. The audit report read `description` off these rows while
+   * the list query never selected it, and an `unknown[]` plus a cast at the call site is
+   * exactly what let that compile.
+   */
+  assemblies: PluginAssemblySummary[];
 }
 
 /**
@@ -99,11 +104,17 @@ export interface PluginAssemblySummary {
   modifiedBy: string | undefined;
   major: unknown;
   minor: unknown;
+  /**
+   * Selected by `plugin list` as well as `plugin get`. It used to be selected only by
+   * `get`, so the audit report's `externalPlugins` block rendered every assembly's
+   * description as `null` - which reads as "this assembly has no description" rather
+   * than "the query did not ask for it".
+   */
+  description: unknown;
 }
 
 /** The extra fields `plugin get` selects, on top of the shared ones. */
 export interface PluginAssemblyDetail extends PluginAssemblySummary {
-  description: unknown;
   culture: unknown;
   publicKeyToken: unknown;
   sourceType: string;
@@ -122,6 +133,7 @@ export function formatPluginAssembly(row: Record<string, unknown>): PluginAssemb
     modifiedBy: (row.modifiedby as { fullname?: string })?.fullname,
     major: row.major,
     minor: row.minor,
+    description: row.description,
   };
 }
 
@@ -133,7 +145,6 @@ export function formatPluginAssembly(row: Record<string, unknown>): PluginAssemb
 export function formatPluginAssemblyDetail(row: Record<string, unknown>): PluginAssemblyDetail {
   return {
     ...formatPluginAssembly(row),
-    description: row.description,
     culture: row.culture,
     publicKeyToken: row.publickeytoken,
     sourceType: decodeSourceType(row.sourcetype),
@@ -159,7 +170,7 @@ export class PluginService {
     const { rows, hasMore, truncationReason } = await paginateDataverse<
       Record<string, unknown>
     >(this.client, {
-      endpoint: `api/data/v9.2/pluginassemblies?${managedFilter}$select=pluginassemblyid,name,version,culture,publickeytoken,isolationmode,sourcetype,major,minor,createdon,modifiedon,ismanaged,ishidden&$expand=modifiedby($select=fullname)&$orderby=name`,
+      endpoint: `api/data/v9.2/pluginassemblies?${managedFilter}$select=pluginassemblyid,name,version,description,culture,publickeytoken,isolationmode,sourcetype,major,minor,createdon,modifiedon,ismanaged,ishidden&$expand=modifiedby($select=fullname)&$orderby=name`,
       maxRecords,
       keep: (assembly) => {
         if (decodeManagedProperty(assembly.ishidden)) {

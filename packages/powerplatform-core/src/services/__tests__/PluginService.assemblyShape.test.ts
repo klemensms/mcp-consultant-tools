@@ -96,12 +96,25 @@ describe('plugin assembly shape is the same from list and from get', () => {
     const fetched = (await service.getPluginAssemblyComplete('Contoso.Plugins.Core'))
       .assembly as Record<string, unknown>;
 
-    expect(fetched.description).toBe('Core plugin assembly');
     expect(fetched.culture).toBe('neutral');
     expect(fetched.publicKeyToken).toBe('0123456789abcdef');
     expect(fetched.sourceType).toBe('Database');
     expect(fetched.createdOn).toBe('2026-01-02T08:00:00Z');
     expect(fetched.isHidden).toBe(false);
+  });
+
+  // The audit report's `externalPlugins` block reads `description` off these rows. It used
+  // to be selected only by `get`, so every assembly in the report carried `description:
+  // null`, which reads as "no description" rather than "not asked for".
+  it('list carries the assembly description, and asks Dataverse for it', async () => {
+    serveComplete();
+    const listed = (await service.getPluginAssemblies(true)).assemblies[0] as Record<
+      string,
+      unknown
+    >;
+
+    expect(listed.description).toBe('Core plugin assembly');
+    expect(makeRequest.mock.calls[0][0]).toContain('description');
   });
 
   it('reports an isolation mode it does not recognise instead of calling it External', async () => {

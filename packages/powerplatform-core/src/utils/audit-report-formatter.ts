@@ -3,10 +3,20 @@
  * Extracted from IntegrationAuditService to allow reuse and testing.
  */
 
+import { truncationSuffix, type TruncationInfo } from '@mcp-consultant-tools/core';
 import type { RiskLevel } from './complexity-calculator.js';
 
 export interface AuditReportData {
   environment: string;
+  /**
+   * What the report's counts are known to cover. Optional so the formatter stays usable
+   * without it, but `generateAuditReport` always supplies it.
+   */
+  completeness?: {
+    requestedMax: number;
+    pluginAssemblies: TruncationInfo;
+    unverified: string[];
+  };
   endpointsResult: {
     endpoints: {
       name: string;
@@ -142,7 +152,11 @@ function appendExecutiveSummary(lines: string[], data: AuditReportData): void {
   lines.push('| Metric | Count |');
   lines.push('|--------|-------|');
   lines.push(`| Power Automate Flows | ${data.complexityResult.summary.total} |`);
-  lines.push(`| Plugin Assemblies | ${data.pluginAssemblies.totalCount} |`);
+  lines.push(
+    `| Plugin Assemblies | ${data.pluginAssemblies.totalCount}${
+      data.completeness ? truncationSuffix(data.completeness.pluginAssemblies) : ''
+    } |`
+  );
   lines.push(`| Service Endpoints | ${data.endpointsResult.summary.total} |`);
   lines.push(`| Webhook Registrations | ${data.webhooksResult.summary.total} |`);
   lines.push(`| **Overall Risk Level** | **${data.overallRisk}** |`);
@@ -164,6 +178,42 @@ function appendExecutiveSummary(lines: string[], data: AuditReportData): void {
       lines.push('');
     }
   }
+
+  appendCompletenessScope(lines, data);
+}
+
+/**
+ * What the counts above are and are not known to cover.
+ *
+ * The report caps every collection it reads, and only the plugin-assembly inventory
+ * currently reports whether the cap was hit. Saying so is the point: a reader who acts on
+ * a "Total Endpoints" figure needs to know that figure is a page, not a population.
+ */
+function appendCompletenessScope(lines: string[], data: AuditReportData): void {
+  const c = data.completeness;
+  if (!c) return;
+
+  const cap = c.requestedMax === 0 ? 'uncapped' : `${c.requestedMax} rows per collection`;
+
+  lines.push('> **Scope of these counts:** requested ' + cap + '.');
+
+  if (c.pluginAssemblies.hasMore) {
+    lines.push(
+      `> The plugin-assembly inventory was **truncated** at ${c.pluginAssemblies.returnedCount}; more assemblies exist. Re-run with a higher cap, or uncapped, for the full inventory.`
+    );
+  } else {
+    lines.push(
+      `> The plugin-assembly inventory is complete at ${c.pluginAssemblies.returnedCount}.`
+    );
+  }
+
+  if (c.unverified.length > 0) {
+    lines.push(
+      `> Completeness is **not verified** for: ${c.unverified.join(', ')}. Those counts may be a capped page rather than the population, and this report cannot currently tell you which.`
+    );
+  }
+
+  lines.push('');
 }
 
 function appendDivergingEndpoints(lines: string[], data: AuditReportData): void {
@@ -378,7 +428,11 @@ function appendFlowComplexity(lines: string[], data: AuditReportData, isSummary:
 function appendPluginInventory(lines: string[], data: AuditReportData): void {
   lines.push('## Plugin Inventory');
   lines.push('');
-  lines.push(`**Total Assemblies:** ${data.pluginAssemblies.totalCount}`);
+  lines.push(
+    `**Total Assemblies:** ${data.pluginAssemblies.totalCount}${
+      data.completeness ? truncationSuffix(data.completeness.pluginAssemblies) : ''
+    }`
+  );
   lines.push('');
 
   if (data.externalPlugins.length > 0) {
