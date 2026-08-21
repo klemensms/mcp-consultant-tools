@@ -384,3 +384,11 @@ this chain's actual work.
   first attempt at writing this item, because it quoted the vault and account names. That guard
   works and is not bypassable, which is the right outcome - but it means the safe snippet cannot
   live in a tracked file, so the untracked local doc is the only correct home for it.
+- **The obvious one-liner does not work, so the fix has to be a script.** Klemens tried the
+  pipe-to-file form with a `!` prefix and zsh answered `parse error near ';'`: the `!` prefix does
+  not survive a `{ ...; }` compound command, which is the same class of failure as the
+  `! open "…uid=$(grep …)"` case already recorded in the root `CLAUDE.md`. So the safe shape cannot
+  be handed over as a single `!` line at all. It needs to be a small executable script - in
+  `scripts/`, or referenced from `.claude/publish-auth.local.md` - that the `!` prefix simply
+  invokes by name. Until that exists, the only working route is the leaky one, which is why the
+  rotation in this item is due now rather than at leisure.

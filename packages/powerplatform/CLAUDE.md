@@ -2,8 +2,8 @@
 
 This guide applies to all PowerPlatform packages:
 - `@mcp-consultant-tools/powerplatform` (read-only, 52 tools, 12 prompts)
-- `@mcp-consultant-tools/powerplatform-customization` (schema changes, 59 tools, 2 prompts)
-- `@mcp-consultant-tools/powerplatform-data` (data CRUD, 8 tools, 0 prompts)
+- `@mcp-consultant-tools/powerplatform-customization` (schema changes, 88 tools, 2 prompts)
+- `@mcp-consultant-tools/powerplatform-data` (data CRUD, 14 tools, 0 prompts)
 
 ## Security-Focused Split (v16+)
 
