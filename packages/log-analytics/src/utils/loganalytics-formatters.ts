@@ -2,7 +2,10 @@
  * Utility functions for formatting Log Analytics query results
  */
 
-import type { InvestigateAppResult } from '../services/log-analytics-service.js';
+import type {
+  InvestigateAppResult,
+  InvestigateSyncResult,
+} from '../services/log-analytics-service.js';
 
 // ========================================
 // Column Presets for Token Reduction
@@ -171,6 +174,54 @@ export function formatInvestigateAppMarkdown(result: InvestigateAppResult): stri
     } else {
       markdown += '*No recent errors*';
     }
+  }
+
+  return markdown;
+}
+
+/**
+ * Render a sync investigation report as markdown.
+ * Shared by the CLI and the MCP tool so both surfaces emit the same report. They used to
+ * assemble it separately and had already drifted on the empty-result note.
+ */
+export function formatInvestigateSyncMarkdown(result: InvestigateSyncResult): string {
+  const {
+    environment,
+    client,
+    appPattern,
+    timespan,
+    errorsByFunction,
+    errorCategory,
+    errorTraces,
+    recentErrors,
+    includeDetails,
+    detailsLimit,
+  } = result;
+
+  const section = (title: string, table: typeof errorCategory, empty: string): string => {
+    const rows = table.tables?.[0]?.rows;
+    const body = rows && rows.length > 0 ? formatTableAsMarkdown(table.tables[0]) : empty;
+    return `## ${title}\n\n${body}\n\n`;
+  };
+
+  let markdown = `# Sync Investigation\n\n`;
+  markdown += `**Environment:** ${environment}\n`;
+  markdown += `**Client:** ${client}\n`;
+  markdown += `**Sync App:** ${appPattern}-*\n`;
+  markdown += `**Time range:** ${timespan}\n`;
+  markdown += `**Deduplication:** enabled (grouped by OperationId)\n\n`;
+
+  markdown += section('Error Categories', errorCategory, '*No errors found*');
+  markdown += section('Errors by Sync Operation', errorsByFunction, '*No errors found*');
+  markdown += section('Error Traces (Severity 3+)', errorTraces, '*No error traces found*');
+
+  if (includeDetails && recentErrors) {
+    const rows = recentErrors.tables?.[0]?.rows;
+    markdown += `## Recent Errors (${detailsLimit} max)\n\n`;
+    markdown +=
+      rows && rows.length > 0
+        ? formatTableAsMarkdown(recentErrors.tables[0])
+        : '*No recent errors*';
   }
 
   return markdown;

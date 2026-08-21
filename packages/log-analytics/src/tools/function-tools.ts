@@ -3,6 +3,7 @@ import type { ServiceContext } from '../types.js';
 import {
   formatTableAsMarkdown,
   formatInvestigateAppMarkdown,
+  formatInvestigateSyncMarkdown,
   filterColumns,
   resolveColumnPreset,
 } from '../utils/loganalytics-formatters.js';
@@ -303,140 +304,16 @@ export function registerFunctionTools(server: any, ctx: ServiceContext): void {
     { readOnlyHint: true, openWorldHint: true },
     async ({ resourceId, timespan, includeDetails, detailsLimit }: any) => {
       try {
-        const timespanValue = timespan || 'PT8H';
-        const showDetails = includeDetails !== false;
-        const limit = detailsLimit || 10;
+        const result = await ctx.logAnalytics.investigateSync(
+          resourceId,
+          timespan || 'PT8H',
+          includeDetails !== false,
+          detailsLimit || 10
+        );
 
-        const match = resourceId.match(/^log-([^-]+)-([^-]+)/);
-        if (!match) {
-          return {
-            content: [{
-              type: "text",
-              text: `Could not parse environment/client from resourceId '${resourceId}'. Expected format: log-{environment}-{client}-...`,
-            }],
-            isError: true,
-          };
-        }
-
-        const environment = match[1];
-        const client = match[2];
-        const syncAppPattern = `func-${environment}-${client}-sc-sync`;
-
-        const errorsByFunctionQuery = `
-          AppExceptions
-          | where AppRoleName contains "${syncAppPattern}"
-          | extend FunctionName = tostring(Properties.AzureFunctions_FunctionName)
-          | summarize
-              RetryCount = count(),
-              FirstSeen = min(TimeGenerated),
-              LastSeen = max(TimeGenerated),
-              SampleMessage = take_any(OuterMessage)
-            by OperationId, FunctionName, ExceptionType
-          | summarize
-              UniqueErrors = count(),
-              TotalRetries = sum(RetryCount),
-              FirstSeen = min(FirstSeen),
-              LastSeen = max(LastSeen),
-              SampleMessage = take_any(SampleMessage)
-            by FunctionName, ExceptionType
-          | order by UniqueErrors desc
-        `;
-
-        const errorCategoryQuery = `
-          AppExceptions
-          | where AppRoleName contains "${syncAppPattern}"
-          | extend ErrorCategory = case(
-              ExceptionType contains "FaultException" or ExceptionType contains "OrganizationService", "Dataverse",
-              ExceptionType contains "ServiceBus", "ServiceBus",
-              ExceptionType contains "Sql", "Database",
-              ExceptionType contains "Timeout", "Timeout",
-              ExceptionType contains "Socket" or ExceptionType contains "Http", "Network",
-              "Other"
-            )
-          | summarize
-              RetryCount = count(),
-              UniqueOps = dcount(OperationId)
-            by ErrorCategory
-          | order by UniqueOps desc
-        `;
-
-        const recentErrorsQuery = showDetails ? `
-          AppExceptions
-          | where AppRoleName contains "${syncAppPattern}"
-          | extend FunctionName = tostring(Properties.AzureFunctions_FunctionName)
-          | summarize
-              TimeGenerated = max(TimeGenerated),
-              RetryCount = count(),
-              OuterMessage = take_any(OuterMessage)
-            by OperationId, FunctionName, ExceptionType
-          | project TimeGenerated, FunctionName, ExceptionType, OuterMessage, RetryCount
-          | order by TimeGenerated desc
-          | take ${limit}
-        ` : null;
-
-        const errorTracesQuery = `
-          AppTraces
-          | where AppRoleName contains "${syncAppPattern}"
-          | where SeverityLevel >= 3
-          | summarize
-              RetryCount = count()
-            by OperationId, Message
-          | summarize
-              UniqueErrors = count(),
-              TotalCount = sum(RetryCount)
-            by Message
-          | order by UniqueErrors desc
-          | take 10
-        `;
-
-        const [errorsByFunction, errorCategory, recentErrors, errorTraces] = await Promise.all([
-          ctx.logAnalytics.executeQuery(resourceId, errorsByFunctionQuery, timespanValue),
-          ctx.logAnalytics.executeQuery(resourceId, errorCategoryQuery, timespanValue),
-          recentErrorsQuery ? ctx.logAnalytics.executeQuery(resourceId, recentErrorsQuery, timespanValue) : null,
-          ctx.logAnalytics.executeQuery(resourceId, errorTracesQuery, timespanValue),
-        ]);
-
-        let markdown = `# Sync Investigation\n\n`;
-        markdown += `**Environment:** ${environment}\n`;
-        markdown += `**Client:** ${client}\n`;
-        markdown += `**Sync App:** ${syncAppPattern}-*\n`;
-        markdown += `**Time range:** ${timespanValue}\n`;
-        markdown += `**Deduplication:** enabled (grouped by OperationId)\n\n`;
-
-        markdown += `## Error Categories\n\n`;
-        if (errorCategory.tables?.[0]?.rows?.length > 0) {
-          markdown += formatTableAsMarkdown(errorCategory.tables[0]);
-        } else {
-          markdown += '*No errors found* ✅';
-        }
-        markdown += '\n\n';
-
-        markdown += `## Errors by Sync Operation\n\n`;
-        if (errorsByFunction.tables?.[0]?.rows?.length > 0) {
-          markdown += formatTableAsMarkdown(errorsByFunction.tables[0]);
-        } else {
-          markdown += '*No errors found* ✅';
-        }
-        markdown += '\n\n';
-
-        markdown += `## Error Traces (Severity 3+)\n\n`;
-        if (errorTraces.tables?.[0]?.rows?.length > 0) {
-          markdown += formatTableAsMarkdown(errorTraces.tables[0]);
-        } else {
-          markdown += '*No error traces found*';
-        }
-        markdown += '\n\n';
-
-        if (showDetails && recentErrors) {
-          markdown += `## Recent Errors (${limit} max)\n\n`;
-          if (recentErrors.tables?.[0]?.rows?.length > 0) {
-            markdown += formatTableAsMarkdown(recentErrors.tables[0]);
-          } else {
-            markdown += '*No recent errors*';
-          }
-        }
-
-        return { content: [{ type: "text", text: markdown }] };
+        return {
+          content: [{ type: "text", text: formatInvestigateSyncMarkdown(result) }],
+        };
       } catch (error: any) {
         console.error("Error investigating sync:", error);
         return {

@@ -5,4 +5,5 @@ export type {
   QueryResult,
   MetadataResult,
   InvestigateAppResult,
+  InvestigateSyncResult,
 } from './log-analytics-service.js';

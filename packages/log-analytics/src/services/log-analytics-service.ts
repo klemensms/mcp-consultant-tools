@@ -5,6 +5,11 @@ import {
   collapseFunctionStats,
   type FunctionStatsNormalization,
 } from '../utils/function-stats.js';
+import { withRetry, type RetryOptions } from '../utils/retry.js';
+import {
+  buildSyncInvestigationQueries,
+  parseSyncAppTarget,
+} from '../utils/sync-investigation-query.js';
 
 export interface LogAnalyticsResourceConfig {
   id: string;
@@ -21,6 +26,11 @@ export interface LogAnalyticsConfig {
   clientId?: string;
   clientSecret?: string;
   authMethod: 'entra-id' | 'api-key';
+  /**
+   * Transient-failure retry for the query API. Defaults live in `utils/retry.ts`;
+   * `sleep` exists so tests do not actually wait.
+   */
+  retry?: RetryOptions;
 }
 
 export interface QueryResult {
@@ -93,6 +103,25 @@ export interface InvestigateAppResult {
   deduplicate: boolean;
   exceptionSummary: QueryResult;
   traceSeverity: QueryResult;
+  recentErrors: QueryResult | null;
+  includeDetails: boolean;
+  detailsLimit: number;
+}
+
+/**
+ * Structured result of a sync-function-app investigation.
+ * Shaped like `InvestigateAppResult`: the surfaces render markdown from these fields
+ * rather than each assembling their own report.
+ */
+export interface InvestigateSyncResult {
+  environment: string;
+  client: string;
+  /** Prefix of the sync apps searched. Real names extend it. */
+  appPattern: string;
+  timespan: string;
+  errorsByFunction: QueryResult;
+  errorCategory: QueryResult;
+  errorTraces: QueryResult;
   recentErrors: QueryResult | null;
   includeDetails: boolean;
   detailsLimit: number;
@@ -198,10 +227,17 @@ export class LogAnalyticsService {
       const { effectiveTimespan, timespanWarning } = resolveEffectiveTimespan(query, timespan);
       const requestBody: any = { query, timespan: effectiveTimespan };
 
-      const response = await axios.post(url, requestBody, {
-        headers,
-        timeout: 30000, // 30-second timeout
-      });
+      // Retried on the transient set, honouring Retry-After. The original error is
+      // rethrown once the retries are spent, so the mapping below still sees exactly
+      // what the API returned.
+      const response = await withRetry(
+        () =>
+          axios.post(url, requestBody, {
+            headers,
+            timeout: 30000, // 30-second timeout
+          }),
+        { ...this.config.retry, label: `Log Analytics query on '${resourceId}'` }
+      );
 
       return {
         ...response.data,
@@ -671,6 +707,51 @@ export class LogAnalyticsService {
       deduplicate: deduplicateRetries,
       exceptionSummary,
       traceSeverity,
+      recentErrors,
+      includeDetails,
+      detailsLimit,
+    };
+  }
+
+  /**
+   * Investigate sync-function-app failures for the workspace's derived sync app.
+   *
+   * Returns the structured result; callers render markdown from it. The four queries and
+   * the workspace-name parse live in `utils/sync-investigation-query.ts`, because both
+   * surfaces used to carry their own copy of all five and the copies had already drifted.
+   */
+  async investigateSync(
+    resourceId: string,
+    timespan: string = 'PT8H',
+    includeDetails: boolean = true,
+    detailsLimit: number = 10
+  ): Promise<InvestigateSyncResult> {
+    const { environment, client, appPattern } = parseSyncAppTarget(resourceId);
+
+    const queries = buildSyncInvestigationQueries({
+      appPattern,
+      includeDetails,
+      detailsLimit,
+    });
+
+    const [errorsByFunction, errorCategory, recentErrors, errorTraces] =
+      await Promise.all([
+        this.executeQuery(resourceId, queries.errorsByFunction, timespan),
+        this.executeQuery(resourceId, queries.errorCategory, timespan),
+        queries.recentErrors
+          ? this.executeQuery(resourceId, queries.recentErrors, timespan)
+          : null,
+        this.executeQuery(resourceId, queries.errorTraces, timespan),
+      ]);
+
+    return {
+      environment,
+      client,
+      appPattern,
+      timespan,
+      errorsByFunction,
+      errorCategory,
+      errorTraces,
       recentErrors,
       includeDetails,
       detailsLimit,

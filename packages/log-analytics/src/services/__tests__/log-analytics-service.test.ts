@@ -5,7 +5,7 @@ import { LogAnalyticsService } from '../log-analytics-service.js';
 vi.mock('axios', () => ({ default: { post: vi.fn() } }));
 const mockedPost = vi.mocked(axios.post);
 
-function makeService(): LogAnalyticsService {
+function makeService(retry?: { sleep?: (ms: number) => Promise<void> }): LogAnalyticsService {
   return new LogAnalyticsService({
     authMethod: 'api-key',
     resources: [
@@ -16,9 +16,23 @@ function makeService(): LogAnalyticsService {
         active: true,
         apiKey: 'fake-api-key',
       },
+      {
+        // A workspace whose id follows the log-{env}-{client}-... convention
+        // `investigate-sync` derives the sync app name from.
+        id: 'log-dev-contoso-uks-01',
+        name: 'log-dev-contoso-uks-01',
+        workspaceId: 'aaaaaaaa-bbbb-cccc-dddd-ffffffffffff',
+        active: true,
+        apiKey: 'fake-api-key',
+      },
     ],
+    ...(retry ? { retry } : {}),
   });
 }
+
+const httpError = (status: number, headers: Record<string, unknown> = {}) => ({
+  response: { status, headers, data: {} },
+});
 
 const apiResponse = () => ({
   data: { tables: [{ name: 'PrimaryResult', columns: [], rows: [] }] },
@@ -73,6 +87,112 @@ describe('LogAnalyticsService.executeQuery timespan handling', () => {
     expect(body.timespan).toBe('PT1H');
     expect(result.effectiveTimespan).toBe('PT1H');
     expect(result.timespanWarning).toBeUndefined();
+  });
+});
+
+/**
+ * The retry policy itself is unit-tested in `utils/__tests__/retry.test.ts`. These assert
+ * it is actually wired into `executeQuery`, which made exactly one `axios.post` before.
+ */
+describe('LogAnalyticsService.executeQuery retry policy', () => {
+  beforeEach(() => {
+    mockedPost.mockReset();
+  });
+
+  it('retries a transient failure instead of failing the first time', async () => {
+    mockedPost
+      .mockRejectedValueOnce(httpError(503))
+      .mockResolvedValueOnce(apiResponse());
+
+    const result: any = await makeService({ sleep: async () => {} }).executeQuery(
+      'ws-test',
+      'AppTraces | take 10'
+    );
+
+    expect(mockedPost).toHaveBeenCalledTimes(2);
+    expect(result.tables).toHaveLength(1);
+  });
+
+  it('waits as long as a 429 asked, rather than only reporting the header', async () => {
+    const delays: number[] = [];
+    mockedPost
+      .mockRejectedValueOnce(httpError(429, { 'retry-after': '5' }))
+      .mockResolvedValueOnce(apiResponse());
+
+    await makeService({
+      sleep: async (ms: number) => {
+        delays.push(ms);
+      },
+    }).executeQuery('ws-test', 'AppTraces | take 10');
+
+    expect(delays).toEqual([5000]);
+  });
+
+  it('keeps the existing error mapping once the retries are spent', async () => {
+    mockedPost.mockRejectedValue(httpError(429, { 'retry-after': '2' }));
+
+    await expect(
+      makeService({ sleep: async () => {} }).executeQuery('ws-test', 'AppTraces | take 10')
+    ).rejects.toThrow(/Rate limit exceeded.*Retry after 2 seconds/s);
+
+    expect(mockedPost).toHaveBeenCalledTimes(4);
+  });
+
+  it('does not retry a KQL syntax error', async () => {
+    mockedPost.mockRejectedValue({
+      response: {
+        status: 400,
+        headers: {},
+        data: { error: { code: 'SyntaxError', message: 'bad token' } },
+      },
+    });
+
+    await expect(
+      makeService({ sleep: async () => {} }).executeQuery('ws-test', 'AppTraces | wher x')
+    ).rejects.toThrow(/KQL syntax error/);
+
+    expect(mockedPost).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('LogAnalyticsService.investigateSync', () => {
+  beforeEach(() => {
+    mockedPost.mockReset();
+  });
+
+  it('runs the four queries once each and reports the derived sync app', async () => {
+    mockedPost.mockResolvedValue(apiResponse());
+
+    const result = await makeService().investigateSync('log-dev-contoso-uks-01', 'PT8H');
+
+    expect(result.environment).toBe('dev');
+    expect(result.client).toBe('contoso');
+    expect(result.appPattern).toBe('func-dev-contoso-sc-sync');
+    expect(mockedPost).toHaveBeenCalledTimes(4);
+    expect(result.recentErrors).not.toBeNull();
+  });
+
+  it('skips the detail query when details are off', async () => {
+    mockedPost.mockResolvedValue(apiResponse());
+
+    const result = await makeService().investigateSync(
+      'log-dev-contoso-uks-01',
+      'PT8H',
+      false
+    );
+
+    expect(mockedPost).toHaveBeenCalledTimes(3);
+    expect(result.recentErrors).toBeNull();
+  });
+
+  it('throws on an unparseable workspace id before making any call', async () => {
+    mockedPost.mockResolvedValue(apiResponse());
+
+    await expect(
+      makeService().investigateSync('contoso-logs')
+    ).rejects.toThrow(/Could not parse environment\/client/);
+
+    expect(mockedPost).not.toHaveBeenCalled();
   });
 });
 

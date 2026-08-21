@@ -484,6 +484,20 @@ runs, and the first four need Klemens's decision on whether they get the breakin
   to the read-only `numberOfWorkers`. Same key, same type, different quantity on any plan
   configured to scale. Register item 41, and whether it needs the breaking-change block depends on
   the live run in the verification list below.
+- **`la-investigate-sync` and `investigate-sync` now render one report from one code path.**
+  Both surfaces built their own four queries, their own workspace-name parse and their own markdown,
+  and the copies had drifted: the tool's empty-result note carried a tick and the CLI's did not, so
+  the tool's report loses the tick. An unparseable workspace id now throws in both, where the CLI
+  used to `process.exit(1)` - a script wrapping the CLI still sees a non-zero exit, but the message
+  now arrives through the normal error path. `LogAnalyticsService.investigateSync` is exported, so a
+  consumer can call it and render its own report.
+- **`la-execute-query` and every Log Analytics command now retry transient failures.**
+  `[429, 500, 502, 503]` with exponential backoff, honouring `Retry-After`, three attempts after
+  the first. A 429 previously reported the wait it had been asked for and then gave up. **504 is
+  deliberately excluded**, unlike `azure-management` and `azure-defender`: on the query API a 504
+  means the query itself did not finish, so an identical retry costs another 30-second wait and
+  returns the same answer. A command that used to fail fast on a transient error may now take up to
+  7 seconds longer before failing.
 - **`gen-integration-audit` gained a completeness block, and its counts are no longer
   presented as a population.** `report.summary.completeness` carries `requestedMax`, the
   plugin-assembly `TruncationInfo`, and an `unverified` list naming the four collections the
@@ -635,13 +649,12 @@ Nothing in this chain will do these, and none is scheduled.
   chain and `azure-sql/src/services/connection-service.ts:231` is a connection failure. So the
   grep is spent and the sweep's remaining scope across the other packages is **unmeasured** rather
   than small. Register item 2.
-- **`gen-integration-audit` presents a capped assembly list as complete**, and **`plugin list`
-  always reports a null assembly description.** Both confirmed in source and written up in
-  `docs/KNOWN_ISSUES.md`. Register items 3 and 23.
-- **`investigate-app` and `investigate-sync` still duplicate their KQL** across the CLI and the
-  MCP tool. In `docs/KNOWN_ISSUES.md`. Register item 21.
-- **`log-analytics` has no retry policy at all** while its sibling ARM clients retry the standard
-  transient set. In `docs/KNOWN_ISSUES.md`. Register item 51.
+- **Three `IntegrationAuditService` collections still fetch with `$top` and report no truncation**
+  (`getServiceEndpoints`, `getEnvironmentVariables`, `getWebhookRegistrations`), and three failure
+  paths in the same file are swallowed. Found while closing the two recorded audit defects, and
+  deliberately not taken - the report's own `summary.completeness.unverified` names all four
+  collections so the gap is user-visible rather than only recorded. In `docs/KNOWN_ISSUES.md`.
+  Register item 14.
 - **`deduplicateRetries` guarantees something weaker on `FunctionAppLogs`** than on the
   Application Insights tables: it collapses the log lines of one invocation, not retries, because
   a retry is a new invocation with a new id. Documented in the output, the tool description, the

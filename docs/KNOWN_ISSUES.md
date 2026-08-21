@@ -148,46 +148,6 @@ recorder used by `azure-management` and `azure-defender` is the existing pattern
 
 ---
 
-## `investigate-app` and `investigate-sync` still write their KQL out twice
-
-**Status:** confirmed in source. **Affects:** `packages/log-analytics`.
-
-The four `error-summary` query shapes were moved into `utils/error-summary-query.ts` so the CLI and
-the MCP tool cannot diverge. The two investigation surfaces were not: `AppExceptions` and
-`AppTraces` still appear 7 times in `src/cli/commands/query-commands.ts` and 8 times in
-`src/tools/function-tools.ts`. A column corrected in one copy is corrected on one surface only,
-which is exactly how the invalid `FunctionAppLogs` query came to exist.
-
-**Fix:** extract the `investigate-app` and `investigate-sync` shapes the same way. Work-list:
-`grep -n "AppExceptions\|AppTraces" packages/log-analytics/src/cli/commands/query-commands.ts packages/log-analytics/src/tools/function-tools.ts`.
-
----
-
-## `log-analytics` retries nothing, while its sibling clients retry the standard transient set
-
-**Status:** confirmed in source. **Affects:** every command in `packages/log-analytics`.
-
-`LogAnalyticsService.executeQuery` makes exactly one `axios.post`
-(`packages/log-analytics/src/services/log-analytics-service.ts:201`) and throws on any failure. It
-has no retry policy at all. Its 429 branch reads the `Retry-After` header purely to print it in the
-error message (line 228). By contrast `DefenderClient` and `azure-management`'s `ArmClient` both
-retry `[429, 500, 502, 503, 504]` with exponential backoff and honour `Retry-After`
-(`packages/azure-defender/src/defender-client.ts:113`,
-`packages/azure-management/src/client/ArmClient.ts:46`).
-
-An assurance run that queries a workspace 180 times therefore has no protection against the one
-failure class everybody agrees is transient, and every such failure is a hard stop.
-
-**Fix:** add the sibling packages' retry policy once for the package rather than once for
-`executeQuery`. If the helper is hoisted into `core`, note that `packages/log-analytics` still pins
-`@mcp-consultant-tools/core` at `33.0.0`, so the pin must be bumped and
-`packages/log-analytics/node_modules/@mcp-consultant-tools/core` removed before `npm install`.
-
-**Deliberately not fixed:** a 400 is not retried, and a test named `does not retry a 400` pins that.
-A blind retry on `Bad request` would mask a malformed query for every caller of the package.
-
----
-
 ## Unverified: `list-api-connections` trusts ARM's own split between secret and non-secret parameters
 
 **Status:** NOT confirmed against a live response. **Affects:**
