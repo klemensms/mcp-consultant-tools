@@ -187,6 +187,49 @@ let mcpServer: McpServer | null = null;
 let serverTransport: InMemoryTransport | null = null;
 let clientTransport: InMemoryTransport | null = null;
 
+const RESPONSE_TIMEOUT_MS = 30000;
+
+// Correlates JSON-RPC responses to the requests waiting on them. The transport's
+// onmessage handler is installed once, permanently, when the transport is created
+// (see initializeMcpServer) - a per-request handler is wrong twice over: installed
+// after send() it misses any response the SDK emits synchronously, and concurrent
+// requests overwrite each other's handler.
+const pendingResponses = new Map<string | number, (msg: any) => void>();
+
+// REST bridge request ids. Prefixed so they can never collide with the numeric ids
+// a JSON-RPC client picks, and sequential so two calls in the same millisecond get
+// distinct ids.
+let restRequestSeq = 0;
+
+/**
+ * Send a JSON-RPC request and wait for the response carrying the same id.
+ *
+ * The resolver is registered BEFORE the send. InMemoryTransport.send() is
+ * synchronous, and the SDK answers unknown methods with MethodNotFound inline, so
+ * a resolver registered after the send would never see that response.
+ */
+async function sendAndAwaitResponse(jsonRpcRequest: any, timeoutMessage: string): Promise<any> {
+  const id = jsonRpcRequest.id;
+
+  const responsePromise = new Promise<any>((resolve) => {
+    pendingResponses.set(id, resolve);
+  });
+
+  let timer: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(timeoutMessage)), RESPONSE_TIMEOUT_MS);
+  });
+
+  try {
+    await clientTransport!.send(jsonRpcRequest);
+    return await Promise.race([responsePromise, timeoutPromise]);
+  } finally {
+    clearTimeout(timer);
+    // No-op on success; on timeout this is what stops the pending entry leaking.
+    pendingResponses.delete(id);
+  }
+}
+
 async function initializeMcpServer() {
   if (mcpServer) return;
 
@@ -201,6 +244,17 @@ async function initializeMcpServer() {
   const [server, client] = InMemoryTransport.createLinkedPair();
   serverTransport = server;
   clientTransport = client;
+
+  // Install the response handler once, before anything can be sent. InMemoryTransport
+  // queues messages while onmessage is unset and only drains that queue on start(),
+  // so a response arriving before a handler exists is lost for good.
+  clientTransport.onmessage = (msg: any) => {
+    const resolve = pendingResponses.get(msg.id);
+    if (resolve) {
+      pendingResponses.delete(msg.id);
+      resolve(msg);
+    }
+  };
 
   await mcpServer.connect(serverTransport);
   console.error('MCP server initialized with InMemoryTransport');
@@ -224,31 +278,19 @@ app.post('/mcp', async (req: Request, res: Response) => {
     // Check if this is a notification (no id = no response expected)
     const isNotification = jsonRpcRequest.id === undefined;
 
-    // Send request through client transport
-    await clientTransport!.send(jsonRpcRequest);
-
     if (isNotification) {
       // Notifications don't expect a response - just acknowledge
+      await clientTransport!.send(jsonRpcRequest);
       console.error('  (notification - no response expected)');
       res.status(202).json({ jsonrpc: '2.0', result: 'accepted' });
       return;
     }
 
-    // Wait for response (with timeout)
-    const response = await Promise.race([
-      new Promise<any>((resolve) => {
-        const handler = (msg: any) => {
-          if (msg.id === jsonRpcRequest.id) {
-            clientTransport!.onmessage = undefined;
-            resolve(msg);
-          }
-        };
-        clientTransport!.onmessage = handler;
-      }),
-      new Promise<any>((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout waiting for MCP response')), 30000)
-      ),
-    ]);
+    // Send request and wait for its correlated response (with timeout)
+    const response = await sendAndAwaitResponse(
+      jsonRpcRequest,
+      'Timeout waiting for MCP response'
+    );
 
     console.error('  Response:', JSON.stringify(response).substring(0, 200));
     res.json(response);
@@ -324,7 +366,7 @@ app.post('/:connector/:linkId/:toolName', async (req: Request, res: Response) =>
 
     console.error(`  REST→MCP: ${toolName} with args:`, JSON.stringify(args).substring(0, 200));
 
-    const requestId = Date.now();
+    const requestId = `rest-${++restRequestSeq}`;
     const jsonRpcRequest = {
       jsonrpc: '2.0' as const,
       id: requestId,
@@ -335,22 +377,7 @@ app.post('/:connector/:linkId/:toolName', async (req: Request, res: Response) =>
       },
     };
 
-    await clientTransport!.send(jsonRpcRequest);
-
-    const response = await Promise.race([
-      new Promise<any>((resolve) => {
-        const handler = (msg: any) => {
-          if (msg.id === requestId) {
-            clientTransport!.onmessage = undefined;
-            resolve(msg);
-          }
-        };
-        clientTransport!.onmessage = handler;
-      }),
-      new Promise<any>((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout')), 30000)
-      ),
-    ]);
+    const response = await sendAndAwaitResponse(jsonRpcRequest, 'Timeout');
 
     // Extract text content from MCP response for simpler REST response
     if (response.result?.content?.[0]?.text) {
