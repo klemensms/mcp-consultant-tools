@@ -42,10 +42,19 @@ export function formatBestPracticesReport(result: BestPracticesValidationResult)
   sections.push(`| Critical (MUST) | ${result.summary.criticalViolations} |`);
   sections.push(`| Warnings (SHOULD) | ${result.summary.warnings} |`);
   sections.push(`| Compliant Entities | ${result.summary.compliantEntities} |`);
+  if (result.summary.entitiesNotFullyChecked > 0) {
+    sections.push(`| **Not fully checked** | **${result.summary.entitiesNotFullyChecked}** |`);
+  }
   sections.push('');
+
+  appendReadFailures(sections, result);
 
   if (result.summary.totalViolations > 0) {
     sections.push('**Overall Status**: ⚠️ Issues Found\n');
+  } else if (result.summary.entitiesNotFullyChecked > 0 || hasReadFailures(result)) {
+    // Not "all compliant": some rules did not run, and a rule that could not run is not a
+    // rule that passed. Saying otherwise is what this whole block exists to prevent.
+    sections.push('**Overall Status**: ⚠️ No violations found, but the pass was incomplete\n');
   } else {
     sections.push('**Overall Status**: ✅ All Compliant\n');
   }
@@ -165,7 +174,7 @@ export function formatBestPracticesReport(result: BestPracticesValidationResult)
   // Compliant Entities
   sections.push('## ✅ Compliant Entities\n');
 
-  const compliantEntities = result.entities.filter((e) => e.isCompliant);
+  const compliantEntities = result.entities.filter((e) => e.isCompliant === true);
 
   if (compliantEntities.length > 0) {
     sections.push('The following entities have no violations:\n');
@@ -239,7 +248,7 @@ export function formatViolationsBySeverity(violations: Violation[]): string {
 export function formatCompliantEntities(entities: EntityValidationResult[]): string {
   const sections: string[] = [];
 
-  const compliant = entities.filter((e) => e.isCompliant);
+  const compliant = entities.filter((e) => e.isCompliant === true);
 
   sections.push('### Compliant Entities\n');
 
@@ -306,7 +315,72 @@ export function formatQuickSummary(result: BestPracticesValidationResult): strin
     `Total Violations: ${result.summary.totalViolations} (${result.summary.criticalViolations} critical, ${result.summary.warnings} warnings)`
   );
   lines.push(`Compliant Entities: ${result.summary.compliantEntities}/${result.summary.entitiesChecked}`);
+  if (result.summary.entitiesNotFullyChecked > 0) {
+    lines.push(
+      `Not fully checked: ${result.summary.entitiesNotFullyChecked} (a rule could not be run - do not read this pass as clean)`
+    );
+  }
   lines.push(`Execution Time: ${result.metadata.executionTimeMs}ms`);
 
   return lines.join('\n');
+}
+
+/** True when any of the three fan-outs came back short. */
+function hasReadFailures(result: BestPracticesValidationResult): boolean {
+  const f = result.fanOut;
+  return (
+    f.entityDiscovery.failed > 0 ||
+    f.entityValidation.failed > 0 ||
+    f.optionSetLookups.failed > 0
+  );
+}
+
+/**
+ * What the pass could not read.
+ *
+ * Placed directly under the summary table rather than in an appendix, because the summary
+ * is the part that gets quoted and a short read makes every figure above it a floor.
+ */
+function appendReadFailures(
+  sections: string[],
+  result: BestPracticesValidationResult
+): void {
+  if (!hasReadFailures(result)) return;
+
+  const f = result.fanOut;
+  sections.push('> **This pass is incomplete.** The figures above are floors, not totals.');
+
+  const say = (label: string, info: typeof f.entityDiscovery) => {
+    if (info.failed === 0) return;
+    sections.push(`> - ${info.failed} of ${info.attempted} ${label} could not be read:`);
+    for (const failure of info.failures) {
+      sections.push(`>   - \`${failure.item}\` (${failure.operation}): ${failure.reason}`);
+    }
+  };
+
+  say('solution components', f.entityDiscovery);
+  say('entities', f.entityValidation);
+  say('attribute option sets', f.optionSetLookups);
+  sections.push('');
+}
+
+/**
+ * One-line incompleteness warning for a summary line, empty when the pass was complete.
+ *
+ * The summary line is usually the only part of a validation run read before someone
+ * concludes "clean", so the warning has to travel on it rather than sit in the payload.
+ */
+export function validationFanOutSuffix(result: BestPracticesValidationResult): string {
+  const f = result.fanOut;
+  const failed =
+    f.entityDiscovery.failed + f.entityValidation.failed + f.optionSetLookups.failed;
+  if (failed === 0 && result.summary.entitiesNotFullyChecked === 0) return '';
+
+  const parts: string[] = [];
+  if (failed > 0) parts.push(`${failed} read(s) failed`);
+  if (result.summary.entitiesNotFullyChecked > 0) {
+    parts.push(`${result.summary.entitiesNotFullyChecked} entit(ies) not fully checked`);
+  }
+
+  return ` [INCOMPLETE: ${parts.join(', ')}. See fanOut - do not read this pass as clean]`;
 }

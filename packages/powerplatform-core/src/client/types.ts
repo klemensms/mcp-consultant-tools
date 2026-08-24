@@ -2,7 +2,7 @@
  * Shared types and interfaces for PowerPlatform services
  */
 
-import type { TruncationInfo } from '@mcp-consultant-tools/core';
+import type { FanOutInfo, TruncationInfo } from '@mcp-consultant-tools/core';
 
 /**
  * Configuration for PowerPlatform services
@@ -53,7 +53,15 @@ export interface EntityValidationResult {
   isRefData: boolean;
   attributesChecked: number;
   violations: Violation[];
-  isCompliant: boolean;
+  /**
+   * True when every rule ran and found nothing, false when a rule found something, and
+   * **null** when at least one rule could not be run on this entity. Null is not a third
+   * kind of pass: a rule that could not run is not a rule that passed, and reporting it as
+   * compliant is the failure this field exists to prevent. `checksSkipped` says how many.
+   */
+  isCompliant: boolean | null;
+  /** Rules that could not be run on this entity, because a read they depend on failed. */
+  checksSkipped: number;
 }
 
 export interface ViolationSummaryByRule {
@@ -81,7 +89,22 @@ export interface BestPracticesValidationResult {
     totalViolations: number;
     criticalViolations: number;
     warnings: number;
+    /** Entities where every rule ran and found nothing. Excludes partially checked ones. */
     compliantEntities: number;
+    /** Entities where at least one rule could not be run. Neither compliant nor violating. */
+    entitiesNotFullyChecked: number;
+  };
+  /**
+   * What this pass could not read. Each block counts every attempt, so `succeeded` short of
+   * `attempted` is arithmetic rather than inference, and names what went missing.
+   */
+  fanOut: {
+    /** Entity metadata reads while expanding the solution's components into a table list. */
+    entityDiscovery: FanOutInfo;
+    /** Per-entity metadata and attribute reads. A failure drops the whole entity. */
+    entityValidation: FanOutInfo;
+    /** Per-attribute option-set expansions behind the Option Set Scope rule. */
+    optionSetLookups: FanOutInfo;
   };
   violationsSummary: ViolationSummaryByRule[];
   entities: EntityValidationResult[];

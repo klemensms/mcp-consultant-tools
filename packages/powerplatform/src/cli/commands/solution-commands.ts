@@ -4,6 +4,7 @@
 
 import type { Command } from 'commander';
 import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
+import { validationFanOutSuffix } from '@mcp-consultant-tools/powerplatform-core';
 import type { ServiceContext } from '../../types.js';
 import { outputResult } from '../output.js';
 
@@ -131,7 +132,14 @@ export function registerSolutionCommands(program: Command, ctx: ServiceContext):
           opts.requiredColumns ?? ['{prefix}updatedbyprocess']
         );
         outputResult(
-          { fileName: 'validation-result', data: result, summary: `Validation complete for ${opts.solution || opts.entities?.join(', ')}` },
+          {
+            fileName: 'validation-result',
+            data: result,
+            summary:
+              `Validation of ${opts.solution || opts.entities?.join(', ')}: ` +
+              `${result.summary.entitiesChecked} entities, ${result.summary.totalViolations} violation(s)` +
+              `${validationFanOutSuffix(result)}`,
+          },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'validate best practices'); }

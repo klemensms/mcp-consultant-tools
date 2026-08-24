@@ -4,6 +4,7 @@
  * Read-only service for validating entities against best practices.
  */
 
+import { FanOutRecorder } from '@mcp-consultant-tools/core';
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
 import type {
   ApiCollectionResponse,
@@ -42,6 +43,13 @@ export class ValidationService {
       oldColumns: 0,
     };
 
+    // One recorder per fan-out. All three of these used to be bare `catch {}` blocks, and
+    // in a validation pass that is the worst version of the defect: a rule that could not
+    // run and a rule that found nothing reached the caller as the same answer.
+    const entityDiscovery = new FanOutRecorder();
+    const entityValidation = new FanOutRecorder();
+    const optionSetLookups = new FanOutRecorder();
+
     let entities: string[] = [];
     let solutionFriendlyName: string | undefined;
 
@@ -73,28 +81,30 @@ export class ValidationService {
       for (const component of componentsResponse.value || []) {
         const metadataId = component.objectid;
 
-        try {
-          // Query entity by MetadataId
-          const entityResponse = await this.client.makeRequest<
-            Record<string, unknown>
-          >(
-            `api/data/v9.2/EntityDefinitions(${metadataId})?$select=LogicalName,SchemaName`
-          );
-
-          const logicalName = entityResponse.LogicalName as string;
-
-          // Filter: Only entities with publisher prefix
-          if (logicalName.startsWith(publisherPrefix)) {
-            // Filter: Optionally exclude RefData tables
-            if (
-              includeRefDataTables ||
-              !logicalName.startsWith(`${publisherPrefix}ref_`)
-            ) {
-              entities.push(logicalName);
-            }
+        const logicalName = await entityDiscovery.run(
+          String(metadataId),
+          'entity metadata',
+          async () => {
+            const entityResponse = await this.client.makeRequest<
+              Record<string, unknown>
+            >(
+              `api/data/v9.2/EntityDefinitions(${metadataId})?$select=LogicalName,SchemaName`
+            );
+            return entityResponse.LogicalName as string;
           }
-        } catch {
-          // Skip entities that can't be queried (managed/system entities)
+        );
+
+        if (logicalName === null) continue;
+
+        // Filter: Only entities with publisher prefix
+        if (logicalName.startsWith(publisherPrefix)) {
+          // Filter: Optionally exclude RefData tables
+          if (
+            includeRefDataTables ||
+            !logicalName.startsWith(`${publisherPrefix}ref_`)
+          ) {
+            entities.push(logicalName);
+          }
         }
       }
 
@@ -117,87 +127,96 @@ export class ValidationService {
     const results: EntityValidationResult[] = [];
 
     for (const entityLogicalName of entities) {
-      try {
-        // Get entity metadata (including icon information)
-        const entityMetadata = await this.client.makeRequest<
-          Record<string, unknown>
-        >(
-          `api/data/v9.2/EntityDefinitions(LogicalName='${entityLogicalName}')?$select=LogicalName,SchemaName,DisplayName,MetadataId,IconVectorName,IsCustomEntity`
-        );
+      const entityResult = await entityValidation.run(
+        entityLogicalName,
+        'entity validation',
+        async () => {
+          // Get entity metadata (including icon information)
+          const entityMetadata = await this.client.makeRequest<
+            Record<string, unknown>
+          >(
+            `api/data/v9.2/EntityDefinitions(LogicalName='${entityLogicalName}')?$select=LogicalName,SchemaName,DisplayName,MetadataId,IconVectorName,IsCustomEntity`
+          );
 
-        // Get all attributes for entity
-        const attributesResponse = await this.client.makeRequest<
-          ApiCollectionResponse<Record<string, unknown>>
-        >(
-          `api/data/v9.2/EntityDefinitions(LogicalName='${entityLogicalName}')/Attributes?$select=LogicalName,AttributeType,DisplayName,CreatedOn,IsCustomAttribute,AttributeTypeName`
-        );
+          // Get all attributes for entity
+          const attributesResponse = await this.client.makeRequest<
+            ApiCollectionResponse<Record<string, unknown>>
+          >(
+            `api/data/v9.2/EntityDefinitions(LogicalName='${entityLogicalName}')/Attributes?$select=LogicalName,AttributeType,DisplayName,CreatedOn,IsCustomAttribute,AttributeTypeName`
+          );
 
-        const attributes = attributesResponse.value || [];
+          const attributes = attributesResponse.value || [];
 
-        // Apply filtering
-        const filteredAttributes = attributes.filter((attr) => {
-          const logicalName = attr.LogicalName as string;
-          const isCustomAttribute = attr.IsCustomAttribute as boolean;
-          const createdOn = attr.CreatedOn as string | undefined;
+          // Apply filtering
+          const filteredAttributes = attributes.filter((attr) => {
+            const logicalName = attr.LogicalName as string;
+            const isCustomAttribute = attr.IsCustomAttribute as boolean;
+            const createdOn = attr.CreatedOn as string | undefined;
 
-          // Rule: Must have publisher prefix
-          if (!logicalName.startsWith(publisherPrefix)) {
-            statisticsCounters.systemColumns++;
-            return false; // Exclude system columns
-          }
-
-          // Rule: Must be custom attribute (additional safety)
-          if (!isCustomAttribute) {
-            statisticsCounters.systemColumns++;
-            return false;
-          }
-
-          // Rule: Must be within time threshold
-          if (recentDays > 0 && createdOn) {
-            const createdDate = new Date(createdOn);
-            const daysAgo =
-              (Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
-
-            if (daysAgo > recentDays) {
-              statisticsCounters.oldColumns++;
-              return false; // Too old
+            // Rule: Must have publisher prefix
+            if (!logicalName.startsWith(publisherPrefix)) {
+              statisticsCounters.systemColumns++;
+              return false; // Exclude system columns
             }
-          }
 
-          return true;
-        });
-
-        // Validate entity-level properties and attributes
-        const violations = await this.validateEntityAndAttributes(
-          entityMetadata,
-          filteredAttributes,
-          attributes, // Pass all attributes for required column check
-          publisherPrefix,
-          rules,
-          requiredColumns
-        );
-
-        const displayName =
-          (
-            entityMetadata.DisplayName as {
-              UserLocalizedLabel?: { Label?: string };
+            // Rule: Must be custom attribute (additional safety)
+            if (!isCustomAttribute) {
+              statisticsCounters.systemColumns++;
+              return false;
             }
-          )?.UserLocalizedLabel?.Label || (entityMetadata.LogicalName as string);
 
-        results.push({
-          logicalName: entityMetadata.LogicalName as string,
-          schemaName: entityMetadata.SchemaName as string,
-          displayName: displayName,
-          isRefData: (entityMetadata.LogicalName as string).startsWith(
-            `${publisherPrefix}ref_`
-          ),
-          attributesChecked: filteredAttributes.length,
-          violations: violations,
-          isCompliant: violations.length === 0,
-        });
-      } catch {
-        // Skip entities that fail validation
-      }
+            // Rule: Must be within time threshold
+            if (recentDays > 0 && createdOn) {
+              const createdDate = new Date(createdOn);
+              const daysAgo =
+                (Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+
+              if (daysAgo > recentDays) {
+                statisticsCounters.oldColumns++;
+                return false; // Too old
+              }
+            }
+
+            return true;
+          });
+
+          // Validate entity-level properties and attributes
+          const { violations, checksSkipped } = await this.validateEntityAndAttributes(
+            entityMetadata,
+            filteredAttributes,
+            attributes, // Pass all attributes for required column check
+            publisherPrefix,
+            rules,
+            requiredColumns,
+            optionSetLookups
+          );
+
+          const displayName =
+            (
+              entityMetadata.DisplayName as {
+                UserLocalizedLabel?: { Label?: string };
+              }
+            )?.UserLocalizedLabel?.Label || (entityMetadata.LogicalName as string);
+
+          const result: EntityValidationResult = {
+            logicalName: entityMetadata.LogicalName as string,
+            schemaName: entityMetadata.SchemaName as string,
+            displayName: displayName,
+            isRefData: (entityMetadata.LogicalName as string).startsWith(
+              `${publisherPrefix}ref_`
+            ),
+            attributesChecked: filteredAttributes.length,
+            violations: violations,
+            // Null rather than true when a rule could not run: an unchecked entity is not
+            // a compliant one, and this is the whole reason the field is nullable.
+            isCompliant: checksSkipped > 0 ? null : violations.length === 0,
+            checksSkipped,
+          };
+          return result;
+        }
+      );
+
+      if (entityResult !== null) results.push(entityResult);
     }
 
     // STEP 3: Calculate summary statistics
@@ -215,7 +234,8 @@ export class ValidationService {
           sum + e.violations.filter((v) => v.severity === 'SHOULD').length,
         0
       ),
-      compliantEntities: results.filter((e) => e.isCompliant).length,
+      compliantEntities: results.filter((e) => e.isCompliant === true).length,
+      entitiesNotFullyChecked: results.filter((e) => e.isCompliant === null).length,
     };
 
     const executionTimeMs = Date.now() - startTime;
@@ -234,6 +254,11 @@ export class ValidationService {
         executionTimeMs,
       },
       summary,
+      fanOut: {
+        entityDiscovery: entityDiscovery.result(),
+        entityValidation: entityValidation.result(),
+        optionSetLookups: optionSetLookups.result(),
+      },
       violationsSummary,
       entities: results,
       statistics: {
@@ -253,10 +278,12 @@ export class ValidationService {
     allAttributes: Record<string, unknown>[],
     publisherPrefix: string,
     rules: string[],
-    requiredColumns: string[]
-  ): Promise<Violation[]> {
+    requiredColumns: string[],
+    optionSetLookups: FanOutRecorder
+  ): Promise<{ violations: Violation[]; checksSkipped: number }> {
     const violations: Violation[] = [];
     const entityLogicalName = entityMetadata.LogicalName as string;
+    let checksSkipped = 0;
 
     // ENTITY-LEVEL VALIDATION: Check if entity has an icon
     if (rules.includes('entity-icon')) {
@@ -370,14 +397,20 @@ export class ValidationService {
           attributeType === 'Picklist' || attributeTypeName === 'PicklistType';
 
         if (isPicklist) {
-          try {
-            // Need to get full attribute details to check OptionSet.IsGlobal
-            const attrDetails = await this.client.makeRequest<
-              Record<string, unknown>
-            >(
-              `api/data/v9.2/EntityDefinitions(LogicalName='${entityLogicalName}')/Attributes(LogicalName='${logicalName}')?$select=LogicalName&$expand=OptionSet($select=IsGlobal)`
-            );
+          const attrDetails = await optionSetLookups.run(
+            `${entityLogicalName}.${logicalName}`,
+            'option set scope',
+            () =>
+              this.client.makeRequest<Record<string, unknown>>(
+                `api/data/v9.2/EntityDefinitions(LogicalName='${entityLogicalName}')/Attributes(LogicalName='${logicalName}')?$select=LogicalName&$expand=OptionSet($select=IsGlobal)`
+              )
+          );
 
+          if (attrDetails === null) {
+            // The rule did not run on this attribute. Counted, so the entity cannot come
+            // back compliant on the strength of a check that never happened.
+            checksSkipped++;
+          } else {
             const optionSet = attrDetails.OptionSet as { IsGlobal?: boolean };
             if (optionSet && !optionSet.IsGlobal) {
               violations.push({
@@ -394,8 +427,6 @@ export class ValidationService {
                   'Use global option sets to enable reuse across entities and reduce maintenance',
               });
             }
-          } catch {
-            // Skip if we can't get option set details
           }
         }
       }
@@ -438,7 +469,7 @@ export class ValidationService {
       }
     }
 
-    return violations;
+    return { violations, checksSkipped };
   }
 
   /**

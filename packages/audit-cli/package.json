@@ -19,7 +19,7 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "@mcp-consultant-tools/core": "33.0.0",
+    "@mcp-consultant-tools/core": "35.0.0-beta.1",
     "commander": "^14.0.3"
   },
   "devDependencies": {

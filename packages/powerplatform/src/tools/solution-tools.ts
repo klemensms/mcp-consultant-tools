@@ -2,6 +2,7 @@
  * Solution Tools - 8 tools for solution management and validation
  */
 import { z } from 'zod';
+import { validationFanOutSuffix } from '@mcp-consultant-tools/powerplatform-core';
 import type { ServiceContext } from '../types.js';
 import { descWithExamples, SOLUTION_NAME_EXAMPLES, ENTITY_NAME_EXAMPLES, COMPONENT_TYPE_EXAMPLES } from '../tool-examples.js';
 
@@ -330,8 +331,15 @@ export function registerSolutionTools(server: any, ctx: ServiceContext): void {
           requiredColumns ?? ['{prefix}updatedbyprocess']
         );
 
+        // The header line carries the incompleteness warning, because a reader who acts on
+        // "0 violations" rarely reads as far as `fanOut` in the JSON below it.
+        const header =
+          `Best-practices validation: ${result.summary.entitiesChecked} entities checked, ` +
+          `${result.summary.totalViolations} violation(s)` +
+          `${validationFanOutSuffix(result)}`;
+
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+          content: [{ type: "text", text: `${header}\n\n${JSON.stringify(result, null, 2)}` }]
         };
       } catch (error: any) {
         console.error("Error validating best practices:", error);

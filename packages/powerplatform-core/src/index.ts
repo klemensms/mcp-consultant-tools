@@ -171,6 +171,7 @@ export {
   formatExecutionStats,
   formatQuickSummary,
   formatViolationsBySeverity,
+  validationFanOutSuffix,
   // Icon management
   IconManager,
   iconManager,

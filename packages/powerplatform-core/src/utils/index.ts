@@ -26,6 +26,7 @@ export {
   formatExecutionStats,
   formatQuickSummary,
   formatViolationsBySeverity,
+  validationFanOutSuffix,
 } from './best-practices-formatters.js';
 
 // Icon management
