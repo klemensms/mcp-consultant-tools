@@ -115,7 +115,8 @@ behave unpredictably. Fix those first, then re-test whether a symptom remains.
 
 **Status:** confirmed in source. **Affects:**
 `packages/powerplatform-core/src/services/IntegrationAuditService.ts` -
-`getServiceEndpoints:326`, `getEnvironmentVariables:490`, `getWebhookRegistrations:597`.
+`getServiceEndpoints:368`, `getEnvironmentVariables:532`, `getWebhookRegistrations:639`.
+Line numbers verified 2026-08-24; grep for `&$top=${maxRecords}` if they have drifted again.
 
 Each fetches with `&$top=${maxRecords}` and returns a summary whose `total` is the returned row
 count, with no `hasMore`, no `truncation` block and nothing else a caller could read to tell a
@@ -131,12 +132,12 @@ defect, which `paginateDataverse`'s `keep` callback exists to close.
 Two more silent gaps in the same file, found in the same sweep:
 
 - **`getServiceEndpoints`' step-count query is capped at `$top=5000` and wrapped in a bare
-  `catch {}`** (line 335). When it fails or caps out, every affected endpoint reports
+  `catch {}`** (line 387). When it fails or caps out, every affected endpoint reports
   `messageStepCount: 0`, which reads as "no steps registered" rather than "not counted".
-- **`analyzeFlowComplexity` discards the `truncation` block `getFlows` now returns** (line 709) and
-  swallows every per-flow `getFlowDefinition` failure in a `catch {}` (line 751), so a flow that
+- **`analyzeFlowComplexity` discards the `truncation` block `getFlows` now returns** (line 751) and
+  swallows every per-flow `getFlowDefinition` failure in a `catch {}` (line 794), so a flow that
   could not be parsed vanishes from the analysis uncounted and `summary.total` under-reports with no
-  trace. Its `queryEnvironmentVariables` failure is swallowed too (line 676), which silently
+  trace. Its `queryEnvironmentVariables` failure is swallowed too (line 719), which silently
   degrades URL resolution.
 
 **Fix:** convert the three collection methods to `paginateDataverse` with the OOTB predicate moved
@@ -324,7 +325,7 @@ is why this is a release-shaped change rather than a bug fix.
 
 **Status:** confirmed by measurement, sweep unscheduled. **Affects:** repo-wide.
 
-A recursive search of `packages/*/src` for U+2014 and U+2013 returns **535** occurrences across most packages, including
+A recursive search of `packages/*/src` for U+2014 and U+2013 returns **534** occurrences across most packages (counted 2026-08-24; re-count rather than trusting this figure), including
 hint and error strings the CLI prints. The house rule bars the character from every output channel,
 code included. The `code-review` hint text is the instance that was noticed; it is not the only one.
 
