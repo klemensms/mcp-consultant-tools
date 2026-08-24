@@ -31,7 +31,7 @@ const { skipContextInit } = await bootstrapCliEnv({ programName: 'mcp-pp-data-cl
 // In help/version mode, skip service-context construction so the CLI can
 // display its surface without paying the cost of PII/audit env validation.
 // The proxy throws if any subcommand action accidentally fires in this mode
-// (it never should — Commander's --help / --version short-circuits parsing).
+// (it never should - Commander's --help / --version short-circuits parsing).
 const ctx: ServiceContext = skipContextInit
   ? new Proxy({} as ServiceContext, {
       get() {

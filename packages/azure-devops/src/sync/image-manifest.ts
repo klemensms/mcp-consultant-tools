@@ -82,7 +82,7 @@ export async function readManifest(syncFolder: string, workItemId: number): Prom
     if (err.code === 'ENOENT') {
       return { workItemId, lastSyncedAt: new Date().toISOString(), attachments: [] };
     }
-    // Corrupted manifest — start fresh rather than failing the sync.
+    // Corrupted manifest - start fresh rather than failing the sync.
     console.error(`Warning: could not parse ${manifestPath}: ${err.message}. Starting fresh.`);
     return { workItemId, lastSyncedAt: new Date().toISOString(), attachments: [] };
   }
@@ -98,7 +98,7 @@ export async function writeManifest(syncFolder: string, manifest: AttachmentMani
 }
 
 /**
- * Add (or replace) an entry in the manifest. Lookup is by `guid` — the same
+ * Add (or replace) an entry in the manifest. Lookup is by `guid` - the same
  * attachment is never recorded twice. Returns the manifest unchanged when an
  * existing entry has the same guid AND localPath, otherwise replaces it.
  */

@@ -159,7 +159,7 @@ export class TestService {
     );
 
     // The run-state PATCH response does not reliably populate the pass/fail aggregate
-    // counts for these Basic-license automated runs — they come back 0 (ADO recomputes
+    // counts for these Basic-license automated runs - they come back 0 (ADO recomputes
     // them lazily). Aggregate from the actual per-result outcomes instead, the same way
     // add-test-results reports its counts.
     const results = await this.getTestRunResults(project, runId);
@@ -295,7 +295,7 @@ export class TestService {
 
   /**
    * Link a test case to a user story (TestedBy) and/or a test run (Hyperlink).
-   * Idempotent — checks existing relations before adding.
+   * Idempotent - checks existing relations before adding.
    */
   async linkTestCase(
     project: string,
@@ -347,7 +347,7 @@ export class TestService {
       );
       if (!alreadyLinked) {
         const comment = options.runSummary
-          ? `Test Run #${options.runId} — ${options.runSummary}`
+          ? `Test Run #${options.runId} - ${options.runSummary}`
           : `Test Run #${options.runId}`;
         await this.workItem.updateWorkItem(project, testCaseId, [
           {

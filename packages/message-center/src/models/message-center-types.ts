@@ -33,7 +33,7 @@ export interface GraphServiceHealth {
   id?: string;
   /** Display name, e.g. "Exchange Online". This is what the URL key and message `services` use. */
   service?: string;
-  /** A serviceHealthStatus value. Casing varies between docs and the wire — compare case-insensitively. */
+  /** A serviceHealthStatus value. Casing varies between docs and the wire - compare case-insensitively. */
   status?: string;
   issues?: GraphServiceHealthIssue[];
 }

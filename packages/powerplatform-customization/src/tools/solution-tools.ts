@@ -249,7 +249,7 @@ server.tool(
     publishWorkflows: z.boolean().optional().describe("Publish workflows after import (default: true)"),
     overwriteUnmanagedCustomizations: z.boolean().optional().describe("Overwrite unmanaged customizations (default: false). Use true to force update existing customizations.")
   },
-  // Imports/overwrites customizations — mutating, not flagged destructive.
+  // Imports/overwrites customizations - mutating, not flagged destructive.
   { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ customizationFile, publishWorkflows, overwriteUnmanagedCustomizations }: any) => {
     try {

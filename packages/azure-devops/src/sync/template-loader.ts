@@ -7,7 +7,7 @@
  *   - which body sections appear (and which ADO refnames they map to)
  *
  * Load order for a given work-item type (case-insensitive, spaces→hyphens):
- *   1. `MCP_ADO_SYNC_TEMPLATE_DIR/{type-slug}.md` — user override, if set
+ *   1. `MCP_ADO_SYNC_TEMPLATE_DIR/{type-slug}.md` - user override, if set
  *   2. Built-in template shipped with the package
  *   3. Generic fallback (title + Description section only)
  */

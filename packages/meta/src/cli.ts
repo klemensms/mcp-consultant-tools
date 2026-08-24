@@ -4,7 +4,7 @@
  * mcp-consultant-tools Meta CLI
  *
  * Discovery CLI that lists all available service CLIs and their packages.
- * This does NOT wrap individual CLIs — it serves as a directory to help
+ * This does NOT wrap individual CLIs - it serves as a directory to help
  * users find the right CLI for their integration.
  */
 

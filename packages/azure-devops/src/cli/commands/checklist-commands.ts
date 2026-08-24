@@ -61,7 +61,7 @@ export function registerChecklistCommands(program: Command, ctx: ServiceContext)
       try {
         const result = await ctx.checklist.getReport(project, opts.type, opts.state, parseInt(opts.max));
         const r = result as any;
-        const summary = `Checklist report: ${r.totalWorkItems} items — ${r.fullyComplete} complete, ${r.partiallyComplete} partial, ${r.notStarted} not started`;
+        const summary = `Checklist report: ${r.totalWorkItems} items - ${r.fullyComplete} complete, ${r.partiallyComplete} partial, ${r.notStarted} not started`;
         outputResult({ fileName: `checklist-report-${project}`, data: result, summary }, getGlobalFlags(program));
       } catch (error) { handleCliError(error, 'get checklist report'); }
     });

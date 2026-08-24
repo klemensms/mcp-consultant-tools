@@ -428,7 +428,7 @@ export class WorkItemService {
     );
 
     // Confine the destination directory and collapse the filename to a bare
-    // basename — `urlFileName` comes from the attachment's own (untrusted)
+    // basename - `urlFileName` comes from the attachment's own (untrusted)
     // name, so `path.join` alone would let a crafted "../../x" name escape.
     const safeDir = resolveSafePath(outputDir);
     fs.mkdirSync(safeDir, { recursive: true });

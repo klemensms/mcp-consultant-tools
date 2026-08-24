@@ -216,7 +216,7 @@ server.tool(
   "publish-customizations",
   "Publish all pending customizations in Dynamics 365. This makes all unpublished changes active.",
   {},
-  // Publishes pending changes (makes them active) — mutates the env, not destructive.
+  // Publishes pending changes (makes them active) - mutates the env, not destructive.
   { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async () => {
     try {

@@ -22,7 +22,7 @@ describe('selectLatestRelease', () => {
   });
 });
 
-// Minimal stub client — plain object, no mocking framework.
+// Minimal stub client - plain object, no mocking framework.
 function stubClient(versions: string[]): any {
   const versionResult: PaginatedResult<GhePackageVersion> = {
     items: versions.map((name, i) => ({

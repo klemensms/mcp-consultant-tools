@@ -22,7 +22,7 @@ const fakeClient = (post: unknown) =>
 /**
  * Two fixtures, because two row shapes reach the mapper in practice.
  *
- * A `properties` override MERGES into the defaults — `...overrides` is spread before
+ * A `properties` override MERGES into the defaults - `...overrides` is spread before
  * `properties` is built, so passing one key does not silently blank the rest. Getting
  * that backwards makes a test pass on a row that carries nothing but the key it asserts.
  */

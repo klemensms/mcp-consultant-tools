@@ -79,7 +79,7 @@ export const APP_NAME_EXAMPLES = [
 // Output Format Examples
 // ========================================
 
-// Deliberately no "(default)" label — the default differs per tool (json for most,
+// Deliberately no "(default)" label - the default differs per tool (json for most,
 // markdown for the report-style la-get-error-summary / la-investigate-app), and each
 // tool's own description states it.
 export const OUTPUT_FORMAT_EXAMPLES = [

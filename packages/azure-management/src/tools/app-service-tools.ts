@@ -184,7 +184,7 @@ export function registerAppServiceTools(server: any, ctx: ServiceContext): void 
   server.tool(
     'set-app-service-config',
     descWithExamples(
-      'Update app settings or connection strings on an App Service (requires AZURE_MGMT_ENABLE_WRITE=true). Merges with existing settings — does not replace the full set.',
+      'Update app settings or connection strings on an App Service (requires AZURE_MGMT_ENABLE_WRITE=true). Merges with existing settings - does not replace the full set.',
       APP_SETTING_EXAMPLES
     ),
     {
@@ -203,7 +203,7 @@ export function registerAppServiceTools(server: any, ctx: ServiceContext): void 
       ).optional().describe('Connection strings to add or update. Merged with existing.'),
       removeSettings: z.array(z.string()).optional().describe('App setting keys to remove'),
     },
-    // Merges/updates app settings (removeSettings drops keys) — config change, not data destruction.
+    // Merges/updates app settings (removeSettings drops keys) - config change, not data destruction.
     { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (args: any) => {
       try {

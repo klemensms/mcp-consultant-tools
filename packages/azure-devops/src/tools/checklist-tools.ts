@@ -45,7 +45,7 @@ export function registerChecklistTools(server: any, ctx: ServiceContext): void {
         return {
           content: [{
             type: "text",
-            text: `Checklist for ${result.workItemType} #${workItemId} — ${result.completionPercent}% complete (${result.completedCount}/${result.totalCount})\n\n${summary}\n\nFull data:\n${JSON.stringify(result, null, 2)}`
+            text: `Checklist for ${result.workItemType} #${workItemId} - ${result.completionPercent}% complete (${result.completedCount}/${result.totalCount})\n\n${summary}\n\nFull data:\n${JSON.stringify(result, null, 2)}`
           }]
         };
       } catch (error: any) {
@@ -137,11 +137,11 @@ export function registerChecklistTools(server: any, ctx: ServiceContext): void {
           return { content: [{ type: "text", text: `No work items found matching the criteria in project '${project}'.` }] };
         }
         const summary = [
-          `Checklist Report — ${result.totalWorkItems} work items`,
+          `Checklist Report - ${result.totalWorkItems} work items`,
           `  Complete: ${result.fullyComplete} | Partial: ${result.partiallyComplete} | Not started: ${result.notStarted}`,
           '',
           ...result.entries.slice(0, 20).map(e =>
-            `#${e.workItemId} ${e.title} — ${e.completionPercent}% (${e.completedItems}/${e.totalItems})${e.incompleteRequired > 0 ? ` [${e.incompleteRequired} required incomplete]` : ''}`
+            `#${e.workItemId} ${e.title} - ${e.completionPercent}% (${e.completedItems}/${e.totalItems})${e.incompleteRequired > 0 ? ` [${e.incompleteRequired} required incomplete]` : ''}`
           ),
           result.entries.length > 20 ? `\n... and ${result.entries.length - 20} more (see full data)` : '',
         ].join('\n');

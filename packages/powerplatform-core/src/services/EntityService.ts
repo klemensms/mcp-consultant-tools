@@ -216,7 +216,7 @@ export class EntityService {
 
       if (!webResourceId) {
         throw new Error(
-          `Step 6 failed: web resource '${webResourceName}' was created but the server did not return a webresourceid. This is a bug — please report it.`
+          `Step 6 failed: web resource '${webResourceName}' was created but the server did not return a webresourceid. This is a bug - please report it.`
         );
       }
     }

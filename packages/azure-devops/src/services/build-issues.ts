@@ -54,7 +54,7 @@ export interface BuildIssuesSummary {
   /** Sum of every record's `errorCount`/`warningCount`, independent of `issues[]`. */
   timelineCounters: { errors: number; warnings: number };
   /**
-   * True when the counters exceed the issues we could actually list — the server
+   * True when the counters exceed the issues we could actually list - the server
    * counted problems it did not attach messages for. The listed detail is then a
    * subset, not the whole story.
    */

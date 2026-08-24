@@ -159,7 +159,7 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
           {
             fileName: 'debug-pipeline-runs',
             data: { ...summary, runs },
-            summary: `${summary.returned} debug runs found (last ${days} days)${truncated ? ` — truncated at ${maxResults}, more available` : ''}`,
+            summary: `${summary.returned} debug runs found (last ${days} days)${truncated ? ` - truncated at ${maxResults}, more available` : ''}`,
           },
           getGlobalFlags(program)
         );

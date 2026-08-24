@@ -1,5 +1,5 @@
 /**
- * Secret tools — 3 read-only tools (always enabled)
+ * Secret tools - 3 read-only tools (always enabled)
  */
 import { z } from 'zod';
 import type { ServiceContext } from '../types.js';

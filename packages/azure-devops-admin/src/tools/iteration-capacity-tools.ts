@@ -43,7 +43,7 @@ export function registerIterationCapacityTools(server: any, ctx: ServiceContext)
   // ========================================
   server.tool(
     "get-iteration-capacities",
-    "Get every team member's capacity for a sprint: capacity-per-day (by activity) and days-off. Returns each member's identity GUID, display name, and email — use these with set-team-member-capacity.",
+    "Get every team member's capacity for a sprint: capacity-per-day (by activity) and days-off. Returns each member's identity GUID, display name, and email - use these with set-team-member-capacity.",
     {
       project: z.string().describe("The project name"),
       team: z.string().describe("The team name (e.g., 'My Team')"),
@@ -64,7 +64,7 @@ export function registerIterationCapacityTools(server: any, ctx: ServiceContext)
 
   server.tool(
     "get-team-days-off",
-    "Get the team-wide days-off for a sprint (shared non-working days such as public holidays / office closures — separate from per-member days-off).",
+    "Get the team-wide days-off for a sprint (shared non-working days such as public holidays / office closures - separate from per-member days-off).",
     {
       project: z.string().describe("The project name"),
       team: z.string().describe("The team name"),
@@ -114,7 +114,7 @@ export function registerIterationCapacityTools(server: any, ctx: ServiceContext)
 
     server.tool(
       "set-team-capacities-batch",
-      "Set capacity + days-off for many team members in one call (one PATCH per member — never wipes members you don't list). Each entry is FULL REPLACE for that member. Use this to refresh a whole sprint's bookings at once. (requires AZUREDEVOPS_ENABLE_ITERATION_CAPACITY_UPSERT=true)",
+      "Set capacity + days-off for many team members in one call (one PATCH per member - never wipes members you don't list). Each entry is FULL REPLACE for that member. Use this to refresh a whole sprint's bookings at once. (requires AZUREDEVOPS_ENABLE_ITERATION_CAPACITY_UPSERT=true)",
       {
         project: z.string().describe("The project name"),
         team: z.string().describe("The team name"),

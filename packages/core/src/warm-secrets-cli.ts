@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * mcp-warm-secrets — resolve every op:// reference in an .mcp.json up front, in
+ * mcp-warm-secrets - resolve every op:// reference in an .mcp.json up front, in
  * one 1Password authorization per account, so the MCP servers start against a
  * warm cache and don't each trigger their own prompt.
  *
@@ -68,7 +68,7 @@ async function main(): Promise<void> {
   const { groups, refs } = await warmSecretsFromConfig(configPath);
 
   if (refs === 0) {
-    process.stdout.write(`mcp-warm-secrets: no op:// references found in ${configPath} — nothing to warm.\n`);
+    process.stdout.write(`mcp-warm-secrets: no op:// references found in ${configPath} - nothing to warm.\n`);
     return;
   }
 

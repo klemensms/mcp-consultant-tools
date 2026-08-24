@@ -33,7 +33,7 @@ export function registerComplexityCommands(program: Command, ctx: ServiceContext
           const lines = [
             `Repository: ${repository}`,
             `Files: ${report.summary.totalFiles}` +
-              (report.summary.truncated ? ` (of ${report.summary.totalFilesFound} found — use --no-limit for all)` : ''),
+              (report.summary.truncated ? ` (of ${report.summary.totalFilesFound} found - use --no-limit for all)` : ''),
             `Total LOC: ${report.summary.totalLinesOfCode}`,
             `Avg Complexity (estimate): ${report.summary.averageCyclomaticComplexity}`,
             `Max Complexity (estimate): ${report.summary.maxCyclomaticComplexity}`,

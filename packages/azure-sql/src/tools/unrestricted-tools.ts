@@ -42,7 +42,7 @@ export function registerUnrestrictedTools(server: any, ctx: ServiceContext): voi
       serverId: z.string().optional().describe("OMIT to use default server. DO NOT GUESS."),
       database: z.string().optional().describe("OMIT to use default database. DO NOT GUESS."),
     },
-    // Runs ANY T-SQL incl. DROP/DELETE/TRUNCATE; the break-glass tool — destructive.
+    // Runs ANY T-SQL incl. DROP/DELETE/TRUNCATE; the break-glass tool - destructive.
     { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     async ({ sql, serverId, database }: { sql: string; serverId?: string; database?: string }) => {
       try {

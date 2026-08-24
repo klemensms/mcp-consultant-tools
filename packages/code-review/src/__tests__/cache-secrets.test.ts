@@ -5,7 +5,7 @@
  * file outlives the run. A credential reaching it would be a durable secret on disk, in a directory
  * chosen by whatever the working directory happened to be.
  *
- * A live run proved the PAT absent from **one** cache file — the REST response from `list-repos`.
+ * A live run proved the PAT absent from **one** cache file - the REST response from `list-repos`.
  * The `check-dotnet` and the 2 MB `review` caches were deleted before they could be checked, so the
  * paths that clone were never covered. This closes that gap in CI, where it can be re-run for free.
  *
@@ -96,11 +96,11 @@ describe('cached payloads carry no credential', () => {
   });
 
   /**
-   * The `review` payload is the big one — the 2 MB file the live check could not cover. It is
+   * The `review` payload is the big one - the 2 MB file the live check could not cover. It is
    * assembled from the three sub-reports, so if any of them echoed configuration into its output
    * this is where it would surface.
    */
-  it('the review payload — the 2 MB cache the live check missed — contains no credential', () => {
+  it('the review payload - the 2 MB cache the live check missed - contains no credential', () => {
     const issues = buildReviewIssues(dotnetReport, nugetReport, complexityReport);
     const payload = JSON.stringify({
       repository: 'repo',
@@ -123,13 +123,13 @@ describe('cached payloads carry no credential', () => {
   });
 
   /**
-   * The realistic leak vector is not the happy path — a report is built from parsed API data that
+   * The realistic leak vector is not the happy path - a report is built from parsed API data that
    * never sees the credential. It is an *error message*: git echoes its whole argv, including the
    * bearer header, and Azure DevOps error bodies are pasted into hints. Every message-builder that
    * could carry a credential is therefore fed one here.
    *
-   * Note the errors themselves are never cached — a CLI failure exits through `handleCliError` to
-   * stderr and writes no file — so this is defence in depth rather than the last line.
+   * Note the errors themselves are never cached - a CLI failure exits through `handleCliError` to
+   * stderr and writes no file - so this is defence in depth rather than the last line.
    */
   it('no error-message builder emits the credential it was given', () => {
     const gitFailure =
@@ -156,7 +156,7 @@ describe('cached payloads carry no credential', () => {
 
     const combined = messages.join('\n');
     assertSearchablePayload(combined);
-    // Every builder produced something — an empty string would pass the absence check for free.
+    // Every builder produced something - an empty string would pass the absence check for free.
     for (const message of messages) expect(message.length).toBeGreaterThan(0);
     expect(combined).not.toContain(PLANTED_CREDENTIAL);
   });

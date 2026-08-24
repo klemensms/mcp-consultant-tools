@@ -39,14 +39,14 @@ function service(client: ReturnType<typeof fakeClient>) {
 }
 
 // ---------------------------------------------------------------------------
-// matchesIssue — the casing + resolved-filter bug class
+// matchesIssue - the casing + resolved-filter bug class
 // ---------------------------------------------------------------------------
 
 describe('matchesIssue', () => {
   it('matches a camelCase classification filter against a PascalCase wire value', () => {
     // The docs say `incident`; a live payload returns `Incident`. The source this was ported
     // from used a server-side `classification eq 'incident'`, which both no-ops AND is
-    // case-sensitive — matching nothing. Here it must match.
+    // case-sensitive - matching nothing. Here it must match.
     const wire = issue({ classification: 'Incident' });
     expect(matchesIssue(wire, { classification: 'incident' })).toBe(true);
     expect(matchesIssue(wire, { classification: 'advisory' })).toBe(false);
@@ -223,7 +223,7 @@ describe('HealthService.getServiceHealth', () => {
 });
 
 // ---------------------------------------------------------------------------
-// HealthService.getIssue / getIncidentReport — ID validation
+// HealthService.getIssue / getIncidentReport - ID validation
 // ---------------------------------------------------------------------------
 
 describe('HealthService ID validation', () => {

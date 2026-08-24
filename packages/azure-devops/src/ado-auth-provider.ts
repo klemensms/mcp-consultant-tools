@@ -59,7 +59,7 @@ export class AdoAuthProvider {
       return this.patHeader!;
     }
 
-    // Entra ID mode — return cached token if still valid
+    // Entra ID mode - return cached token if still valid
     const now = Date.now();
     if (this.tokenCache && this.tokenCache.expiresOn > now + TOKEN_REFRESH_BUFFER_MS) {
       return `Bearer ${this.tokenCache.token}`;

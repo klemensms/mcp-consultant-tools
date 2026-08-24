@@ -7,7 +7,7 @@ import { getApiVersion } from '../utils/arm-api-versions.js';
 // ──────────────────────────────────────
 
 /**
- * An MCP tool call is request/response — the client blocks for the whole
+ * An MCP tool call is request/response - the client blocks for the whole
  * duration. A stream held open for minutes (the source this was ported from
  * allowed 120s) is a poor citizen and can trip a client's tool timeout, so the
  * ceiling here is deliberately far below one.
@@ -100,7 +100,7 @@ export interface DiagnosticDetectorResult {
 // Pure helpers
 // ──────────────────────────────────────
 
-/** `{app}-{slot}.scm.azurewebsites.net` — one hyphen, not a dot. */
+/** `{app}-{slot}.scm.azurewebsites.net` - one hyphen, not a dot. */
 export function buildScmHostName(appName: string, slotName?: string): string {
   return slotName
     ? `${appName}-${slotName}.scm.azurewebsites.net`
@@ -261,7 +261,7 @@ export class LogStreamService {
       if (!hitMaxLines) {
         // The `for await` ran to completion, so the server closed the stream.
         terminationReason = 'streamEnded';
-        // Flush the trailing partial line — but never past `maxLines`, which the
+        // Flush the trailing partial line - but never past `maxLines`, which the
         // source this was ported from allowed by one.
         if (buffer.trim() && lines.length < maxLines) lines.push(buffer);
       }

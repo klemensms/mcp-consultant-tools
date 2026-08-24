@@ -22,7 +22,7 @@ export function registerQueryTools(server: any, ctx: ServiceContext): void {
     {
       resourceId: z.string().describe("Resource ID"),
       query: z.string().describe(descWithExamples("KQL query string", KQL_EXAMPLES)),
-      timespan: z.string().optional().describe(descWithExamples("Time range — the OUTER BOUND on the query; narrower than the KQL's own ago() clips results. Default: derived from the widest ago() in the KQL, else PT1H", TIMESPAN_EXAMPLES)),
+      timespan: z.string().optional().describe(descWithExamples("Time range - the OUTER BOUND on the query; narrower than the KQL's own ago() clips results. Default: derived from the widest ago() in the KQL, else PT1H", TIMESPAN_EXAMPLES)),
       columnPreset: z.enum(["minimal", "investigation", "full"]).optional()
         .describe(descWithExamples("Column preset for filtering results. 'minimal' reduces token count significantly", COLUMN_PRESET_EXAMPLES)),
       columns: z.array(z.string()).optional()

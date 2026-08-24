@@ -24,6 +24,6 @@ export const READ_ONLY: { readOnlyHint: true; openWorldHint: true } = {
 export const CLONE_NOTE =
   'Shallow-clones the repository into a temporary directory, analyses the working tree, and deletes it afterwards; the embedded credential is never written to output or logs.';
 
-/** Repeated on the GitHub Packages tools — those work only with a GitHub Enterprise PAT. */
+/** Repeated on the GitHub Packages tools - those work only with a GitHub Enterprise PAT. */
 export const GHE_PACKAGES_NOTE =
   'Requires the github-enterprise provider with a classic PAT that has the read:packages scope. Not available with the azure-devops or github-app providers (GitHub Apps cannot authenticate to the Packages API).';

@@ -1,6 +1,6 @@
 /**
  * Shared ServiceContext factory for Message Center.
- * Used by both the MCP server (index.ts) and the CLI (cli.ts) — there is exactly one copy.
+ * Used by both the MCP server (index.ts) and the CLI (cli.ts) - there is exactly one copy.
  */
 
 import { MessageCenterClient, type MessageCenterClientConfig } from './message-center-client.js';
@@ -35,7 +35,7 @@ export function createServiceContext(): ServiceContext {
       };
 
       client = new MessageCenterClient(config);
-      // Never log the tenant or client ID — it lands in transcripts and logs.
+      // Never log the tenant or client ID - it lands in transcripts and logs.
       console.error('Message Center client initialized');
     }
     return client;

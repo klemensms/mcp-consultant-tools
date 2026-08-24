@@ -1,5 +1,5 @@
 /**
- * Secure score CLI commands — 3 commands mapping to the secure-score MCP tools.
+ * Secure score CLI commands - 3 commands mapping to the secure-score MCP tools.
  */
 
 import type { Command } from 'commander';

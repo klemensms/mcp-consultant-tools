@@ -440,7 +440,7 @@ export class PerformanceService {
   private queryStoreUnavailableMessage(database: string): string {
     return (
       `Query Store is not available on database '${database}'. ` +
-      `The sys.database_query_store_options view could not be read — the database may be a system database, ` +
+      `The sys.database_query_store_options view could not be read - the database may be a system database, ` +
       `may predate SQL Server 2016, or the login may lack VIEW DATABASE STATE permission.`
     );
   }

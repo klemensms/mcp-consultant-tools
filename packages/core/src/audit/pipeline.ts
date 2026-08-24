@@ -133,7 +133,7 @@ export class AuditPipeline {
       // commit point; if the process dies between appendRecordLine and
       // writeChainState, the on-disk JSONL has the new record but
       // .chain-state still reflects the previous record. The verifier (Task 8)
-      // detects this gap and triggers quarantine recovery — preferable to the
+      // detects this gap and triggers quarantine recovery - preferable to the
       // inverse ordering, which would risk losing a written record entirely.
       const recordHash = computeRecordHash(record);
       await appendRecordLine(filePath, JSON.stringify(record));

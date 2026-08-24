@@ -59,7 +59,7 @@ export interface RoleAssignmentSummary {
   principalId: string;
   principalType: string;
   roleDefinitionId: string;
-  /** `null` when the role definition could not be read — never a placeholder that reads like a role name. */
+  /** `null` when the role definition could not be read - never a placeholder that reads like a role name. */
   roleDefinitionName: string | null;
   scope: string;
   createdOn?: string;
@@ -122,7 +122,7 @@ interface ResourceGraphResponse {
 }
 
 // ──────────────────────────────────────
-// Query builders (pure — unit-tested without a subscription)
+// Query builders (pure - unit-tested without a subscription)
 // ──────────────────────────────────────
 
 /**
@@ -187,7 +187,7 @@ export function buildRoleAssignmentQuery(
  * The two sides of this join do NOT carry the same scope prefix. An assignment's
  * `properties.roleDefinitionId` is written subscription-qualified, while a built-in
  * definition's own `id` is tenant-scoped, so a whole-id join misses every built-in
- * role — which is almost every role. Measured: 752 of 752 assignments unresolved
+ * role - which is almost every role. Measured: 752 of 752 assignments unresolved
  * across 16 subscriptions, while all 52 distinct GUIDs resolved when fetched
  * directly.
  *
@@ -549,7 +549,7 @@ function toRelationship(
  *
  * Scope is the client's subscription. Resource Graph returns results only for
  * subscriptions the service principal can read, and says nothing when some are
- * missing — a partial answer is indistinguishable from a complete one.
+ * missing - a partial answer is indistinguishable from a complete one.
  */
 export class ResourceGraphService {
   constructor(private client: ArmClient) {}
@@ -557,7 +557,7 @@ export class ResourceGraphService {
   /**
    * Run a Resource Graph query, following `$skipToken` until the rows run out or
    * `maxResults` is reached. `truncated` is true whenever rows may have been left
-   * behind — callers must not read an empty or short result as "nothing exists".
+   * behind - callers must not read an empty or short result as "nothing exists".
    */
   private async queryResourceGraph(
     query: string,
@@ -592,7 +592,7 @@ export class ResourceGraphService {
         };
       }
 
-      // Resource Graph withholds `$skipToken` whenever it truncates — a `limit`
+      // Resource Graph withholds `$skipToken` whenever it truncates - a `limit`
       // clause, or a projection of only dynamic columns, disables paging entirely.
       // A full page with no continuation token therefore cannot be told apart from
       // "exactly one page of rows exists". Reporting `truncated` is the honest read;
@@ -635,7 +635,7 @@ export class ResourceGraphService {
     let data = rows.map(mapNsgRow);
 
     // Subnet/NIC association lives inside the dynamic `properties` blob, so these
-    // two filters run over the rows already fetched — they narrow the page, they
+    // two filters run over the rows already fetched - they narrow the page, they
     // do not narrow the query. With `truncated: true` a match may sit past the cut.
     if (options.associatedSubnet) {
       const needle = options.associatedSubnet.toLowerCase();
@@ -702,7 +702,7 @@ export class ResourceGraphService {
     );
 
     // Built-ins alone run to several hundred definitions, so the lookup gets the
-    // full ceiling — a short map would silently null out real role names.
+    // full ceiling - a short map would silently null out real role names.
     const { rows: roleDefRows, truncated: roleDefinitionsTruncated } = await this.queryResourceGraph(
       buildRoleDefinitionQuery(),
       MAX_RESULTS_CEILING
@@ -876,7 +876,7 @@ export class ResourceGraphService {
       resourcesInspected: number;
       resourcesWithSettings: number;
       resourcesWithoutSettings: number;
-      /** Resources whose settings could not be read at all — NOT evidence that none are configured. */
+      /** Resources whose settings could not be read at all - NOT evidence that none are configured. */
       resourcesUnreadable: number;
       byTargetResourceType: Record<string, number>;
       byDestinationType: Record<string, number>;
@@ -940,7 +940,7 @@ export class ResourceGraphService {
 
         // A rejection means we could not look: 403 (no Monitoring Reader), 404
         // (resource gone), or a transport failure. Counting these as "no settings
-        // configured" — as the source this was ported from did — turns a
+        // configured" - as the source this was ported from did - turns a
         // permissions gap into a clean audit result.
         const reason: unknown = result.reason;
         unreadableResources.push({

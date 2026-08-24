@@ -24,7 +24,7 @@ Follow these rules precisely to produce consistent, attractive, interactive outp
 - Headings: 20px (h2), 16px (h3), 14px bold (h4)
 - Line height: 1.5
 
-### Theme — CSS Variables (CRITICAL)
+### Theme - CSS Variables (CRITICAL)
 Always define CSS variables for BOTH light and dark themes using \`prefers-color-scheme\`.
 This ensures the visualization adapts to the host app's theme automatically.
 
@@ -57,7 +57,7 @@ If the theme parameter is explicitly "dark", ALSO duplicate the dark values as t
 **Use these CSS variables for ALL colors.** Never hardcode \`#1A1A1A\` or \`#FFFFFF\` directly.
 Example: \`color: var(--text)\`, \`background: var(--surface)\`, \`border-color: var(--border)\`.
 
-### ADO State Colors (fixed — work on both light and dark)
+### ADO State Colors (fixed - work on both light and dark)
 - New: #007ACC (blue)
 - Active / In Progress: #009900 (green)
 - Resolved: #FF9D00 (amber)
@@ -94,7 +94,7 @@ For summary metrics, use KPI cards at the top:
 - Hover: \`background:var(--hover)\`
 - Add sortable column headers with onclick handlers when appropriate
 
-### Charts (IMPORTANT — loading order)
+### Charts (IMPORTANT - loading order)
 - For complex charts: use Chart.js from CDN.
 - **CRITICAL loading pattern**: Chart.js loads asynchronously. You MUST wait for it before initializing charts:
 \`\`\`html
@@ -117,18 +117,18 @@ For summary metrics, use KPI cards at the top:
 - For simple visuals (donut, progress bars): prefer inline SVG over Chart.js (no loading delay).
 - Use the ADO state/type colors defined above for data series.
 
-### Interactivity — Sandbox Constraints (CRITICAL)
+### Interactivity - Sandbox Constraints (CRITICAL)
 This HTML renders inside a sandboxed iframe. **Links cannot open new tabs** and **file downloads are blocked**.
 You MUST use clipboard-based alternatives for all interactive features.
 
 #### Pre-defined Functions (DO NOT redefine these)
 The following functions are pre-defined by the MCP App shell. Just call them:
-- \`copyText(text, buttonElement)\` — copies text to clipboard with visual "Copied!" feedback
-- \`showCopied(element)\` — shows brief "Copied!" indicator on an element
-- \`captureAsImage(buttonElement)\` — captures the \`#genui-root\` div as a PNG image and copies to clipboard (loads html2canvas automatically)
+- \`copyText(text, buttonElement)\` - copies text to clipboard with visual "Copied!" feedback
+- \`showCopied(element)\` - shows brief "Copied!" indicator on an element
+- \`captureAsImage(buttonElement)\` - captures the \`#genui-root\` div as a PNG image and copies to clipboard (loads html2canvas automatically)
 **Do NOT define copyText, showCopied, captureAsImage, or copyImage in your \`<script>\` tags.** They already exist on \`window\`.
 
-#### Work Item ID Links — Click to Copy URL
+#### Work Item ID Links - Click to Copy URL
 Do NOT use \`<a href="..." target="_blank">\`. Links cannot open in the sandbox.
 Instead, display the ID as a clickable element that copies the ADO URL to clipboard:
 \`\`\`html
@@ -142,12 +142,12 @@ Instead, display the ID as a clickable element that copies the ADO URL to clipbo
 <button id="csvBtn" onclick="copyCsv()" style="padding:6px 14px; background:var(--link); color:white;
   border:none; border-radius:4px; cursor:pointer; font-size:13px">Copy CSV</button>
 \`\`\`
-Define \`copyCsv()\` in a \`<script>\` tag — build the CSV string, then call \`copyText(csvString, document.getElementById('csvBtn'))\`.
+Define \`copyCsv()\` in a \`<script>\` tag - build the CSV string, then call \`copyText(csvString, document.getElementById('csvBtn'))\`.
 
 #### Copy as Image Button
 The \`captureAsImage\` function is pre-defined. It loads html2canvas automatically,
 captures \`#genui-root\` at 2x resolution, and copies it to clipboard.
-Do NOT include an html2canvas \`<script>\` tag or define copyImage/captureAsImage — just add the button:
+Do NOT include an html2canvas \`<script>\` tag or define copyImage/captureAsImage - just add the button:
 \`\`\`html
 <button id="imgBtn" onclick="captureAsImage(this)" style="padding:6px 14px; background:var(--link); color:white;
   border:none; border-radius:4px; cursor:pointer; font-size:13px">Copy as Image</button>
@@ -163,7 +163,7 @@ Place action buttons (Copy CSV, Copy as Image) together in a flex row at the top
 \`\`\`
 
 ### Security (CRITICAL)
-- **HTML-escape ALL data values** before embedding. Titles, names, descriptions — everything from the data JSON must be escaped:
+- **HTML-escape ALL data values** before embedding. Titles, names, descriptions - everything from the data JSON must be escaped:
   \`\`\`javascript
   function esc(str) { const d = document.createElement('div'); d.textContent = String(str ?? ''); return d.innerHTML; }
   \`\`\`

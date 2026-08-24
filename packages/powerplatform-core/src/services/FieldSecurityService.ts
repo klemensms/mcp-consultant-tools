@@ -15,7 +15,7 @@
 
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
 
-/** Dataverse permission enum values (NOT 0/1 — surprising but documented). */
+/** Dataverse permission enum values (NOT 0/1 - surprising but documented). */
 export const FIELD_PERMISSION_ALLOWED = 4;
 export const FIELD_PERMISSION_NOT_ALLOWED = 0;
 
@@ -120,7 +120,7 @@ export class FieldSecurityService {
     const existing = await this.getFieldSecurityProfileRecord(fieldSecurityProfileId);
     if (existing.isManaged) {
       throw new Error(
-        `Cannot delete field security profile '${existing.name}' — it is part of a managed solution.`
+        `Cannot delete field security profile '${existing.name}' - it is part of a managed solution.`
       );
     }
     await this.client.makeRequestNoContent(

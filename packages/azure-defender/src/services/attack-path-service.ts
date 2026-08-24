@@ -47,7 +47,7 @@ function eitherSpellingClause(fields: string[], value: string): string {
 
 /**
  * `contains` is KQL's case-insensitive substring operator. The risk fields are
- * dynamic, so they are stringified before matching — a substring hit against the
+ * dynamic, so they are stringified before matching - a substring hit against the
  * serialized value, not an exact element match. Microsoft enumerates the values of
  * none of them, so an enum would be a guess.
  *
@@ -166,7 +166,7 @@ export function mapAttackPathRow(row: Record<string, unknown>): AttackPath {
 
 /**
  * A readable label for a dynamic value. A risk factor or an entity arrives as either
- * a string or an object, and `String(object)` is `[object Object]` — which would
+ * a string or an object, and `String(object)` is `[object Object]` - which would
  * collapse every distinct factor into one bucket and report a wrong number that looks
  * tidy. An unrecognised object is serialized instead, so it is visibly odd rather
  * than silently merged.
@@ -187,7 +187,7 @@ export function labelOf(value: unknown): string | undefined {
 
 /**
  * The path's risk level under whichever name the row carries. `undefined` means the
- * payload reported none — which is not the same as a path carrying no risk, and must
+ * payload reported none - which is not the same as a path carrying no risk, and must
  * never be rendered as though the API had answered.
  */
 export function effectiveRiskLevel(path: AttackPath): string | undefined {
@@ -239,7 +239,7 @@ export function summariseAttackPaths(paths: AttackPath[]): AttackPathsResult['su
     summary.note =
       `${riskLevelNotReported} of ${paths.length} path(s) did not report a risk level under ` +
       'either `riskLevel` or `potentialImpact`. That is a gap in the payload, not a ' +
-      'finding of no risk — do not report those paths as low risk.';
+      'finding of no risk - do not report those paths as low risk.';
   }
 
   return summary;

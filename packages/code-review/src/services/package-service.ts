@@ -9,7 +9,7 @@ import type {
 
 /**
  * From a list of version names, keep only stable release versions (valid SemVer with no prerelease
- * label — so `2.1.0-g066b9a3212` feature builds are excluded) and sort them descending by SemVer.
+ * label - so `2.1.0-g066b9a3212` feature builds are excluded) and sort them descending by SemVer.
  * Exported for direct testing: the ported source used a `^\d+\.\d+\.\d+$` regex plus a locale string
  * sort, which mis-orders (`1.9.0` after `1.10.0`); SemVer ordering is correct.
  */

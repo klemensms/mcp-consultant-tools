@@ -83,8 +83,11 @@ export default async function searchCli(ctx) {
   function countResults(out, fmt) {
     if (fmt === 'json') {
       try {
-        const arr = JSON.parse(out);
-        return Array.isArray(arr) ? arr.length : 0;
+        // `search --format json` emits `{ records, sources, lines }`: the records plus the
+        // two fan-outs that say what could not be read. Reading `.records` rather than
+        // treating the payload as a bare array is what keeps a short result explainable.
+        const payload = JSON.parse(out);
+        return Array.isArray(payload?.records) ? payload.records.length : 0;
       } catch {
         return -1;
       }

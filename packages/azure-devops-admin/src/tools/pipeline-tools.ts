@@ -375,7 +375,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): { reado
         project: z.string().describe("The project name"),
         buildId: zCoerceNumber().describe("The build ID to cancel"),
       },
-      // Aborts an in-progress build (loses run progress; only re-creatable via retry-build) — treat as destructive.
+      // Aborts an in-progress build (loses run progress; only re-creatable via retry-build) - treat as destructive.
       { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ project, buildId }: any) => {
         try {

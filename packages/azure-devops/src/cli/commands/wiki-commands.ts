@@ -48,7 +48,7 @@ export function registerWikiCommands(program: Command, ctx: ServiceContext): voi
     .argument('[pagePath]', 'Page path (e.g., /Setup/Authentication)')
     .option('--page-id <id>', 'Page ID from wiki URL (alternative to pagePath)')
     .option('--no-content', 'Exclude page content')
-    .option('--recursion-level <level>', "Populate subPages: 'oneLevel' or 'full' (default: none — subPages omitted)")
+    .option('--recursion-level <level>', "Populate subPages: 'oneLevel' or 'full' (default: none - subPages omitted)")
     .action(async (project: string, wikiId: string, pagePath: string | undefined, opts: any) => {
       try {
         if (!pagePath && !opts.pageId) {

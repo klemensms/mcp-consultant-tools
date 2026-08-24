@@ -6,7 +6,7 @@ export interface Layer1Result {
 }
 
 /**
- * Layer 1 — Query-Time Field Exclusion.
+ * Layer 1 - Query-Time Field Exclusion.
  *
  * Returns a filtered `$select` list with configured PII fields removed.
  * If the caller supplied no select (i.e. asking for all fields), this layer is a

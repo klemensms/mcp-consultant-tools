@@ -65,7 +65,7 @@ export function registerAllTools(server: any) {
 
   // Meta merges every package into one namespace, so two packages can claim the
   // same tool name. `safe()` makes a collision skip that one name instead of
-  // aborting the rest of the package — first registration below wins the name.
+  // aborting the rest of the package - first registration below wins the name.
   const duplicates: SkippedRegistration[] = [];
   const safe = (packageName: string) => duplicateSafeServer(server, packageName, duplicates);
 

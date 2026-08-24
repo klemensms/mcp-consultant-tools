@@ -14,9 +14,9 @@ export function registerFormFileTools(server: any, ctx: ServiceContext): void {
 
 server.tool(
   "download-form-to-file",
-  "Download a form's XML to a local file for source-controlled editing. Writes the formxml verbatim (no re-serialisation — whitespace preserved), plus a sidecar <filePath>.meta.json with formId/versionNumber/etc., plus a timestamped snapshot under <filePath>.history/. " +
+  "Download a form's XML to a local file for source-controlled editing. Writes the formxml verbatim (no re-serialisation - whitespace preserved), plus a sidecar <filePath>.meta.json with formId/versionNumber/etc., plus a timestamped snapshot under <filePath>.history/. " +
   "Resolve the form by `formId`, or by `entityLogicalName` + `formName` (+ optional `formType`), or by `entityLogicalName` + `formType` when exactly one form of that type exists. " +
-  "Overwrites the target file — Dataverse is the source of truth. Pair with `deploy-form-file` to upload changes.",
+  "Overwrites the target file - Dataverse is the source of truth. Pair with `deploy-form-file` to upload changes.",
   {
     filePath: z.string().describe(
       descWithExamples("Local file path to write the form XML to. Parent directories are created as needed.", FORM_FILE_PATH_EXAMPLES)
@@ -28,7 +28,7 @@ server.tool(
     formName: z.string().optional().describe("Form display name (e.g., 'Contact', 'Information'). Combined with entityLogicalName and optional formType."),
     formType: z.enum(["Main", "QuickCreate", "QuickView", "Card"]).optional().describe("Form type filter. Useful when the same name exists across types, or to pick the only form of a given type on the entity."),
   },
-  // Reads remote form, writes a local file only — no env mutation.
+  // Reads remote form, writes a local file only - no env mutation.
   { readOnlyHint: true, openWorldHint: true },
   async ({ filePath, formId, entityLogicalName, formName, formType }: any) => {
     try {
@@ -57,7 +57,7 @@ server.tool(
 
 server.tool(
   "deploy-form-file",
-  "Deploy a local form XML file to Dataverse — PATCH the systemform's formxml with the file's bytes verbatim. " +
+  "Deploy a local form XML file to Dataverse - PATCH the systemform's formxml with the file's bytes verbatim. " +
   "Reads the target formId from the sidecar <filePath>.meta.json unless overridden. " +
   "Use `expectedVersionNumber` for optimistic concurrency (rejects if the remote has changed since download). " +
   "Writes a timestamped snapshot under <filePath>.history/ so every upload is audit-loggable. " +
@@ -67,7 +67,7 @@ server.tool(
       descWithExamples("Local file path of the form XML to deploy.", FORM_FILE_PATH_EXAMPLES)
     ),
     formId: z.string().optional().describe("Override the target form ID (defaults to the value in the sidecar .meta.json)."),
-    expectedVersionNumber: z.string().optional().describe("Optimistic concurrency check — reject if remote's versionnumber doesn't match. Pass the value from the sidecar .meta.json."),
+    expectedVersionNumber: z.string().optional().describe("Optimistic concurrency check - reject if remote's versionnumber doesn't match. Pass the value from the sidecar .meta.json."),
     solutionUniqueName: z.string().optional().describe(
       descWithExamples("Solution to add the form to (MSCRM.SolutionUniqueName header).", SOLUTION_NAME_EXAMPLES)
     ),
@@ -103,7 +103,7 @@ server.tool(
 
 server.tool(
   "diff-form-file",
-  "Compare a local form XML file to the current remote form — does NOT modify anything. " +
+  "Compare a local form XML file to the current remote form - does NOT modify anything. " +
   "Use before `deploy-form-file` to sanity-check scope of change, or to detect that the remote has drifted since download. " +
   "Returns whether files are byte-identical and both sizes/versions.",
   {
@@ -112,7 +112,7 @@ server.tool(
     ),
     formId: z.string().optional().describe("Override the target form ID (defaults to the value in the sidecar .meta.json)."),
   },
-  // Read-only compare — writes nothing.
+  // Read-only compare - writes nothing.
   { readOnlyHint: true, openWorldHint: true },
   async ({ filePath, formId }: any) => {
     try {
@@ -120,7 +120,7 @@ server.tool(
       const result = await service.diffFormWithFile(filePath, { formId });
       const verdict = result.identical ? 'IDENTICAL' : 'DIFFERENT';
       const versionNote = result.localVersion && result.localVersion !== result.remoteVersion
-        ? ` — WARNING: remote version (${result.remoteVersion}) moved since download (${result.localVersion})`
+        ? ` - WARNING: remote version (${result.remoteVersion}) moved since download (${result.localVersion})`
         : '';
       return {
         content: [{

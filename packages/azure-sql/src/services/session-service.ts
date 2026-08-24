@@ -262,7 +262,7 @@ const num = (row: Row, key: string): number => Number(row[key] ?? 0);
  * SessionService exposes live session, request and transaction diagnostics from DMVs.
  *
  * Unlike PerformanceService these tools read `sys.dm_exec_*` / `sys.dm_tran_*`, not Query
- * Store, so they must NOT gate on Query Store — doing so would make them fail on a healthy
+ * Store, so they must NOT gate on Query Store - doing so would make them fail on a healthy
  * database. No proactive gate is needed at all: insufficient permission on these DMVs raises
  * a SQL error rather than silently returning no rows, so an empty result genuinely means
  * "nothing is blocking / running / long-lived" and is a valid answer.

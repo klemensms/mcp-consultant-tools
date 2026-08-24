@@ -11,7 +11,7 @@ export function registerWebResourceTools(server: any, ctx: ServiceContext): void
 
 server.tool(
   "create-web-resource",
-  "Create a new web resource (JavaScript, CSS, HTML, Image, etc.). Content must be base64-encoded. PREFER deploy-web-resource-file when the file exists locally — it handles encoding automatically and avoids large inline payloads. Requires publish-customizations afterwards.",
+  "Create a new web resource (JavaScript, CSS, HTML, Image, etc.). Content must be base64-encoded. PREFER deploy-web-resource-file when the file exists locally - it handles encoding automatically and avoids large inline payloads. Requires publish-customizations afterwards.",
   {
     name: z.string().describe("Web resource name with publisher prefix and path (e.g., 'si_/scripts/validation.js', 'contoso_/images/logo.png')"),
     displayName: z.string().describe("Display name"),
@@ -52,7 +52,7 @@ server.tool(
 
 server.tool(
   "update-web-resource",
-  "Update an existing web resource. PREFER deploy-web-resource-file when the content exists as a local file — it reads and base64-encodes the file for you, avoids large inline payloads, and preserves exact formatting.",
+  "Update an existing web resource. PREFER deploy-web-resource-file when the content exists as a local file - it reads and base64-encodes the file for you, avoids large inline payloads, and preserves exact formatting.",
   {
     webResourceId: z.string().describe("Web resource ID (GUID)"),
     displayName: z.string().optional().describe("Display name"),
@@ -116,7 +116,7 @@ server.tool(
 
 server.tool(
   "deploy-web-resource-file",
-  "PREFERRED tool for deploying web resources. Reads a local file, base64-encodes it server-side, and creates or updates the web resource — no need to pass content inline. " +
+  "PREFERRED tool for deploying web resources. Reads a local file, base64-encodes it server-side, and creates or updates the web resource - no need to pass content inline. " +
   "Auto-detects type from file extension (.html→HTML, .js→JavaScript, .css→CSS, etc.). " +
   "Always use this instead of create-web-resource/update-web-resource when the file exists on disk (e.g., checked into source control). " +
   "Avoids large base64 payloads in tool calls, preserves exact file formatting, and is significantly more efficient. " +

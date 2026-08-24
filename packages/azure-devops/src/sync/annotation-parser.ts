@@ -3,7 +3,7 @@
  *
  * A `##` line is a section boundary ONLY when the first non-empty line that
  * follows it is `<!-- ado-field: REFNAME -->`. Any other `##` line is treated
- * as part of the surrounding annotated section's content — this prevents
+ * as part of the surrounding annotated section's content - this prevents
  * silent truncation of fields (e.g. Repro Steps) when the field body legitimately
  * contains `##` text.
  *

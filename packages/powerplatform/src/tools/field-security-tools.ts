@@ -35,7 +35,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         if (results.length === 0) return ok('No field security profiles found.');
         const lines = results.map(
           (r) =>
-            `- ${r.name}${r.isManaged ? ' [managed]' : ''} (${r.fieldSecurityProfileId})${r.description ? ` — ${r.description}` : ''}`
+            `- ${r.name}${r.isManaged ? ' [managed]' : ''} (${r.fieldSecurityProfileId})${r.description ? ` - ${r.description}` : ''}`
         );
         return ok(`Found ${results.length} field security profile(s):\n${lines.join('\n')}`);
       } catch (error: any) {
@@ -47,7 +47,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
 
   server.tool(
     'get-field-security-profile',
-    'Get a single Field Security Profile with all its field permissions and team/user assignments — a one-call snapshot.',
+    'Get a single Field Security Profile with all its field permissions and team/user assignments - a one-call snapshot.',
     {
       fieldSecurityProfileId: z
         .string()
@@ -106,7 +106,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
                     `    · ${f.name} (${f.fieldSecurityProfileId}): C=${f.canCreate} R=${f.canRead} U=${f.canUpdate}`
                 )
                 .join('\n')
-            : '    (no FSP grants access — column is fully locked down)';
+            : '    (no FSP grants access - column is fully locked down)';
           return `- ${c.attributeLogicalName} [${c.attributeType}]\n${fspLines}`;
         });
         return ok(

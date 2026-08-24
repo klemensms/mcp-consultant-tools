@@ -311,7 +311,7 @@ export class IconManager {
 
   /**
    * Generate icon vector name for EntityMetadata.
-   * The IconVectorName property expects the bare web resource name — NOT the
+   * The IconVectorName property expects the bare web resource name - NOT the
    * $webresource: prefixed form (that prefix is for form XML / sitemap / ribbon).
    */
   generateIconVectorName(webResourceName: string): string {

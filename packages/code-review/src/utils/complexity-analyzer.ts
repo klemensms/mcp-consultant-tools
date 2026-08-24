@@ -4,7 +4,7 @@ import { extname } from 'node:path';
 /**
  * Regex-based cyclomatic-complexity ESTIMATOR for C#, TypeScript, and JavaScript.
  *
- * It counts decision points line by line — it does not parse an AST — so the numbers are an
+ * It counts decision points line by line - it does not parse an AST - so the numbers are an
  * approximation of McCabe complexity, not an exact measurement. Known heuristic ceilings: a `case`
  * or operator inside a string literal can be over-counted; C# nullable-type declarations (`int?`)
  * can register as a ternary; and decision points inside a nested lambda are counted both for the
@@ -22,7 +22,7 @@ const TS_METHOD_PATTERN =
   /(?:export\s+)?(?:async\s+)?(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?(?:\([^)]*\)|[^=]*)?\s*=>|(\w+)\s*\([^)]*\)\s*(?::\s*[\w<>\[\]|,\s]+)?\s*\{)/g;
 
 // Decision-point patterns (applied per line). `else if` is intentionally NOT listed: every
-// `else if (` contains an `if (` that the `if` pattern already counts once — counting a separate
+// `else if (` contains an `if (` that the `if` pattern already counts once - counting a separate
 // `else if` pattern too would double-count the branch (the ported source's bug).
 const DECISION_PATTERNS = [
   /\bif\s*\(/g,

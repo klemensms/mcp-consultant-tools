@@ -2,10 +2,10 @@
  * Validation for the only caller-supplied values that reach a Graph URL: service-health
  * issue IDs and Message Center message IDs.
  *
- * These are Graph-assigned service-announcement IDs — a short service prefix plus digits
+ * These are Graph-assigned service-announcement IDs - a short service prefix plus digits
  * (e.g. `EX226792`, `MC172851`, `SP391284`). They are always alphanumeric. Validating the
  * shape before it lands in a URL path segment is a complete defence: nothing here builds an
- * OData `$filter` from caller input (Graph ignores `$filter` on these collections — see the
+ * OData `$filter` from caller input (Graph ignores `$filter` on these collections - see the
  * client), so a shape check is all that is needed and there is no string literal to escape.
  */
 

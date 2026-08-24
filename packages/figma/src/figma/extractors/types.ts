@@ -67,7 +67,7 @@ export interface TraversalOptions {
  * An extractor function that can modify a SimplifiedNode during traversal.
  *
  * @param node - The current Figma node being processed
- * @param result - SimplifiedNode object being built—this can be mutated inside the extractor
+ * @param result - SimplifiedNode object being built - this can be mutated inside the extractor
  * @param context - Traversal context including globalVars and parent info. This can also be mutated inside the extractor.
  */
 export type ExtractorFn = (

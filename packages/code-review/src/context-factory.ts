@@ -1,6 +1,6 @@
 /**
  * Shared ServiceContext factory for code-review. Used by both the MCP server (index.ts) and the
- * CLI (cli.ts) — there is exactly one copy.
+ * CLI (cli.ts) - there is exactly one copy.
  *
  * The package is provider-agnostic: CODE_REVIEW_PROVIDER selects Azure DevOps (PAT or an Entra
  * service principal), GitHub Enterprise (PAT), or a GitHub App. NuGet lookups go to the public
@@ -25,7 +25,7 @@ const AZDO_AUTH_METHODS = ['pat', 'entra-id'] as const;
 /**
  * Build the provider config from environment variables, failing with a message that names every
  * missing variable (the missing-config surface tested against real credentials being absent).
- * Pure — reads env only, does no filesystem or network work — so it is unit-testable.
+ * Pure - reads env only, does no filesystem or network work - so it is unit-testable.
  */
 export function buildCodeReviewConfig(env: NodeJS.ProcessEnv): CodeReviewConfig {
   const provider = env.CODE_REVIEW_PROVIDER;
@@ -87,7 +87,7 @@ export function buildCodeReviewConfig(env: NodeJS.ProcessEnv): CodeReviewConfig 
   };
 }
 
-/** Optional repository allowlist — scopes every clone/list to a named set. Undefined = no filter. */
+/** Optional repository allowlist - scopes every clone/list to a named set. Undefined = no filter. */
 export function parseAllowedRepositories(env: NodeJS.ProcessEnv): string[] | undefined {
   const raw = env.CODE_REVIEW_ALLOWED_REPOSITORIES;
   if (!raw) return undefined;
@@ -134,7 +134,7 @@ export function createServiceContext(): ServiceContext {
         });
       }
       client = new CodeReviewClient(config, appAuth, entraAuth);
-      // Never log tokens, org names, or base URLs — they land in transcripts.
+      // Never log tokens, org names, or base URLs - they land in transcripts.
       const authNote = config.provider === 'azure-devops' ? `, auth: ${config.azdoAuthMethod}` : '';
       console.error(`Code-review client initialized (provider: ${config.provider}${authNote})`);
     }

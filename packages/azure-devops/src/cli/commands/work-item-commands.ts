@@ -193,7 +193,7 @@ export function registerWorkItemCommands(program: Command, ctx: ServiceContext):
           { persist: false,
             fileName: `attachment-uploaded-${result.id}`,
             data: { ...result, embedUrl },
-            summary: `Uploaded ${result.fileName} (${result.size} bytes) — embed via: ${embedUrl}`,
+            summary: `Uploaded ${result.fileName} (${result.size} bytes) - embed via: ${embedUrl}`,
           },
           getGlobalFlags(program)
         );

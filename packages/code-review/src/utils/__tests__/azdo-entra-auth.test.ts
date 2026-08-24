@@ -10,7 +10,7 @@ describe('AZURE_DEVOPS_RESOURCE_ID', () => {
   });
 });
 
-describe('describeTokenError — the client secret must never reach the message', () => {
+describe('describeTokenError - the client secret must never reach the message', () => {
   /** An axios error carries the outbound form body (with the secret) on `config.data`. */
   function tokenRequestFailure(status: number, data: unknown): AxiosError {
     const error = new AxiosError('Request failed with status code ' + status);

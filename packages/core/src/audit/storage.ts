@@ -43,10 +43,10 @@ export async function appendRecordLine(filePath: string, line: string): Promise<
  *   2. If a .chain-state file exists in the directory, it must parse as valid
  *      JSON and conform to the ChainState shape (v: 1, lastSeq, lastHash,
  *      currentFile). A corrupted state file is unrecoverable without operator
- *      intervention — the message points at `mcp-audit-cli quarantine`.
+ *      intervention - the message points at `mcp-audit-cli quarantine`.
  *
  * Callers should invoke this only when audit is enabled (level !== 'off').
- * Sync fs is intentional — startup, not a hot path.
+ * Sync fs is intentional - startup, not a hot path.
  */
 export function probeAuditStorage(config: AuditConfig): void {
   const dir = join(config.basePath, config.client);

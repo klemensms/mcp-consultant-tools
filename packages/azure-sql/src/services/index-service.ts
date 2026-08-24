@@ -36,7 +36,7 @@ export interface IndexUsageStat {
   table: string;
   indexName: string;
   indexType: string;
-  /** False when the DMV held no row for this index — see `getIndexUsageStats`. */
+  /** False when the DMV held no row for this index - see `getIndexUsageStats`. */
   hasUsageData: boolean;
   userSeeks: number;
   userScans: number;
@@ -242,7 +242,7 @@ ORDER BY Ordinal;
  * Three properties of `sys.dm_db_index_usage_stats` shape this query:
  *
  * 1. An index that has seen no activity since the counters started has **no row**, not a row
- *    of zeros. Hence the LEFT JOIN and the `HasUsageData` flag — "no data" and "zero reads"
+ *    of zeros. Hence the LEFT JOIN and the `HasUsageData` flag - "no data" and "zero reads"
  *    are different answers and must not collapse into one.
  * 2. The counters reset whenever the database engine starts, and when the database is
  *    detached, taken offline or AUTO_CLOSEd. `StatsWindowHours` reports how long they have
@@ -323,7 +323,7 @@ export class IndexService {
 
   /**
    * Disabled indexes and the DDL that would rebuild them. The DDL is returned as text and
-   * is never executed here — rebuilding is the caller's decision, taken with the table's
+   * is never executed here - rebuilding is the caller's decision, taken with the table's
    * size and the maintenance window in view.
    */
   async getDisabledIndexes(
@@ -429,7 +429,7 @@ export class IndexService {
    * Index read/write counters, least-read first.
    *
    * `isUnused` means the engine maintains the index on every write but nothing has read it
-   * — the index costs and returns nothing. It deliberately requires `hasUsageData`: an index
+   * - the index costs and returns nothing. It deliberately requires `hasUsageData`: an index
    * with no DMV row has seen no activity of any kind, which is an absence of evidence rather
    * than evidence of disuse. Weigh any drop decision against `summary.statsWindowHours`,
    * since the counters reset on engine restart.

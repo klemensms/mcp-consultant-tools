@@ -234,7 +234,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
         const service = ctx.pp;
         const audit = ctx.audit;
 
-        // Synthetic return shape — Dataverse delete is a void HTTP 204; we
+        // Synthetic return shape - Dataverse delete is a void HTTP 204; we
         // surface { success, recordId } so payloadOutput is non-undefined at
         // level=full. The synthesised fields don't reflect the API response.
         const operation = async () => {
@@ -427,7 +427,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
         const service = ctx.pp;
         const audit = ctx.audit;
 
-        // Synthetic return shape — Dataverse Associate is a void HTTP 204;
+        // Synthetic return shape - Dataverse Associate is a void HTTP 204;
         // we surface { success } so payloadOutput is non-undefined at
         // level=full. Does not reflect the API response.
         const operation = async () => {
@@ -511,7 +511,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
         const service = ctx.pp;
         const audit = ctx.audit;
 
-        // Synthetic return shape — Dataverse Disassociate is a void HTTP 204;
+        // Synthetic return shape - Dataverse Disassociate is a void HTTP 204;
         // we surface { success } so payloadOutput is non-undefined at
         // level=full. Does not reflect the API response.
         const operation = async () => {

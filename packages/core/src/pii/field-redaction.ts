@@ -27,7 +27,7 @@ export const LOOKUP_FORMATTED_VALUE_PII_KEYWORDS: ReadonlyArray<string> = [
 /**
  * Default-on keyword list used to flag PLAIN FIELD NAMES as PII-bearing
  * when the field name contains any of these substrings (case-insensitive).
- * Distinct from the FormattedValue-annotation list above — these match on
+ * Distinct from the FormattedValue-annotation list above - these match on
  * the field key itself, e.g. `salutation`, `new_salutation`, `new_member_salutation`
  * all redact via the keyword `salutation`.
  *

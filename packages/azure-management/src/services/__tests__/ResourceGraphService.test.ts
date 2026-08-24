@@ -56,7 +56,7 @@ const ALL_BUILDERS: Array<[string, string]> = [
   ['sameVnet', buildSameVnetQuery({ resourceId: RESOURCE_ID, vnetId: 'vnet', subnetId: SUBNET_ID })],
 ];
 
-describe('query builders — KQL injection', () => {
+describe('query builders - KQL injection', () => {
   it('neutralises a break-out payload in every string-interpolating builder', () => {
     const queries = [
       buildNsgQuery({ resourceGroup: BREAKOUT }),
@@ -87,7 +87,7 @@ describe('query builders — KQL injection', () => {
   });
 });
 
-describe('query builders — operators', () => {
+describe('query builders - operators', () => {
   it('compares `type` with =~, never ==', () => {
     for (const [name, query] of ALL_BUILDERS) {
       if (!query.includes('where type')) continue;

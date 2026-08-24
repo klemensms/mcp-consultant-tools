@@ -26,7 +26,7 @@ describe('getDotnetVersionInfo', () => {
   });
 });
 
-describe('isEolFramework — computed from eolDate vs now', () => {
+describe('isEolFramework - computed from eolDate vs now', () => {
   it('net9.0 is NOT EOL in July 2026 (real EOL is 2026-11-10, not the stale 2026-05-12)', () => {
     expect(isEolFramework('net9.0', JUL_2026)).toBe(false);
   });

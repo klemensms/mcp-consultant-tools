@@ -27,7 +27,7 @@ export class WikiService {
 
   /**
    * Light normalization for user-provided wiki paths.
-   * Only strips .md extension — does NOT convert dashes to spaces.
+   * Only strips .md extension - does NOT convert dashes to spaces.
    */
   private normalizePagePath(pagePath: string): string {
     return pagePath.replace(/\.md$/, '');
@@ -185,7 +185,7 @@ export class WikiService {
         gitItemPath: response.gitItemPath,
         ...(recursionParam
           ? { subPages: response.subPages || [] }
-          : { subPagesNote: "subPages not requested — pass recursionLevel ('oneLevel' or 'full') to populate, or use get-wiki-tree for the full hierarchy" }),
+          : { subPagesNote: "subPages not requested - pass recursionLevel ('oneLevel' or 'full') to populate, or use get-wiki-tree for the full hierarchy" }),
         url: response.url,
         remoteUrl: response.remoteUrl,
         version: etag,
@@ -233,7 +233,7 @@ export class WikiService {
         gitItemPath: response.gitItemPath,
         ...(recursionParam
           ? { subPages: response.subPages || [] }
-          : { subPagesNote: "subPages not requested — pass recursionLevel ('oneLevel' or 'full') to populate, or use get-wiki-tree for the full hierarchy" }),
+          : { subPagesNote: "subPages not requested - pass recursionLevel ('oneLevel' or 'full') to populate, or use get-wiki-tree for the full hierarchy" }),
         url: response.url,
         remoteUrl: response.remoteUrl,
         version: etag,
@@ -263,7 +263,7 @@ export class WikiService {
   }
 
   /**
-   * Get the page hierarchy under a path (paths + ids, no content) —
+   * Get the page hierarchy under a path (paths + ids, no content) -
    * tree enumeration without pulling every page body.
    */
   async getWikiPageTree(project: string, wikiId: string, pagePath: string = '/', depth: 'oneLevel' | 'full' = 'full'): Promise<any> {

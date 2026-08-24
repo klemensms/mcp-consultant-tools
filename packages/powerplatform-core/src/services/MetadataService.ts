@@ -152,7 +152,7 @@ export class MetadataService {
     ];
 
     // Dataverse returns the annotation with a leading '#', e.g.
-    // "#Microsoft.Dynamics.CRM.PicklistAttributeMetadata" — strip it before comparing
+    // "#Microsoft.Dynamics.CRM.PicklistAttributeMetadata" - strip it before comparing
     const castType = ((attribute?.['@odata.type'] as string) || '').replace('#', '');
 
     if (picklistTypes.includes(castType)) {
@@ -168,7 +168,7 @@ export class MetadataService {
 
       // $expand=OptionSet can fail (observed with local picklists) or come back
       // empty (global picklists expose options via GlobalOptionSet). Fall back to
-      // reading the navigation properties directly — no option-set name needed.
+      // reading the navigation properties directly - no option-set name needed.
       if (!optionSet?.Options) {
         for (const navProperty of ['OptionSet', 'GlobalOptionSet']) {
           try {
@@ -194,8 +194,8 @@ export class MetadataService {
           })),
         };
       } else {
-        // Never drop the options silently — a picklist always has an option set.
-        attribute.optionSetWarning = `OptionSet lookup failed for '${attributeName}' — option values omitted. For local picklists, query the attribute-scoped option-set metadata; for global picklists, query the global option-set metadata (e.g. 'metadata option-set <name>').`;
+        // Never drop the options silently - a picklist always has an option set.
+        attribute.optionSetWarning = `OptionSet lookup failed for '${attributeName}' - option values omitted. For local picklists, query the attribute-scoped option-set metadata; for global picklists, query the global option-set metadata (e.g. 'metadata option-set <name>').`;
       }
     }
 

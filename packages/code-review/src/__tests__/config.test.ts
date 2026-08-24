@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildCodeReviewConfig, parseAllowedRepositories } from '../context-factory.js';
 
-describe('buildCodeReviewConfig — missing config fails clearly, naming the vars', () => {
+describe('buildCodeReviewConfig - missing config fails clearly, naming the vars', () => {
   it('requires CODE_REVIEW_PROVIDER', () => {
     expect(() => buildCodeReviewConfig({})).toThrow(/CODE_REVIEW_PROVIDER/);
   });
@@ -40,7 +40,7 @@ describe('buildCodeReviewConfig — missing config fails clearly, naming the var
   });
 });
 
-describe('azure-devops auth method — entra-id is opt-in, pat stays the default', () => {
+describe('azure-devops auth method - entra-id is opt-in, pat stays the default', () => {
   const AZDO_ENTRA = {
     CODE_REVIEW_PROVIDER: 'azure-devops',
     CODE_REVIEW_AZDO_AUTH_METHOD: 'entra-id',

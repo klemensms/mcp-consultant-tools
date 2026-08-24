@@ -60,7 +60,7 @@ export function stageNames(records: TimelineRecord[]): string[] {
  * Find a successful stage by name, comparing case-insensitively.
  *
  * The si source used `record.name === stageName`, so asking for `prod` when the
- * pipeline names the stage `Prod` reported "never deployed" forever — and that
+ * pipeline names the stage `Prod` reported "never deployed" forever - and that
  * looked identical to a pipeline that genuinely had no successful deploy.
  */
 export function findSuccessfulStage(

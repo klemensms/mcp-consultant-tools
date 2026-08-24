@@ -152,7 +152,7 @@ export class ChecklistService {
 
     const wi = await this.workItemService.getWorkItem(project, workItemId);
     if (!wi.fields || !wi.fields['System.WorkItemType']) {
-      throw new Error(`Work item #${workItemId} returned no fields. The API response may be empty — check authentication.`);
+      throw new Error(`Work item #${workItemId} returned no fields. The API response may be empty - check authentication.`);
     }
     const workItemType = wi.fields['System.WorkItemType'];
 

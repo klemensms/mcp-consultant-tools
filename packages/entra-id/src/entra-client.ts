@@ -7,7 +7,7 @@
  * client credentials, read-only) and needs no extra dependency.
  *
  * `Client.initWithMiddleware` installs Graph's own retry handler, which honours
- * `Retry-After` on 429/503 — so this class carries no retry loop of its own.
+ * `Retry-After` on 429/503 - so this class carries no retry loop of its own.
  */
 
 import { ClientSecretCredential } from '@azure/identity';
@@ -76,7 +76,7 @@ export class EntraIdClient {
     return this.graphClient;
   }
 
-  /** Fetch a single resource. `select` is mandatory — see the note on paginate(). */
+  /** Fetch a single resource. `select` is mandatory - see the note on paginate(). */
   async get<T>(path: string, select: string[]): Promise<T> {
     return (await this.getClient().api(path).select(select).get()) as T;
   }
@@ -88,7 +88,7 @@ export class EntraIdClient {
    *
    * `select` is mandatory. Graph returns only what is selected, so a caller that forgets
    * `passwordCredentials` gets applications with no credentials and reads "nothing is
-   * expiring" — a false all-clear rather than an error.
+   * expiring" - a false all-clear rather than an error.
    *
    * The nextLink URL is passed to `.api()` verbatim: Graph bakes the original query into
    * it, and mutating it (adding $top, extracting $skiptoken) is explicitly unsupported.
@@ -132,7 +132,7 @@ export class EntraIdClient {
       return this.servicePrincipalCache.get(appId) ?? null;
     }
 
-    // resourceAppId comes from Graph, not from a caller — but it lands in a URL, so shape-check it.
+    // resourceAppId comes from Graph, not from a caller - but it lands in a URL, so shape-check it.
     if (!isGuid(appId)) {
       this.servicePrincipalCache.set(appId, null);
       return null;

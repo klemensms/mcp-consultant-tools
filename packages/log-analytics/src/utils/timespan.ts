@@ -75,7 +75,7 @@ export function resolveEffectiveTimespan(
       return {
         effectiveTimespan: explicitTimespan,
         timespanWarning:
-          `KQL requests ago(${widest.literal}) but the timespan caps the window at ${explicitTimespan} — ` +
+          `KQL requests ago(${widest.literal}) but the timespan caps the window at ${explicitTimespan} - ` +
           `results are clipped to ${explicitTimespan}. Pass a wider timespan explicitly ` +
           `(e.g. ${msToIsoDuration(widest.ms)}) if clipping is not intended.`,
       };

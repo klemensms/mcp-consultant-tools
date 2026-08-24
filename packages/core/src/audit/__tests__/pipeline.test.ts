@@ -51,7 +51,7 @@ describe('AuditPipeline', () => {
     expect(parsed[1].prevHash).toBeDefined();
   });
 
-  it('serialises concurrent emits — chain stays correct', async () => {
+  it('serialises concurrent emits - chain stays correct', async () => {
     const p = makePipeline('lean');
     await p.setEngagement(['Acme-1'], undefined);
     await Promise.all([

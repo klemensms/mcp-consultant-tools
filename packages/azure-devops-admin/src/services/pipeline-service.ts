@@ -846,7 +846,7 @@ export class PipelineService {
       availableStageNames: [...seenStageNames].sort(),
       /**
        * No build carried a single Stage-type timeline record. Either the pipeline
-       * has no stages, or none of the inspected builds reached one — NOT evidence
+       * has no stages, or none of the inspected builds reached one - NOT evidence
        * that the requested stages never deployed.
        */
       noStageRecordsFound: seenStageNames.size === 0,
@@ -875,7 +875,7 @@ export class PipelineService {
     );
     const definitions = response.value ?? [];
 
-    // The server-side `name` filter is not an exact match, so narrow it here —
+    // The server-side `name` filter is not an exact match, so narrow it here -
     // case-insensitively, or a correctly-named pipeline reports "not found".
     const wanted = pipelineName.toLowerCase();
     const exact = definitions.filter((d: any) => String(d.name ?? '').toLowerCase() === wanted);

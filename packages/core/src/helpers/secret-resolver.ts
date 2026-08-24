@@ -51,7 +51,7 @@ function getTtlMs(): number {
 }
 
 // ---------------------------------------------------------------------------
-// File lock — serializes op calls across concurrent processes
+// File lock - serializes op calls across concurrent processes
 // ---------------------------------------------------------------------------
 
 function ensureCacheDir(): void {
@@ -354,12 +354,12 @@ async function resolveAndCache(
  * Scan process.env for op:// references and resolve them via the 1Password CLI.
  *
  * Resolution strategy:
- * 1. Encrypted cache — shared pool of op:// ref -> value pairs. If all references
+ * 1. Encrypted cache - shared pool of op:// ref -> value pairs. If all references
  *    are cached and non-expired, no `op` process is spawned (zero overhead).
- * 2. File lock — concurrent processes serialize op calls so only one triggers
+ * 2. File lock - concurrent processes serialize op calls so only one triggers
  *    a biometric prompt.
- * 3. `op run` — batch resolution in a single process spawn.
- * 4. `op read` — sequential fallback if `op run` fails.
+ * 3. `op run` - batch resolution in a single process spawn.
+ * 4. `op read` - sequential fallback if `op run` fails.
  *
  * If no op:// references exist in process.env, returns immediately (zero overhead).
  * Resolution failures are logged to stderr but do not crash the process.
@@ -380,7 +380,7 @@ export async function resolveSecrets(): Promise<void> {
 
   if (missing.length === 0) return;
 
-  // 2. Try to acquire lock — only one process calls op
+  // 2. Try to acquire lock - only one process calls op
   if (tryAcquireLock()) {
     try {
       await resolveAndCache(opEntries, missing, pool);
@@ -390,10 +390,10 @@ export async function resolveSecrets(): Promise<void> {
     return;
   }
 
-  // 3. Lock held by another process — wait for it to finish
+  // 3. Lock held by another process - wait for it to finish
   await waitForLock();
 
-  // 4. Re-read cache — the winner should have populated it
+  // 4. Re-read cache - the winner should have populated it
   const freshPool = readCachePool();
   const { resolved: nowCached, missing: stillMissing } = lookupCache(opEntries, freshPool);
 
@@ -403,7 +403,7 @@ export async function resolveSecrets(): Promise<void> {
 
   if (stillMissing.length === 0) return;
 
-  // 5. Still missing (different refs) — resolve ourselves
+  // 5. Still missing (different refs) - resolve ourselves
   await resolveAndCache(opEntries, stillMissing, freshPool);
 }
 
@@ -426,7 +426,7 @@ export async function isOpCliAvailable(): Promise<boolean> {
  * succeeds, false otherwise.
  *
  * Used as a pre-flight before bulk resolution so callers can refuse to run when
- * `op` cannot authenticate — a failed resolution negative-caches the refs for
+ * `op` cannot authenticate - a failed resolution negative-caches the refs for
  * 10 minutes, which would block the very MCP servers the caller is warming.
  */
 export async function isOpSignedIn(): Promise<boolean> {

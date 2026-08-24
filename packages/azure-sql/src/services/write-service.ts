@@ -27,7 +27,7 @@ export interface UnrestrictedResult {
 }
 
 /**
- * Regex for valid SQL identifiers — prevents SQL injection on object names.
+ * Regex for valid SQL identifiers - prevents SQL injection on object names.
  */
 const VALID_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -819,7 +819,7 @@ export class WriteService {
 
   /**
    * Execute any T-SQL without restrictions. Supports multi-batch scripts with GO separators.
-   * This is the "break glass" method — no validation, no keyword restrictions.
+   * This is the "break glass" method - no validation, no keyword restrictions.
    * The caller (MCP tool / CLI) is responsible for gating behind SQL_ENABLE_UNRESTRICTED.
    */
   async executeUnrestricted(

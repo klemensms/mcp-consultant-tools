@@ -3,7 +3,7 @@
  *
  * This package deliberately builds no OData `$filter` or `$search` from caller input.
  * The only caller-supplied value that ever lands in a Graph URL is an application's
- * object id or appId, and both are GUIDs — so validating the shape is a complete
+ * object id or appId, and both are GUIDs - so validating the shape is a complete
  * defence and there is no string literal left to escape. Name matching happens
  * client-side (see AppRegistrationService).
  */

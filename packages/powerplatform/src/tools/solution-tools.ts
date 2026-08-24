@@ -198,7 +198,7 @@ export function registerSolutionTools(server: any, ctx: ServiceContext): void {
       schemaName: z.string().describe("Schema name to validate"),
       prefix: z.string().describe("Required customization prefix")
     },
-    // Local synchronous validation — no external/Dataverse call.
+    // Local synchronous validation - no external/Dataverse call.
     { readOnlyHint: true },
     async ({ schemaName, prefix }: any) => {
       try {

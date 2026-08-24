@@ -21,7 +21,7 @@ export function sanitizeGenUiHtml(html: string): string {
   // Strip dangerous elements (with or without closing tags)
   sanitized = sanitized.replace(DANGEROUS_ELEMENTS_PATTERN, '');
 
-  // Strip external script sources — keep inline scripts and Chart.js CDN
+  // Strip external script sources - keep inline scripts and Chart.js CDN
   sanitized = sanitized.replace(
     /<script\b([^>]*)\bsrc\s*=\s*["']([^"']*)["']([^>]*)>/gi,
     (match, _before, src) => {

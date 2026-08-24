@@ -34,7 +34,7 @@ export interface NugetVersionData {
 }
 
 /**
- * Decide a package's status. Exported for direct testing — it is where "vulnerable" must win over
+ * Decide a package's status. Exported for direct testing - it is where "vulnerable" must win over
  * freshness and where a non-comparable version must fall back to "unknown" rather than lie.
  */
 export function determinePackageStatus(pkg: PackageInfo): PackageStatus {
@@ -65,7 +65,7 @@ export class NugetPackageService {
   constructor(private readonly fetchJson: FetchJson) {}
 
   /**
-   * Resolve the registration base URL from the NuGet service index — the docs are explicit that
+   * Resolve the registration base URL from the NuGet service index - the docs are explicit that
    * this must be discovered, not hardcoded, because the base can change. Prefer the gzip + SemVer2
    * variant (3.6.0), falling back to older variants. Cached for the life of the service.
    */
@@ -108,7 +108,7 @@ export class NugetPackageService {
     const pages: any[] = regIndex?.items ?? [];
     if (pages.length === 0) return empty;
 
-    // Latest/stable from the last (highest) page — inlined or fetched by @id.
+    // Latest/stable from the last (highest) page - inlined or fetched by @id.
     const lastLeaves = await this.leavesOf(pages[pages.length - 1]);
     const { latestVersion, latestStableVersion } = pickLatest(lastLeaves.map((l) => l.version));
 
@@ -121,7 +121,7 @@ export class NugetPackageService {
     return { latestVersion, latestStableVersion, vulnerabilities };
   }
 
-  /** Leaves of a registration page — following the page `@id` when the page is not inlined. */
+  /** Leaves of a registration page - following the page `@id` when the page is not inlined. */
   private async leavesOf(page: any): Promise<NugetLeaf[]> {
     const inline = leavesFromPage(page);
     if (inline.length > 0) return inline;

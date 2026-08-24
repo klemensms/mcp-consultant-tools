@@ -14,8 +14,8 @@ export interface AzdoEntraAuthOptions {
 
 /**
  * Turn a failed token request into a message built ONLY from the response body. An axios error
- * carries the outbound request body on `error.config.data` — and that body contains the client
- * secret — so anything that stringifies the whole error leaks the credential.
+ * carries the outbound request body on `error.config.data` - and that body contains the client
+ * secret - so anything that stringifies the whole error leaks the credential.
  */
 export function describeTokenError(error: unknown): string {
   if (axios.isAxiosError(error) && error.response) {

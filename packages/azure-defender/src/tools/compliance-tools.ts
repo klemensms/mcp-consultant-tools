@@ -4,12 +4,12 @@ import { runTool, READ_ONLY, SECURITY_READER } from './tool-helpers.js';
 import type { ComplianceState } from '../models/defender-types.js';
 
 const STANDARD_HINT =
-  "Compliance standard name, e.g. 'Azure-CIS-1.1.0' or 'PCI-DSS-3.2.1'. Run defender-list-compliance-standards first — names are exact and vary by subscription.";
+  "Compliance standard name, e.g. 'Azure-CIS-1.1.0' or 'PCI-DSS-3.2.1'. Run defender-list-compliance-standards first - names are exact and vary by subscription.";
 
 export function registerComplianceTools(server: any, ctx: ServiceContext): void {
   server.tool(
     'defender-list-compliance-standards',
-    `Regulatory compliance standards enabled on the subscription (Azure CIS, PCI DSS, ISO 27001, NIST, ...), each with its passed/failed/skipped/unsupported control counts. A standard only appears here once it has been enabled in Defender for Cloud's regulatory compliance settings — an empty list means none are enabled, not that the subscription is non-compliant. ${SECURITY_READER}`,
+    `Regulatory compliance standards enabled on the subscription (Azure CIS, PCI DSS, ISO 27001, NIST, ...), each with its passed/failed/skipped/unsupported control counts. A standard only appears here once it has been enabled in Defender for Cloud's regulatory compliance settings - an empty list means none are enabled, not that the subscription is non-compliant. ${SECURITY_READER}`,
     {},
     READ_ONLY,
     async () => runTool('listing compliance standards', () => ctx.compliance.listStandards())
@@ -50,7 +50,7 @@ export function registerComplianceTools(server: any, ctx: ServiceContext): void 
 
   server.tool(
     'defender-get-compliance-summary',
-    `Compliance rolled up per standard: passed/failed control counts and a compliance percentage. The percentage counts passed / (passed + failed) — skipped and unsupported controls are excluded from the denominator, matching the Azure portal, so it is not passedControls / totalControls. Pass standardName to focus on one; an unknown name fails with the list of available names rather than reporting 0%. ${SECURITY_READER}`,
+    `Compliance rolled up per standard: passed/failed control counts and a compliance percentage. The percentage counts passed / (passed + failed) - skipped and unsupported controls are excluded from the denominator, matching the Azure portal, so it is not passedControls / totalControls. Pass standardName to focus on one; an unknown name fails with the list of available names rather than reporting 0%. ${SECURITY_READER}`,
     {
       standardName: z
         .string()

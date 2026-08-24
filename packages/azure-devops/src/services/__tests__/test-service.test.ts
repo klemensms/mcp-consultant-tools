@@ -52,11 +52,11 @@ describe('TestService.completeTestRun', () => {
   // per-result outcomes via a follow-up GET on the run's results.
   it('aggregates pass/fail counts from per-result outcomes, not the PATCH response', async () => {
     mockedAxios
-      // 1: run-state PATCH — passed/failed come back 0 (the ADO quirk being worked around)
+      // 1: run-state PATCH - passed/failed come back 0 (the ADO quirk being worked around)
       .mockResolvedValueOnce({
         data: { id: 123456, state: 'Completed', totalTests: 7, passedTests: 0, unanalyzedTests: 0 },
       } as any)
-      // 2: GET results — the source of truth: 4 Passed, 3 NotExecuted, 0 Failed
+      // 2: GET results - the source of truth: 4 Passed, 3 NotExecuted, 0 Failed
       .mockResolvedValueOnce({
         data: {
           value: [

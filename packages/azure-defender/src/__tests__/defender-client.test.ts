@@ -100,7 +100,7 @@ describe('DefenderClient.paginate', () => {
 
   it('reports truncated=false when the total exactly equals maxResults', async () => {
     // The extra row that would prove truncation never arrives, so this is a
-    // complete result — not a coincidentally-full page.
+    // complete result - not a coincidentally-full page.
     requestMock.mockResolvedValueOnce({ data: { value: [1, 2] } });
 
     const result = await makeClient().paginate<number>('/p', '2020-01-01', undefined, 2);

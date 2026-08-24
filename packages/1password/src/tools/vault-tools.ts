@@ -1,5 +1,5 @@
 /**
- * Vault tools — 8 tools (2 read, 2 write, 1 delete, 3 admin)
+ * Vault tools - 8 tools (2 read, 2 write, 1 delete, 3 admin)
  */
 import { z } from 'zod';
 import type { ServiceContext } from '../types.js';

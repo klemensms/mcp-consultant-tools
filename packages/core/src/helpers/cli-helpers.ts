@@ -278,7 +278,7 @@ export function handleCliError(error: unknown, operation: string): never {
  * Used by CLI entry points to decide whether to skip eager service-context
  * construction (which can refuse-to-start when env vars are missing). In help
  * or version mode the user just wants to see what the CLI exposes, not run a
- * subcommand — so paying the cost of full PII/audit env validation is wrong.
+ * subcommand - so paying the cost of full PII/audit env validation is wrong.
  */
 export function isHelpVersionOrNoArgs(argv?: readonly string[]): boolean {
   const a = (argv ?? process.argv).slice(2);
@@ -300,7 +300,7 @@ function readArgvFlag(argv: readonly string[], flag: string): string | undefined
 }
 
 /**
- * Stderr nag — fires when the CLI was invoked without `--mcp-server` AND
+ * Stderr nag - fires when the CLI was invoked without `--mcp-server` AND
  * none of the relevant PII / audit env vars are set explicitly. Catches the
  * "agent shelled out to a CLI naked" case without nagging users who have
  * deliberately set env vars in their shell or used the bridge.

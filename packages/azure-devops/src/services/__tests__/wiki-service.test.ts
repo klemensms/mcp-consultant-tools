@@ -30,7 +30,7 @@ describe('WikiService.getWikiPage recursionLevel', () => {
   });
 
   // Regression: the page request never passed recursionLevel, so the ADO API
-  // (default 'none') never populated subPages — the field was always [].
+  // (default 'none') never populated subPages - the field was always [].
   it('passes recursionLevel through to the request URL and populates subPages', async () => {
     requestRaw.mockResolvedValueOnce(
       pageResponse({
@@ -119,7 +119,7 @@ describe('WikiService.getWikiPageTree', () => {
     expect(result.tree.path).toBe('/');
     expect(result.tree.subPages[0].path).toBe('/Setup');
     expect(result.tree.subPages[0].subPages[0].path).toBe('/Setup/Authentication');
-    // slim tree — no content fields anywhere
+    // slim tree - no content fields anywhere
     expect(JSON.stringify(result)).not.toContain('"content"');
   });
 });

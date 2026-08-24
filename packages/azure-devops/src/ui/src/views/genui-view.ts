@@ -1,5 +1,5 @@
 /**
- * Generative UI View — renders LLM-generated HTML in the MCP App iframe.
+ * Generative UI View - renders LLM-generated HTML in the MCP App iframe.
  *
  * Provides:
  * 1. HTML injection with script re-execution
@@ -209,7 +209,7 @@ function showImageForManualSave(dataUrl: string, btn: HTMLElement | null | undef
 
   const note = document.createElement('div');
   note.style.cssText = 'font-size:13px;color:var(--text-secondary);margin-bottom:8px;font-weight:600';
-  note.textContent = 'Image captured — drag to desktop or right-click → Save Image As:';
+  note.textContent = 'Image captured - drag to desktop or right-click → Save Image As:';
 
   const img = document.createElement('img');
   img.src = dataUrl;
@@ -234,7 +234,7 @@ function showImageForManualSave(dataUrl: string, btn: HTMLElement | null | undef
 export function renderGenui(container: HTMLElement, html: string): void {
   container.innerHTML = html;
 
-  // innerHTML doesn't execute <script> tags — re-create them to trigger execution.
+  // innerHTML doesn't execute <script> tags - re-create them to trigger execution.
   container.querySelectorAll("script").forEach((oldScript) => {
     const newScript = document.createElement("script");
     for (const attr of oldScript.attributes) {

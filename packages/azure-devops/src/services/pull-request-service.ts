@@ -209,7 +209,7 @@ export class PullRequestService {
 
   /**
    * Resolve the target iteration (defaulting to the latest) and fetch its raw change
-   * entries. Shared by getPullRequestChanges and getPullRequestDiff — the diff path
+   * entries. Shared by getPullRequestChanges and getPullRequestDiff - the diff path
    * needs fields (isFolder) that the public changes shape does not expose.
    */
   private async fetchIterationChanges(

@@ -66,7 +66,7 @@ export function registerArtifactFeedTools(server: any, ctx: ServiceContext): { r
 
   server.tool(
     "feed-summary",
-    "All Azure Artifacts feeds with their package counts. Counts are obtained by paging, since the API publishes no total. A feed that could not be read (e.g. 403) is listed under 'unreadableFeeds' with its HTTP status — never as a feed with zero packages. When 'totalPackagesIsLowerBound' is true the total is a floor, not an exact figure.",
+    "All Azure Artifacts feeds with their package counts. Counts are obtained by paging, since the API publishes no total. A feed that could not be read (e.g. 403) is listed under 'unreadableFeeds' with its HTTP status - never as a feed with zero packages. When 'totalPackagesIsLowerBound' is true the total is a floor, not an exact figure.",
     {
       project: z.string().optional().describe(
         descWithExamples("Project name for project-scoped feeds. Omit for org-scoped feeds", FEED_SCOPE_EXAMPLES)
@@ -88,7 +88,7 @@ export function registerArtifactFeedTools(server: any, ctx: ServiceContext): { r
 
   server.tool(
     "package-provenance",
-    "Publish provenance for one package version: who published it, with what agent, and from what source. IMPORTANT: Azure DevOps publishes no structured build/branch/commit field for a package version — the endpoint is preview-only and returns an untyped 'data' bag whose keys vary by protocol. 'buildId' and 'branch' are best-effort reads of that bag and are null when absent (never the string 'unknown'). Check 'structuredProvenanceAvailable'.",
+    "Publish provenance for one package version: who published it, with what agent, and from what source. IMPORTANT: Azure DevOps publishes no structured build/branch/commit field for a package version - the endpoint is preview-only and returns an untyped 'data' bag whose keys vary by protocol. 'buildId' and 'branch' are best-effort reads of that bag and are null when absent (never the string 'unknown'). Check 'structuredProvenanceAvailable'.",
     {
       feedName: z.string().describe("Feed name (e.g., 'Acme')"),
       packageName: z.string().describe("Full package name (e.g., 'pp-solution-core')"),

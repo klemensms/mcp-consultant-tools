@@ -1,5 +1,5 @@
 /**
- * Item Service — CRUD, batch, search operations on 1Password items.
+ * Item Service - CRUD, batch, search operations on 1Password items.
  *
  * Key notes:
  * - list-items filtering is CLIENT-SIDE (SDK only supports ItemListFilter natively)

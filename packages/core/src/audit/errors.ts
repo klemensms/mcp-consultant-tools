@@ -1,8 +1,8 @@
 /**
  * Audit subsystem error classes.
- * AuditRefuseToStartError — config validation / startup failure (server exits).
- * AuditWriteError — mid-session write failure (tool call fails).
- * AuditChainError — chain integrity violation (refuse-to-start, requires quarantine).
+ * AuditRefuseToStartError - config validation / startup failure (server exits).
+ * AuditWriteError - mid-session write failure (tool call fails).
+ * AuditChainError - chain integrity violation (refuse-to-start, requires quarantine).
  */
 
 export class AuditRefuseToStartError extends Error {

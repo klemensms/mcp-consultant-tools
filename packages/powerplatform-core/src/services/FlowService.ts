@@ -1148,7 +1148,7 @@ export class FlowService {
    * Scan cloud flows for run-health metrics (success rate, failures) over the last N days.
    *
    * App-only friendly: builds the flow list from the Dataverse `workflow` table and reads
-   * run history from the `flowrun` elastic table via `getFlowRuns` — no dependency on the
+   * run history from the `flowrun` elastic table via `getFlowRuns` - no dependency on the
    * Power Automate management API. Because `flowrun` is an elastic table (500-row page cap)
    * and per-flow runs are sampled newest-first, each flow reports `sampleTruncated` when more
    * runs existed in the window than were analysed, so success rates are never presented as a

@@ -118,7 +118,7 @@ describe('SpaceService result shaping', () => {
 });
 
 /**
- * Azure SQL Database has no USE statement, so tempdb must be reached by three-part name —
+ * Azure SQL Database has no USE statement, so tempdb must be reached by three-part name -
  * the one documented exception to its ban on cross-database references. Both tempdb queries
  * are therefore portable as written and need no engine-edition branch.
  */

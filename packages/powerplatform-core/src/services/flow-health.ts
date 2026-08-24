@@ -53,7 +53,7 @@ export interface FlowHealthEntry {
   successRate: number | null;
   /** True when more runs existed in the window than were sampled (rate is over a sample). */
   sampleTruncated: boolean;
-  /** Non-null when the run fetch failed for this flow (e.g. 403) — distinct from "no runs". */
+  /** Non-null when the run fetch failed for this flow (e.g. 403) - distinct from "no runs". */
   scanError: string | null;
   lastRunTime: string | null;
   lastFailureTime: string | null;

@@ -6,7 +6,7 @@
  *   protocol-specific routes only). `AdminClient.feedsUrl` is the right host.
  * - The packages list returns a bare array with NO total count and NO
  *   continuation token; counting means paging with `$top`/`$skip`.
- * - Package version PROVENANCE has no GA version — it is `7.1-preview.1` — and
+ * - Package version PROVENANCE has no GA version - it is `7.1-preview.1` - and
  *   exposes no documented build/branch/commit field. Everything of that sort
  *   lives in an untyped `data` bag whose keys vary by protocol.
  */
@@ -194,7 +194,7 @@ export class ArtifactFeedService {
    * All feeds with their package counts.
    *
    * A feed we could not read is reported under `unreadableFeeds` with its HTTP
-   * status — never as a feed with zero packages. The si source caught every
+   * status - never as a feed with zero packages. The si source caught every
    * error and recorded `packageCount: 0`, so a 403 was indistinguishable from
    * an empty feed.
    */
@@ -251,7 +251,7 @@ export class ArtifactFeedService {
    * version. `provenanceSource`, `publisherUserIdentity` and `userAgent` are the
    * only typed fields; everything else lives in an untyped `data` bag. We surface
    * `data` verbatim and additionally attempt a best-effort build/branch lookup
-   * over known key names, returning `null` — never the string "unknown" — when a
+   * over known key names, returning `null` - never the string "unknown" - when a
    * key is absent, so an agent cannot mistake absence for a real value.
    */
   async getPackageProvenance(

@@ -4,7 +4,7 @@
  * Meta merges every package into a single MCP namespace. The SDK throws
  * `Tool <name> is already registered` when two packages export the same tool
  * name. Because each package registers inside one try/catch, that throw used to
- * abort the *rest of that package* — a name collision silently dropped every
+ * abort the *rest of that package* - a name collision silently dropped every
  * tool the package had not yet registered. `azure-devops-admin` lost 28 of its
  * 32 tools this way.
  *

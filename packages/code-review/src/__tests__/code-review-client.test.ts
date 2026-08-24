@@ -11,7 +11,7 @@ import {
 
 /**
  * A 404 under the Azure DevOps provider was answering with GitHub SAML SSO guidance, naming a
- * "Settings > Developer settings" page that does not exist for that reader — reported from a live
+ * "Settings > Developer settings" page that does not exist for that reader - reported from a live
  * run where the real cause was a stale project name. A confidently wrong hint costs more than no
  * hint, because it sends someone into the wrong product before they doubt it.
  */
@@ -90,9 +90,9 @@ describe('constructor config validation', () => {
   });
 });
 
-describe('describeUnprovisionedPrincipal — TF401444 is an identity problem, not a bad credential', () => {
+describe('describeUnprovisionedPrincipal - TF401444 is an identity problem, not a bad credential', () => {
   // Azure DevOps names the identity as a backslash triple: tenant\tenant\principal. All three
-  // segments are GUIDs on a real response — which is what the original fixture got wrong (it used
+  // segments are GUIDs on a real response - which is what the original fixture got wrong (it used
   // the literal word "tenant" for the first two, so "first GUID in the message" accidentally
   // matched). Measured against a live tenant 2026-08-13.
   const TENANT_ID = 'aaaaaaaa-bbbb-cccc-dddd-ffffffffffff';
@@ -114,7 +114,7 @@ describe('describeUnprovisionedPrincipal — TF401444 is an identity problem, no
     expect(described).toContain('TF401444');
     expect(described).toContain('contoso');
     expect(described).toMatch(/not a member/i);
-    // The reader must not be sent off to check the secret — that is the wrong fix.
+    // The reader must not be sent off to check the secret - that is the wrong fix.
     expect(described).toMatch(/issued and accepted/i);
   });
 
@@ -138,7 +138,7 @@ describe('describeUnprovisionedPrincipal — TF401444 is an identity problem, no
   });
 });
 
-describe('describeCloneAuthFailure — a clone gets no TF401444 body, only "Authentication failed"', () => {
+describe('describeCloneAuthFailure - a clone gets no TF401444 body, only "Authentication failed"', () => {
   const gitFailure =
     "Git clone failed: Command failed: git -c http.extraHeader=Authorization: Bearer *** clone --depth=1 https://dev.azure.com/contoso/MyProject/_git/MyRepo /tmp/mcp-cr-x\nfatal: Authentication failed for 'https://dev.azure.com/contoso/MyProject/_git/MyRepo/'";
 

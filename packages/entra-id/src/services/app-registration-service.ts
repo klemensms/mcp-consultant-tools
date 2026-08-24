@@ -2,7 +2,7 @@
  * App-registration audit: which apps have client secrets or certificates that are
  * expiring or already expired.
  *
- * Graph cannot filter on credential expiry — `passwordCredentials` and `keyCredentials`
+ * Graph cannot filter on credential expiry - `passwordCredentials` and `keyCredentials`
  * appear nowhere in the filterable-properties table for `/applications`. Every filter
  * here is therefore client-side, which is why a filtered list scans the whole tenant
  * before it trims. Truncating the fetch first would hide matches beyond the cut.
@@ -52,7 +52,7 @@ const DETAIL_SELECT = [
 ];
 
 // ---------------------------------------------------------------------------
-// Pure mappers and predicates — unit-tested without a Graph client
+// Pure mappers and predicates - unit-tested without a Graph client
 // ---------------------------------------------------------------------------
 
 export function toSecretInfo(

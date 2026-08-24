@@ -45,7 +45,7 @@ export function registerVariableGroupTools(server: any, ctx: ServiceContext): vo
 
   server.tool(
     "compare-variable-groups",
-    "Compare two Azure DevOps variable groups side by side. Reports variables unique to each group, value differences, and variables whose secret/plaintext status differs. Secret VALUES are never read or returned — a variable that is a secret on either side is listed by name under 'secretsSkipped'.",
+    "Compare two Azure DevOps variable groups side by side. Reports variables unique to each group, value differences, and variables whose secret/plaintext status differs. Secret VALUES are never read or returned - a variable that is a secret on either side is listed by name under 'secretsSkipped'.",
     {
       project: z.string().describe("The project name"),
       groupIdA: zCoerceNumber().describe("First variable group ID"),

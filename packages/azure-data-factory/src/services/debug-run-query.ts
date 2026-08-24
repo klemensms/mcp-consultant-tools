@@ -3,7 +3,7 @@
  *
  * These hold the bug-prone logic (status casing, filter building, paging /
  * truncation, aggregation) in isolation so it can be unit-tested with no HTTP
- * client — the paging seam is the injected `fetchPage` function.
+ * client - the paging seam is the injected `fetchPage` function.
  *
  * NOTE: the underlying ARM operation `.../factories/{name}/queryDebugPipelineRuns`
  * is a real, RBAC-registered control-plane action but is UNDOCUMENTED by
@@ -78,7 +78,7 @@ type DebugRunQueryBody = QueryPipelineRunsRequest & { continuationToken?: string
 /**
  * Page through debug runs, following `continuationToken`, up to `maxResults`.
  * Returns `truncated: true` when the cap was reached with more runs available
- * (another page, or a page that overflowed the cap) — the response schema has
+ * (another page, or a page that overflowed the cap) - the response schema has
  * no total-count field, so a capped result must NOT be reported as the total.
  */
 export async function paginateDebugRuns(

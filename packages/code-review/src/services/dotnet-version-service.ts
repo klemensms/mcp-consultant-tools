@@ -53,12 +53,12 @@ export class DotnetVersionService {
       const ilMergeNonPluginCount = ilMergeProjects - ilMergePluginCount;
       if (ilMergePluginCount > 0) {
         recommendations.push(
-          `${ilMergePluginCount} Dataverse plugin project(s) use ILMerge/ILRepack — migrate to dependent assembly plugins (NuGet package format)`,
+          `${ilMergePluginCount} Dataverse plugin project(s) use ILMerge/ILRepack - migrate to dependent assembly plugins (NuGet package format)`,
         );
       }
       if (ilMergeNonPluginCount > 0) {
         recommendations.push(
-          `${ilMergeNonPluginCount} non-plugin project(s) use ILMerge/ILRepack — use standard project references or NuGet packages instead`,
+          `${ilMergeNonPluginCount} non-plugin project(s) use ILMerge/ILRepack - use standard project references or NuGet packages instead`,
         );
       }
     }

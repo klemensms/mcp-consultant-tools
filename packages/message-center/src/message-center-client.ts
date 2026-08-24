@@ -1,7 +1,7 @@
 /**
  * Microsoft Graph client for Microsoft 365 Service Health + Message Center reads.
  *
- * Auth mirrors `packages/entra-id` (the closest sibling — Graph, client credentials,
+ * Auth mirrors `packages/entra-id` (the closest sibling - Graph, client credentials,
  * read-only): `ClientSecretCredential` from `@azure/identity` behind
  * `TokenCredentialAuthenticationProvider`. Several packages wire `@azure/msal-node`
  * by hand instead; entra-id's `@azure/identity` path needs no extra dependency and
@@ -13,7 +13,7 @@
  * those options are undocumented for these collections and Graph's own known-issues page
  * warns that unsupported query parameters "might fail silently" (200 OK, full unfiltered
  * result). A server-side filter here would therefore be a false result on an assurance
- * tool, not an error — so all filtering and ordering happens client-side (see the
+ * tool, not an error - so all filtering and ordering happens client-side (see the
  * services), and pagination just follows `@odata.nextLink` from the default page. The only
  * caller values that reach a URL are Graph-assigned issue/message IDs, shape-validated
  * before use (see utils/announcement-id.ts).
@@ -77,7 +77,7 @@ export class MessageCenterClient {
 
   /**
    * Fetch a single resource (or a small, single-page collection). `expand` maps to
-   * `$expand` — the ONE OData option verified against a worked example for this API
+   * `$expand` - the ONE OData option verified against a worked example for this API
    * (`healthOverviews?$expand=issues`). No `$filter`/`$select` is attached.
    */
   async get<T>(path: string, expand?: string[]): Promise<T> {
@@ -94,7 +94,7 @@ export class MessageCenterClient {
    * No `$top`, `$filter` or `$select` is attached. `$top` is undocumented for these
    * collections and Graph "might return an error" for it; the default page size (100)
    * plus nextLink following is safe and these collections are small. The nextLink URL is
-   * passed to `.api()` verbatim — Graph bakes the original query into it and mutating it
+   * passed to `.api()` verbatim - Graph bakes the original query into it and mutating it
    * is unsupported.
    */
   async paginate<T>(path: string, maxResults?: number): Promise<PaginatedResult<T>> {

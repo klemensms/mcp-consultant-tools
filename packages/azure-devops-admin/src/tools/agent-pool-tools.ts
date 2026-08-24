@@ -158,7 +158,7 @@ export function registerAgentPoolTools(server: any, ctx: ServiceContext): { read
         poolId: zCoerceNumber().describe("The agent pool ID"),
         agentId: zCoerceNumber().describe("The agent ID to disable"),
       },
-      // Reversible via enable-agent, but disrupts CI capacity and sits in the Delete/Disable tier — treat as destructive. FLAG: borderline (reversible state toggle).
+      // Reversible via enable-agent, but disrupts CI capacity and sits in the Delete/Disable tier - treat as destructive. FLAG: borderline (reversible state toggle).
       { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       async ({ poolId, agentId }: any) => {
         try {

@@ -53,7 +53,7 @@ const jwtConfig = {
 
 const jwtEnabled = !!(jwtConfig.tenantId && jwtConfig.clientId);
 
-// JWKS client — caches signing keys from Microsoft's OIDC endpoint
+// JWKS client - caches signing keys from Microsoft's OIDC endpoint
 const jwksClient = jwtEnabled
   ? jwksRsa({
       jwksUri: `https://login.microsoftonline.com/${jwtConfig.tenantId}/discovery/v2.0/keys`,
@@ -122,7 +122,7 @@ const authMiddleware = async (req: Request, res: Response, next: NextFunction) =
     return next();
   }
   if (!expectedKey && !jwtEnabled) {
-    // No auth configured — development mode
+    // No auth configured - development mode
     return next();
   }
 
@@ -160,7 +160,7 @@ const authMiddleware = async (req: Request, res: Response, next: NextFunction) =
   return res.status(401).json({ error: 'Invalid or missing authentication' });
 };
 
-// OAuth discovery paths must 404, not 401. This server only does static API keys / Entra JWT —
+// OAuth discovery paths must 404, not 401. This server only does static API keys / Entra JWT -
 // it has no OAuth routes. A 401 tells an MCP client "OAuth is supported, you are unauthorized",
 // so the client starts a flow that can never complete and reports "authentication failed" even
 // though the API key works. Must be registered BEFORE the auth middleware; after it, the 401 wins.

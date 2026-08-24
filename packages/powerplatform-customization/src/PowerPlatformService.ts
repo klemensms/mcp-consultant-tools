@@ -606,7 +606,7 @@ export class PowerPlatformService {
 
   /**
    * Download a form's XML to a local file, writing a sidecar .meta.json and a history snapshot.
-   * Overwrites the target file — Dataverse is the source of truth.
+   * Overwrites the target file - Dataverse is the source of truth.
    *
    * Resolution: provide either `formId`, or (`entityLogicalName` + `formName` + optional `formType`),
    * or (`entityLogicalName` + `formType`) when exactly one form of that type exists on the entity.
@@ -620,7 +620,7 @@ export class PowerPlatformService {
       formType?: FormTypeName;
     }
   ): Promise<DownloadFormResult> {
-    // Fresh write destination — confine it to the permitted root.
+    // Fresh write destination - confine it to the permitted root.
     const resolvedPath = resolveSafePath(filePath);
 
     let form: Record<string, unknown>;
@@ -635,7 +635,7 @@ export class PowerPlatformService {
 
     const formXml = (form.formxml as string) ?? '';
     if (!formXml) {
-      throw new Error(`Form '${form.formid}' has empty formxml — nothing to download.`);
+      throw new Error(`Form '${form.formid}' has empty formxml - nothing to download.`);
     }
     const byteCount = Buffer.byteLength(formXml, 'utf8');
     const formTypeName = this.getFormTypeName(form.type as number);
@@ -647,7 +647,7 @@ export class PowerPlatformService {
     // Ensure target directory exists
     await mkdir(dirname(resolvedPath), { recursive: true });
 
-    // Write formxml verbatim — NEVER re-serialize
+    // Write formxml verbatim - NEVER re-serialize
     await writeFile(resolvedPath, formXml, { encoding: 'utf8' });
 
     // Sidecar meta
@@ -686,7 +686,7 @@ export class PowerPlatformService {
   }
 
   /**
-   * Read a local form XML file and PATCH it to Dataverse. Preserves bytes verbatim — never re-parses.
+   * Read a local form XML file and PATCH it to Dataverse. Preserves bytes verbatim - never re-parses.
    * Resolves the target formId from the sidecar .meta.json unless overridden.
    */
   async deployFormFromFile(
@@ -716,7 +716,7 @@ export class PowerPlatformService {
       throw new Error(`File is empty: '${resolvedPath}'`);
     }
 
-    // Minimal sanity check — must contain a <form> element. Deep well-formedness
+    // Minimal sanity check - must contain a <form> element. Deep well-formedness
     // is enforced by Dataverse on PATCH; local check keeps changes observable.
     if (!/<form(\s|>)/.test(fileContent)) {
       throw new Error(
@@ -799,7 +799,7 @@ export class PowerPlatformService {
 
   /**
    * Compare a local form file to the current remote form. Returns whether they're identical
-   * and basic metrics — does NOT modify anything.
+   * and basic metrics - does NOT modify anything.
    */
   async diffFormWithFile(
     filePath: string,
@@ -1402,7 +1402,7 @@ export class PowerPlatformService {
   }
 
   /**
-   * Batch wrapper — secure or unsecure multiple columns on the same entity in
+   * Batch wrapper - secure or unsecure multiple columns on the same entity in
    * one logical operation, with a single publish at the end.
    */
   async setColumnsSecured(

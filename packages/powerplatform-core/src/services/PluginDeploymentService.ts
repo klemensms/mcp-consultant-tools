@@ -735,7 +735,7 @@ export class PluginDeploymentService {
       }
 
       // Add to solution only for new packages or when explicitly requested
-      // For updates, the package is already in its solution — no need to re-add
+      // For updates, the package is already in its solution - no need to re-add
       if (options.solutionUniqueName && action === 'created') {
         await this.addComponentToSolution(
           options.solutionUniqueName,

@@ -108,7 +108,7 @@ ORDER BY SUM(ps.reserved_page_count) DESC;
 /**
  * Reaches tempdb by three-part name. Azure SQL Database has no `USE` statement, and tempdb is
  * the one documented exception to its ban on cross-database references, so this single form
- * works on SQL Server, Managed Instance and Azure SQL Database alike — no engine-edition branch.
+ * works on SQL Server, Managed Instance and Azure SQL Database alike - no engine-edition branch.
  */
 export function buildTempDbSpaceQuery(): BuiltQuery {
   return {

@@ -86,10 +86,10 @@ export class RestApiService {
     if (!this.config.enableSslVerify) {
       console.error(
         "⚠️  SECURITY WARNING: REST_ENABLE_SSL_VERIFY=false was set, but this " +
-          "server will NOT disable TLS certificate verification on your behalf — " +
+          "server will NOT disable TLS certificate verification on your behalf - " +
           "doing so silently is unsafe. Requests STILL verify certificates. If " +
           "you genuinely must hit a self-signed/dev endpoint, set " +
-          "NODE_TLS_REJECT_UNAUTHORIZED=0 in the server's own environment — that " +
+          "NODE_TLS_REJECT_UNAUTHORIZED=0 in the server's own environment - that " +
           "makes the insecure scope explicit. Never do this against production " +
           "or over an untrusted network."
       );
@@ -430,7 +430,7 @@ export class RestApiService {
    *
    * Without a `host` override, the configured base URL is used. With one, the
    * override's ORIGIN must match the base URL's origin or an entry in
-   * REST_ALLOWED_HOSTS — otherwise the request is rejected. This stops the
+   * REST_ALLOWED_HOSTS - otherwise the request is rejected. This stops the
    * configured credentials being exfiltrated to an attacker-chosen host (e.g.
    * via prompt injection setting `host: "https://attacker.example"`).
    */

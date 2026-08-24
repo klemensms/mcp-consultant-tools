@@ -54,12 +54,12 @@ export class ViewService {
         const fields = touched.join(', ');
         const entity = existing.returnedtypecode ? ` for entity '${existing.returnedtypecode}'` : '';
         throw new Error(
-          `Quick Find views (querytype=4) cannot be updated via the Dataverse Web API — ` +
+          `Quick Find views (querytype=4) cannot be updated via the Dataverse Web API - ` +
           `fetchxml PATCH hard-fails with 0x80040216, and name/layoutxml PATCH return 204 but are silently discarded. ` +
           `Rejected fields in this update: ${fields}. ` +
           `Allowed fields on a Quick Find view: description, isdefault. ` +
           `Workaround: edit the Quick Find view${entity} in the maker portal (Solutions → your solution → the table → Views → "Quick Find Active ..."), then Save & Publish. ` +
-          `This is a Dataverse platform limitation, not an MCP-side issue — same 400 occurs on any direct savedqueries PATCH.`
+          `This is a Dataverse platform limitation, not an MCP-side issue - same 400 occurs on any direct savedqueries PATCH.`
         );
       }
     }

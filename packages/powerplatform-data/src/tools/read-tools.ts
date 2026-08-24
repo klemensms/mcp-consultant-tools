@@ -59,7 +59,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       maxRecords: z
         .number()
         .optional()
-        .describe("Maximum number of records to retrieve (default: 50). Values above 5,000 are served by following Dataverse paging — one extra API call per 5,000 rows"),
+        .describe("Maximum number of records to retrieve (default: 50). Values above 5,000 are served by following Dataverse paging - one extra API call per 5,000 rows"),
     },
     { readOnlyHint: true, openWorldHint: true },
     async ({ entityNamePlural, filter, select, maxRecords }: any) => {
@@ -140,7 +140,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
         .string()
         .optional()
         .describe(descWithExamples(
-          "OData $filter expression to count only matching records. Optional — omit to count all records",
+          "OData $filter expression to count only matching records. Optional - omit to count all records",
           ODATA_FILTER_EXAMPLES
         )),
       entities: z
@@ -511,7 +511,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
         responseText += `**To set this lookup, use:**\n`;
         responseText += `\`\`\`json\n{\n  "${primaryTarget.BindingPropertyName}@odata.bind": "/${primaryTarget.EntitySetName}(<record-guid>)"\n}\n\`\`\`\n\n`;
 
-        responseText += `⚠️ **Important:** The \`@odata.bind\` key is the **referencing-entity navigation property name** (\`${primaryTarget.BindingPropertyName}\`) — for most attributes this is the lowercase logical name, NOT the attribute SchemaName. The runtime resolves this from the \`ReferencingEntityNavigationPropertyName\` field in ManyToOneRelationships metadata.\n\n`;
+        responseText += `⚠️ **Important:** The \`@odata.bind\` key is the **referencing-entity navigation property name** (\`${primaryTarget.BindingPropertyName}\`) - for most attributes this is the lowercase logical name, NOT the attribute SchemaName. The runtime resolves this from the \`ReferencingEntityNavigationPropertyName\` field in ManyToOneRelationships metadata.\n\n`;
 
         if (isPolymorphic) {
           responseText += `## Polymorphic Lookup Targets\n\n`;

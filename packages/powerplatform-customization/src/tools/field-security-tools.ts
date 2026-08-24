@@ -41,7 +41,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
 
   server.tool(
     'set-column-secured',
-    'Toggle the IsSecured flag on a column. This is the prerequisite for any Field Security Profile (FSP) work — until a column is marked Secured, fieldpermission records for it are ignored. Reuses update-attribute internally and publishes the entity afterwards by default. Some OOTB system columns (e.g., name, primary id) cannot be secured and will return AttributeIsNotSecurable.',
+    'Toggle the IsSecured flag on a column. This is the prerequisite for any Field Security Profile (FSP) work - until a column is marked Secured, fieldpermission records for it are ignored. Reuses update-attribute internally and publishes the entity afterwards by default. Some OOTB system columns (e.g., name, primary id) cannot be secured and will return AttributeIsNotSecurable.',
     {
       entityLogicalName: z
         .string()
@@ -112,7 +112,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         const summary = results
           .map(
             (r) =>
-              `  ${r.changed ? '✓' : '–'} ${r.attributeLogicalName} (was ${r.previousValue}, now ${r.isSecured})`
+              `  ${r.changed ? '✓' : '-'} ${r.attributeLogicalName} (was ${r.previousValue}, now ${r.isSecured})`
           )
           .join('\n');
         const changedCount = results.filter((r) => r.changed).length;
@@ -130,7 +130,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
 
   server.tool(
     'create-field-security-profile',
-    'Create a new Field Security Profile (FSP). An FSP is a container for field permissions and is assigned to teams or users. By itself it grants nothing — you must add field-permission records and assign principals.',
+    'Create a new Field Security Profile (FSP). An FSP is a container for field permissions and is assigned to teams or users. By itself it grants nothing - you must add field-permission records and assign principals.',
     {
       name: z
         .string()
@@ -227,7 +227,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
         if (results.length === 0) return ok('No field security profiles found.');
         const lines = results.map(
           (r) =>
-            `- ${r.name}${r.isManaged ? ' [managed]' : ''} (${r.fieldSecurityProfileId})${r.description ? ` — ${r.description}` : ''}`
+            `- ${r.name}${r.isManaged ? ' [managed]' : ''} (${r.fieldSecurityProfileId})${r.description ? ` - ${r.description}` : ''}`
         );
         return ok(`Found ${results.length} field security profile(s):\n${lines.join('\n')}`);
       } catch (error: any) {
@@ -239,7 +239,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
 
   server.tool(
     'get-field-security-profile',
-    'Get a single Field Security Profile with all its field permissions and team/user assignments — a one-call snapshot.',
+    'Get a single Field Security Profile with all its field permissions and team/user assignments - a one-call snapshot.',
     {
       fieldSecurityProfileId: z
         .string()
@@ -396,7 +396,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
 
   server.tool(
     'assign-fsp-to-team',
-    'Assign a Field Security Profile to a team. Idempotent — returns alreadyAssigned=true if the team already has the profile. NOTE: Dataverse does not support direct role-to-FSP assignment; use a team to bridge.',
+    'Assign a Field Security Profile to a team. Idempotent - returns alreadyAssigned=true if the team already has the profile. NOTE: Dataverse does not support direct role-to-FSP assignment; use a team to bridge.',
     {
       fieldSecurityProfileId: z
         .string()
@@ -451,7 +451,7 @@ export function registerFieldSecurityTools(server: any, ctx: ServiceContext): vo
 
   server.tool(
     'assign-fsp-to-user',
-    'Assign a Field Security Profile directly to a user. Idempotent — returns alreadyAssigned=true if the user already has the profile.',
+    'Assign a Field Security Profile directly to a user. Idempotent - returns alreadyAssigned=true if the user already has the profile.',
     {
       fieldSecurityProfileId: z
         .string()

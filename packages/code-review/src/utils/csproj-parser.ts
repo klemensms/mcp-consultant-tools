@@ -51,7 +51,7 @@ export function parseCsproj(xml: string): CsprojData {
 
   // Extract package references. Refs without a Version are kept with version=''
   // so callers can resolve them via Central Package Management
-  // (Directory.Packages.props) — see parseDirectoryPackagesProps.
+  // (Directory.Packages.props) - see parseDirectoryPackagesProps.
   const packageReferences: PackageReference[] = [];
   for (const ig of itemGroups) {
     const refs = ig.PackageReference as Array<Record<string, unknown>> | undefined;
@@ -71,7 +71,7 @@ export function parseCsproj(xml: string): CsprojData {
 export interface DirectoryPackagesPropsData {
   /** True when ManagePackageVersionsCentrally evaluates to true. */
   centrallyManaged: boolean;
-  /** Map of package id (case-insensitive — keys are lowercased) to pinned version. */
+  /** Map of package id (case-insensitive - keys are lowercased) to pinned version. */
   packageVersions: Map<string, string>;
 }
 

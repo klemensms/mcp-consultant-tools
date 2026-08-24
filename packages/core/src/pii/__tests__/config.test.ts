@@ -33,7 +33,7 @@ function writeConfig(filename: string, content: unknown): string {
   return path;
 }
 
-describe('loadPiiConfig — single key per entity', () => {
+describe('loadPiiConfig - single key per entity', () => {
   beforeEach(() => {
     snapshot();
     tmpDir = mkdtempSync(join(tmpdir(), 'pii-config-test-'));
@@ -80,7 +80,7 @@ describe('loadPiiConfig — single key per entity', () => {
     ]);
   });
 
-  it('expands singular key — plural form resolves to the same rule', () => {
+  it('expands singular key - plural form resolves to the same rule', () => {
     process.env.PII_CONFIG_PATH = writeConfig('cfg.json', {
       enabled: true,
       fieldRules: {
@@ -101,7 +101,7 @@ describe('loadPiiConfig — single key per entity', () => {
     ]);
   });
 
-  it('expands plural key — singular form resolves to the same rule', () => {
+  it('expands plural key - singular form resolves to the same rule', () => {
     process.env.PII_CONFIG_PATH = writeConfig('cfg.json', {
       enabled: true,
       fieldRules: {
@@ -202,7 +202,7 @@ describe('loadPiiConfig — single key per entity', () => {
     expect(() => loadPiiConfig()).toThrow(PiiRefuseToStartError);
   });
 
-  it('expands defaults — pure-defaults path resolves both singular and plural lookups', () => {
+  it('expands defaults - pure-defaults path resolves both singular and plural lookups', () => {
     delete process.env.PII_CONFIG_PATH;
     const { config } = loadPiiConfig();
     expect(config.fieldRules.contact).toBeDefined();
@@ -233,7 +233,7 @@ describe('loadPiiConfig — single key per entity', () => {
     ]);
   });
 
-  it('preserves independent entities — partner expansion does not collide across entities', () => {
+  it('preserves independent entities - partner expansion does not collide across entities', () => {
     process.env.PII_CONFIG_PATH = writeConfig('cfg.json', {
       enabled: true,
       fieldRules: {
@@ -253,7 +253,7 @@ describe('loadPiiConfig — single key per entity', () => {
   });
 });
 
-describe('loadPiiConfig — backwards-compatible defaults', () => {
+describe('loadPiiConfig - backwards-compatible defaults', () => {
   beforeEach(() => {
     snapshot();
     for (const k of ENV_KEYS) delete process.env[k];

@@ -48,7 +48,7 @@ export function isLayout(val: unknown): val is HasLayoutTrait {
 /**
  * Checks if:
  * 1. A node is a child to an auto layout frame
- * 2. The child adheres to the auto layout rules—i.e. it's not absolutely positioned
+ * 2. The child adheres to the auto layout rules - i.e. it's not absolutely positioned
  *
  * @param node - The node to check.
  * @param parent - The parent node.

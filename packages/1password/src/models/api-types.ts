@@ -31,7 +31,7 @@ export function permissionsToBitmask(permissions: PermissionName[]): number {
   }, 0);
 }
 
-/** Password recipe types — discriminated union */
+/** Password recipe types - discriminated union */
 export type PasswordRecipe =
   | { type: 'random'; length?: number; includeDigits?: boolean; includeSymbols?: boolean; includeUppercase?: boolean; includeLowercase?: boolean }
   | { type: 'memorable'; wordCount?: number; separator?: string; capitalize?: boolean }

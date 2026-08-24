@@ -28,7 +28,7 @@ const SERVICE_INDEX = {
   ],
 };
 
-describe('getRegistrationBase — discovered from the service index, not hardcoded', () => {
+describe('getRegistrationBase - discovered from the service index, not hardcoded', () => {
   it('prefers RegistrationsBaseUrl/3.6.0 (gzip + SemVer2) and caches it', async () => {
     const { fetchJson, calls } = stubFetch({ [SERVICE_INDEX_URL]: SERVICE_INDEX });
     const svc = new NugetPackageService(fetchJson);

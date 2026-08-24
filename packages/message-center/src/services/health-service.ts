@@ -4,7 +4,7 @@
  *
  * Every filter is applied CLIENT-SIDE. Graph ignores server-side `$filter`/`$orderby` on
  * these collections (200 OK, full result), so building one would return a wrong-but-plausible
- * subset — the exact false all-clear this tool must avoid. The source this was ported from
+ * subset - the exact false all-clear this tool must avoid. The source this was ported from
  * built `$filter=service eq '...' and classification eq '...' and isResolved eq ...` plus
  * `$orderby`, then reported the returned count as the filtered total.
  */
@@ -26,7 +26,7 @@ import type {
 const BASE_PATH = '/admin/serviceAnnouncement';
 
 // ---------------------------------------------------------------------------
-// Pure predicates and mappers — unit-tested without a Graph client
+// Pure predicates and mappers - unit-tested without a Graph client
 // ---------------------------------------------------------------------------
 
 /**
@@ -161,7 +161,7 @@ export class HealthService {
 
   /**
    * The post-incident review document for an issue. Graph only exposes one for issues whose
-   * status is `postIncidentReviewPublished`, and errors otherwise — surfaced as a clear message
+   * status is `postIncidentReviewPublished`, and errors otherwise - surfaced as a clear message
    * rather than a raw 404.
    */
   async getIncidentReport(issueId: string): Promise<IncidentReport> {

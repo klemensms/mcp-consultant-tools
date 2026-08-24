@@ -1,6 +1,6 @@
 /**
  * Shared ServiceContext factory for Entra ID.
- * Used by both the MCP server (index.ts) and the CLI (cli.ts) — there is exactly one copy.
+ * Used by both the MCP server (index.ts) and the CLI (cli.ts) - there is exactly one copy.
  */
 
 import { EntraIdClient, type EntraIdClientConfig } from './entra-client.js';
@@ -33,7 +33,7 @@ export function createServiceContext(): ServiceContext {
       };
 
       client = new EntraIdClient(config);
-      // Never log the tenant or client ID — it lands in transcripts and logs.
+      // Never log the tenant or client ID - it lands in transcripts and logs.
       console.error('Entra ID client initialized');
     }
     return client;

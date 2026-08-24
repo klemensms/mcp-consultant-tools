@@ -13,7 +13,7 @@
 export interface LegacyHeadingRule {
   heading: string;
   refname: string;
-  /** Optional type filter — if set, only applies when workItemType matches. */
+  /** Optional type filter - if set, only applies when workItemType matches. */
   typeFilter?: string;
 }
 
@@ -21,7 +21,7 @@ export interface LegacyHeadingRule {
  * Ordered list of legacy heading → refname rules.
  * First matching rule wins.
  *
- * Evaluated in order — bug-specific rules come before generic rules for
+ * Evaluated in order - bug-specific rules come before generic rules for
  * the same heading.
  */
 export const LEGACY_HEADING_RULES: LegacyHeadingRule[] = [
@@ -31,7 +31,7 @@ export const LEGACY_HEADING_RULES: LegacyHeadingRule[] = [
   { heading: 'Description', refname: 'System.Description' },
   { heading: 'Repro Steps', refname: 'Microsoft.VSTS.TCM.ReproSteps' },
   { heading: 'Acceptance Criteria', refname: 'Microsoft.VSTS.Common.AcceptanceCriteria' },
-  // Deprecated custom fields — historically configurable via env vars
+  // Deprecated custom fields - historically configurable via env vars
   { heading: 'How to Test', refname: 'Custom.Howtotest' },
   { heading: 'Deployment Information', refname: 'Custom.Deploymentinformation' },
   {

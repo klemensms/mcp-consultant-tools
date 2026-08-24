@@ -67,7 +67,7 @@ export interface RestApiConfig {
    * Additional origins the per-request `host` override is allowed to target,
    * beyond the configured base URL's origin. Sourced from REST_ALLOWED_HOSTS.
    * Any `host` whose origin is not the base URL's origin or in this list is
-   * rejected — this prevents the configured credentials being sent to an
+   * rejected - this prevents the configured credentials being sent to an
    * arbitrary host. Empty/undefined = only the base URL origin is reachable.
    */
   allowedHosts?: string[];

@@ -14,7 +14,7 @@ const group = (id: number, name: string, variables: RawVariableGroup['variables'
   variables,
 });
 
-describe('compareVariables — secret boundary', () => {
+describe('compareVariables - secret boundary', () => {
   it('never emits a secret value, even if the API wrongly returns one', () => {
     // Azure DevOps nulls secret values server-side. We must not depend on that:
     // if a value ever arrives, it must still not reach the output.

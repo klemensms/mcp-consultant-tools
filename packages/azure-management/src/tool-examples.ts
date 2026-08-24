@@ -183,7 +183,7 @@ export const PRINCIPAL_ID_EXAMPLES = [
 
 /**
  * Microsoft's published built-in role definition IDs. These are public constants,
- * identical in every Azure tenant — not identifiers from any environment. A
+ * identical in every Azure tenant - not identifiers from any environment. A
  * placeholder GUID here would make the example useless.
  * https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
  */

@@ -15,7 +15,7 @@ import type {
 
 /**
  * `getAssessment` appends a provider segment to a caller-supplied ARM resource ID.
- * A malformed ID would otherwise produce a request against the wrong path — or,
+ * A malformed ID would otherwise produce a request against the wrong path - or,
  * with a full URL, against a different host.
  */
 export function normalizeArmResourceId(resourceId: string): string {
@@ -53,7 +53,7 @@ export interface AssessmentsResult {
     };
     /**
      * Distinct `properties` key names the Resource Graph mapper did not recognise,
-     * across every row it read — including rows the union shadowed and `maxResults`
+     * across every row it read - including rows the union shadowed and `maxResults`
      * trimmed. Present only when there were any. A field arriving here is payload
      * this package is not reading yet, so it belongs in the summary rather than
      * buried on one row of thousands.
@@ -104,7 +104,7 @@ const MAPPED_PROPERTY_KEYS = [
  *
  * This list came from Microsoft's documentation, not from a row anyone has seen, and
  * on the sibling attack-path surface that documentation turned out to be behind the
- * live API — a fixed allowlist there discarded the whole risk payload of every path.
+ * live API - a fixed allowlist there discarded the whole risk payload of every path.
  * So whatever this list does not name is carried in `unmappedProperties` rather than
  * dropped: a field this package is not reading yet arrives visibly, instead of making
  * "no assessment carries risk data" look like a fact about Azure.

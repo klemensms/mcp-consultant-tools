@@ -11,7 +11,7 @@ export function registerAppRegistrationTools(server: any, ctx: ServiceContext): 
   server.tool(
     'entra-list-app-registrations',
     `Audit Entra ID app registrations for client secrets and certificates that are expiring or already expired. ` +
-      `Filters cover BOTH secrets and certificates unless credentialType narrows them — an app whose only credential is an expiring certificate matches expiring-credentials, not no-credentials. ` +
+      `Filters cover BOTH secrets and certificates unless credentialType narrows them - an app whose only credential is an expiring certificate matches expiring-credentials, not no-credentials. ` +
       `expiryDays sets what counts as "expiring" and also drives the status on every credential returned. ` +
       `Microsoft Graph cannot filter on credential expiry or on a name substring, so any filter scans every app registration in the tenant before trimming to maxResults; when truncated is true, maxResults cut the list and the counts describe only the rows returned. ` +
       `${SP_CREDENTIAL_CAVEAT} ${APPLICATION_READ_ALL}`,
@@ -60,7 +60,7 @@ export function registerAppRegistrationTools(server: any, ctx: ServiceContext): 
   server.tool(
     'entra-get-app-registration',
     `Full detail for one app registration: client secrets, certificates, redirect URIs, API permissions, and exposed OAuth2 scopes. ` +
-      `Accepts either the object ID or the application (client) ID — both are GUIDs, and the object ID is tried first. ` +
+      `Accepts either the object ID or the application (client) ID - both are GUIDs, and the object ID is tried first. ` +
       `API permission GUIDs are resolved to names via the resource's service principal; a permission the resource could not resolve is returned with unresolved=true and its raw GUID as the name. ` +
       `Microsoft Graph never returns a secret's value, only a three-character hint. ` +
       `${SP_CREDENTIAL_CAVEAT} ${APPLICATION_READ_ALL}`,

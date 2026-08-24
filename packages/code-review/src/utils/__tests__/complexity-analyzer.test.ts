@@ -14,7 +14,7 @@ describe('cyclomatic complexity counting', () => {
     expect(methodNamed(src, 'Simple').cyclomaticComplexity).toBe(1);
   });
 
-  it('counts an if/else-if/else chain as 3 — the else-if is NOT double counted', () => {
+  it('counts an if/else-if/else chain as 3 - the else-if is NOT double counted', () => {
     // 2 decision points (if, else-if) => complexity 3. The ported source counted the
     // "if (" inside "else if (" twice (once as if, once as else-if) and reported 4.
     const src = `public int Branch(int x) {\n  if (x > 0) { return 1; }\n  else if (x < 0) { return -1; }\n  else { return 0; }\n}`;

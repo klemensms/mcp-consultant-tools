@@ -23,7 +23,7 @@ export function registerQueryCommands(program: Command, ctx: ServiceContext): vo
     .description('Execute a custom KQL query against Log Analytics workspace')
     .argument('<resourceId>', 'Resource ID')
     .argument('<kql>', 'KQL query string')
-    .option('-t, --timespan <timespan>', 'Time range (e.g., PT1H, P1D) — outer bound on the query; narrower than the KQL\'s ago() clips results. Default: derived from the widest ago() in the KQL, else PT1H')
+    .option('-t, --timespan <timespan>', 'Time range (e.g., PT1H, P1D) - outer bound on the query; narrower than the KQL\'s ago() clips results. Default: derived from the widest ago() in the KQL, else PT1H')
     .option('-p, --preset <preset>', 'Column preset: minimal, investigation, full')
     .option('-c, --columns <columns>', 'Custom columns (comma-separated)')
     .option('-f, --format <format>', 'Output format: json, markdown', 'json')

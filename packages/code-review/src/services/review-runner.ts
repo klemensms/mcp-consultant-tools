@@ -11,7 +11,7 @@ import type {
 
 const HIGH_COMPLEXITY_THRESHOLD = 20;
 
-/** Build the consolidated issue list from the three analyzer reports. Pure — directly testable. */
+/** Build the consolidated issue list from the three analyzer reports. Pure - directly testable. */
 export function buildReviewIssues(
   dotnet: DotnetVersionReport,
   nuget: NugetPackageReport,

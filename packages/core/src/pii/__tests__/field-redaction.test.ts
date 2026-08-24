@@ -25,7 +25,7 @@ function makeConfig(redactInResponse: string[] = []): PiiConfig {
   };
 }
 
-describe('Layer 2 — Gap 3 lookup FormattedValue redaction (Option A + C)', () => {
+describe('Layer 2 - Gap 3 lookup FormattedValue redaction (Option A + C)', () => {
   it('exports a non-empty keyword list', () => {
     expect(LOOKUP_FORMATTED_VALUE_PII_KEYWORDS.length).toBeGreaterThan(0);
     expect(LOOKUP_FORMATTED_VALUE_PII_KEYWORDS).toContain('address');
@@ -34,7 +34,7 @@ describe('Layer 2 — Gap 3 lookup FormattedValue redaction (Option A + C)', () 
     expect(LOOKUP_FORMATTED_VALUE_PII_KEYWORDS).toContain('contact');
   });
 
-  it('Option A — redacts FormattedValue when base lookup IS in redactInResponse', () => {
+  it('Option A - redacts FormattedValue when base lookup IS in redactInResponse', () => {
     const config = makeConfig(['_si_primaryaddressid_value']);
     const data = {
       _si_primaryaddressid_value: 'abc-123-guid',
@@ -57,7 +57,7 @@ describe('Layer 2 — Gap 3 lookup FormattedValue redaction (Option A + C)', () 
     );
   });
 
-  it('Option C — redacts FormattedValue when base name contains a keyword (no config opt-in)', () => {
+  it('Option C - redacts FormattedValue when base name contains a keyword (no config opt-in)', () => {
     const config = makeConfig([]); // no explicit rules
     const data = {
       _si_primaryaddressid_value: 'abc-123-guid', // GUID, fine
@@ -82,7 +82,7 @@ describe('Layer 2 — Gap 3 lookup FormattedValue redaction (Option A + C)', () 
     );
   });
 
-  it('Option C — leaves FormattedValue alone when base name has no keyword match', () => {
+  it('Option C - leaves FormattedValue alone when base name has no keyword match', () => {
     const config = makeConfig([]);
     const data = {
       _owningteamid_value: 'team-guid',
@@ -98,7 +98,7 @@ describe('Layer 2 — Gap 3 lookup FormattedValue redaction (Option A + C)', () 
     expect(report.fieldsAffected).toEqual([]);
   });
 
-  it('Option C — redacts case-insensitively (mixed-case base name)', () => {
+  it('Option C - redacts case-insensitively (mixed-case base name)', () => {
     const config = makeConfig([]);
     const data = {
       _MyContactLookup_value: 'guid-x',
@@ -112,7 +112,7 @@ describe('Layer 2 — Gap 3 lookup FormattedValue redaction (Option A + C)', () 
     ).toMatch(/^\[REDACTED:/);
   });
 
-  it('Option C — only matches FormattedValue suffix; other annotations untouched', () => {
+  it('Option C - only matches FormattedValue suffix; other annotations untouched', () => {
     const config = makeConfig([]);
     const data = {
       '_si_primaryaddressid_value@Microsoft.Dynamics.CRM.lookuplogicalname':

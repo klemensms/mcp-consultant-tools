@@ -7,7 +7,7 @@
  *   https://raw.githubusercontent.com/dotnet/core/main/releases.md
  *
  * The table holds dates only. `isEol` is COMPUTED from `eolDate` versus the current date, so a
- * framework's end-of-life status is never stale — the moment its published EOL date passes, it is
+ * framework's end-of-life status is never stale - the moment its published EOL date passes, it is
  * reported EOL without anyone editing this file. (The ported source baked `isEol` in as a static
  * boolean and had several dates wrong, so it reported frameworks EOL for years as still supported.)
  *
@@ -34,7 +34,7 @@ const EOL_DATA: DotnetVersionInfo[] = [
   { moniker: 'netcoreapp3.1', releaseDate: '2019-12-03', eolDate: '2022-12-13', isLts: true },
   { moniker: 'netcoreapp3.0', releaseDate: '2019-09-23', eolDate: '2020-03-03', isLts: false },
   { moniker: 'netcoreapp2.1', releaseDate: '2018-05-30', eolDate: '2021-08-21', isLts: true },
-  // .NET Framework — 4.5.2/4.6/4.6.1 retired 2022-04-26 (SHA-1 deprecation); 4.6.2 supported to 2027-01-12;
+  // .NET Framework - 4.5.2/4.6/4.6.1 retired 2022-04-26 (SHA-1 deprecation); 4.6.2 supported to 2027-01-12;
   // 4.7.x/4.8/4.8.1 are OS-lifecycle-bound (no fixed framework EOL).
   { moniker: 'net481', releaseDate: '2021-08-09', isLts: false },
   { moniker: 'net48', releaseDate: '2019-04-18', isLts: false },

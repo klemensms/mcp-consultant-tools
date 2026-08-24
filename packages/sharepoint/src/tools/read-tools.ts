@@ -17,7 +17,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "spo-list-sites",
     "List all configured SharePoint sites (active and inactive)",
     {},
-    // Reads from local configuration only — no network call.
+    // Reads from local configuration only - no network call.
     { readOnlyHint: true },
     async () => {
       try {
@@ -110,7 +110,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       siteId: z.string().optional().describe("Clear cache for specific site only (optional)"),
       pattern: z.string().optional().describe("Clear only cache entries matching this pattern (optional)"),
     },
-    // Clears local response cache only — mutates local state, destroys no remote data; idempotent.
+    // Clears local response cache only - mutates local state, destroys no remote data; idempotent.
     { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     async ({ siteId, pattern }: any) => {
       try {

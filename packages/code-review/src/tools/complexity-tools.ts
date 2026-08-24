@@ -6,7 +6,7 @@ export function registerComplexityTools(server: any, ctx: ServiceContext): void 
   server.tool(
     'cr-complexity',
     `Estimate code-complexity metrics (cyclomatic complexity, lines of code, method length) for C#/TypeScript/JavaScript files in a repository, with per-file detail and the top hotspots. ` +
-      `Cyclomatic complexity is a regex-based ESTIMATE (decision-point count), not an AST measurement — treat the numbers as approximate. ${CLONE_NOTE}`,
+      `Cyclomatic complexity is a regex-based ESTIMATE (decision-point count), not an AST measurement - treat the numbers as approximate. ${CLONE_NOTE}`,
     {
       project: z.string().describe('Azure DevOps project name or GitHub org/owner'),
       repository: z.string().describe('Repository name'),

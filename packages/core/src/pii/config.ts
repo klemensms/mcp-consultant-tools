@@ -375,7 +375,7 @@ export function loadPiiConfig(): LoadedPiiContext {
     );
   }
 
-  // When nothing is configured, the pipeline is OFF — no startup error.
+  // When nothing is configured, the pipeline is OFF - no startup error.
   // Operators opt in by setting PII_PROTECTION=true or by writing a config
   // file with `"enabled": true`.
   const enabled: boolean = fileConfig.enabled ?? piiProtectionEnv ?? false;

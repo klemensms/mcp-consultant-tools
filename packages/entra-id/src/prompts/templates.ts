@@ -2,7 +2,7 @@ export const CREDENTIAL_EXPIRY_AUDIT_TEMPLATE = `Audit this Entra ID tenant for 
 
 1. Call entra-list-app-registrations with filter='expired-credentials' to find apps already broken or about to fail authentication.
 2. Call entra-list-app-registrations with filter='expiring-credentials' and expiryDays=90 to find apps needing rotation this quarter.
-3. Call entra-list-app-registrations with filter='no-credentials' to find registrations that hold neither a secret nor a certificate — these are usually unused, or rely on federated credentials.
+3. Call entra-list-app-registrations with filter='no-credentials' to find registrations that hold neither a secret nor a certificate - these are usually unused, or rely on federated credentials.
 
 For each app that needs attention, call entra-get-app-registration to see what it is used for: its API permissions, redirect URIs and exposed scopes tell you who depends on it.
 

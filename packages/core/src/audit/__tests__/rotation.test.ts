@@ -17,7 +17,7 @@ describe('currentFilename', () => {
   });
 
   it('uses ISO week-year (not calendar year) at year boundaries', () => {
-    // 2024-12-30 is Monday of ISO week 2025-W01 — calendar year 2024 but ISO year 2025
+    // 2024-12-30 is Monday of ISO week 2025-W01 - calendar year 2024 but ISO year 2025
     expect(currentFilename('weekly', new Date('2024-12-30T12:00:00Z'))).toBe('2025-W01.jsonl');
   });
 

@@ -203,7 +203,7 @@ describe('LogAnalyticsService.investigateApp', () => {
   });
 
   // The toolkit's telemetry-report skill parses these fields out of the cached
-  // .json, so the structured shape is the contract — not an implementation detail.
+  // .json, so the structured shape is the contract - not an implementation detail.
   it('returns the structured investigation result alongside the three query results', async () => {
     const service = makeService();
 

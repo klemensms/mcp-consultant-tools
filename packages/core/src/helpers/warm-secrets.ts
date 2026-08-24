@@ -7,7 +7,7 @@
  * server (the grant cache never warms because they all fire at once).
  *
  * Fix: resolve every op:// reference across all servers ONCE, up front, in a
- * single `op` invocation per account — one prompt — and write the values into
+ * single `op` invocation per account - one prompt - and write the values into
  * the shared encrypted cache that the servers already read from. The servers
  * then start against a warm cache and never call `op` themselves.
  *

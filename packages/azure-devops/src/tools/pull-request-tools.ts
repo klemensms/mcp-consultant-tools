@@ -131,7 +131,7 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
 
   server.tool(
     "get-pull-request-diff",
-    "Get unified diffs (actual line-by-line content changes) for the files in a pull request. Use this for code review — get-pull-request-changes returns only file paths and change types, not content.",
+    "Get unified diffs (actual line-by-line content changes) for the files in a pull request. Use this for code review - get-pull-request-changes returns only file paths and change types, not content.",
     {
       project: z.string().describe("The project name"),
       repositoryId: z.string().describe("Repository ID (GUID) or name"),
@@ -224,7 +224,7 @@ export function registerPullRequestTools(server: any, ctx: ServiceContext): void
         status: z.enum(["abandoned", "active"]).optional().describe("Set PR status (abandoned or active)"),
         isDraft: z.boolean().optional().describe("Set draft state"),
       },
-      // Updates title/description/status (incl. abandon) — reversible, no data loss.
+      // Updates title/description/status (incl. abandon) - reversible, no data loss.
       { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       async ({ project, repositoryId, pullRequestId, title, description, status, isDraft }: any) => {
         try {

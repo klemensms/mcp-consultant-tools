@@ -3,7 +3,7 @@
  *
  * Convert between ADO work items and local markdown files.
  *
- * Files use YAML frontmatter (scalar fields — ADO refnames or friendly
+ * Files use YAML frontmatter (scalar fields - ADO refnames or friendly
  * aliases) + body sections (long text fields tagged with
  * `<!-- ado-field: REFNAME -->` comments). The sync engine is generic:
  * any field named in the file is pushed to ADO, any field not named is
@@ -79,12 +79,12 @@ export interface ParsedWorkItemFile {
   fieldMap: Record<string, FieldValue>;
   /** All body text fields (from annotated sections OR legacy headings), keyed by refname. */
   bodyFieldMap: Record<string, string>;
-  /** Sections with no ADO-field annotation — preserved in the file but not pushed. */
+  /** Sections with no ADO-field annotation - preserved in the file but not pushed. */
   localOnlySections: LocalOnlySection[];
   /** Work item type (mirrors frontmatter.type). */
   workItemType: string;
 
-  // Legacy convenience fields — populated from bodyFieldMap for back-compat.
+  // Legacy convenience fields - populated from bodyFieldMap for back-compat.
   description: string;
   reproSteps: string;
   acceptanceCriteria: string;
@@ -302,7 +302,7 @@ export function workItemToMarkdown(workItem: any, revision: number): WorkItemToM
     fmOrder.push(templateKey);
   }
 
-  // ADO fields not in the template — surface as discovery entries.
+  // ADO fields not in the template - surface as discovery entries.
   // Short scalars go to frontmatter; long-form text goes to extra body sections.
   const emittedRefnames = new Set<string>();
   for (const templateKey of template.frontmatterOrder) {
@@ -382,12 +382,12 @@ function refnameToHeading(refname: string): string {
 }
 
 function isIgnoredSystemField(refname: string): boolean {
-  // Board/kanban state per work item — team-specific & not user-editable.
+  // Board/kanban state per work item - team-specific & not user-editable.
   if (refname.startsWith('WEF_')) return true;
   // Computed hierarchy fields (derived from AreaPath/IterationPath).
   if (refname.startsWith('System.AreaLevel') || refname.startsWith('System.IterationLevel')) return true;
   if (refname === 'System.AreaId' || refname === 'System.IterationId' || refname === 'System.NodeName') return true;
-  // Audit and revision metadata — ADO controls these.
+  // Audit and revision metadata - ADO controls these.
   switch (refname) {
     case 'System.Id':
     case 'System.Rev':
@@ -632,7 +632,7 @@ export function buildPatchOperations(
     if (isBodyField) {
       if (localIsEmpty && currentString.trim()) {
         skippedFields.push(
-          `${refname} (local file has no content — skipping to prevent data loss)`
+          `${refname} (local file has no content - skipping to prevent data loss)`
         );
         continue;
       }
@@ -640,7 +640,7 @@ export function buildPatchOperations(
 
       // Compare local Markdown against the ADO value to detect a real edit.
       // ADO stores body fields as HTML but the local file holds Markdown, so for
-      // an HTML field we compare against the same Markdown the pull produces —
+      // an HTML field we compare against the same Markdown the pull produces -
       // otherwise an *unedited* field never matches and gets re-pushed, flipping
       // it to Markdown format and overwriting a complex table with the lossy
       // pulled Markdown (data loss). Equal → user didn't touch it → skip.
@@ -903,7 +903,7 @@ export function generateNewWorkItemTemplate(
 }
 
 // ---------------------------------------------------------------------------
-// Comments (unchanged — read-only export)
+// Comments (unchanged - read-only export)
 // ---------------------------------------------------------------------------
 
 export function commentsToMarkdown(workItem: any, comments: any[]): string {

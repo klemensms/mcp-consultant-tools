@@ -30,7 +30,7 @@ describe('listSubscriptions', () => {
   });
 
   it('warns that an empty list is a permissions signal, not proof the tenant has none', async () => {
-    // `/subscriptions` is RBAC-filtered and answers 200 [] — never 403 — when the
+    // `/subscriptions` is RBAC-filtered and answers 200 [] - never 403 - when the
     // principal holds no role assignment anywhere.
     const service = new ResourceService(stubClient([]));
     const result = await service.listSubscriptions();

@@ -7,7 +7,7 @@
  * `z.array(z.number())` schemas reject these, breaking tool calls. These
  * preprocess helpers accept both native and stringified forms.
  *
- * Mirrors `packages/azure-devops/src/schemas.ts` — keep in sync.
+ * Mirrors `packages/azure-devops/src/schemas.ts` - keep in sync.
  */
 import { z } from 'zod';
 

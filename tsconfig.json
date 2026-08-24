@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "./packages/core" },
+    { "path": "./packages/audit-cli" },
     { "path": "./packages/application-insights" },
     { "path": "./packages/azure-data-factory" },
     { "path": "./packages/azure-defender" },

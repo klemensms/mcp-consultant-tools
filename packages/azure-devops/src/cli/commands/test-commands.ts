@@ -59,7 +59,7 @@ export function registerTestCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.test.completeTestRun(project, parseInt(runId), opts.comment);
         outputResult(
-          { persist: false, fileName: `test-run-${runId}-complete`, data: result, summary: `Run #${result.runId}: ${result.state} — ${result.passedTests}/${result.totalTests} passed` },
+          { persist: false, fileName: `test-run-${runId}-complete`, data: result, summary: `Run #${result.runId}: ${result.state} - ${result.passedTests}/${result.totalTests} passed` },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'complete test run'); }

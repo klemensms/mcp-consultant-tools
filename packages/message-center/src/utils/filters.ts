@@ -2,9 +2,9 @@
  * Case-insensitive matching and client-side ordering for the serviceAnnouncement data.
  *
  * Everything here compares case-insensitively on purpose. Microsoft's docs are internally
- * inconsistent about enum casing — the schema tables say camelCase (`advisory`,
+ * inconsistent about enum casing - the schema tables say camelCase (`advisory`,
  * `stayInformed`, `normal`) while every example payload is PascalCase (`Advisory`,
- * `StayInformed`, `Normal`) — so a case-sensitive equality check against the documented
+ * `StayInformed`, `Normal`) - so a case-sensitive equality check against the documented
  * spelling would silently match zero rows on live data. That is exactly the false-all-clear
  * an assurance tool must not produce.
  */

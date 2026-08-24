@@ -105,7 +105,7 @@ export function registerIndexCommands(program: Command, ctx: ServiceContext): vo
             data: result,
             summary: [
               `Created ${result.summary.created}, skipped ${result.summary.skipped}, failed ${result.summary.failed} in ${serverId}/${database}`,
-              result.truncated ? '  ⚠️ Report truncated by the row limit — counts are a lower bound' : '',
+              result.truncated ? '  ⚠️ Report truncated by the row limit - counts are a lower bound' : '',
             ].filter(Boolean).join('\n'),
           },
           getGlobalFlags(program)

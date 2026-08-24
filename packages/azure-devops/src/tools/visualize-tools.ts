@@ -1,11 +1,11 @@
 /**
- * Visualization Tools — Generative UI via MCP Apps
+ * Visualization Tools - Generative UI via MCP Apps
  *
  * Two-tool pattern:
  * 1. visualize-data: Fetches work items, returns data + design system prompt to host LLM
  * 2. render-visualization: Receives LLM-generated HTML, sanitizes it, returns structuredContent
  *
- * The host LLM generates the HTML using its own subscription — no API key, no extra cost.
+ * The host LLM generates the HTML using its own subscription - no API key, no extra cost.
  */
 import { z } from 'zod';
 import { registerAppTool } from '@modelcontextprotocol/ext-apps/server';
@@ -22,7 +22,7 @@ export function registerVisualizeTools(server: any, ctx: ServiceContext): void {
     "visualize-data",
     "Fetch work item data and prepare it for a rich visual dashboard. ONLY use this tool when the user explicitly asks for a " +
     "visual, chart, dashboard, or graphic representation of their data (e.g. 'visualize', 'show me a chart', 'create a dashboard'). " +
-    "Do NOT use for regular queries — use query-work-items or run-saved-query instead, which are faster. " +
+    "Do NOT use for regular queries - use query-work-items or run-saved-query instead, which are faster. " +
     "Accepts either a WIQL query or a saved query ID (GUID). " +
     "After receiving the response, generate a complete HTML snippet following the design system rules, " +
     "then call render-visualization with the HTML.",
@@ -126,7 +126,7 @@ export function registerVisualizeTools(server: any, ctx: ServiceContext): void {
       description:
         "Render generated HTML as an interactive visualization in the MCP App. " +
         "Call this after generating HTML from visualize-data results. " +
-        "Pass the complete HTML snippet — it will be sanitized and rendered in an iframe.",
+        "Pass the complete HTML snippet - it will be sanitized and rendered in an iframe.",
       inputSchema: {
         html: z.string().describe("The complete HTML snippet to render. Must be self-contained with inline CSS and scripts."),
         title: z.string().optional().describe("Short title for the visualization (e.g. 'Sprint Status Dashboard')"),

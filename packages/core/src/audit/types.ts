@@ -1,5 +1,5 @@
 /**
- * Audit logging types — Phase A.
+ * Audit logging types - Phase A.
  * Spec: docs/programmes/pii-and-audit/design/audit-logging-design.md
  */
 

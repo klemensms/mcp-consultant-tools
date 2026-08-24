@@ -2,7 +2,7 @@
  * Response shapes for the Microsoft Defender for Cloud ARM APIs.
  *
  * These mirror the `Microsoft.Security` provider payloads. Every list endpoint
- * wraps its rows in `{ value, nextLink }` — see `AzureListResponse` in defender-client.ts.
+ * wraps its rows in `{ value, nextLink }` - see `AzureListResponse` in defender-client.ts.
  */
 
 // ─── Secure Score ───
@@ -13,7 +13,7 @@ export interface SecureScore {
   type: string;
   properties: {
     displayName: string;
-    /** `percentage` is a fraction in [0, 1] — not an already-scaled percent. */
+    /** `percentage` is a fraction in [0, 1] - not an already-scaled percent. */
     score: {
       max: number;
       current: number;
@@ -185,7 +185,7 @@ export interface RegulatoryComplianceAssessment {
 // ─── Attack Path ───
 
 /**
- * Attack paths are not a first-class ARM resource — there is no
+ * Attack paths are not a first-class ARM resource - there is no
  * `Microsoft.Security/attackPaths` endpoint. They are read from the Azure Resource
  * Graph `securityresources` table where `type == 'microsoft.security/attackpaths'`,
  * so every `properties` field arrives as an untyped `dynamic` column and is mapped
@@ -198,7 +198,7 @@ export interface RegulatoryComplianceAssessment {
  * `targetEntityInternalID`. Live rows on a tenant whose attack paths come from
  * Microsoft Security Exposure Management instead carry `riskLevel`, `riskFactors`,
  * `entryPoint`, `target`, `attackPathSteps`, `mITRETacticsAndTechniques`,
- * `attackStory` and `isPartialAttackPath` — measured on a real estate, where a path
+ * `attackStory` and `isPartialAttackPath` - measured on a real estate, where a path
  * of `riskLevel: High` printed as impact `Unknown` with no risk categories because
  * only the documented names were mapped.
  *
@@ -209,7 +209,7 @@ export interface RegulatoryComplianceAssessment {
  *
  * `graphComponent` holds insights/entities/connections, not nodes/edges. `riskLevel`
  * and `riskFactors` also exist, differently, on the `risk` object of
- * `Microsoft.Security/assessments@2025-05-04` — see `AssessmentRisk` above; they are
+ * `Microsoft.Security/assessments@2025-05-04` - see `AssessmentRisk` above; they are
  * separate fields that happen to share a name.
  */
 export interface AttackPath {

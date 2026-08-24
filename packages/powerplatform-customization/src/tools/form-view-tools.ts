@@ -145,7 +145,7 @@ server.tool(
   {
     formId: z.string().describe("Form ID (GUID)")
   },
-  // Deactivating takes the form out of service — treat as destructive.
+  // Deactivating takes the form out of service - treat as destructive.
   { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ formId }: any) => {
     try {

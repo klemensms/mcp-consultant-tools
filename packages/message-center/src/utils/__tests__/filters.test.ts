@@ -9,7 +9,7 @@ import {
 describe('equalsIgnoreCase', () => {
   it('matches across the docs-vs-wire casing gap', () => {
     // The schema documents `advisory`; live payloads return `Advisory`. A case-sensitive
-    // check here would silently match zero rows — the exact false all-clear to avoid.
+    // check here would silently match zero rows - the exact false all-clear to avoid.
     expect(equalsIgnoreCase('Advisory', 'advisory')).toBe(true);
     expect(equalsIgnoreCase('StayInformed', 'stayInformed')).toBe(true);
     expect(equalsIgnoreCase('Normal', 'normal')).toBe(true);

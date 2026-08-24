@@ -28,7 +28,7 @@ server.tool(
     hasActivities: z.boolean().optional().describe("Enable activities (default: false)"),
     hasNotes: z.boolean().optional().describe("Enable notes (default: false)"),
     isAuditEnabled: z.boolean().optional().describe(
-      "Enable auditing for this entity — tracks record-level changes (default: false)"
+      "Enable auditing for this entity - tracks record-level changes (default: false)"
     ),
     changeTrackingEnabled: z.boolean().optional().describe(
       "Enable change tracking for data sync scenarios like Azure Synapse Link (default: false)"

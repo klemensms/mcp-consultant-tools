@@ -10,7 +10,7 @@ export function registerRepoTools(server: any, ctx: ServiceContext): void {
     "ghe-list-repos",
     "List all configured GitHub Enterprise repositories (active and inactive)",
     {},
-    // Reads configured repos from local config only — no network call.
+    // Reads configured repos from local config only - no network call.
     { readOnlyHint: true },
     async () => {
       try {

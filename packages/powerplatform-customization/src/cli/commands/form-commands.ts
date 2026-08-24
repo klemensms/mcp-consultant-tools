@@ -127,7 +127,7 @@ export function registerFormCommands(program: Command, ctx: ServiceContext): voi
     .description('Deploy a local form XML file to Dataverse (PATCHes formxml verbatim, updates sidecar, writes history snapshot)')
     .argument('<filePath>', 'Local file path of the form XML to deploy')
     .option('--form-id <guid>', 'Override target form ID (defaults to sidecar .meta.json)')
-    .option('--expected-version <n>', 'Optimistic concurrency check — reject if remote version doesn\'t match')
+    .option('--expected-version <n>', 'Optimistic concurrency check - reject if remote version doesn\'t match')
     .option('--solution <name>', 'Solution unique name (MSCRM.SolutionUniqueName header)')
     .action(async (filePath: string, opts: any) => {
       try {

@@ -38,5 +38,5 @@ export const ALERT_STATUSES = ['Active', 'InProgress', 'Resolved', 'Dismissed'] 
 
 /** Rendered under any list whose counts were cut short by a result limit. */
 export function truncationNote(truncated: boolean): string {
-  return truncated ? '  ⚠️ Truncated by the result limit — counts are a lower bound' : '';
+  return truncated ? '  ⚠️ Truncated by the result limit - counts are a lower bound' : '';
 }

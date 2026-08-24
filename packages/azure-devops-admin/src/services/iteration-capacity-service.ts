@@ -82,7 +82,7 @@ export class IterationCapacityService {
   }
 
   private ambiguousMsg(identifier: string, matches: any[]): string {
-    return `Ambiguous team member '${identifier}' — matched ${matches.length}: ${this.candidateList(matches)}. Use the identity GUID to disambiguate.`;
+    return `Ambiguous team member '${identifier}' - matched ${matches.length}: ${this.candidateList(matches)}. Use the identity GUID to disambiguate.`;
   }
 
   // ---- reads ---------------------------------------------------------------
@@ -155,7 +155,7 @@ export class IterationCapacityService {
     return this.patchMemberCapacity(project, team, iterationId, member, teamMemberId, capacityPerDay, activityName, daysOff);
   }
 
-  /** Set capacity for many members in one call (sequential PATCH per member — never wipes unlisted members). */
+  /** Set capacity for many members in one call (sequential PATCH per member - never wipes unlisted members). */
   async setTeamCapacitiesBatch(
     project: string,
     team: string,

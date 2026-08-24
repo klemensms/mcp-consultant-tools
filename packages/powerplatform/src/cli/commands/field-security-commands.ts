@@ -41,7 +41,7 @@ export function registerFieldSecurityCommands(program: Command, ctx: ServiceCont
           {
             fileName: `field-security-profile-${id}`,
             data: result,
-            summary: `FSP "${result.name}" — ${result.permissions.length} permissions, ${result.teams.length} teams, ${result.users.length} users`,
+            summary: `FSP "${result.name}" - ${result.permissions.length} permissions, ${result.teams.length} teams, ${result.users.length} users`,
           },
           getGlobalFlags(program)
         );

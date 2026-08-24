@@ -48,7 +48,7 @@ export function summariseScoreControls(controls: SecureScoreControl[]): ScoreCon
     totalHealthy,
     totalUnhealthy,
     // Unweighted mean across controls. Controls carry a `weight`, so this is NOT
-    // the subscription's secure score — it is a rough "how are controls doing" figure.
+    // the subscription's secure score - it is a rough "how are controls doing" figure.
     averageScorePercentage: controls.length > 0 ? toPercent(scoreSum / controls.length) : 0,
   };
 }

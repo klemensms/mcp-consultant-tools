@@ -21,7 +21,7 @@ export type StickyCategory =
   | "note" // Gray/Other - general notes
   | "unknown"; // Unrecognized color
 
-/** Legacy alias for "investigation" (pre-v33 name) — accepted on input, never emitted. */
+/** Legacy alias for "investigation" (pre-v33 name) - accepted on input, never emitted. */
 export type LegacyStickyCategory = "si-investigation";
 
 function normalizeStickyCategory(category: StickyCategory | LegacyStickyCategory): StickyCategory {

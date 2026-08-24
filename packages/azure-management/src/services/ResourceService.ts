@@ -22,7 +22,7 @@ export class ResourceService {
   constructor(private client: ArmClient) {}
 
   /**
-   * List the subscriptions this service principal can see. Tenant-level — it does
+   * List the subscriptions this service principal can see. Tenant-level - it does
    * not use the configured subscription ID.
    */
   async listSubscriptions(): Promise<{

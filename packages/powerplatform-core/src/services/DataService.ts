@@ -71,7 +71,7 @@ export class DataService {
    * Pages via `Prefer: odata.maxpagesize` + `@odata.nextLink` rather than `$top`.
    * Dataverse caps every response at 5,000 rows and ignores `$top` when a page-size
    * preference is present, so a returned-row count can't distinguish "capped" from
-   * "exhausted" — only the continuation token can. `hasMore` is therefore derived
+   * "exhausted" - only the continuation token can. `hasMore` is therefore derived
    * from `@odata.nextLink`, never from `value.length`.
    */
   async queryRecords(
@@ -391,7 +391,7 @@ export class DataService {
 
     if (!this.piiPipeline?.isEnabled) return response;
 
-    // Custom Action results have no fixed entity type — L3+L4 still scan strings.
+    // Custom Action results have no fixed entity type - L3+L4 still scan strings.
     const redacted = this.piiPipeline.redactResponse('action-result', response);
     return { ...redacted.data, piiReport: redacted.report };
   }
@@ -409,7 +409,7 @@ export class DataService {
     const result = await this.client.makeRequest<ApiCollectionResponse<{ LogicalName: string }>>(url);
 
     if (!result.value || result.value.length === 0) {
-      throw new Error(`Cannot resolve entity set name '${entitySetName}' — no matching EntityDefinition found`);
+      throw new Error(`Cannot resolve entity set name '${entitySetName}' - no matching EntityDefinition found`);
     }
 
     const logicalName = result.value[0].LogicalName;
@@ -434,7 +434,7 @@ export class DataService {
     try {
       logicalName = await this.resolveLogicalName(entityNamePlural);
     } catch {
-      // Not a standard entity — check if it's an N:N intersect entity
+      // Not a standard entity - check if it's an N:N intersect entity
       const intersectInfo = await this.resolveIntersectEntity(entityNamePlural);
       if (intersectInfo) {
         if (filter) {
@@ -446,7 +446,7 @@ export class DataService {
         return this.countIntersectRecords(intersectInfo);
       }
       throw new Error(
-        `Cannot resolve entity '${entityNamePlural}' — not found in EntityDefinitions or ManyToManyRelationshipMetadata`
+        `Cannot resolve entity '${entityNamePlural}' - not found in EntityDefinitions or ManyToManyRelationshipMetadata`
       );
     }
 
@@ -531,7 +531,7 @@ export class DataService {
             const logicalName = await this.resolveLogicalName(entityNamePlural);
             nameMap.set(logicalName, entityNamePlural);
           } catch {
-            // Not a standard entity — check if it's an N:N intersect entity
+            // Not a standard entity - check if it's an N:N intersect entity
             const intersectInfo = await this.resolveIntersectEntity(entityNamePlural);
             if (intersectInfo) {
               try {
@@ -543,7 +543,7 @@ export class DataService {
             } else {
               unfilteredResults.set(entityNamePlural, {
                 count: -1,
-                error: `Cannot resolve entity '${entityNamePlural}' — not found in EntityDefinitions or ManyToManyRelationshipMetadata`,
+                error: `Cannot resolve entity '${entityNamePlural}' - not found in EntityDefinitions or ManyToManyRelationshipMetadata`,
               });
             }
           }
@@ -659,9 +659,9 @@ export class DataService {
    *
    * Tries two lookups in order:
    * 1. Filter by IntersectEntityName (the actual intersect table name, often
-   *    truncated to 40 chars by Dataverse — e.g. "new_eventpackageadditional_new_eventd").
+   *    truncated to 40 chars by Dataverse - e.g. "new_eventpackageadditional_new_eventd").
    * 2. Filter by SchemaName (the relationship schema name as shown in the maker
-   *    portal — e.g. "new_eventpackageadditionalitem_new_eventdel"), which users are
+   *    portal - e.g. "new_eventpackageadditionalitem_new_eventdel"), which users are
    *    more likely to copy. This covers cases where the SchemaName differs from
    *    the truncated IntersectEntityName.
    */
@@ -764,7 +764,7 @@ export class DataService {
    * names that Dataverse expects on POST/PATCH bodies.
    *
    * The navigation property is `ReferencingEntityNavigationPropertyName` from
-   * ManyToOneRelationships metadata — NOT the lookup attribute's SchemaName.
+   * ManyToOneRelationships metadata - NOT the lookup attribute's SchemaName.
    * For most attributes the nav property is the lowercase logical name
    * (e.g. `primarycontactid`, `objectid_contact`).
    */
@@ -816,7 +816,7 @@ export class DataService {
   /**
    * Resolve the actual `ReferencingEntityNavigationPropertyName` for a lookup
    * attribute. This is the value Dataverse expects on the left of `@odata.bind`
-   * — it is NOT the same as the attribute's SchemaName. For polymorphic lookups,
+   * - it is NOT the same as the attribute's SchemaName. For polymorphic lookups,
    * pass `referencedEntity` to disambiguate between targets.
    */
   async lookupNavigationProperty(

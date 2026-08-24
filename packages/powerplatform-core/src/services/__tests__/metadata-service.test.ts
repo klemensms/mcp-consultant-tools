@@ -48,7 +48,7 @@ describe('MetadataService.getEntityAttribute', () => {
     makeRequest
       .mockResolvedValueOnce(picklistAttribute())
       .mockRejectedValueOnce(new Error('expand failed'))
-      // 3: fallback — direct .../{castType}/OptionSet navigation-property read
+      // 3: fallback - direct .../{castType}/OptionSet navigation-property read
       .mockResolvedValueOnce(optionSetPayload());
 
     const result = (await service.getEntityAttribute('account', 'sample_category')) as any;
@@ -67,7 +67,7 @@ describe('MetadataService.getEntityAttribute', () => {
   it('falls back to GlobalOptionSet when expansion succeeds without options (global picklist)', async () => {
     makeRequest
       .mockResolvedValueOnce(picklistAttribute())
-      // 2: expansion "succeeds" but OptionSet is null — global picklist behaviour
+      // 2: expansion "succeeds" but OptionSet is null - global picklist behaviour
       .mockResolvedValueOnce({ OptionSet: null })
       // 3: local OptionSet nav property is empty too
       .mockResolvedValueOnce(null)

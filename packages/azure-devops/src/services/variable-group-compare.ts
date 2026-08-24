@@ -6,7 +6,7 @@
  *
  * Secret rule (load-bearing): Azure DevOps returns a secret as
  * `{ isSecret: true, value: null }` and OMITS `isSecret` entirely for a normal
- * variable. We branch on `isSecret` and never read `.value` for a secret — so
+ * variable. We branch on `isSecret` and never read `.value` for a secret - so
  * even if the API one day returned a real value, it could not reach the output.
  */
 
@@ -83,7 +83,7 @@ export interface VariableGroupComparison {
   valueDifferences: ValueDifference[];
   /** Names present in both where at least one side is a secret. Values never compared. */
   secretsSkipped: string[];
-  /** A variable that is a secret on one side and plaintext on the other — a real drift finding. */
+  /** A variable that is a secret on one side and plaintext on the other - a real drift finding. */
   secretPresenceDifferences: SecretPresenceDifference[];
 }
 

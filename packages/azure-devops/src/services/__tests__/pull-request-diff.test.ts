@@ -113,7 +113,7 @@ describe('PullRequestService.getPullRequestDiff', () => {
   });
 
   it('marks binary files as skipped rather than diffing them', async () => {
-    // NUL written as an escape, never as a literal byte — a literal NUL makes the
+    // NUL written as an escape, never as a literal byte - a literal NUL makes the
     // whole source file unreadable to grep.
     const client = stubClient([entry()], { old1: 'text\n', new1: 'PNG\0\x01data' });
     const result = await new PullRequestService(client).getPullRequestDiff('Proj', 'repo', 42);

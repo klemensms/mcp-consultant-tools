@@ -1,5 +1,5 @@
 /**
- * Message Center CLI commands — 2 commands mapping 1:1 to the m365-* message MCP tools.
+ * Message Center CLI commands - 2 commands mapping 1:1 to the m365-* message MCP tools.
  */
 
 import type { Command } from 'commander';

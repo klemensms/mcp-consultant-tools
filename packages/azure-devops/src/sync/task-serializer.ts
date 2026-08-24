@@ -292,7 +292,7 @@ export function parseTasksMarkdown(content: string): ParsedTasksFile {
 /**
  * Strip the trailing inter-task `---` separator (plus any surrounding blank
  * lines) from a captured task block. Horizontal rules inside a Description
- * are preserved — only a `---` that sits at the tail of the block (right
+ * are preserved - only a `---` that sits at the tail of the block (right
  * before the next task heading or EOF) is removed.
  */
 function stripTrailingSeparator(content: string): string {
@@ -396,7 +396,7 @@ export function buildTaskPatchOperations(
   ) => {
     const currentValue = currentFields[fieldPath];
 
-    // Handle null/undefined/empty string comparisons — use strict checks to preserve 0
+    // Handle null/undefined/empty string comparisons - use strict checks to preserve 0
     const normalizedNew = newValue === '' || newValue === undefined ? null : newValue;
     const normalizedCurrent = currentValue === '' || currentValue === undefined ? null : currentValue;
 

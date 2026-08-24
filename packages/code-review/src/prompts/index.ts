@@ -11,7 +11,7 @@ export function registerAllPrompts(server: any, _ctx: ServiceContext): void {
   staticPrompt(
     server,
     'cr-code-review',
-    'Review the technical health of a repository — .NET framework EOL, NuGet vulnerabilities/staleness, and code-complexity estimate — and summarise the critical actions',
+    'Review the technical health of a repository - .NET framework EOL, NuGet vulnerabilities/staleness, and code-complexity estimate - and summarise the critical actions',
     CODE_REVIEW_TEMPLATE,
   );
 

@@ -2,7 +2,7 @@
  * Pinned ARM api-versions for the Defender for Cloud surfaces this package reads.
  *
  * Verified against Microsoft Learn / azure-rest-api-specs on 2026-07-10. Every call
- * site passes one of these explicitly — there is no resolve-by-path fallback, because
+ * site passes one of these explicitly - there is no resolve-by-path fallback, because
  * a path like `/subscriptions/x/providers/Microsoft.Compute/.../providers/Microsoft.Security/assessments/y`
  * contains two providers and any regex picks the wrong one.
  *
@@ -16,7 +16,7 @@ export const DEFENDER_API_VERSIONS = {
 
   /**
    * `2020-01-01` is two GA generations behind and cannot represent a `Critical`
-   * severity at all — its enum is High/Medium/Low. `2025-05-04` adds `Critical`
+   * severity at all - its enum is High/Medium/Low. `2025-05-04` adds `Critical`
    * plus the `risk` object. `status.code` and `resourceDetails` are unchanged.
    */
   assessments: '2025-05-04',

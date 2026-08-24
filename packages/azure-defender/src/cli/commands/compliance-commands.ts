@@ -1,5 +1,5 @@
 /**
- * Compliance CLI commands — 4 commands mapping to the compliance MCP tools.
+ * Compliance CLI commands - 4 commands mapping to the compliance MCP tools.
  */
 
 import type { Command } from 'commander';
@@ -27,7 +27,7 @@ export function registerComplianceCommands(program: Command, ctx: ServiceContext
               `Found ${result.summary.total} compliance standard(s)`,
               ...Object.entries(result.summary.byState).map(([s, c]) => `  ${s}: ${c}`),
               result.summary.total === 0
-                ? '  ℹ️ No standards enabled — this is not the same as being non-compliant'
+                ? '  ℹ️ No standards enabled - this is not the same as being non-compliant'
                 : '',
               '',
               ...result.standards.map(

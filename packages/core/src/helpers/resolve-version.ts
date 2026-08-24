@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
  *
  * Walks up from the entry script (`process.argv[1]`) to the nearest
  * package.json and returns its `version`. This keeps `--version` (CLI) and the
- * MCP server's reported version in lockstep with package.json automatically —
+ * MCP server's reported version in lockstep with package.json automatically -
  * the release version bump only touches package.json, so a hardcoded version
  * string would (and historically did) go stale across the suite.
  *

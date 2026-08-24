@@ -1,5 +1,5 @@
 /**
- * CLI backend for 1Password — wraps `op` CLI commands.
+ * CLI backend for 1Password - wraps `op` CLI commands.
  *
  * Used when OP_SERVICE_ACCOUNT_TOKEN is not set and the user has
  * "Integrate with 1Password CLI" enabled in the 1Password desktop app.
@@ -173,7 +173,7 @@ export class OpCliBackend {
     }
   }
 
-  /** Vaults namespace — matches sdk.Client.vaults interface */
+  /** Vaults namespace - matches sdk.Client.vaults interface */
   readonly vaults = {
     list: async (): Promise<any[]> => {
       const result = await this.execOp(['vault', 'list']);
@@ -245,7 +245,7 @@ export class OpCliBackend {
     },
   };
 
-  /** Items namespace — matches sdk.Client.items interface */
+  /** Items namespace - matches sdk.Client.items interface */
   readonly items = {
     list: async (vaultId: string): Promise<any[]> => {
       return (await this.execOp(['item', 'list', '--vault', vaultId])) || [];
@@ -256,7 +256,7 @@ export class OpCliBackend {
     },
 
     getAll: async (vaultId: string, itemIds: string[]): Promise<any> => {
-      // CLI doesn't have batch get — run sequentially
+      // CLI doesn't have batch get - run sequentially
       const results: any[] = [];
       const errors: any[] = [];
       for (const id of itemIds) {
@@ -301,7 +301,7 @@ export class OpCliBackend {
     },
 
     deleteAll: async (vaultId: string, itemIds: string[]): Promise<void> => {
-      // CLI doesn't have batch delete — run sequentially
+      // CLI doesn't have batch delete - run sequentially
       for (const id of itemIds) {
         await this.items.delete(vaultId, id);
       }
@@ -315,7 +315,7 @@ export class OpCliBackend {
     },
 
     createAll: async (vaultId: string, items: any[]): Promise<any> => {
-      // CLI doesn't have batch create — run sequentially
+      // CLI doesn't have batch create - run sequentially
       const results: any[] = [];
       const errors: any[] = [];
       for (const item of items) {
@@ -330,7 +330,7 @@ export class OpCliBackend {
     },
   };
 
-  /** Secrets namespace — matches sdk.Client.secrets interface */
+  /** Secrets namespace - matches sdk.Client.secrets interface */
   readonly secrets = {
     resolve: async (reference: string): Promise<string> => {
       // op read returns the raw secret value (not JSON)

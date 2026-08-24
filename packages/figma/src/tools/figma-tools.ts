@@ -100,7 +100,7 @@ export function registerFigmaTools(server: any, ctx: ServiceContext): void {
       stickyColorOverrides: z.record(z.enum([
         "blocker", "tbd", "investigation", "done", "info", "note", "unknown",
         "si-investigation" // deprecated alias for "investigation", accepted for backward compatibility
-      ])).optional().describe(descWithExamples("Optional color to category overrides. Map hex colors to categories. ('si-investigation' is a deprecated alias for 'investigation' — output always uses 'investigation'.)", STICKY_CATEGORY_EXAMPLES)),
+      ])).optional().describe(descWithExamples("Optional color to category overrides. Map hex colors to categories. ('si-investigation' is a deprecated alias for 'investigation' - output always uses 'investigation'.)", STICKY_CATEGORY_EXAMPLES)),
       storyIdPattern: z.string().optional().describe(descWithExamples("Optional custom regex pattern for extracting story IDs", STORY_ID_PATTERN_EXAMPLES)),
       includeScreenshot: z.boolean().optional().describe(
         "When true and nodeId is set, returns a 2x PNG screenshot of the node as an image content block alongside the semantic data."

@@ -14,7 +14,7 @@ export interface AuditEmitInputs extends AuditEmitOptions {
  *
  * Refuse-to-execute: when audit is active (level=lean/full) and engagement is
  * unset, throws AuditEngagementUnsetError BEFORE invoking fn(). The error
- * propagates to the caller — it is NOT swallowed by safeEmit, because
+ * propagates to the caller - it is NOT swallowed by safeEmit, because
  * engagement-unset is an operator responsibility violation, not an
  * audit-system failure.
  *

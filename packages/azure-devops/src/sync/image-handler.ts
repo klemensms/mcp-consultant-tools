@@ -10,7 +10,7 @@
  * Each <img>/![] reference is parsed; if the URL points at an ADO work item
  * attachment (`_apis/wit/attachments/{guid}`), we extract the GUID, fileName,
  * and project GUID. Callers can then download the file and rewrite the source
- * to a local relative path — or, on push, walk the manifest and rewrite local
+ * to a local relative path - or, on push, walk the manifest and rewrite local
  * paths back to the original ADO URL.
  */
 
@@ -93,7 +93,7 @@ export function extractImageRefs(content: string): ImageRef[] {
 
   const refs: ImageRef[] = [];
 
-  // HTML <img src="..."> — handles both " and ' delimiters and self-closing
+  // HTML <img src="..."> - handles both " and ' delimiters and self-closing
   const htmlRegex = /<img[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)')[^>]*\/?>/gi;
   let m: RegExpExecArray | null;
   while ((m = htmlRegex.exec(content)) !== null) {
@@ -108,7 +108,7 @@ export function extractImageRefs(content: string): ImageRef[] {
     });
   }
 
-  // Markdown ![alt](url) — url terminates at whitespace or close paren
+  // Markdown ![alt](url) - url terminates at whitespace or close paren
   const mdRegex = /!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
   while ((m = mdRegex.exec(content)) !== null) {
     const src = m[1];

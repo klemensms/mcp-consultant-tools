@@ -30,7 +30,7 @@ function service(client: ReturnType<typeof fakeClient>) {
 }
 
 // ---------------------------------------------------------------------------
-// matchesMessage — casing + services[] substring
+// matchesMessage - casing + services[] substring
 // ---------------------------------------------------------------------------
 
 describe('matchesMessage', () => {
@@ -115,7 +115,7 @@ describe('MessageService.listMessages', () => {
 });
 
 // ---------------------------------------------------------------------------
-// MessageService.getMessage — ID validation
+// MessageService.getMessage - ID validation
 // ---------------------------------------------------------------------------
 
 describe('MessageService.getMessage', () => {

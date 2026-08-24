@@ -60,7 +60,7 @@ export interface LatestReleaseBranchResult {
   /**
    * Branches under `prefix` with no digit in their name (`release/next`).
    * Natural sort cannot rank these against `release/35.0`, and letting one win
-   * would be arbitrary, so they are excluded — but never silently.
+   * would be arbitrary, so they are excluded - but never silently.
    */
   ignoredNonVersionBranches: string[];
   truncated: boolean;

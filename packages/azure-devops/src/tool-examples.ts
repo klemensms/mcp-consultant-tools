@@ -263,9 +263,9 @@ export const TEST_OUTCOME_EXAMPLES = [
 ];
 
 export const TEST_RUN_NAME_EXAMPLES = [
-  { label: "Plugin test", value: "Plugin Test — #1928 — 2026-04-10" },
-  { label: "API regression", value: "API Regression — Release 30.0" },
-  { label: "Integration test", value: "Integration Test — Contact Form Rules" },
+  { label: "Plugin test", value: "Plugin Test - #1928 - 2026-04-10" },
+  { label: "API regression", value: "API Regression - Release 30.0" },
+  { label: "Integration test", value: "Integration Test - Contact Form Rules" },
 ];
 
 export const TEST_RUN_STATE_EXAMPLES = [

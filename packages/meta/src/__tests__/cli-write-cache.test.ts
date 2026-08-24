@@ -5,7 +5,7 @@
  * so an agent can grep it instead of re-running the call. A **write** command
  * must pass `persist: false`: its payload is only an echo of the arguments, so
  * the file has nothing worth grepping, and creating a `.context/` directory
- * wherever the command happened to be run is a surprise — on a real machine one
+ * wherever the command happened to be run is a surprise - on a real machine one
  * appeared inside a cloud-synced folder and then synced.
  *
  * v35 beta.12 applied that convention across the suite by matching command
@@ -21,7 +21,7 @@
  *
  * It needs no judgement, and it gets right the one case verb-matching must get
  * wrong: `azure-storage queue receive` reads like a read, but receiving hides
- * the message and changes its visibility — which is why it sits behind the write
+ * the message and changes its visibility - which is why it sits behind the write
  * flag to begin with.
  *
  * Two deliberate limits:
@@ -40,7 +40,7 @@
  * insert`, `azure-devops-admin pipeline queue`) are outside what this can prove
  * and are marked by hand.
  *
- * Lives in `meta` because meta aggregates the whole suite — same reason as
+ * Lives in `meta` because meta aggregates the whole suite - same reason as
  * `entrypoint-versions.test.ts`.
  */
 

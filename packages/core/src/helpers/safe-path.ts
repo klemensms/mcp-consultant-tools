@@ -1,20 +1,20 @@
 /**
  * Safe filesystem-path helpers.
  *
- * MCP tools that take a caller-supplied path can be steered — e.g. via prompt
- * injection through untrusted content — into reading or writing outside the
+ * MCP tools that take a caller-supplied path can be steered - e.g. via prompt
+ * injection through untrusted content - into reading or writing outside the
  * intended location. These helpers give every package one shared, complete
  * implementation of path confinement instead of ad-hoc per-tool checks.
  *
  * Two tiers:
- *  - {@link resolveSafePath} — for WRITES. Confines the resolved path to a
+ *  - {@link resolveSafePath} - for WRITES. Confines the resolved path to a
  *    permitted root (default: MCP_FILE_ROOT or the process working directory).
  *    Absolute paths that escape the root are rejected too.
- *  - {@link assertNoTraversal} — for READS. Rejects parent-directory traversal
+ *  - {@link assertNoTraversal} - for READS. Rejects parent-directory traversal
  *    ("..") but allows absolute paths, so legitimate "read a file from
  *    anywhere I point you" workflows keep working while injected `../` escapes
  *    are blocked.
- *  - {@link safeBasename} — collapses an untrusted filename component (e.g. a
+ *  - {@link safeBasename} - collapses an untrusted filename component (e.g. a
  *    downloaded attachment's own name) to its basename, neutralising embedded
  *    path separators and traversal.
  */
@@ -42,7 +42,7 @@ function rejectMalformed(userPath: string): void {
  * Resolve a caller-supplied path and confine it to a permitted root.
  *
  * Use for WRITE destinations. The path (relative OR absolute) must resolve
- * inside the root, otherwise it is rejected — this blocks both `../` traversal
+ * inside the root, otherwise it is rejected - this blocks both `../` traversal
  * and absolute paths pointing elsewhere on the filesystem.
  *
  * @returns the absolute, confined path

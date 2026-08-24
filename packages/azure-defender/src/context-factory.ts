@@ -2,7 +2,7 @@
  * Shared ServiceContext factory for Azure Defender.
  * Used by both the MCP server (index.ts) and the CLI (cli.ts).
  *
- * Unlike azure-sql, this package has exactly ONE copy of this function — index.ts
+ * Unlike azure-sql, this package has exactly ONE copy of this function - index.ts
  * imports it rather than keeping a private duplicate.
  */
 
@@ -51,7 +51,7 @@ export function createServiceContext(): ServiceContext {
       };
 
       client = new DefenderClient(config);
-      // Never log the subscription ID — it lands in transcripts and logs.
+      // Never log the subscription ID - it lands in transcripts and logs.
       console.error('Azure Defender client initialized');
     }
     return client;

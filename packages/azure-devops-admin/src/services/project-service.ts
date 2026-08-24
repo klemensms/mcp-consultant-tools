@@ -1,6 +1,6 @@
 /**
  * Project operations for Azure DevOps Admin.
- * Org-scoped: does NOT call validateProject() — projects are the things being managed.
+ * Org-scoped: does NOT call validateProject() - projects are the things being managed.
  */
 import type { AdminClient } from './admin-client.js';
 import type { AdoApiCollectionResponse } from '../types.js';

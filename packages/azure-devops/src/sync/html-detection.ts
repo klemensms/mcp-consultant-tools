@@ -5,7 +5,7 @@
  * works against markdown, so before pulling (or pushing) we auto-detect
  * HTML and either convert it or report it as skipped.
  *
- * This module is intentionally generic — it no longer maintains a fixed
+ * This module is intentionally generic - it no longer maintains a fixed
  * list of "additional" custom fields. Callers pass in the refname list
  * they care about (usually derived from the loaded template).
  */

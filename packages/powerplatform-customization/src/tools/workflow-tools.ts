@@ -105,7 +105,7 @@ server.tool(
   {
     workflowId: z.string().describe("GUID of the workflow to deactivate")
   },
-  // Deactivating stops the workflow — treat as destructive.
+  // Deactivating stops the workflow - treat as destructive.
   { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ workflowId }: any) => {
     try {
@@ -167,7 +167,7 @@ server.tool(
     workflowId: z.string().describe("GUID of the workflow to document"),
     type: z.enum(['flow', 'workflow']).optional().describe("Type of automation (auto-detected if not provided)")
   },
-  // Writes a description (deactivate→document→reactivate) — net mutating.
+  // Writes a description (deactivate→document→reactivate) - net mutating.
   { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ workflowId, type }: any) => {
     try {

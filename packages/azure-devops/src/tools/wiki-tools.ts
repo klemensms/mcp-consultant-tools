@@ -54,7 +54,7 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
       pagePath: z.string().optional().describe("The path to the page (e.g., '/Setup/Authentication'). Either pagePath or pageId is required."),
       pageId: zCoerceNumber().optional().describe("The numeric page ID from a wiki URL (e.g., 3789 from ...wiki/wikis/Wiki.wiki/3789/Page-Name). Either pageId or pagePath is required."),
       includeContent: z.boolean().optional().describe("Include page content (default: true)"),
-      recursionLevel: z.enum(["none", "oneLevel", "full"]).optional().describe("Populate subPages with child pages: 'oneLevel' for direct children, 'full' for the whole subtree (default: none — subPages omitted). For tree enumeration without content, prefer get-wiki-tree."),
+      recursionLevel: z.enum(["none", "oneLevel", "full"]).optional().describe("Populate subPages with child pages: 'oneLevel' for direct children, 'full' for the whole subtree (default: none - subPages omitted). For tree enumeration without content, prefer get-wiki-tree."),
     },
     { readOnlyHint: true, openWorldHint: true },
     async ({ project, wikiId, pagePath, pageId, includeContent, recursionLevel }: any) => {
@@ -75,11 +75,11 @@ export function registerWikiTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     "get-wiki-tree",
-    "Get the wiki page hierarchy (paths + ids, no content) under a path — enumerate a wiki's structure without pulling page bodies.",
+    "Get the wiki page hierarchy (paths + ids, no content) under a path - enumerate a wiki's structure without pulling page bodies.",
     {
       project: z.string().describe("The project name"),
       wikiId: z.string().describe("The wiki identifier (ID or name)"),
-      pagePath: z.string().optional().describe("Root path to enumerate from (default: '/' — the whole wiki)"),
+      pagePath: z.string().optional().describe("Root path to enumerate from (default: '/' - the whole wiki)"),
       depth: z.enum(["oneLevel", "full"]).optional().describe("How deep to enumerate (default: full)"),
     },
     { readOnlyHint: true, openWorldHint: true },

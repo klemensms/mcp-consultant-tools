@@ -367,7 +367,7 @@ export class AppServiceService {
           }
         }
       } catch (err) {
-        // Application directory may not exist — not an error for all apps
+        // Application directory may not exist - not an error for all apps
         if (logType === 'stdout') {
           errors.push(`Failed to list stdout logs: ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -459,7 +459,7 @@ export class AppServiceService {
 
   /**
    * Update app settings or connection strings on an App Service.
-   * Merges with existing settings — does not replace the full set.
+   * Merges with existing settings - does not replace the full set.
    */
   async setAppServiceConfig(options: {
     name: string;

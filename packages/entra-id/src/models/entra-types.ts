@@ -2,7 +2,7 @@
  * Microsoft Graph v1.0 shapes (raw) and this package's output shapes (derived).
  *
  * Raw fields are typed optional wherever Graph may omit them, because Graph omits
- * anything outside `$select` rather than returning null — an over-narrow type here
+ * anything outside `$select` rather than returning null - an over-narrow type here
  * turns a missing field into a silent `undefined` at runtime.
  * See https://learn.microsoft.com/en-us/graph/api/resources/application
  */
@@ -162,7 +162,7 @@ export interface AppRegistrationDetail extends AppRegistrationSummary {
  *
  * The source this was ported from filtered on secrets only, so an app whose sole
  * credential was an expiring certificate matched `no-secrets` and never matched
- * `expiring-secrets` — a false all-clear on the exact thing this tool exists to find.
+ * `expiring-secrets` - a false all-clear on the exact thing this tool exists to find.
  */
 export type AppRegistrationFilter =
   | 'no-credentials'

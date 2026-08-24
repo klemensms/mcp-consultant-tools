@@ -107,7 +107,7 @@ export class SyncService {
         if (!workItem.id || !workItem.fields || Object.keys(workItem.fields).length === 0) {
           skipped.push({
             id: workItemId,
-            reason: 'API returned empty data (no fields). Check authentication — PAT may be expired or unresolved.',
+            reason: 'API returned empty data (no fields). Check authentication - PAT may be expired or unresolved.',
           });
           continue;
         }
@@ -116,7 +116,7 @@ export class SyncService {
         let convertedFields: string[] = [];
         let lossyFields: string[] = [];
 
-        // Convert HTML body fields to Markdown IN MEMORY only — never write the
+        // Convert HTML body fields to Markdown IN MEMORY only - never write the
         // conversion back to ADO. The work item in ADO is left exactly as the
         // client authored it (HTML, tables and all); only the local markdown
         // file is converted, so the ADO copy stays the lossless source of truth.
@@ -144,8 +144,8 @@ export class SyncService {
 
           if (lossyFields.length > 0) {
             conversionWarnings.push(
-              `#${workItemId}: ${lossyFields.join(', ')} contained an HTML table — converted to a Markdown pipe table in the local file. ` +
-              `Simple tables are faithful; complex tables (merged/styled cells) may lose structure. ADO still holds the original (this pull did NOT modify ADO) — ` +
+              `#${workItemId}: ${lossyFields.join(', ')} contained an HTML table - converted to a Markdown pipe table in the local file. ` +
+              `Simple tables are faithful; complex tables (merged/styled cells) may lose structure. ADO still holds the original (this pull did NOT modify ADO) - ` +
               `use get-work-item to verify against the original before editing if the table was complex.`
             );
           }
@@ -281,7 +281,7 @@ export class SyncService {
             const finalWorkItem = await this.workItemService.getWorkItem(project, newId);
             revision = finalWorkItem.rev || finalWorkItem._rev || revision;
           } catch (customError: any) {
-            // Work item created but custom fields failed — still convert file to prevent
+            // Work item created but custom fields failed - still convert file to prevent
             // duplicate creation on retry. User gets a warning in the result.
             customFieldWarning = `Custom fields failed: ${customError.message}`;
             console.error(`Work item #${newId} created but custom fields update failed:`, customError.message);

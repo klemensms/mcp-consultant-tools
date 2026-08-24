@@ -7,14 +7,14 @@
  * This exists because literals go stale silently and nothing fails when they
  * do. Before v35 beta.13, 19 CLIs reported versions as old as `27.0.0` and
  * *every* server reported `1.0.0` (meta said `15.0.0`) in the MCP initialize
- * handshake — which is the version an MCP client displays. Nobody noticed for
+ * handshake - which is the version an MCP client displays. Nobody noticed for
  * eight major releases, because a wrong version breaks nothing; it just
  * misinforms.
  *
  * `core`'s `resolvePackageVersion()` fallback does not save you here: it walks
  * up from `process.argv[1]`, which resolves correctly when a build is run
  * directly but NOT under `npx`, where the bin shim lives in a different tree.
- * Under npx the hardcoded fallback is exactly what the user sees — the way
+ * Under npx the hardcoded fallback is exactly what the user sees - the way
  * these packages are actually consumed.
  *
  * Lives in `meta` because meta is the package that aggregates the whole suite.

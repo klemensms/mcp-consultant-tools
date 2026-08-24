@@ -18,7 +18,7 @@ export function registerSyncTools(server: any, ctx: ServiceContext): void {
   server.tool(
     "sync-work-item-to-file",
     descWithExamples(
-      "Download work item(s) from ADO and save as local markdown file(s). Token-efficient for editing. READ-ONLY: HTML fields are converted to Markdown in the LOCAL FILE only — ADO is never modified. If a field with an HTML table is converted, a lossy-conversion warning is returned; re-read the original with get-work-item before editing it. Can also pull all child work items under a parent (e.g., all User Stories under a Feature).",
+      "Download work item(s) from ADO and save as local markdown file(s). Token-efficient for editing. READ-ONLY: HTML fields are converted to Markdown in the LOCAL FILE only - ADO is never modified. If a field with an HTML table is converted, a lossy-conversion warning is returned; re-read the original with get-work-item before editing it. Can also pull all child work items under a parent (e.g., all User Stories under a Feature).",
       SYNC_TO_FILE_EXAMPLES
     ),
     {
@@ -43,8 +43,8 @@ export function registerSyncTools(server: any, ctx: ServiceContext): void {
         let banner = '';
         if (result.conversionWarnings?.length) {
           banner =
-            `⚠️ TABLE CONVERSION — ${result.conversionWarnings.length} field(s) containing HTML tables were converted to Markdown pipe tables in the LOCAL FILE only. ` +
-            `ADO was NOT modified; the original HTML is intact. Complex tables (merged/styled cells) may have lost structure — re-read the original with get-work-item before editing those:\n` +
+            `⚠️ TABLE CONVERSION - ${result.conversionWarnings.length} field(s) containing HTML tables were converted to Markdown pipe tables in the LOCAL FILE only. ` +
+            `ADO was NOT modified; the original HTML is intact. Complex tables (merged/styled cells) may have lost structure - re-read the original with get-work-item before editing those:\n` +
             result.conversionWarnings.map((w: string) => `  • ${w}`).join('\n') +
             `\n\n`;
         }

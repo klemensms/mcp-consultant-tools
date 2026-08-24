@@ -52,7 +52,7 @@ export const layoutExtractor: ExtractorFn = (node, result, context) => {
  */
 export const textExtractor: ExtractorFn = (node, result, context) => {
   // Extract text content (works for TEXT, STICKY, CONNECTOR, SHAPE_WITH_TEXT
-  // — any node with `characters` via HasTextSublayerTrait)
+  // - any node with `characters` via HasTextSublayerTrait)
   const text = extractNodeText(node);
   if (text) {
     result.text = text;
@@ -219,7 +219,7 @@ export const layoutOnly = [layoutExtractor];
 /**
  * Node types that can be exported as SVG images.
  * When a FRAME, GROUP, or INSTANCE contains only these types, we can collapse it to IMAGE-SVG.
- * Note: FRAME/GROUP/INSTANCE are NOT included here—they're only eligible if collapsed to IMAGE-SVG.
+ * Note: FRAME/GROUP/INSTANCE are NOT included here - they're only eligible if collapsed to IMAGE-SVG.
  */
 export const SVG_ELIGIBLE_TYPES = new Set([
   "IMAGE-SVG", // VECTOR nodes are converted to IMAGE-SVG, or containers that were collapsed

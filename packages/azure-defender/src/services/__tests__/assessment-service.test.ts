@@ -87,7 +87,7 @@ describe('summariseAssessmentMetadata', () => {
     ]);
     expect(summary.total).toBe(2);
     expect(summary.bySeverity).toEqual({ Critical: 1, Low: 1 });
-    // Categories sum to more than total — one assessment can carry several.
+    // Categories sum to more than total - one assessment can carry several.
     expect(summary.byCategory).toEqual({ Compute: 2, Data: 1 });
   });
 });
@@ -105,7 +105,7 @@ describe('AssessmentService.listAssessments', () => {
 
     const result = await service.listAssessments({ statusFilter: 'Unhealthy', maxResults: 1 });
 
-    // No maxResults handed to the client — a full scan is required to filter.
+    // No maxResults handed to the client - a full scan is required to filter.
     expect(paginate.mock.calls[0][3]).toBeUndefined();
     expect(result.assessments.map((a) => a.name)).toEqual(['u1']);
     expect(result.truncated).toBe(true);
@@ -346,7 +346,7 @@ describe('AssessmentService.listAssessments, scope coverage', () => {
 /**
  * A live Resource Graph row carrying risk data under keys the mapper's allowlist does
  * not name. `extra` is spread *inside* `properties`, so it merges with the mapped keys
- * rather than replacing them — a fixture that replaced them would pass for the wrong
+ * rather than replacing them - a fixture that replaced them would pass for the wrong
  * reason, which is exactly how L5's first attack-path fixtures lied.
  */
 const graphRowWithExtras = (extra: Record<string, unknown>): Record<string, unknown> => ({
@@ -412,7 +412,7 @@ describe('AssessmentService.listAssessments, unmapped payload', () => {
     const result = await service.listAssessments();
 
     // Distinct key names across every graph row, aggregated before maxResults trims
-    // and before the ARM row wins a shared id — either of which could otherwise hide
+    // and before the ARM row wins a shared id - either of which could otherwise hide
     // the only row that carried the field.
     expect(result.summary.unmappedPropertyKeys).toEqual(['riskLevel', 'riskFactors']);
     expect(result.summary.note).toMatch(/unmappedProperties/);

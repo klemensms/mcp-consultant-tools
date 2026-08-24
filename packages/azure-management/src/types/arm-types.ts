@@ -673,7 +673,7 @@ export interface EventGridSystemTopic extends ArmResource {
 
 /**
  * Azure subscription, as returned by `GET /subscriptions`.
- * Every field sits at the top level — none are nested under `properties`.
+ * Every field sits at the top level - none are nested under `properties`.
  */
 export interface Subscription {
   id: string;

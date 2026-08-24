@@ -111,7 +111,7 @@ export type PackageStatus =
 
 /**
  * A NuGet vulnerability advisory as exposed on the registration `catalogEntry.vulnerabilities`
- * array. The registration schema carries only `advisoryUrl` and `severity` (0-3) — the version
+ * array. The registration schema carries only `advisoryUrl` and `severity` (0-3) - the version
  * `range` field belongs to the separate bulk VulnerabilityInfo resource, not this one, so it is
  * deliberately absent (the ported source read a non-existent `range` field that was always empty).
  */
@@ -130,7 +130,7 @@ export interface DeprecationInfo {
 export interface ComplexityReport {
   repository: string;
   branch: string;
-  /** Cyclomatic complexity here is a regex-based estimate, not an AST measurement — see note. */
+  /** Cyclomatic complexity here is a regex-based estimate, not an AST measurement - see note. */
   methodology: string;
   files: FileComplexityInfo[];
   summary: {

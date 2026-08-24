@@ -1,5 +1,5 @@
 /**
- * Vault Service — vault CRUD and permission management.
+ * Vault Service - vault CRUD and permission management.
  */
 import type { OnePasswordClient } from '../onepassword-client.js';
 import { permissionsToBitmask, type PermissionName } from '../models/api-types.js';

@@ -256,15 +256,32 @@ report. Read around any site the sweep names; do not treat the list as exhaustiv
 
 ---
 
-## User-facing strings in `packages/*/src` still contain em-dashes
+## Em-dashes remain outside `packages/*/src`
 
-**Status:** confirmed by measurement, sweep unscheduled. **Affects:** repo-wide.
+**Status:** measured 2026-08-24. **Affects:** `docs/` (98 files), `tests/` (35), `packages/**/*.md`
+(18), `scripts/` (5).
 
-A recursive search of `packages/*/src` for U+2014 and U+2013 returns **534** occurrences across most packages (counted 2026-08-24; re-count rather than trusting this figure), including
-hint and error strings the CLI prints. The house rule bars the character from every output channel,
-code included. The `code-review` hint text is the instance that was noticed; it is not the only one.
+The house rule bars U+2014 and U+2013 from every output channel, code and comments included.
+`packages/*/src` is clean: 529 lines were swept, leaving one deliberate exemption at
+`packages/core/src/pii/ner-redaction.ts:18`, where both characters are members of a regex character
+class the code strips from a string. There the character is data, not prose, and replacing it would
+change behaviour.
 
-**Fix:** a deliberate repo-wide sweep, not a side effect of unrelated work. It touches user-facing
-strings that tests match on, so each replacement needs its test updated in the same change. The work-list is
-`grep -rn "$(printf '\xe2\x80\x94\\|\xe2\x80\x93')" packages/*/src` (the escapes keep the barred characters out of the
-command you paste).
+Everything outside `packages/*/src` was not in that sweep's scope and still carries them. Re-count
+before starting rather than trusting these figures:
+
+```
+grep -rlIP '\x{2014}|\x{2013}' docs/ tests/ scripts/
+grep -rlIP '\x{2014}|\x{2013}' --include='*.md' packages/
+```
+
+**Fix:** the same mechanical replacement (` - ` for a spaced dash, `-` for a range), with one
+caution learned from the source sweep. Test files were swept alongside the sources they assert on,
+so a green suite proves nothing on its own: check that no changed line inside a test is an assertion
+value rather than a `describe`/`it` title. In the source sweep all 33 were titles, which is why it
+came back green honestly.
+
+⚠️ **A CLI's own output format is not prose.** The `--format json` payload of
+`mcp-audit-cli search` is read by `tests/audit-integration/scenarios/search-cli.mjs`, which
+`npm test` does not run. Anything under `tests/` that parses a command's output has to be checked
+against that command by hand, because nothing else will.

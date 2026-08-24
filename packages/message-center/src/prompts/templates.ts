@@ -9,7 +9,7 @@ Report:
 - Services not fully operational, worst first (interruption before degradation before advisory-only).
 - For each active issue: the issue ID, the affected service and feature, the classification (incident vs advisory), the impact on users, and the time of the latest update.
 - Whether each issue is Microsoft-side (origin) or something the tenant must act on.
-- A short "all clear" only if every service is operational AND there are no unresolved issues — do not infer all-clear from an empty list without confirming both.`;
+- A short "all clear" only if every service is operational AND there are no unresolved issues - do not infer all-clear from an empty list without confirming both.`;
 
 export const MESSAGE_CENTER_DIGEST_TEMPLATE = `Summarise the Microsoft 365 Message Center posts that this tenant needs to act on.
 
@@ -19,9 +19,9 @@ export const MESSAGE_CENTER_DIGEST_TEMPLATE = `Summarise the Microsoft 365 Messa
 4. For any message that looks important, call m365-get-message to read the full body and any action-required date.
 
 Report:
-- Messages with an actionRequiredByDateTime, ordered by that date (soonest first) — these are deadlines.
+- Messages with an actionRequiredByDateTime, ordered by that date (soonest first) - these are deadlines.
 - Major changes (isMajorChange=true), grouped by affected service.
 - For each, the message ID, title, affected services, category, and what an administrator needs to do.
 - Flag anything already past its action-required date.
 
-If truncated is true on any list, say so — the digest then covers only the most recent messages, not the full backlog.`;
+If truncated is true on any list, say so - the digest then covers only the most recent messages, not the full backlog.`;

@@ -157,7 +157,7 @@ server.tool(
   {
     flowId: z.string().describe("GUID of the flow to deactivate")
   },
-  // Deactivating stops the flow — treat as destructive.
+  // Deactivating stops the flow - treat as destructive.
   { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   async ({ flowId }: any) => {
     try {
@@ -238,7 +238,7 @@ server.tool(
       descWithExamples("Type of flow template to retrieve", FLOW_TEMPLATE_EXAMPLES)
     )
   },
-  // Returns a static local template — no external call.
+  // Returns a static local template - no external call.
   { readOnlyHint: true },
   async ({ templateType }: any) => {
     try {
@@ -425,7 +425,7 @@ server.tool(
     flowId: z.string().describe("GUID of the flow"),
     runId: z.string().describe("GUID of the failed flow run to retry (from get-flow-runs)")
   },
-  // Creates a new run from the original inputs — mutating.
+  // Creates a new run from the original inputs - mutating.
   { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   async ({ flowId, runId }: any) => {
     try {

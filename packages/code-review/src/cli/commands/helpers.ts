@@ -28,5 +28,5 @@ export function requireProject(explicit: string | undefined): string {
 
 /** Rendered under any list whose counts were cut short by a paging cap. */
 export function truncationNote(truncated: boolean): string {
-  return truncated ? '  ⚠️ Truncated by a paging cap — more results exist' : '';
+  return truncated ? '  ⚠️ Truncated by a paging cap - more results exist' : '';
 }

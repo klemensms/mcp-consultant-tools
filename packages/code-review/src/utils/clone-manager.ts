@@ -29,8 +29,8 @@ export function redactSecret(message: string, secret: string): string {
 
 /**
  * Strip the credential embedded in a clone URL out of any string (an error message, a logged
- * command). A failed `git clone` throws an Error whose message echoes the full command line —
- * including the `https://<token>@host/...` URL — so without this the PAT/installation token would
+ * command). A failed `git clone` throws an Error whose message echoes the full command line -
+ * including the `https://<token>@host/...` URL - so without this the PAT/installation token would
  * leak into tool output, transcripts, and `.context` caches. The credential is the userinfo
  * segment between `://` and the first `@`.
  */
@@ -53,7 +53,7 @@ export function redactCloneSecret(message: string, cloneUrl: string): string {
 }
 
 /**
- * True when the child was killed rather than exiting on its own — the shape `execFile` reports for
+ * True when the child was killed rather than exiting on its own - the shape `execFile` reports for
  * its `timeout` option firing. Node sets `killed` and a `signal`; there is no dedicated error code.
  */
 export function isTimeoutKill(error: unknown): boolean {
@@ -66,7 +66,7 @@ export function isTimeoutKill(error: unknown): boolean {
  *
  * A clone here has no user in front of it. Left alone, git answers a rejected credential by falling
  * back to an interactive prompt, and on a machine with a controlling terminal it then blocks until
- * the timeout kills it. A killed git has printed only `Cloning into '<dir>'...` — so the caller gets
+ * the timeout kills it. A killed git has printed only `Cloning into '<dir>'...` - so the caller gets
  * a truncated error carrying none of the authentication text needed to explain the failure, and
  * which message it gets depends on whether a credential happened to be cached. Refusing the prompt
  * makes git fail immediately and identically every time, with
@@ -75,7 +75,7 @@ export function isTimeoutKill(error: unknown): boolean {
  * `GIT_ASKPASS`/`SSH_ASKPASS` would route the prompt to a GUI helper instead, re-opening the hole
  * `GIT_TERMINAL_PROMPT` closes; an empty value disables them.
  *
- * Exported because this is the whole fix, and it cannot be proven from a test process — a test
+ * Exported because this is the whole fix, and it cannot be proven from a test process - a test
  * runner's worker has no controlling terminal, so git declines to prompt there whatever this says.
  * Asserting the configuration is the only check that actually inverts.
  */
@@ -93,12 +93,12 @@ export function buildCloneArgs(cloneUrl: string, localPath: string, options?: Cl
   const args: string[] = [];
   if (options?.bearerToken) {
     // `-c` must precede the subcommand. Entra access tokens authenticate Git over HTTPS through
-    // the Authorization header, not through URL userinfo — the form Microsoft documents for
-    // Azure DevOps — which also keeps the token out of the clone URL entirely.
+    // the Authorization header, not through URL userinfo - the form Microsoft documents for
+    // Azure DevOps - which also keeps the token out of the clone URL entirely.
     args.push('-c', `http.extraHeader=Authorization: Bearer ${options.bearerToken}`);
   }
   // Neutralise any credential helper configured on the machine (osxkeychain is the macOS default).
-  // Every path here supplies its own credential explicitly — in the URL or in the header — so a
+  // Every path here supplies its own credential explicitly - in the URL or in the header - so a
   // helper can only do two things, both bad: answer with a *stale cached* credential, making the
   // outcome depend on machine state rather than on the configured identity, or answer with a
   // *different person's* credential, which would have the run silently review a repository as
@@ -128,7 +128,7 @@ export class CloneManager {
       // Guaranteed cleanup of the temp dir even when the clone throws.
       await rm(localPath, { recursive: true, force: true }).catch(() => {});
       const raw = error instanceof Error ? error.message : String(error);
-      // Never let a credential survive into the thrown message — the URL userinfo, and the bearer
+      // Never let a credential survive into the thrown message - the URL userinfo, and the bearer
       // token which git echoes back as part of the `-c http.extraHeader=...` argument.
       let message = redactCloneSecret(raw, cloneUrl);
       if (options?.bearerToken) message = redactSecret(message, options.bearerToken);
@@ -150,17 +150,17 @@ export class CloneManager {
   }
 
   /**
-   * The PAT is the *password*, with an empty username — matching the basic-auth header the REST
+   * The PAT is the *password*, with an empty username - matching the basic-auth header the REST
    * path builds (`Buffer.from(':' + pat)`) and the form Microsoft documents. Putting the PAT in the
    * username position instead leaves git with no password at all, so it prompts for one and dies
-   * with `could not read Password` before ever reaching Azure DevOps — regardless of whether the
+   * with `could not read Password` before ever reaching Azure DevOps - regardless of whether the
    * PAT is valid. Verified 2026-08-13.
    */
   buildAzdoCloneUrl(organization: string, project: string, repo: string, pat: string): string {
     return `https://:${pat}@dev.azure.com/${organization}/${project}/_git/${repo}`;
   }
 
-  /** Credential-free Azure DevOps clone URL — the Entra token travels in `http.extraHeader`. */
+  /** Credential-free Azure DevOps clone URL - the Entra token travels in `http.extraHeader`. */
   buildAzdoBearerCloneUrl(organization: string, project: string, repo: string): string {
     return `https://dev.azure.com/${organization}/${project}/_git/${repo}`;
   }

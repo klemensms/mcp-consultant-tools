@@ -46,7 +46,7 @@ describe('clone URL builders', () => {
   });
 });
 
-describe('redactCloneSecret — the embedded credential must never survive into an error', () => {
+describe('redactCloneSecret - the embedded credential must never survive into an error', () => {
   it('removes a GHE PAT that git echoed back in a failed-clone message', () => {
     const cloneUrl = `https://${PLANTED_SECRET}@ghe.example.com/contoso/repo.git`;
     const gitError = `Command failed: git clone --depth=1 ${cloneUrl} /tmp/mcp-cr-abc\nfatal: repository not found`;
@@ -91,7 +91,7 @@ describe('redactSecret', () => {
   });
 });
 
-describe('bearer-token clone — the token is an argument git echoes back, so it must be redacted too', () => {
+describe('bearer-token clone - the token is an argument git echoes back, so it must be redacted too', () => {
   const BEARER = 'planted-entra-value-do-not-log';
 
   it('strips the bearer token from a failed clone, and never embeds it in the URL', async () => {
@@ -125,13 +125,13 @@ describe('isTimeoutKill', () => {
 /**
  * The defect these cover: a rejected credential left git free to fall back to an interactive
  * prompt. On a machine with a controlling terminal it blocked until the 120s timeout killed it,
- * and a killed git has printed only "Cloning into '<dir>'..." — so the authentication text
+ * and a killed git has printed only "Cloning into '<dir>'..." - so the authentication text
  * disappeared from the error, `describeCloneAuthFailure` had nothing to match, and the membership
  * hint silently stopped appearing. Reported from a live tenant as "the hint never shows and the
  * error says less than it used to".
  *
  * **A test process cannot prove the prompt is suppressed.** A vitest worker has no controlling
- * terminal, so git declines to prompt there whether or not the fix is present — a test driving a
+ * terminal, so git declines to prompt there whether or not the fix is present - a test driving a
  * real clone passes identically with the fix removed, which was verified rather than assumed. The
  * configuration assertions below are therefore the ones that invert; the live-git test that
  * follows covers the other half, the join between git's wording and the matcher.
@@ -148,7 +148,7 @@ describe('clone subprocess is configured to run unattended', () => {
     const helperAt = args.indexOf('credential.helper=');
     expect(helperAt).toBeGreaterThan(0);
     expect(args[helperAt - 1]).toBe('-c');
-    // `git -c ... clone`, never `git clone -c ...` — git reads -c only before the subcommand.
+    // `git -c ... clone`, never `git clone -c ...` - git reads -c only before the subcommand.
     expect(helperAt).toBeLessThan(args.indexOf('clone'));
   });
 
@@ -191,7 +191,7 @@ describe('a credential challenge produces a message the auth hint recognises', (
       expect(error).toBeInstanceOf(Error);
       // git got as far as the credential challenge and refused to prompt for it.
       expect(error!.message).toMatch(/could not read Username|Authentication failed|terminal prompts disabled/i);
-      // It exited on its own rather than being killed — no timeout note is attached.
+      // It exited on its own rather than being killed - no timeout note is attached.
       expect(error!.message).not.toContain('was terminated after');
       // The join: the message git actually produced must satisfy the matcher the hint keys on.
       expect(describeCloneAuthFailure('contoso', 'entra-id', error!.message)).toContain('not a member of organization');

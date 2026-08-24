@@ -54,7 +54,7 @@ function countByState(items: Array<{ properties?: { state?: string } }>): Record
 
 /**
  * Percentage of *assessed* controls that passed. Skipped and unsupported controls
- * are excluded from the denominator — they are not failures, and counting them as
+ * are excluded from the denominator - they are not failures, and counting them as
  * such would understate compliance. This matches how the Azure portal reports it.
  * Exported for unit tests.
  */
@@ -171,7 +171,7 @@ export class ComplianceService {
 
   /**
    * Aggregate compliance across standards. An unknown `standardName` throws rather
-   * than returning an empty summary — a typo would otherwise read as "0% compliant".
+   * than returning an empty summary - a typo would otherwise read as "0% compliant".
    */
   async getComplianceSummary(options?: { standardName?: string }): Promise<ComplianceSummaryResult> {
     const { standards } = await this.listStandards();

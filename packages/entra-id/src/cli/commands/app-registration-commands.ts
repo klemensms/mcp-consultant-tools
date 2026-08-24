@@ -1,5 +1,5 @@
 /**
- * App registration CLI commands — 2 commands mapping 1:1 to the entra-* MCP tools.
+ * App registration CLI commands - 2 commands mapping 1:1 to the entra-* MCP tools.
  */
 
 import type { Command } from 'commander';

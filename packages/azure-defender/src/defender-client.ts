@@ -17,7 +17,7 @@ export interface AzureAuthConfig {
  * (azure-management, azure-b2c, azure-storage, fabric, service-bus, ...) carries
  * its own credential wiring, and `core` exports no Azure auth. Hoisting this to
  * `core` would ripple into the sibling `mcp-computer-use` repo on the next core
- * version bump — a consolidation worth doing across all of them at once, not here.
+ * version bump - a consolidation worth doing across all of them at once, not here.
  */
 export class AzureAuthProvider {
   private credential: ClientSecretCredential;

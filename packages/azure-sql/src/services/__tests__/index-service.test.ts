@@ -113,7 +113,7 @@ describe('getIndexUsageStats', () => {
   });
 
   it('does not flag an index that has no DMV row as unused', async () => {
-    // No row means no activity of any kind since the counters started — including no
+    // No row means no activity of any kind since the counters started - including no
     // writes. That is an absence of evidence, not evidence the index is dead weight.
     const queryService = stubQueryService([
       [{ ...base, IndexName: 'IX_Orders_NoData', HasUsageData: 0 }],

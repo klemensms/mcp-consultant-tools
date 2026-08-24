@@ -335,7 +335,7 @@ export function registerPipelineCommands(program: Command, ctx: ServiceContext):
     .command('last-deploys')
     .description('Latest successful deploy per stage, with templateParameters')
     .argument('<project>', 'Project name')
-    .option('--pipeline-id <n>', 'Pipeline (build definition) ID — preferred')
+    .option('--pipeline-id <n>', 'Pipeline (build definition) ID - preferred')
     .option('--pipeline-name <name>', 'Exact pipeline name (case-insensitive)')
     .option('-s, --stages <list>', 'Comma-separated stage names (default Dev,UAT,Prod)')
     .option('--param <name>', 'Template parameter to surface per stage')

@@ -30,7 +30,7 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
   // Log registration summary.
   // 66 tools register unconditionally; the 7 pull-request write tools register
   // only when AZUREDEVOPS_ENABLE_PR_WRITE=true, for 73 in total.
-  // Measured against `tools/list` over stdio — do not derive this by hand.
+  // Measured against `tools/list` over stdio - do not derive this by hand.
   const baseToolsCount = 66;
   const prWriteToolsCount = getPrWriteToolCount();
   const totalToolsCount = baseToolsCount + prWriteToolsCount;

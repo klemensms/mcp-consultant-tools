@@ -56,7 +56,7 @@ export function normalizeGheApiBase(gheBaseUrl: string): string {
 const GUID = '[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}';
 
 /**
- * Azure DevOps names the rejected identity as a backslash triple — `tenant\tenant\principal` — so
+ * Azure DevOps names the rejected identity as a backslash triple - `tenant\tenant\principal` - so
  * the principal's object id is the LAST segment, not the first. Taking the first GUID hands an
  * administrator the tenant id labelled as the object id, and a Users search for it finds nothing:
  * a confident, well-formed, wrong answer. Measured against a live tenant 2026-08-13.
@@ -74,7 +74,7 @@ function extractPrincipalObjectId(message: string): string | undefined {
 
 /**
  * Azure DevOps answers a *valid* service-principal token with 401/TF401444 when the principal is
- * not a member of the organisation — an identity-provisioning problem, not a bad credential.
+ * not a member of the organisation - an identity-provisioning problem, not a bad credential.
  * Surfaced as a bare 401 it reads as "wrong secret" and sends the reader to the wrong fix, so name
  * it and carry the principal's object id through from the response.
  *
@@ -94,7 +94,7 @@ export function describeUnprovisionedPrincipal(organization: string | undefined,
 }
 
 /**
- * A clone authenticates separately from REST and gets no `TF401444` body to read — git only ever
+ * A clone authenticates separately from REST and gets no `TF401444` body to read - git only ever
  * reports `fatal: Authentication failed`. Whoever's first command happens to clone would otherwise
  * be handed a raw git error with nothing pointing at organisation membership, so attach the same
  * explanation the REST path gives. Returns null for a non-auth clone failure, so a genuine error
@@ -123,13 +123,13 @@ export function describeCloneAuthFailure(
 /**
  * SAML SSO authorization and the "Settings > Developer settings" page are GitHub concepts. Sent to
  * someone on the Azure DevOps provider they name a page that does not exist for them, so the reader
- * spends their time in the wrong product — a confidently wrong hint costs more than no hint. Branch
+ * spends their time in the wrong product - a confidently wrong hint costs more than no hint. Branch
  * both of these on the provider actually in use.
  */
 export function notFoundHint(provider: string, organization?: string): string {
   if (provider === 'azure-devops') {
     return (
-      'Check the project and repository names — an Azure DevOps project name taken from a clone URL or an ' +
+      'Check the project and repository names - an Azure DevOps project name taken from a clone URL or an ' +
       `older document is often stale. Run cr-list-repos with no --project to see the projects organization ` +
       `'${organization ?? 'unknown'}' actually holds.`
     );
@@ -144,7 +144,7 @@ export function forbiddenHint(provider: string, authMethod?: 'pat' | 'entra-id')
   if (provider === 'azure-devops') {
     return authMethod === 'entra-id'
       ? 'The Entra service principal is authenticated but not authorized for this resource. It needs at least Code (read) on the project, granted under Project settings > Repositories > Security.'
-      : "The Azure DevOps PAT lacks the required scope. It needs at least Code (read), and a PAT is scoped per organization — check it was issued for this one.";
+      : "The Azure DevOps PAT lacks the required scope. It needs at least Code (read), and a PAT is scoped per organization - check it was issued for this one.";
   }
   return `The ${provider} token lacks the required scope/permission (or is rate-limited, or needs SAML SSO authorization).`;
 }
@@ -171,7 +171,7 @@ export class CodeReviewClient {
         params: { 'api-version': '7.1' },
         // Azure DevOps answers an unauthenticated REST call with a 302 to a sign-in page rather
         // than a 401. Followed, that yields an HTML body with no `value` array and the caller dies
-        // on `undefined.map` — an auth failure disguised as a parse crash. Refuse the redirect so
+        // on `undefined.map` - an auth failure disguised as a parse crash. Refuse the redirect so
         // it surfaces as the authentication error it is.
         maxRedirects: 0,
       };
@@ -383,7 +383,7 @@ export class CodeReviewClient {
   }
 
   /**
-   * Translate an axios error into a clear, status-aware message for every GHE/AzDO call — not just
+   * Translate an axios error into a clear, status-aware message for every GHE/AzDO call - not just
    * the one repository-list path the ported source handled. A 401/403 should say "auth/permission",
    * not surface as a raw axios stack.
    */
@@ -395,7 +395,7 @@ export class CodeReviewClient {
       if (status === 302 || status === 203) {
         throw new Error(
           `Authentication failed while ${context} (${status}: Azure DevOps redirected to sign-in). ` +
-            `The ${this.config.azdoAuthMethod === 'entra-id' ? 'Entra access token' : 'PAT'} was rejected — check the credential and the organization name.`,
+            `The ${this.config.azdoAuthMethod === 'entra-id' ? 'Entra access token' : 'PAT'} was rejected - check the credential and the organization name.`,
         );
       }
       if (status === 401) {

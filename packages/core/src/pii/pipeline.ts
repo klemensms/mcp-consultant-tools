@@ -94,7 +94,7 @@ export interface CreatePiiPipelineOptions {
    * Identifier representing the configured environment (e.g. PowerPlatform
    * org URL/subdomain, Azure DevOps organisation name, SQL server name).
    * When provided AND the pipeline ends up disabled, the loader emits a stderr
-   * warning if the identifier doesn't match any recognised non-prod hint —
+   * warning if the identifier doesn't match any recognised non-prod hint -
    * a heuristic safety net for the "consultant copy-pasted a dev config and
    * swapped the URL to prod" failure mode.
    */
@@ -140,7 +140,7 @@ export function formatSummaryFooter(report: PipelineReport): string {
     .join(' + ');
   const layersList = [...layersUsed].sort().join('/');
   const observeNote = report.layers.some((l) => l.observeMode)
-    ? ' (observe-mode — values not changed)'
+    ? ' (observe-mode - values not changed)'
     : '';
   return `[PII protection: ${categoryParts} redacted by ${layersList}${observeNote}]`;
 }

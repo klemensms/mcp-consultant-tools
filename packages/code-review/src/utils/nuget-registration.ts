@@ -2,8 +2,8 @@ import type { VulnerabilityInfo } from '../models/index.js';
 
 /**
  * Pure helpers over the NuGet v3 registration JSON shape. Kept separate from the HTTP service so
- * the version-selection and vulnerability-mapping logic — where the ported source had its worst
- * bugs — can be tested against canned registration payloads without any network.
+ * the version-selection and vulnerability-mapping logic - where the ported source had its worst
+ * bugs - can be tested against canned registration payloads without any network.
  *
  * Registration reference: https://learn.microsoft.com/en-us/nuget/api/registration-base-url-resource
  */
@@ -20,7 +20,7 @@ export function isPrerelease(version: string): boolean {
 
 /**
  * Map a registration `catalogEntry.vulnerabilities` array to our shape. The registration schema
- * exposes only `advisoryUrl` and `severity` (0-3) — there is no version range here (that field
+ * exposes only `advisoryUrl` and `severity` (0-3) - there is no version range here (that field
  * belongs to the separate bulk VulnerabilityInfo resource). The ported source read a phantom
  * `range` field that was therefore always empty.
  */

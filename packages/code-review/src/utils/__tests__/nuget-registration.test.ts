@@ -36,7 +36,7 @@ describe('pickLatest (registration items are ascending by version)', () => {
   });
 });
 
-describe('mapVulnerabilities — registration schema is advisoryUrl + severity only', () => {
+describe('mapVulnerabilities - registration schema is advisoryUrl + severity only', () => {
   it('maps advisoryUrl and severity and never invents a version range', () => {
     const raw = [{ advisoryUrl: 'https://github.com/advisories/GHSA-x', severity: 2 }];
     expect(mapVulnerabilities(raw)).toEqual([

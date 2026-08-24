@@ -286,7 +286,7 @@ async function processFieldImagesForPush(
   for (const ref of refs) {
     const src = ref.originalSrc;
 
-    // Already an ADO URL — keep as-is
+    // Already an ADO URL - keep as-is
     if (parseAdoAttachmentUrl(src)) {
       continue;
     }
@@ -302,7 +302,7 @@ async function processFieldImagesForPush(
       continue;
     }
 
-    // Not in manifest — try to upload as new attachment.
+    // Not in manifest - try to upload as new attachment.
     try {
       await fs.access(resolved.absolute);
     } catch {

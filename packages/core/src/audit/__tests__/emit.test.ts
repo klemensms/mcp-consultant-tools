@@ -91,7 +91,7 @@ describe('auditEmit', () => {
       auth: { principalId: null, principalType: 'unknown', userId: null },
       environment: { type: 'dev', auditLevel: 'off' },
     });
-    // No engagement set — should still work because isEnabled=false bypasses everything.
+    // No engagement set - should still work because isEnabled=false bypasses everything.
 
     const emitSpy = vi.spyOn(offPipeline, 'emitResolved');
     try {
@@ -117,7 +117,7 @@ describe('auditEmit', () => {
       auth: { principalId: null, principalType: 'unknown', userId: null },
       environment: { type: 'uat', auditLevel: 'lean' },
     });
-    // No setEngagement call — pipeline is enabled but unset.
+    // No setEngagement call - pipeline is enabled but unset.
     let fnCalled = false;
     const promise = auditEmit(noEngPipeline, { tool: 'query-records' }, async () => {
       fnCalled = true;

@@ -1,5 +1,5 @@
 /**
- * Item tools — 10 tools (4 read, 4 write, 2 delete)
+ * Item tools - 10 tools (4 read, 4 write, 2 delete)
  */
 import { z } from 'zod';
 import type { ServiceContext } from '../types.js';

@@ -3,7 +3,7 @@
 /**
  * @mcp-consultant-tools/code-review
  *
- * MCP server for provider-agnostic repository code review — .NET framework EOL scanning, NuGet
+ * MCP server for provider-agnostic repository code review - .NET framework EOL scanning, NuGet
  * package auditing, cyclomatic-complexity estimation, and GitHub Packages inventory across Azure
  * DevOps and GitHub Enterprise. Entry point: MCP server startup + backward-compatible
  * registerCodeReviewTools().

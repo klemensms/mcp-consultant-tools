@@ -33,7 +33,7 @@ export function registerSessionTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     "sql-get-deadlock-graphs",
-    `Recent deadlock graphs from the system_health Extended Events ring buffer, newest first, with the victim process, wait types and objects involved. NOT SUPPORTED on Azure SQL Database, which does not run system_health — the tool fails with instructions rather than returning nothing. Works on SQL Server and Azure SQL Managed Instance. ${DMV_PERMISSION}`,
+    `Recent deadlock graphs from the system_health Extended Events ring buffer, newest first, with the victim process, wait types and objects involved. NOT SUPPORTED on Azure SQL Database, which does not run system_health - the tool fails with instructions rather than returning nothing. Works on SQL Server and Azure SQL Managed Instance. ${DMV_PERMISSION}`,
     {
       limit: z.number().int().positive().optional().describe("Maximum deadlock events to return (default: 20)"),
       ...TARGET_SCHEMA,

@@ -420,7 +420,7 @@ export function registerPipelineTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     'adf-query-debug-pipeline-runs',
-    'Query DEBUG-mode pipeline run history (runs launched via the ADF Studio "Debug" button — a distinct surface from triggered/published runs). Uses an undocumented ARM operation that works with app-only auth given Data Factory Contributor RBAC. Debug-run history is retained server-side ~15 days. Reports "truncated": true when maxResults capped the result — the API exposes no total count.',
+    'Query DEBUG-mode pipeline run history (runs launched via the ADF Studio "Debug" button - a distinct surface from triggered/published runs). Uses an undocumented ARM operation that works with app-only auth given Data Factory Contributor RBAC. Debug-run history is retained server-side ~15 days. Reports "truncated": true when maxResults capped the result - the API exposes no total count.',
     {
       lastDays: z
         .number()

@@ -2,7 +2,7 @@
  * Microsoft 365 Message Center reads: service update messages (planned changes, advisories,
  * stay-informed posts).
  *
- * As with service health, every filter is CLIENT-SIDE — Graph ignores `$filter` on the
+ * As with service health, every filter is CLIENT-SIDE - Graph ignores `$filter` on the
  * `messages` collection, and every enum (`category`, `severity`) is compared case-insensitively
  * because the docs disagree with live payloads on casing.
  */
@@ -19,7 +19,7 @@ import type {
 const BASE_PATH = '/admin/serviceAnnouncement';
 
 // ---------------------------------------------------------------------------
-// Pure predicate — unit-tested without a Graph client
+// Pure predicate - unit-tested without a Graph client
 // ---------------------------------------------------------------------------
 
 /** All filters are AND-ed and compared case-insensitively. */

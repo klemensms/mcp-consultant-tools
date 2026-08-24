@@ -31,7 +31,7 @@ export function registerTestTools(server: any, ctx: ServiceContext): void {
     {
       project: z.string().describe("Project name"),
       name: z.string().describe(
-        descWithExamples("Run name — include story ID and date for traceability", TEST_RUN_NAME_EXAMPLES)
+        descWithExamples("Run name - include story ID and date for traceability", TEST_RUN_NAME_EXAMPLES)
       ),
       comment: z.string().optional().describe("Run description/context"),
       testCaseIds: zCoerceNumberArray().optional().describe(
@@ -69,7 +69,7 @@ export function registerTestTools(server: any, ctx: ServiceContext): void {
         outcome: z.string().describe(
           descWithExamples("Test outcome", TEST_OUTCOME_EXAMPLES)
         ),
-        comment: z.string().optional().describe("What happened — actual values, error messages, assertions"),
+        comment: z.string().optional().describe("What happened - actual values, error messages, assertions"),
         testCaseId: zCoerceNumber().optional().describe("Link to Test Case work item ID"),
         automatedTestName: z.string().optional().describe(
           descWithExamples("Dot-notation test name for filtering/grouping", AUTOMATED_TEST_NAME_EXAMPLES)
@@ -87,7 +87,7 @@ export function registerTestTools(server: any, ctx: ServiceContext): void {
             type: "text",
             text: `Added ${result.count} result(s) to run #${runId}\n` +
                   `Passed: ${passed}, Failed: ${failed}, Other: ${result.count - passed - failed}\n` +
-                  `\nResults:\n${result.results.map((r: any) => `  ${r.outcome === 'Passed' ? 'PASS' : r.outcome === 'Failed' ? 'FAIL' : r.outcome} — ${r.title}`).join('\n')}`,
+                  `\nResults:\n${result.results.map((r: any) => `  ${r.outcome === 'Passed' ? 'PASS' : r.outcome === 'Failed' ? 'FAIL' : r.outcome} - ${r.title}`).join('\n')}`,
           }],
         };
       } catch (error: any) {
@@ -144,7 +144,7 @@ export function registerTestTools(server: any, ctx: ServiceContext): void {
           return { content: [{ type: "text", text: `No test runs found in ${project}${state ? ` with state ${state}` : ''}` }] };
         }
         const lines = runs.map(r =>
-          `#${r.runId} — ${r.name} [${r.state}] (${r.passedTests}/${r.totalTests} passed)${r.completedDate ? ` — ${r.completedDate.split('T')[0]}` : ''}`
+          `#${r.runId} - ${r.name} [${r.state}] (${r.passedTests}/${r.totalTests} passed)${r.completedDate ? ` - ${r.completedDate.split('T')[0]}` : ''}`
         );
         return {
           content: [{
@@ -176,7 +176,7 @@ export function registerTestTools(server: any, ctx: ServiceContext): void {
           return { content: [{ type: "text", text: `No results found for run #${runId}${outcome ? ` with outcome ${outcome}` : ''}` }] };
         }
         const lines = results.map(r =>
-          `${r.outcome === 'Passed' ? 'PASS' : r.outcome === 'Failed' ? 'FAIL' : r.outcome} — ${r.title}${r.comment ? ` (${r.comment})` : ''}${r.testCaseId ? ` [TC#${r.testCaseId}]` : ''}`
+          `${r.outcome === 'Passed' ? 'PASS' : r.outcome === 'Failed' ? 'FAIL' : r.outcome} - ${r.title}${r.comment ? ` (${r.comment})` : ''}${r.testCaseId ? ` [TC#${r.testCaseId}]` : ''}`
         );
         return {
           content: [{
@@ -232,7 +232,7 @@ export function registerTestTools(server: any, ctx: ServiceContext): void {
   server.tool(
     "link-test-case",
     "Link a test case to a user story (TestedBy relation) and/or a test run (Hyperlink). " +
-    "Idempotent — skips if link already exists. " +
+    "Idempotent - skips if link already exists. " +
     "Story link uses Microsoft.VSTS.Common.TestedBy. Run link uses Hyperlink (ADO has no artifact link for test runs).",
     {
       project: z.string().describe("Project name"),

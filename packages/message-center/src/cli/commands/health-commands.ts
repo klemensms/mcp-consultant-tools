@@ -1,5 +1,5 @@
 /**
- * Service Health CLI commands — 5 commands mapping 1:1 to the m365-* health MCP tools.
+ * Service Health CLI commands - 5 commands mapping 1:1 to the m365-* health MCP tools.
  */
 
 import type { Command } from 'commander';
@@ -168,7 +168,7 @@ export function registerHealthCommands(program: Command, ctx: ServiceContext): v
             summary: [
               `Incident report for ${report.issueId} (${report.format}):`,
               '',
-              report.format === 'text' ? report.content : '(binary document — see JSON output for base64)',
+              report.format === 'text' ? report.content : '(binary document - see JSON output for base64)',
             ].join('\n'),
           },
           getGlobalFlags(program)

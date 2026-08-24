@@ -1,5 +1,5 @@
 /**
- * Attack path CLI commands — 2 commands mapping to the attack-path MCP tools.
+ * Attack path CLI commands - 2 commands mapping to the attack-path MCP tools.
  */
 
 import type { Command } from 'commander';

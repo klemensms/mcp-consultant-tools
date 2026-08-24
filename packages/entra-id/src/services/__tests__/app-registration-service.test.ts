@@ -55,7 +55,7 @@ describe('certificates are first-class credentials', () => {
 
   it('does not report a cert-only app as having no credentials', () => {
     // The ported source filtered on secrets only, so this app matched "no-secrets"
-    // and never matched "expiring-secrets" — a false all-clear on an expiring cert.
+    // and never matched "expiring-secrets" - a false all-clear on an expiring cert.
     expect(matchesFilter(certOnly, 'no-credentials', 'any')).toBe(false);
   });
 

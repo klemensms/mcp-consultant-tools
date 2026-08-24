@@ -1,5 +1,5 @@
 /**
- * Secret Service — secret resolution and password generation.
+ * Secret Service - secret resolution and password generation.
  *
  * resolveSecret/resolveSecrets use the authenticated client.
  * generatePassword uses the static Secrets.generatePassword() method.
@@ -49,7 +49,7 @@ export class SecretService {
    * @param recipe Discriminated by 'type' field: random | memorable | pin
    */
   async generatePassword(recipe: PasswordRecipe): Promise<string> {
-    // Secrets.generatePassword is a static method — no client initialization needed
+    // Secrets.generatePassword is a static method - no client initialization needed
     if (recipe.type === 'random') {
       const result = Secrets.generatePassword({
         type: 'Random',

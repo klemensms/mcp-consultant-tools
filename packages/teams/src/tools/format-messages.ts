@@ -186,8 +186,8 @@ export function formatSearchResults(result: MessageSearchResult, query: string):
 function describeHitLocation(hit: MessageSearchHit): string {
   if (hit.channelId) {
     return hit.teamId
-      ? `  _(channel — team \`${hit.teamId}\`, channel \`${hit.channelId}\`)_`
-      : `  _(channel \`${hit.channelId}\` — team could not be identified, open the link to read it)_`;
+      ? `  _(channel - team \`${hit.teamId}\`, channel \`${hit.channelId}\`)_`
+      : `  _(channel \`${hit.channelId}\` - team could not be identified, open the link to read it)_`;
   }
   if (hit.chatId) {
     return `  _(chat \`${hit.chatId}\`)_`;
@@ -209,7 +209,7 @@ export function formatDelta(result: ChannelDeltaResult): string {
   if (result.truncated) {
     lines.push(
       `⚠️ Stopped after ${result.pagesFetched} page(s) before reaching the end of the channel's ` +
-        `history, so **no deltaLink was issued** — one taken from a partial walk would silently ` +
+        `history, so **no deltaLink was issued** - one taken from a partial walk would silently ` +
         `skip everything beyond the cut. Re-run with a higher \`maxPages\` to complete the ` +
         `first pass.`
     );
