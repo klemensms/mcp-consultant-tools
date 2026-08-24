@@ -115,7 +115,16 @@ this chain's actual work.
 ### ⚑7 · The em-dash sweep is in this chain's queue but was never part of the assurance report
 - **Kind:** dropped-scope
 - **Hop:** origin · c3edf18
-- **State:** open · **explicitly dropped by L6**, not skipped. The chain ran six tasks in one
+- **State:** closed-by-carry-forward-3 · 8d748cb for `packages/*/src`. 529 lines across 231 files,
+  one deliberate exemption at `packages/core/src/pii/ner-redaction.ts:18` where both characters are
+  members of a regex character class the code strips. **The reason for deferring did not hold:** all
+  1,241 tests passed unchanged, because the 35 swept test files changed only `describe`/`it` titles,
+  not assertion values. What the suite did *not* cover was
+  `tests/audit-integration/scenarios/search-cli.mjs`, which `npm test` never runs and which broke on
+  ⚑18's payload change rather than on this sweep. `docs/` (98 files), `tests/` (35),
+  `packages/**/*.md` (18) and `scripts/` (5) were outside the recorded scope and still carry the
+  characters; that remainder is now the `docs/KNOWN_ISSUES.md` entry. Previously:
+  **explicitly dropped by L6**, not skipped. The chain ran six tasks in one
   session and this was queued last precisely so it could be dropped. Stated in three places a
   reader will hit rather than only here: the `docs/KNOWN_ISSUES.md` entry, the beta.19 per-iteration
   notes, and the master release notes' Known Issues section, each saying it was dropped
@@ -229,7 +238,14 @@ this chain's actual work.
 ### ⚑14 · `IntegrationAuditService` has three more `$top` collections and three swallowed failures
 - **Kind:** dropped-scope
 - **Hop:** L3 · b2991a0
-- **State:** open
+- **State:** closed-by-carry-forward-1 · d6ecbf2. All three collections converted to
+  `paginateDataverse` with the OOTB predicate in `keep`, all four swallowed failures recorded
+  (`messageStepCount` is `number | null` now, the `getFlows` truncation is carried, per-flow
+  definition fetches run through `FanOutRecorder`, and the env-var section
+  `generateAuditReport` swallowed is named in `completeness.failures`).
+  `UNVERIFIED_AUDIT_COLLECTIONS` is empty and deliberately still present. The
+  `docs/KNOWN_ISSUES.md` entry is removed; the payload changes are in the plan file's
+  release-notes checklist. Line numbers in the entry were accurate.
 - **Matters because:** Task 3 was scoped by two `docs/KNOWN_ISSUES.md` entries, and both were
   accurate. Reading the file to fix them turned up that the same defect class runs through it:
   `getServiceEndpoints:326`, `getEnvironmentVariables:490` and `getWebhookRegistrations:597` all
@@ -295,7 +311,15 @@ this chain's actual work.
 ### ⚑18 · X2's conversion half: 17 measured sites, none converted
 - **Kind:** dropped-scope
 - **Hop:** L5 · 0a8f150
-- **State:** open
+- **State:** closed-by-carry-forward-2 · d6ecbf2, 8a8202d, bb5d9c4, c9d621e. All 17 converted,
+  plus one the sweep had missed (see ⚑22). The pin work this item was blocked on is done:
+  `azure-devops`, `code-review` and `audit-cli` moved from 34.1.0/34.1.0/33.0.0 to
+  35.0.0-beta.1, and all three resolve to `./packages/core`. Two knock-on correctness fixes
+  came out of it - `cr-review` could return `overallHealth: 'healthy'` over a repository two
+  thirds of which was unreadable, and `validateBestPractices` reported an entity compliant
+  when a rule had failed to run on it. The sweep is re-measured at 23 candidates, none of
+  them the dropped-item defect; the `docs/KNOWN_ISSUES.md` entry now covers only the two
+  weaker families that remain.
 - **Matters because:** ⚑5 asked for the scope to be measured before anything was fixed, and said
   the scoping step was its own deliverable. It is now measured and none of it is converted, so X2
   is **not** closed and the reply to the assurance agent must not say it is. The 17 sites, and what
@@ -392,3 +416,62 @@ this chain's actual work.
   `scripts/`, or referenced from `.claude/publish-auth.local.md` - that the `!` prefix simply
   invokes by name. Until that exists, the only working route is the leaky one, which is why the
   rotation in this item is due now rather than at leisure.
+
+---
+
+### ⚑22 · The fan-out sweep's 60-line look-back missed a real defect, and its own docs became candidates
+- **Kind:** measurement-limit
+- **Hop:** carry-forward-2 · c9d621e
+- **State:** open
+- **Matters because:** ⚑18 was scoped by a script, and the script's caveat turned out to bite in
+  practice rather than in principle. `ValidationService.validateBestPractices` dropped every entity
+  whose metadata could not be read, in a loop body longer than the sweep's 60-line
+  `insideIteration` look-back, so it was never a candidate. It was found by reading the file while
+  fixing the two sites the sweep *did* report, and it was arguably the worst of the three: a
+  validation pass that could not see half a solution reported clean. **The lesson is not "raise the
+  look-back"** - a longer window trades one false-negative class for a false-positive class - it is
+  that a script-derived defect list is a starting point for reading, never a scope boundary. The
+  `docs/KNOWN_ISSUES.md` X2 entry now says so with this as the evidence.
+- **Also fixed here:** the sweep was counting its own documentation. A doc comment quoting
+  `catch {}` while explaining why a swallow was replaced was reported as a fresh candidate, so every
+  fix advertised itself as new work. `isComment()` skips prose lines now. That is line-level, not a
+  parser: a `catch {}` written after a trailing block comment on the same line would still slip
+  through, and none exists in this repo.
+- **What would close it:** nothing, on its own. It is a recorded limit on a diagnostic tool, and the
+  honest place for it is the KNOWN_ISSUES entry, which now carries it.
+
+---
+
+### ⚑23 · The ADO tasks-file format changed, and its downstream skill is not on this machine
+- **Kind:** open-decision
+- **Hop:** carry-forward-2 · bb5d9c4
+- **State:** open · **needs Klemens to mirror the change, or to confirm it does not matter**
+- **Matters because:** `packages/azure-devops/CLAUDE.md` carries a hard "keep in sync" rule: any
+  change to how `sync-tasks-*` parse, serialize or round-trip data must also be made in the
+  `ado-pulling-pushing-items-m` skill, because drift between the two "produces silent data-loss bugs
+  in client workflows". ⚑18's fix adds a warning block to the tasks file naming child tasks that
+  could not be fetched, which is a serialization change. **The skill is not present on this
+  machine** - `~/.claude/skills/` has no `ado-pulling-pushing-items-m` - so it could not be updated
+  here.
+- **Why the risk is low but not zero:** the block is quoted lines placed before the first
+  `## Task #` heading, and `parseTasksMarkdown` only ever looks for `## Task #N` / `## NEW TASK`
+  after the frontmatter. A round-trip regression test asserts the parser is unaffected. What the
+  test cannot cover is an *agent* following the skill's documented format and being surprised by a
+  block the skill does not mention.
+- **What would close it:** adding the warning block to the skill's "Annotation-driven sync format"
+  section on a machine that has it, or a decision that a purely additive read-only warning needs no
+  skill change.
+
+---
+
+### ⚑24 · `packages/audit-cli` was never compiled by the root build
+- **Kind:** verification-gap
+- **Hop:** carry-forward-3 · 8d748cb
+- **State:** closed-by-carry-forward-3 · 8d748cb
+- **Matters because:** this chain has repeatedly relied on `npm run build:release` as the
+  from-scratch check that catches what an incremental `tsc --build` hides - the two-conflicting-
+  `PiiProtectionPipeline`-types error that survived six green builds is why. `packages/audit-cli`
+  was the only package unreachable from the root `tsconfig.json` references, so that check never
+  compiled it, and a type error there would have reached a publish. Found by trying to run its
+  built binary and discovering `build/` did not exist. It is in the references now, and the clean
+  build passes with it. It also had no test harness at all; it has vitest and three tests now.

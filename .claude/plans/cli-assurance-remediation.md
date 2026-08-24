@@ -681,6 +681,64 @@ Nothing in this chain will do these, and none is scheduled.
   list is incomplete" warning. If a live tenant makes the note unreadable, cap the names in the
   note rather than dropping the sentence. Register item 38.
 
+### Added 2026-08-24 (carried-forward items 1 to 3)
+
+Three items the chain deliberately left. All landed on `release/35.0`, none published.
+
+**Candidates for the breaking-change block:**
+
+- **`get-test-case-history` returns an object, not an array.** It was
+  `Array<{runId, runName, outcome, completedDate, url}>` and is now
+  `{ history: [...], fanOut }`. A consumer that iterates the return value directly gets
+  nothing. The change exists because a run whose results could not be read was skipped, so a
+  short history read as "this test case has not been run recently".
+- **`mcp-audit-cli search --format json` returns an object, not an array.** Now
+  `{ records, sources, lines }`. Same reason: a malformed audit line was skipped, and an
+  audit search is read as evidence. `tests/audit-integration/scenarios/search-cli.mjs` was
+  the only in-repo consumer and is updated.
+- **`ServiceEndpoint.messageStepCount` is `number | null`.** Null means the step-count query
+  did not complete, with the reason in `summary.stepCountFailure`. It used to report `0`,
+  which reads as "no steps registered".
+- **`EntityValidationResult.isCompliant` is `boolean | null`.** Null means at least one rule
+  could not be run on that entity. `summary.compliantEntities` counts only `true` now, so a
+  consumer comparing it against `entitiesChecked` sees a new `entitiesNotFullyChecked`
+  bucket rather than a silently inflated compliant count.
+- **`ProjectFrameworkInfo.isDataversePlugin` is `boolean | null`.** Null means no source
+  could be read, so "not a plugin" and "could not tell" are no longer the same answer.
+
+**Behaviour and payload changes that need a line either way:**
+
+- **Three `IntegrationAuditService` collections now page.** `get-service-endpoints`,
+  `get-webhook-registrations` and `get-env-variables` each return a `truncation` block, the
+  OOTB exclusion runs inside the paging loop (so `maxRecords: 100` means 100 rows returned,
+  not 100 fetched then filtered), and `maxRecords: 0` now means all rows rather than none.
+- **`gen-integration-audit`'s `summary.completeness` carries a `TruncationInfo` per
+  collection** plus `flowDefinitions` and `failures`. `unverified` is still there and is now
+  normally empty.
+- **`analyze-flow-complexity` returns `truncation` and `fanOut`**, and reports
+  `envVarResolutionFailure` when environment variables could not be read. Its uncapped mode
+  still stops at 5,000 flows, but says so now.
+- **`validate-best-practices` returns `fanOut`** with three blocks, and its markdown report
+  refuses to print "All Compliant" over a pass where a rule could not run.
+- **`cr-review` can no longer return `overallHealth: 'healthy'` over an unreadable
+  repository.** Unparseable files become `scan-incomplete` issues, a new `ReviewIssue`
+  category.
+- **`cr-check-dotnet` and `cr-check-nuget` return `fanOut`**; both CLI commands print an
+  `INCOMPLETE` block naming the files they could not read.
+- **`create-test-run` returns `linkedTestCases`**, `list-synced-work-items` returns
+  `fanOut`, `sync-tasks-to-file` returns `fanOut` and writes a warning block into the tasks
+  file naming tasks it could not fetch, and `sync-work-item-from-file` returns `imagePushes`
+  plus `images.pushFailed` on any item whose image push threw.
+- **Every em-dash and en-dash is gone from `packages/*/src`** (529 lines), so any CLI or tool
+  string that contained one now reads ` - `. One deliberate exemption at
+  `packages/core/src/pii/ner-redaction.ts:18`, where the characters are members of a regex
+  character class.
+
+**Not a payload change, but worth a line:** `packages/audit-cli` was the only package
+unreachable from the root `tsconfig.json` references, so `npm run build:release` never
+compiled it. It is in the references now, and the package has a vitest harness for the first
+time.
+
 ## Release discipline for this chain
 
 - Do not publish per task. Land fixes on `release/35.0` and let Klemens decide when to cut
