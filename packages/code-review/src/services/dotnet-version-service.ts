@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { FanOutRecorder } from '@mcp-consultant-tools/core';
 import { glob } from 'glob';
 import { parseCsproj, parseGlobalJson, parseDirectoryBuildProps } from '../utils/csproj-parser.js';
 import { isEolFramework, getEolDate, getRecommendedFramework } from '../utils/dotnet-eol-data.js';
@@ -11,9 +12,15 @@ import type {
 
 export class DotnetVersionService {
   async analyze(localPath: string, repository: string, branch: string): Promise<DotnetVersionReport> {
+    // One recorder per glob. Each of these was a bare `catch {}`, so an unparseable file was
+    // dropped and the report described the remainder as if it were the repository.
+    const propsReads = new FanOutRecorder();
+    const projectReads = new FanOutRecorder();
+    const sourceReads = new FanOutRecorder();
+
     const globalJson = await this.parseGlobalJson(localPath);
-    const directoryBuildProps = await this.parseDirectoryBuildProps(localPath);
-    const projects = await this.parseProjects(localPath);
+    const directoryBuildProps = await this.parseDirectoryBuildProps(localPath, propsReads);
+    const projects = await this.parseProjects(localPath, projectReads, sourceReads);
 
     const frameworkCounts: Record<string, number> = {};
     const eolFrameworks = new Set<string>();
@@ -62,6 +69,11 @@ export class DotnetVersionService {
       globalJson: globalJson ?? undefined,
       directoryBuildProps,
       projects,
+      fanOut: {
+        directoryBuildProps: propsReads.result(),
+        projects: projectReads.result(),
+        sourceFiles: sourceReads.result(),
+      },
       summary: {
         totalProjects: projects.length,
         frameworks: frameworkCounts,
@@ -82,48 +94,56 @@ export class DotnetVersionService {
     }
   }
 
-  private async parseDirectoryBuildProps(localPath: string): Promise<DirectoryBuildPropsInfo[]> {
+  private async parseDirectoryBuildProps(
+    localPath: string,
+    reads: FanOutRecorder
+  ): Promise<DirectoryBuildPropsInfo[]> {
     const files = await glob('**/Directory.Build.props', { cwd: localPath, nodir: true });
     const results: DirectoryBuildPropsInfo[] = [];
     for (const file of files) {
-      try {
+      const info = await reads.run(file, 'parse Directory.Build.props', async () => {
         const content = await readFile(`${localPath}/${file}`, 'utf-8');
         const data = parseDirectoryBuildProps(content);
-        results.push({
+        return {
           path: file,
           targetFramework: data.targetFramework,
           targetFrameworks: data.targetFrameworks,
           properties: data.properties,
-        });
-      } catch {
-        // Skip unparseable files
-      }
+        };
+      });
+      if (info !== null) results.push(info);
     }
     return results;
   }
 
-  private async parseProjects(localPath: string): Promise<ProjectFrameworkInfo[]> {
+  private async parseProjects(
+    localPath: string,
+    reads: FanOutRecorder,
+    sourceReads: FanOutRecorder
+  ): Promise<ProjectFrameworkInfo[]> {
     const csprojFiles = await glob('**/*.csproj', { cwd: localPath, nodir: true });
     const results: ProjectFrameworkInfo[] = [];
 
     for (const file of csprojFiles) {
-      try {
+      const info = await reads.run(file, 'parse csproj', async () => {
         const content = await readFile(`${localPath}/${file}`, 'utf-8');
         const data = parseCsproj(content);
 
         const framework = data.targetFramework ?? 'unknown';
         const frameworks = data.targetFrameworks;
         const usesCrmSdk = detectCrmSdkUsage(content);
-        const isDataversePlugin = usesCrmSdk ? await detectDataversePlugin(localPath, file) : false;
+        const isDataversePlugin = usesCrmSdk
+          ? await detectDataversePlugin(localPath, file, sourceReads)
+          : false;
         const usesILMerge = detectILMergeUsage(content);
 
         const allFrameworks = frameworks ?? [framework];
         // isEol is computed from the framework's published EOL date versus today, so a framework
-        // never goes stale in this table — it flips to EOL the moment its real date passes.
+        // never goes stale in this table - it flips to EOL the moment its real date passes.
         const hasEol = allFrameworks.some((f) => isEolFramework(f));
         const eolDate = allFrameworks.map((f) => getEolDate(f)).find(Boolean);
 
-        results.push({
+        const project: ProjectFrameworkInfo = {
           path: file,
           targetFramework: framework,
           targetFrameworks: frameworks,
@@ -132,10 +152,11 @@ export class DotnetVersionService {
           usesCrmSdk,
           isDataversePlugin,
           usesILMerge,
-        });
-      } catch {
-        // Skip unparseable files
-      }
+        };
+        return project;
+      });
+
+      if (info !== null) results.push(info);
     }
 
     return results;
@@ -157,8 +178,20 @@ function detectCrmSdkUsage(csprojContent: string): boolean {
   return crmSdkIndicators.some((indicator) => csprojContent.includes(indicator));
 }
 
-/** Tier 2: scan .cs source for Dataverse plugin/workflow base-class indicators (CRM-SDK projects only). */
-async function detectDataversePlugin(localPath: string, csprojPath: string): Promise<boolean> {
+/**
+ * Tier 2: scan .cs source for Dataverse plugin/workflow base-class indicators (CRM-SDK
+ * projects only).
+ *
+ * Returns null rather than false when nothing matched and at least one file could not be
+ * read. A positive hit is definitive whatever else failed, but a negative one over an
+ * unreadable tree is not a negative - it is an unanswered question, and it used to be
+ * reported as "not a plugin".
+ */
+async function detectDataversePlugin(
+  localPath: string,
+  csprojPath: string,
+  sourceReads: FanOutRecorder
+): Promise<boolean | null> {
   const projectDir = csprojPath.includes('/')
     ? csprojPath.substring(0, csprojPath.lastIndexOf('/'))
     : csprojPath.includes('\\')
@@ -168,18 +201,18 @@ async function detectDataversePlugin(localPath: string, csprojPath: string): Pro
   const searchDir = projectDir ? `${localPath}/${projectDir}` : localPath;
   const csFiles = await glob('**/*.cs', { cwd: searchDir, nodir: true });
   const pluginIndicators = ['IPlugin', 'CodeActivity', 'PluginBase'];
+  const failedBefore = sourceReads.result().failed;
 
   for (const csFile of csFiles) {
-    try {
+    const hit = await sourceReads.run(`${csprojPath}:${csFile}`, 'scan source', async () => {
       const content = await readFile(`${searchDir}/${csFile}`, 'utf-8');
-      if (pluginIndicators.some((indicator) => content.includes(indicator))) {
-        return true;
-      }
-    } catch {
-      // Skip unreadable files
-    }
+      return pluginIndicators.some((indicator) => content.includes(indicator));
+    });
+
+    if (hit === true) return true;
   }
-  return false;
+
+  return sourceReads.result().failed > failedBefore ? null : false;
 }
 
 /** Detect ILMerge/ILRepack usage (deprecated for Dataverse plugins in favour of dependent assembly plugins). */

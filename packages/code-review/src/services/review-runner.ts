@@ -1,5 +1,6 @@
 import { glob } from 'glob';
 import type { ServiceContext } from '../types.js';
+import type { FanOutInfo } from '@mcp-consultant-tools/core';
 import type {
   DotnetVersionReport,
   NugetPackageReport,
@@ -18,6 +19,30 @@ export function buildReviewIssues(
 ): ReviewIssue[] {
   const issues: ReviewIssue[] = [];
 
+  // Files the scan could not read come first, because they qualify everything after them:
+  // a repository with no findings and a repository two thirds of which was never opened
+  // both used to come back `healthy`.
+  const scanned: [string, FanOutInfo][] = [
+    ['Directory.Build.props files', dotnet.fanOut.directoryBuildProps],
+    ['project files (.NET scan)', dotnet.fanOut.projects],
+    ['source files (plugin detection)', dotnet.fanOut.sourceFiles],
+    ['Directory.Packages.props files', nuget.fanOut.centralPackageManagement],
+    ['project files (NuGet audit)', nuget.fanOut.projects],
+  ];
+
+  for (const [label, info] of scanned) {
+    if (info.failed === 0) continue;
+    issues.push({
+      severity: 'warning',
+      category: 'scan-incomplete',
+      message: `${info.failed} of ${info.attempted} ${label} could not be read: ${info.failures
+        .map((f) => f.item)
+        .join(', ')}`,
+      recommendation:
+        'Findings below cover only what parsed. Fix or exclude the unreadable files and re-run before treating this review as complete.',
+    });
+  }
+
   for (const fw of dotnet.summary.eolFrameworks) {
     issues.push({
       severity: 'critical',
@@ -33,9 +58,12 @@ export function buildReviewIssues(
       category: 'ilmerge',
       message: `ILMerge/ILRepack detected in ${proj.path}`,
       filePath: proj.path,
-      recommendation: proj.isDataversePlugin
-        ? 'Migrate from ILMerge to dependent assembly plugins (NuGet package format)'
-        : 'Remove ILMerge/ILRepack and use standard project references or NuGet packages instead',
+      recommendation:
+        proj.isDataversePlugin === true
+          ? 'Migrate from ILMerge to dependent assembly plugins (NuGet package format)'
+          : proj.isDataversePlugin === null
+            ? 'Could not read this project\'s sources, so whether it is a Dataverse plugin is unknown. Check that before choosing between dependent assembly plugins and plain project references.'
+            : 'Remove ILMerge/ILRepack and use standard project references or NuGet packages instead',
     });
   }
 
@@ -125,4 +153,25 @@ export async function runFullReview(
       issues,
     };
   });
+}
+
+/**
+ * Lines naming every file a scan could not read, for the CLI's summary block.
+ *
+ * Empty when nothing failed. Kept beside `buildReviewIssues` so the CLI text and the
+ * review's issue list are built from the same fan-outs and cannot disagree.
+ */
+export function scanGapLines(
+  fanOuts: [string, FanOutInfo][]
+): string[] {
+  const lines: string[] = [];
+  for (const [label, info] of fanOuts) {
+    if (info.failed === 0) continue;
+    lines.push(
+      `  - ${info.failed} of ${info.attempted} ${label}: ${info.failures.map((f) => f.item).join(', ')}`
+    );
+  }
+  return lines.length > 0
+    ? ['', 'INCOMPLETE - these figures cover only what could be read:', ...lines]
+    : [];
 }

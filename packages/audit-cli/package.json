@@ -12,7 +12,8 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf build *.tsbuildinfo",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "vitest run"
   },
   "license": "MIT",
   "engines": {
@@ -24,7 +25,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^2.1.9"
   },
   "bin": {
     "mcp-audit-cli": "build/index.js"

@@ -2,6 +2,22 @@ import type { Command } from 'commander';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { FanOutRecorder, fanOutSuffix, type FanOutInfo } from '@mcp-consultant-tools/core';
+
+export interface SearchResult {
+  matches: any[];
+  /**
+   * Client folders and audit files the search opened. A folder it cannot read is a
+   * permissions problem that looks exactly like a client with no audit history.
+   */
+  sources: FanOutInfo;
+  /**
+   * Individual audit lines. A malformed line used to be skipped with a stderr warning, so
+   * the result set and the `(N records)` footer under it were silently short. An audit
+   * search is read as evidence, and "no record of that" is what a short result looks like.
+   */
+  lines: FanOutInfo;
+}
 
 export function registerSearch(program: Command): void {
   program
@@ -18,33 +34,62 @@ export function registerSearch(program: Command): void {
     .option('--format <fmt>', 'Output format: table|json|csv', 'table')
     .action(async (opts: any) => {
       const base = opts.base ?? join(homedir(), '.mcp-audit');
-      const clientDirs = opts.client ? [join(base, opts.client)] : await listSubdirs(base);
-
-      const matches: any[] = [];
-      for (const dir of clientDirs) {
-        const files = (await fs.readdir(dir).catch(() => [])).filter((f) => f.endsWith('.jsonl')).sort();
-        for (const f of files) {
-          const content = await fs.readFile(join(dir, f), 'utf8');
-          for (const line of content.split('\n')) {
-            if (!line) continue;
-            let r: any;
-            try {
-              r = JSON.parse(line);
-            } catch (err) {
-              console.error(`[search] skipping malformed line in ${join(dir, f)}: ${(err as Error).message}`);
-              continue;
-            }
-            if (matchesFilters(r, opts)) matches.push(r);
-          }
-        }
-      }
-
-      output(matches, opts.format ?? 'table');
+      const result = await searchAuditRecords(base, opts);
+      output(result, opts.format ?? 'table');
     });
 }
 
-async function listSubdirs(base: string): Promise<string[]> {
-  const ents = await fs.readdir(base, { withFileTypes: true }).catch(() => []);
+/**
+ * Read every audit line under `base` and return the ones matching the filters, plus what
+ * could not be read. Extracted from the command action so it is testable without a CLI.
+ */
+export async function searchAuditRecords(base: string, opts: any): Promise<SearchResult> {
+  const sources = new FanOutRecorder();
+  const lines = new FanOutRecorder();
+  const clientDirs = opts.client ? [join(base, opts.client)] : await listSubdirs(base, sources);
+
+  const matches: any[] = [];
+  for (const dir of clientDirs) {
+    const listed = await sources.run(dir, 'list client folder', () => fs.readdir(dir));
+    if (listed === null) continue;
+
+    const files = listed.filter((f) => f.endsWith('.jsonl')).sort();
+    for (const f of files) {
+      const path = join(dir, f);
+      const content = await sources.run(path, 'read audit file', () => fs.readFile(path, 'utf8'));
+      if (content === null) continue;
+
+      let lineNumber = 0;
+      for (const line of content.split('\n')) {
+        lineNumber++;
+        if (!line) continue;
+
+        const record = await lines.run(`${path}:${lineNumber}`, 'parse audit line', async () =>
+          JSON.parse(line)
+        );
+        if (record === null) continue;
+
+        if (matchesFilters(record, opts)) matches.push(record);
+      }
+    }
+  }
+
+  return { matches, sources: sources.result(), lines: lines.result() };
+}
+
+async function listSubdirs(base: string, reads: FanOutRecorder): Promise<string[]> {
+  // A missing base directory genuinely means no audit records, so it is not recorded as a
+  // failure - but an unreadable one is, because that is a permissions problem wearing the
+  // same clothes.
+  const ents = await fs
+    .readdir(base, { withFileTypes: true })
+    .catch(async (error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') return [];
+      await reads.run(base, 'list audit base', async () => {
+        throw error;
+      });
+      return [];
+    });
   return ents.filter((e) => e.isDirectory()).map((e) => join(base, e.name));
 }
 
@@ -67,9 +112,15 @@ function matchesFilters(r: any, o: any): boolean {
   return true;
 }
 
-function output(rows: any[], format: string) {
+function output(result: SearchResult, format: string) {
+  const rows = result.matches;
+
   if (format === 'json') {
-    console.log(JSON.stringify(rows, null, 2));
+    // The gaps travel inside the payload here, because a JSON consumer never sees the
+    // footer the table format prints.
+    console.log(
+      JSON.stringify({ records: rows, sources: result.sources, lines: result.lines }, null, 2)
+    );
     return;
   }
   if (format === 'csv') {
@@ -102,5 +153,5 @@ function output(rows: any[], format: string) {
       String(r.result?.recordCount ?? ''),
     ].join(' | '));
   }
-  console.log(`(${rows.length} records)`);
+  console.log(`(${rows.length} records)${fanOutSuffix(result.sources)}${fanOutSuffix(result.lines)}`);
 }

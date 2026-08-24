@@ -98,6 +98,19 @@ const lineOf = (source, index) => source.slice(0, index).split('\n').length;
 const insideIteration = (lines, line) =>
   ITERATION.test(lines.slice(Math.max(0, line - 61), line).join('\n'));
 
+/**
+ * Whether a source line is prose rather than code.
+ *
+ * Line-level, not a real parser: enough to drop `*` continuations, `//` comments and `/*`
+ * openers, which is where every false positive has come from. A `catch {}` genuinely
+ * written after a trailing block comment on the same line would slip through, and none
+ * exists in this repo.
+ */
+function isComment(line) {
+  const trimmed = (line ?? '').trim();
+  return trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*');
+}
+
 function sweep() {
   const candidates = [];
 
@@ -129,6 +142,9 @@ function sweep() {
 
       const line = lineOf(source, match.index);
       if (!insideIteration(lines, line)) continue;
+      // A doc comment that quotes `catch {}` while explaining why a swallow was replaced
+      // is not a swallow. Without this the fixes advertise themselves as new candidates.
+      if (isComment(lines[line - 1])) continue;
 
       candidates.push({
         pkg,
@@ -145,6 +161,7 @@ function sweep() {
       while ((match = pattern.exec(source)) !== null) {
         const line = lineOf(source, match.index);
         if (!insideIteration(lines, line)) continue;
+        if (isComment(lines[line - 1])) continue;
         candidates.push({
           pkg,
           file,

@@ -61,7 +61,9 @@ message together. Do not leave it half-live.
 
 ## `ValidationService.validateBestPractices` truncates its entity list and says nothing
 
-**Status:** confirmed in source. **Affects:** `packages/powerplatform-core/src/services/ValidationService.ts:102`.
+**Status:** confirmed in source. **Affects:**
+`packages/powerplatform-core/src/services/ValidationService.ts:112`.
+Line number verified 2026-08-24; grep for `maxEntities > 0` if it has drifted again.
 
 The solution-scoped path builds the entity list one `EntityDefinitions` read at a time, then applies
 the cap client-side and discards the surplus with no flag anywhere in the returned shape:
@@ -78,14 +80,10 @@ one that covered the whole solution. This is the same false-completeness class a
 defects, arriving by a different route: there is no `hasMore` field to get wrong because there is no
 `hasMore` field at all.
 
-The per-entity loop above it also swallows every failure (`catch {}` at line 96, commented "Skip
-entities that can't be queried"), so an entity the service principal cannot read is dropped with no
-trace and no count. A validation pass that could not see half the solution reports clean.
-
 **Fix:** return a `TruncationInfo` block built by `buildTruncation` from `@mcp-consultant-tools/core`
-alongside the results, and record the skipped entities as a counted, named list rather than a bare
-`catch`. The paging contract in `packages/powerplatform-core/src/services/paginate.ts` covers the
-first half; the fan-out recorder used by `azure-management` and `azure-defender` covers the second.
+alongside the results. The paging contract in
+`packages/powerplatform-core/src/services/paginate.ts` is the pattern; the reads that populate the
+list already report their failures through `result.fanOut`, so only the cap is unaccounted for.
 
 ---
 
@@ -203,83 +201,58 @@ that version's severity enum has no `Critical`, which is exactly what the packag
 
 ---
 
-## X2: 17 fan-outs still drop a per-item failure without recording it
+## X2: 11 fan-outs record the outcome but not the reason, or the value but not that it is partial
 
-**Status:** measured 2026-08-21, confirmed by reading every candidate. **Not converted.**
+**Status:** measured 2026-08-21, re-measured 2026-08-24 after the conversions. **Not converted.**
 **Reproduce the candidate list:** `node scripts/sweep-fanout-candidates.mjs --list`.
 
-The fan-out contract (`packages/core/src/helpers/fan-out.ts`) is applied in
-`azure-management` and `azure-defender`. X2 as raised was "every command that fans out, in
-every package", and the remaining scope had never been measured: the original work-list
-`grep -rn "console.error(\`Failed to" packages/*/src` is exhausted and now returns two hits,
-neither of them a collection fan-out.
+The fan-out contract (`packages/core/src/helpers/fan-out.ts`) is applied in `azure-management`,
+`azure-defender`, `powerplatform-core`, `azure-devops`, `code-review` and `audit-cli`. The sweep
+looks for shape rather than log wording: a `catch` inside an iteration that neither rethrows nor
+records the failure. It returns **23 candidates across 12 of 29 packages**, each read rather than
+regex-classified. **None of the 23 is the "dropped item, no record" defect** - those were converted -
+but two weaker families remain, and they are worth taking together when someone next opens this.
 
-The sweep looks for shape rather than log wording: a `catch` inside an iteration that neither
-rethrows nor records the failure. It returns **42 candidates across 12 of 29 packages**. Each
-was read. **17 are the defect**, in 4 packages:
+**5 record the outcome but not the reason.** Weaker rather than wrong: a caller can see something is
+off, but not what:
 
-| Package | Site | What goes missing |
+| Package | Site | What is missing |
 |---|---|---|
-| `powerplatform-core` | `IntegrationAuditService.ts:386` | `messageStepCount` reads 0 for every endpoint when the step-count query fails |
-| | `IntegrationAuditService.ts:718` | env-var resolution degrades, so flow URLs stay unresolved |
-| | `IntegrationAuditService.ts:793` | a flow whose definition will not parse vanishes from the complexity analysis, uncounted |
-| | `IntegrationAuditService.ts:878` | the whole environment-variable section disappears from the audit report |
-| | `ValidationService.ts:96` | an entity the principal cannot read is dropped from the validation pass |
-| | `ValidationService.ts:397` | an attribute whose option set cannot be read is skipped, so its rule never fires |
-| `azure-devops` | `sync-service.ts:344` | an image that failed to push is absent from the synced work item |
-| | `sync-service.ts:542` | a child task that could not be fetched is missing from the task list |
-| | `test-service.ts:64` | a test case that failed to link is missing from the run |
-| | `test-service.ts:260` | a run whose results cannot be read is missing from the case history |
-| | `sync/file-utils.ts:164` | an unparseable work-item file is skipped |
-| `code-review` | `dotnet-version-service.ts:98` | an unparseable `Directory.Build.props` is skipped |
-| | `dotnet-version-service.ts:136` | an unparseable project file is skipped |
-| | `dotnet-version-service.ts:178` | every `.cs` file unreadable returns `isDataversePlugin: false`, so "not a plugin" and "could not tell" are the same answer |
-| | `nuget-package-service.ts:172` | an unparseable central-package-management file is skipped |
-| | `nuget-package-service.ts:223` | an unparseable project file is skipped, so a NuGet audit reports on the rest as if it were the repo |
-| `audit-cli` | `search.ts:33` | a malformed audit line is skipped, so search results are silently short |
+| `code-review` | `nuget-package-service.ts:245` | a failed lookup leaves `status: 'unknown'`, the same value a package that was never looked up carries |
+| `azure-storage` | `AzureStorageService.ts:311` and `:321` | the operation continues with a logged error and no payload trace |
+| `azure-sql` | `connection-service.ts:183` | as above |
+| `service-bus` | `service-bus-service.ts:201` | as above |
 
-**5 more record the outcome but not the reason**, which is weaker rather than wrong:
-`code-review/nuget-package-service.ts:241` (a failed lookup leaves `status: 'unknown'`, the same
-value a package that was never looked up carries), `azure-storage/AzureStorageService.ts:311`
-and `:321`, `azure-sql/connection-service.ts:183`, `service-bus/service-bus-service.ts:201`.
-
-**6 are a related but distinct family** - an undeclared partial *value* rather than a dropped
-item, so `buildTruncation` fits them better than `FanOutRecorder`:
-`powerplatform-core/src/utils/complexity-calculator.ts:265` and `:300`,
+**6 are an undeclared partial *value* rather than a dropped item**, so `buildTruncation` fits them
+better than `FanOutRecorder`: `powerplatform-core/src/utils/complexity-calculator.ts:265` and `:300`,
 `flow-url-extractor.ts:165` and `:284`, `powerplatform-data/src/tools/read-tools.ts:481`,
 `azure-storage/src/services/BlobService.ts:298`.
 
-**The remaining 14 candidates are not defects** and should not be converted: a fallback chain
-where failing on one candidate *is* the loop (`1password/op-cli-adapter.ts:30` probing four
-paths for the `op` binary; `powerplatform-core/src/services/MetadataService.ts:165` and `:180`,
-whose caller sets an explicit `optionSetWarning` when every fallback fails;
-`azure-devops/src/sync/template-loader.ts:71`), a declared default
-(`core/src/helpers/resolve-version.ts:33`, `audit-cli/src/quarantine.ts:70`), a side-effect
-rather than a collected item (`azure-devops/src/services/sync-service.ts:298` cleanup,
+**The remaining 12 candidates are not defects** and should not be converted: a fallback chain where
+failing on one candidate *is* the loop (`1password/op-cli-adapter.ts:30` probing four paths for the
+`op` binary; `powerplatform-core/src/services/MetadataService.ts:165` and `:180`, whose caller sets an
+explicit `optionSetWarning` when every fallback fails; `azure-devops/src/sync/template-loader.ts:71`),
+a declared default (`core/src/helpers/resolve-version.ts:33`, `audit-cli/src/quarantine.ts:70`), a
+side-effect rather than a collected item (`azure-devops/src/services/sync-service.ts:304` cleanup,
 `core/src/helpers/cli-helpers.ts:119` cache write, `teams/src/services/teams-service.ts:579`
-token-cache clear, `azure-devops/src/ui/src/views/genui-view.ts:181` clipboard fallback), a
-missing directory yielding no files (`audit-cli/src/search.ts:25` and `:47`), or a startup
-config warning (`rest-api/src/context-factory.ts:74`,
-`rest-api/src/services/rest-api-service.ts:73` - the latter narrows the host allowlist, which
-fails closed and is logged).
+token-cache clear, `azure-devops/src/ui/src/views/genui-view.ts:181` clipboard fallback), a missing
+directory yielding no files (`audit-cli/src/search.ts` base-directory probe), or a startup config
+warning (`rest-api/src/context-factory.ts:74`, `rest-api/src/services/rest-api-service.ts:73` - the
+latter narrows the host allowlist, which fails closed and is logged).
 
 **17 packages have no candidates at all:** `application-insights`, `azure-b2c`,
 `azure-data-factory`, `azure-defender`, `azure-devops-admin`, `azure-management`, `entra-id`,
 `fabric`, `figma`, `github-enterprise`, `log-analytics`, `message-center`, `meta`,
 `powerplatform`, `powerplatform-customization`, `sharepoint`, `todoist`.
 
-**Caveat on the count.** The iteration test looks back 60 lines, which covers every loop body
-in this repo today but is a heuristic, so **42 is a floor rather than a total**. A swallow
-deeper inside a longer loop would be missed. The classification of the 42 is by reading, not by
-regex.
+⚠️ **The count is a floor, not a total.** The iteration test looks back 60 lines. That is a
+heuristic, and it has already missed one real defect: `ValidationService.validateBestPractices`
+dropped every entity whose metadata could not be read, in a loop body longer than the look-back, so
+the sweep never saw it. It was found by reading the file while fixing the two sites the sweep *did*
+report. Read around any site the sweep names; do not treat the list as exhaustive.
 
-**Fix:** convert the 17 to `FanOutRecorder` from `@mcp-consultant-tools/core` - one recorder per
-fan-out, `run` per item, `result()` into the payload - and the 6 undeclared-partial sites to
-`buildTruncation`. Three of the four packages need their `core` pin checked first: `code-review`
-and `audit-cli` are on the stale-pin list in the root `CLAUDE.md`, and that list has already
-proved wrong in both directions, so read the pin out of `package.json` **and** check for a
-vendored copy under the package's own `node_modules` before assuming either way. That pin work
-is why this is a release-shaped change rather than a bug fix.
+**Fix:** convert the 5 outcome-only sites to `FanOutRecorder` and the 6 undeclared-partial sites to
+`buildTruncation`.
 
 ---
 

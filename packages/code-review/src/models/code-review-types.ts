@@ -1,3 +1,5 @@
+import type { FanOutInfo } from '@mcp-consultant-tools/core';
+
 // ===== .NET Version types =====
 
 export interface DotnetVersionReport {
@@ -12,6 +14,18 @@ export interface DotnetVersionReport {
     eolFrameworks: string[];
     ilMergeProjects: number;
     recommendations: string[];
+  };
+  /**
+   * Files this scan could not read. Every count above is a floor when any of these is
+   * non-zero: the report describes what parsed, and used to describe it as the repository.
+   */
+  fanOut: {
+    /** `Directory.Build.props` files found by the glob. */
+    directoryBuildProps: FanOutInfo;
+    /** `.csproj` files found by the glob. */
+    projects: FanOutInfo;
+    /** `.cs` files read while deciding whether a CRM-SDK project is a Dataverse plugin. */
+    sourceFiles: FanOutInfo;
   };
 }
 
@@ -35,7 +49,12 @@ export interface ProjectFrameworkInfo {
   isEol: boolean;
   eolDate?: string;
   usesCrmSdk?: boolean;
-  isDataversePlugin?: boolean;
+  /**
+   * True when a plugin indicator was found, false when the sources were read and none was,
+   * and **null** when no source could be read - "not a plugin" and "could not tell" are
+   * different answers, and this flag decides whether the ILMerge recommendation fires.
+   */
+  isDataversePlugin?: boolean | null;
   usesILMerge?: boolean;
 }
 
@@ -52,6 +71,17 @@ export interface NugetPackageReport {
     outdatedPackages: number;
     vulnerablePackages: number;
     byStatus: Record<string, number>;
+  };
+  /**
+   * Files this audit could not read. A project that would not parse used to be skipped, so
+   * an audit of 8 of 10 projects and an audit of an 8-project repository were the same
+   * document.
+   */
+  fanOut: {
+    /** `Directory.Packages.props` files. A miss here silently loses CPM version resolution. */
+    centralPackageManagement: FanOutInfo;
+    /** `.csproj` files found by the glob. */
+    projects: FanOutInfo;
   };
 }
 
@@ -158,7 +188,17 @@ export interface FullReviewReport {
 
 export interface ReviewIssue {
   severity: 'info' | 'warning' | 'critical';
-  category: 'dotnet-version' | 'nuget-vulnerability' | 'nuget-outdated' | 'complexity' | 'ilmerge';
+  /**
+   * `scan-incomplete` is not a finding about the code: it says part of the repository was
+   * never read, so every other issue in the list is a floor rather than a total.
+   */
+  category:
+    | 'dotnet-version'
+    | 'nuget-vulnerability'
+    | 'nuget-outdated'
+    | 'complexity'
+    | 'ilmerge'
+    | 'scan-incomplete';
   message: string;
   filePath?: string;
   recommendation: string;

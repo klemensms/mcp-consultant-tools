@@ -46,11 +46,15 @@ function assertSearchablePayload(payload: string): void {
   expect(payload.length).toBeGreaterThan(100);
 }
 
+/** Everything read, so this fixture exercises the payload's contents rather than its gaps. */
+const allRead = { attempted: 1, succeeded: 1, failed: 0, failures: [] };
+
 const dotnetReport: DotnetVersionReport = {
   repository: 'repo',
   branch: 'main',
   directoryBuildProps: [],
   projects: [{ path: 'A.csproj', targetFrameworks: ['net452'], isEol: true } as any],
+  fanOut: { directoryBuildProps: allRead, projects: allRead, sourceFiles: allRead },
   summary: { totalProjects: 1, frameworks: { net452: 1 }, eolFrameworks: ['net452'], ilMergeProjects: 0, recommendations: [] },
 };
 
@@ -65,6 +69,7 @@ const nugetReport: NugetPackageReport = {
       ],
     },
   ],
+  fanOut: { centralPackageManagement: allRead, projects: allRead },
   summary: { totalProjects: 1, totalPackages: 1, uniquePackages: 1, outdatedPackages: 1, vulnerablePackages: 0, byStatus: { outdated: 1 } },
 };
 

@@ -1,3 +1,4 @@
+import { scanGapLines } from '../../services/review-runner.js';
 import type { Command } from 'commander';
 import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../types.js';
@@ -28,6 +29,14 @@ export function registerDotnetVersionCommands(program: Command, ctx: ServiceCont
         if (report.summary.recommendations.length > 0) {
           lines.push('', 'Recommendations:', ...report.summary.recommendations.map((r) => `  - ${r}`));
         }
+
+        lines.push(
+          ...scanGapLines([
+            ['Directory.Build.props files', report.fanOut.directoryBuildProps],
+            ['project files', report.fanOut.projects],
+            ['source files (plugin detection)', report.fanOut.sourceFiles],
+          ])
+        );
 
         outputResult({ fileName: `dotnet-versions-${repository}`, data: report, summary: lines.join('\n') }, getGlobalFlags(program));
       } catch (error) {

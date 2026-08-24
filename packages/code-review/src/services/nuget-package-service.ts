@@ -1,3 +1,4 @@
+import { FanOutRecorder } from '@mcp-consultant-tools/core';
 import { readFile } from 'node:fs/promises';
 import { glob } from 'glob';
 import * as semver from 'semver';
@@ -154,6 +155,11 @@ export class NugetPackageService {
     const projects: ProjectPackageInfo[] = [];
     const allPackageIds = new Set<string>();
 
+    // Both globs used to swallow a parse failure, so an audit of 8 of 10 projects and an
+    // audit of an 8-project repository were the same document.
+    const cpmReads = new FanOutRecorder();
+    const projectReads = new FanOutRecorder();
+
     // Central Package Management: each Directory.Packages.props applies to every csproj at or below
     // its directory, so resolve by walking up the project's directory tree (MSBuild import semantics).
     const cpmFiles = await glob('**/Directory.Packages.props', {
@@ -163,15 +169,14 @@ export class NugetPackageService {
     });
     const cpmByDir = new Map<string, Map<string, string>>();
     for (const cpmFile of cpmFiles) {
-      try {
+      await cpmReads.run(cpmFile, 'parse Directory.Packages.props', async () => {
         const content = await readFile(`${localPath}/${cpmFile}`, 'utf-8');
         const data = parseDirectoryPackagesProps(content);
-        if (data.packageVersions.size === 0) continue;
+        if (data.packageVersions.size === 0) return null;
         const dir = cpmFile.includes('/') ? cpmFile.substring(0, cpmFile.lastIndexOf('/')) : '';
         cpmByDir.set(dir, data.packageVersions);
-      } catch {
-        // Skip unparseable props files
-      }
+        return dir;
+      });
     }
 
     const resolveCpmVersion = (csprojPath: string, packageId: string): string | undefined => {
@@ -192,7 +197,7 @@ export class NugetPackageService {
     };
 
     for (const file of csprojFiles) {
-      try {
+      await projectReads.run(file, 'parse csproj', async () => {
         const content = await readFile(`${localPath}/${file}`, 'utf-8');
         const csproj = parseCsproj(content);
 
@@ -218,11 +223,10 @@ export class NugetPackageService {
           }
         }
 
-        if (packages.length === 0) continue;
+        if (packages.length === 0) return null;
         projects.push({ path: file, packages });
-      } catch {
-        // Skip unparseable files
-      }
+        return file;
+      });
     }
 
     if (checkVulnerabilities) {
@@ -256,6 +260,10 @@ export class NugetPackageService {
       repository,
       branch,
       projects,
+      fanOut: {
+        centralPackageManagement: cpmReads.result(),
+        projects: projectReads.result(),
+      },
       summary: {
         totalProjects: projects.length,
         totalPackages: allPackages.length,

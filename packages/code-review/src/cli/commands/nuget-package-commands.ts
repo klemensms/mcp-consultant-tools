@@ -1,3 +1,4 @@
+import { scanGapLines } from '../../services/review-runner.js';
 import type { Command } from 'commander';
 import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../types.js';
@@ -33,6 +34,13 @@ export function registerNugetPackageCommands(program: Command, ctx: ServiceConte
             }
           }
         }
+
+        lines.push(
+          ...scanGapLines([
+            ['Directory.Packages.props files', report.fanOut.centralPackageManagement],
+            ['project files', report.fanOut.projects],
+          ])
+        );
 
         outputResult({ fileName: `nuget-packages-${repository}`, data: report, summary: lines.join('\n') }, getGlobalFlags(program));
       } catch (error) {

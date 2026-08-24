@@ -2,11 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { buildReviewIssues, classifyHealth } from '../review-runner.js';
 import type { DotnetVersionReport, NugetPackageReport, ComplexityReport } from '../../models/index.js';
 
+/** A fan-out where everything was read, so these fixtures exercise the findings only. */
+const allRead = { attempted: 1, succeeded: 1, failed: 0, failures: [] };
+
 const dotnet = (over: Partial<DotnetVersionReport['summary']> & { projects?: any[] } = {}): DotnetVersionReport => ({
   repository: 'r',
   branch: 'main',
   directoryBuildProps: [],
   projects: over.projects ?? [],
+  fanOut: { directoryBuildProps: allRead, projects: allRead, sourceFiles: allRead },
   summary: {
     totalProjects: 0,
     frameworks: {},
@@ -20,6 +24,7 @@ const nuget = (packages: any[] = []): NugetPackageReport => ({
   repository: 'r',
   branch: 'main',
   projects: [{ path: 'A.csproj', packages }],
+  fanOut: { centralPackageManagement: allRead, projects: allRead },
   summary: { totalProjects: 1, totalPackages: packages.length, uniquePackages: packages.length, outdatedPackages: 0, vulnerablePackages: 0, byStatus: {} },
 });
 
