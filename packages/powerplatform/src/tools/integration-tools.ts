@@ -3,6 +3,7 @@
  */
 import { z } from 'zod';
 import type { ServiceContext } from '../types.js';
+import { fanOutSuffix, truncationSuffix } from '@mcp-consultant-tools/core';
 import { descWithExamples, OUTPUT_FORMAT_EXAMPLES } from '../tool-examples.js';
 
 export function registerIntegrationTools(server: any, ctx: ServiceContext): void {
@@ -72,11 +73,16 @@ Returns:
 
         const result = await service.getServiceEndpoints(maxRecords ?? 100, ootb);
         const ootbNote = result.summary.ootbExcluded ? `, ${result.summary.ootbExcluded} OOTB excluded` : '';
+        // The count is the only part of this a reader usually quotes, so the truncation
+        // warning has to ride on the same line rather than sit in the JSON below it.
+        const stepNote = result.summary.stepCountFailure
+          ? `\n\nWARNING: step counts unavailable (${result.summary.stepCountFailure}), so messageStepCount is null rather than 0 on every endpoint.`
+          : '';
         return {
           content: [
             {
               type: "text",
-              text: `Service Endpoints (${result.summary.total} found${ootbNote}):\n\n${JSON.stringify(result, null, 2)}`,
+              text: `Service Endpoints (${result.summary.total} found${ootbNote})${truncationSuffix(result.truncation)}:${stepNote}\n\n${JSON.stringify(result, null, 2)}`,
             },
           ],
         };
@@ -122,7 +128,7 @@ Returns:
           content: [
             {
               type: "text",
-              text: `Webhook Registrations (${result.summary.total} found, ${result.summary.enabledCount} enabled${ootbNote}):\n\n${JSON.stringify(result, null, 2)}`,
+              text: `Webhook Registrations (${result.summary.total} found, ${result.summary.enabledCount} enabled${ootbNote})${truncationSuffix(result.truncation)}:\n\n${JSON.stringify(result, null, 2)}`,
             },
           ],
         };
@@ -175,8 +181,17 @@ Use flowId to analyze a single flow, or omit to analyze all flows.`,
 
         const lines: string[] = [];
         const ootbNote = result.summary.ootbExcluded ? `, ${result.summary.ootbExcluded} OOTB excluded` : '';
-        lines.push(`# Flow Complexity Analysis (${result.summary.total} flows${ootbNote})`);
+        lines.push(
+          `# Flow Complexity Analysis (${result.summary.total} flows${ootbNote})` +
+            `${truncationSuffix(result.truncation)}${fanOutSuffix(result.fanOut)}`
+        );
         lines.push('');
+        if (result.envVarResolutionFailure) {
+          lines.push(
+            `> Environment variables could not be read (${result.envVarResolutionFailure}), so environment-variable references in flow URLs are unresolved.`
+          );
+          lines.push('');
+        }
         lines.push(`- Average Score: ${result.summary.averageComplexity}`);
         lines.push(`- By Risk: Low=${result.summary.byRiskLevel.Low}, Medium=${result.summary.byRiskLevel.Medium}, High=${result.summary.byRiskLevel.High}, Critical=${result.summary.byRiskLevel.Critical}`);
         lines.push(`- URLs Found: ${result.summary.totalUrlsFound ?? 0}`);
@@ -345,7 +360,7 @@ Returns:
         const ootbNote = result.summary.ootbExcluded ? `, ${result.summary.ootbExcluded} OOTB excluded` : '';
 
         const lines: string[] = [];
-        lines.push(`# Environment Variables (${result.summary.total} found${ootbNote})`);
+        lines.push(`# Environment Variables (${result.summary.total} found${ootbNote})${truncationSuffix(result.truncation)}`);
         lines.push('');
         lines.push(`Types: ${Object.entries(result.summary.byType).map(([k, v]) => `${k}=${v}`).join(', ')}`);
         lines.push('');

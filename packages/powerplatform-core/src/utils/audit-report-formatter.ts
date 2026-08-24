@@ -3,7 +3,12 @@
  * Extracted from IntegrationAuditService to allow reuse and testing.
  */
 
-import { truncationSuffix, type TruncationInfo } from '@mcp-consultant-tools/core';
+import {
+  fanOutSuffix,
+  truncationSuffix,
+  type FanOutInfo,
+  type TruncationInfo,
+} from '@mcp-consultant-tools/core';
 import type { RiskLevel } from './complexity-calculator.js';
 
 export interface AuditReportData {
@@ -15,7 +20,13 @@ export interface AuditReportData {
   completeness?: {
     requestedMax: number;
     pluginAssemblies: TruncationInfo;
+    serviceEndpoints: TruncationInfo;
+    webhooks: TruncationInfo;
+    environmentVariables: TruncationInfo | null;
+    flows: TruncationInfo;
+    flowDefinitions: FanOutInfo;
     unverified: string[];
+    failures: { section: string; reason: string }[];
   };
   endpointsResult: {
     endpoints: {
@@ -23,7 +34,8 @@ export interface AuditReportData {
       url: string;
       contractType: string;
       authType: string;
-      messageStepCount: number;
+      /** Null when the step-count query could not be completed, which is not the same as 0. */
+      messageStepCount: number | null;
       isManaged: boolean;
     }[];
     summary: { total: number; byType: Record<string, number>; byAuthType: Record<string, number> };
@@ -151,14 +163,27 @@ function appendExecutiveSummary(lines: string[], data: AuditReportData): void {
   lines.push('');
   lines.push('| Metric | Count |');
   lines.push('|--------|-------|');
-  lines.push(`| Power Automate Flows | ${data.complexityResult.summary.total} |`);
+  const c = data.completeness;
   lines.push(
-    `| Plugin Assemblies | ${data.pluginAssemblies.totalCount}${
-      data.completeness ? truncationSuffix(data.completeness.pluginAssemblies) : ''
+    `| Power Automate Flows | ${data.complexityResult.summary.total}${
+      c ? truncationSuffix(c.flows) + fanOutSuffix(c.flowDefinitions) : ''
     } |`
   );
-  lines.push(`| Service Endpoints | ${data.endpointsResult.summary.total} |`);
-  lines.push(`| Webhook Registrations | ${data.webhooksResult.summary.total} |`);
+  lines.push(
+    `| Plugin Assemblies | ${data.pluginAssemblies.totalCount}${
+      c ? truncationSuffix(c.pluginAssemblies) : ''
+    } |`
+  );
+  lines.push(
+    `| Service Endpoints | ${data.endpointsResult.summary.total}${
+      c ? truncationSuffix(c.serviceEndpoints) : ''
+    } |`
+  );
+  lines.push(
+    `| Webhook Registrations | ${data.webhooksResult.summary.total}${
+      c ? truncationSuffix(c.webhooks) : ''
+    } |`
+  );
   lines.push(`| **Overall Risk Level** | **${data.overallRisk}** |`);
   lines.push('');
 
@@ -185,9 +210,10 @@ function appendExecutiveSummary(lines: string[], data: AuditReportData): void {
 /**
  * What the counts above are and are not known to cover.
  *
- * The report caps every collection it reads, and only the plugin-assembly inventory
- * currently reports whether the cap was hit. Saying so is the point: a reader who acts on
- * a "Total Endpoints" figure needs to know that figure is a page, not a population.
+ * Every collection the report reads pages and reports whether the cap it was given bit,
+ * so this block states each one either way. Saying "complete at N" is as load-bearing as
+ * saying "truncated at N": a reader who acts on a "Service Endpoints" figure needs to
+ * know which of the two it is, and silence used to mean both.
  */
 function appendCompletenessScope(lines: string[], data: AuditReportData): void {
   const c = data.completeness;
@@ -197,20 +223,46 @@ function appendCompletenessScope(lines: string[], data: AuditReportData): void {
 
   lines.push('> **Scope of these counts:** requested ' + cap + '.');
 
-  if (c.pluginAssemblies.hasMore) {
+  const say = (label: string, t: TruncationInfo | null) => {
+    if (t === null) {
+      lines.push(`> The ${label} could not be read at all - see the failures below.`);
+      return;
+    }
+    if (t.hasMore) {
+      lines.push(
+        `> The ${label} was **truncated** at ${t.returnedCount}; more exist. Re-run with a higher cap, or uncapped, for the full set.`
+      );
+    } else {
+      lines.push(`> The ${label} is complete at ${t.returnedCount}.`);
+    }
+  };
+
+  say('plugin-assembly inventory', c.pluginAssemblies);
+  say('service-endpoint list', c.serviceEndpoints);
+  say('webhook-registration list', c.webhooks);
+  say('environment-variable list', c.environmentVariables);
+  say('flow list', c.flows);
+
+  if (c.flowDefinitions.failed > 0) {
     lines.push(
-      `> The plugin-assembly inventory was **truncated** at ${c.pluginAssemblies.returnedCount}; more assemblies exist. Re-run with a higher cap, or uncapped, for the full inventory.`
+      `> **${c.flowDefinitions.failed} of ${c.flowDefinitions.attempted} flow definitions could not be read**, so those flows are absent from the complexity analysis and from its totals. Do not read the flow counts above as a complete set:`
     );
-  } else {
-    lines.push(
-      `> The plugin-assembly inventory is complete at ${c.pluginAssemblies.returnedCount}.`
-    );
+    for (const f of c.flowDefinitions.failures) {
+      lines.push(`>   - ${f.item}: ${f.reason}`);
+    }
   }
 
   if (c.unverified.length > 0) {
     lines.push(
       `> Completeness is **not verified** for: ${c.unverified.join(', ')}. Those counts may be a capped page rather than the population, and this report cannot currently tell you which.`
     );
+  }
+
+  if (c.failures.length > 0) {
+    lines.push('> **Sections this report could not build:**');
+    for (const f of c.failures) {
+      lines.push(`>   - ${f.section}: ${f.reason}`);
+    }
   }
 
   lines.push('');
@@ -335,7 +387,10 @@ function appendOutboundIntegrations(lines: string[], data: AuditReportData): voi
     lines.push('|------|------|-----|-------|');
     for (const ep of data.endpointsResult.endpoints) {
       const urlDisplay = ep.url || '(internal)';
-      lines.push(`| ${ep.name} | ${ep.contractType} | ${urlDisplay} | ${ep.messageStepCount} |`);
+      // `not counted` rather than 0: an unreadable step table is a different finding from
+      // an endpoint with no steps registered.
+      const steps = ep.messageStepCount === null ? 'not counted' : ep.messageStepCount;
+      lines.push(`| ${ep.name} | ${ep.contractType} | ${urlDisplay} | ${steps} |`);
     }
     lines.push('');
   }

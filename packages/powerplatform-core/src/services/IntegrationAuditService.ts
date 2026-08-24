@@ -9,9 +9,16 @@
  * - Combined integration audit reports
  */
 
-import type { TruncationInfo } from '@mcp-consultant-tools/core';
+import {
+  buildTruncation,
+  FanOutRecorder,
+  PAGINATION_SAFETY_CEILING,
+  UNCAPPED,
+  type FanOutInfo,
+  type TruncationInfo,
+} from '@mcp-consultant-tools/core';
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
-import type { ApiCollectionResponse } from '../client/types.js';
+import { paginateDataverse } from './paginate.js';
 import {
   calculateFlowComplexity,
   type FlowComplexityResult,
@@ -25,7 +32,6 @@ import {
 } from '../utils/flow-url-extractor.js';
 import { generateAuditMarkdownReport } from '../utils/audit-report-formatter.js';
 import {
-  filterOotb,
   isOotbWebhook,
   isOotbEnvVar,
   isOotbServiceEndpoint,
@@ -47,7 +53,12 @@ export interface ServiceEndpoint {
   authType: string;
   connectionMode: string;
   description: string | null;
-  messageStepCount: number;
+  /**
+   * SDK message steps registered against this endpoint, or **null** when the step-count
+   * query could not be completed. Null and 0 are different answers: 0 means no steps are
+   * registered, null means nobody counted. `summary.stepCountFailure` says why.
+   */
+  messageStepCount: number | null;
   isManaged: boolean;
   createdOn: string;
   modifiedOn: string;
@@ -60,11 +71,19 @@ export interface ServiceEndpoint {
 
 export interface ServiceEndpointsResult {
   endpoints: ServiceEndpoint[];
+  /** Whether endpoints matching these filters remained at the source. Read this before quoting `summary.total`. */
+  truncation: TruncationInfo;
   summary: {
+    /** Endpoints in this payload. Read `truncation.totalAvailable` for the population. */
     total: number;
     byType: Record<string, number>;
     byAuthType: Record<string, number>;
     ootbExcluded?: number;
+    /**
+     * Why `messageStepCount` is null on every endpoint. Absent when the step counts were
+     * collected, so its presence is the difference between "no steps" and "not counted".
+     */
+    stepCountFailure?: string;
   };
 }
 
@@ -90,7 +109,10 @@ export interface WebhookRegistration {
 
 export interface WebhookRegistrationsResult {
   webhooks: WebhookRegistration[];
+  /** Whether webhooks matching these filters remained at the source. Read this before quoting `summary.total`. */
+  truncation: TruncationInfo;
   summary: {
+    /** Webhooks in this payload. Read `truncation.totalAvailable` for the population. */
     total: number;
     byEntity: Record<string, number>;
     byMessage: Record<string, number>;
@@ -118,7 +140,25 @@ export interface FlowComplexityAnalysis {
 
 export interface FlowComplexityResult_Full {
   flows: FlowComplexityAnalysis[];
+  /**
+   * Whether the flow list this analysis ran over was the whole population. Carried up
+   * from `getFlows`, which pages; it used to be discarded here, so an analysis of the
+   * first 5000 flows was indistinguishable from an analysis of all of them.
+   */
+  truncation: TruncationInfo;
+  /**
+   * The per-flow definition fetches. A flow whose definition could not be read is named
+   * in `failures` rather than dropped, because a dropped flow makes `summary.total`
+   * under-report with nothing to show it did.
+   */
+  fanOut: FanOutInfo;
+  /**
+   * Why URL resolution ran without environment variables, when it did. Present means
+   * `urls[].environmentVariable` references stayed unresolved.
+   */
+  envVarResolutionFailure?: string;
   summary: {
+    /** Flows analysed. Short of `fanOut.attempted` when definitions failed to read. */
     total: number;
     byRiskLevel: Record<RiskLevel, number>;
     averageComplexity: number;
@@ -138,23 +178,38 @@ export interface FlowComplexityResult_Full {
 /**
  * What this report's counts are known to cover.
  *
- * Deliberately scoped, and it names its own limits. `pluginAssemblies` is verified
- * against the source because `getPluginAssemblies` pages and reports truncation.
- * `unverified` lists the collections that do not yet, so a reader who sees a
- * completeness block does not assume it covers the whole report - a partial guarantee
- * read as a total one is worse than none.
+ * Every collection the report reads now pages and reports truncation, so each one gets
+ * its own block rather than a single guarantee that quietly covered one of five.
+ * `unverified` stays in the payload and is now normally empty: it is the place a
+ * collection goes when it is capped without being able to say so, and an empty list is
+ * a claim a reader can check rather than a field that disappeared.
  */
 export interface AuditCompleteness {
   /** The row cap the report asked every collection for. 0 means uncapped. */
   requestedMax: number;
   /** The plugin-assembly inventory, verified against the source. */
   pluginAssemblies: TruncationInfo;
+  /** The service-endpoint collection, verified against the source. */
+  serviceEndpoints: TruncationInfo;
+  /** The webhook-registration collection, verified against the source. */
+  webhooks: TruncationInfo;
   /**
-   * Collections this report caps but cannot yet say anything about, because the
-   * methods behind them fetch with `$top` and report no truncation. Recorded in
-   * `docs/KNOWN_ISSUES.md`.
+   * The environment-variable collection. Null when that fetch failed outright, which is
+   * why the section is absent from the report rather than empty - see `failures`.
+   */
+  environmentVariables: TruncationInfo | null;
+  /** The flow list the complexity analysis ran over, verified against the source. */
+  flows: TruncationInfo;
+  /** The per-flow definition fetches behind the complexity analysis. */
+  flowDefinitions: FanOutInfo;
+  /**
+   * Collections this report caps but cannot say anything about. Empty now that all five
+   * page and report truncation; kept so a future collection added without truncation has
+   * somewhere honest to be named. Recorded in `docs/KNOWN_ISSUES.md`.
    */
   unverified: string[];
+  /** Sections the report could not build at all, and why. Empty when nothing failed. */
+  failures: { section: string; reason: string }[];
 }
 
 export interface IntegrationAuditSummary {
@@ -278,7 +333,10 @@ export interface DivergingVariable {
 export interface EnvironmentVariablesResult {
   divergingVariables: DivergingVariable[];
   allVariables: EnvironmentVariable[];
+  /** Whether variables matching these filters remained at the source. Read this before quoting `summary.total`. */
+  truncation: TruncationInfo;
   summary: {
+    /** Variables in this payload. Read `truncation.totalAvailable` for the population. */
     total: number;
     diverging: number;
     byType: Record<string, number>;
@@ -327,19 +385,150 @@ const SENSITIVE_NAME_PATTERNS = /secret|password|apikey|api_?key|token|connectio
 const SENSITIVE_VALUE_PATTERNS = /SharedAccessKey=|AccountKey=|[?&]code=[A-Za-z0-9+/=_-]{20,}|sig=[A-Za-z0-9%+/=]{20,}/i;
 
 /**
- * Collections `generateAuditReport` caps but cannot yet vouch for.
+ * Collections `generateAuditReport` caps but cannot vouch for.
  *
- * `getServiceEndpoints`, `getWebhookRegistrations` and `getEnvironmentVariables` all fetch
- * with `$top=${maxRecords}` and return no truncation information, so the report has nothing
- * to read. Naming them is the honest alternative to a completeness block that quietly covers
- * one collection out of four. Recorded in `docs/KNOWN_ISSUES.md`.
+ * Deliberately still here, and deliberately empty. `getServiceEndpoints`,
+ * `getWebhookRegistrations`, `getEnvironmentVariables` and the flow list all page and
+ * report truncation now, so each has its own block on `AuditCompleteness` and none of
+ * them belongs on this list. It stays because it is the honest place to name a
+ * collection added later that caps without reporting it - the report says out loud what
+ * it cannot vouch for, and an empty list is a claim rather than a missing field.
  */
-const UNVERIFIED_AUDIT_COLLECTIONS = [
-  'serviceEndpoints',
-  'webhooks',
-  'environmentVariables',
-  'flows',
-];
+const UNVERIFIED_AUDIT_COLLECTIONS: string[] = [];
+
+/**
+ * Ceiling on the flows the complexity analysis will fetch definitions for when the caller
+ * asks for all of them.
+ *
+ * Every flow costs one extra request, so an uncapped run against a large environment is a
+ * request storm. The cap stays, but it is now reported in the analysis's `truncation`
+ * block instead of being an invisible magic number.
+ */
+const FLOW_ANALYSIS_CEILING = 5000;
+
+// ============================================================================
+// Row formatting
+// ============================================================================
+// Module-level and pure, so the same shaping runs inside the paginator's `keep`
+// predicate - which needs the formatted object to test the OOTB rules - and again over
+// the rows that survive it, with no chance of the two copies drifting apart. Formatting
+// a row twice costs an object construction; getting the OOTB test wrong costs a silently
+// short collection.
+
+/**
+ * Shape one `serviceendpoint` row.
+ *
+ * `stepCounts` of null means the step-count query did not complete, so
+ * `messageStepCount` is null rather than 0.
+ */
+function formatServiceEndpoint(
+  ep: Record<string, unknown>,
+  stepCounts: Map<string, number> | null
+): ServiceEndpoint {
+  const contractNum = ep.contract as number;
+  const authNum = ep.authtype as number;
+  const connModeNum = ep.connectionmode as number;
+  const contractLabel = (CONTRACT_TYPES[contractNum] || 'Unknown') as ServiceEndpoint['contractType'];
+  const namespaceAddr = (ep.namespaceaddress as string) || null;
+  const url = (ep.url as string) || '';
+  const id = ep.serviceendpointid as string;
+
+  // Detect url vs namespaceaddress mismatch for SB contracts
+  const isSbContract = ['Queue', 'Queue (Persistent)', 'Topic', 'EventHub'].includes(contractLabel);
+  const urlMismatch = isSbContract && !!namespaceAddr && !!url && namespaceAddr !== url;
+
+  // Detect SAS key not set when authType is SASKey
+  const isSasKeySet = ep.issaskeyset as boolean ?? false;
+  const sasKeyWarning = authNum === 5 && !isSasKeySet; // 5 = SASKey
+
+  return {
+    id,
+    name: ep.name as string,
+    url,
+    namespaceAddress: namespaceAddr,
+    path: (ep.path as string) || null,
+    contractType: contractLabel,
+    authType: AUTH_TYPES[authNum] || `Unknown (${authNum})`,
+    connectionMode: CONNECTION_MODES[connModeNum] || `Unknown (${connModeNum})`,
+    description: (ep.description as string) || null,
+    messageStepCount: stepCounts === null ? null : stepCounts.get(id) || 0,
+    isManaged: ep.ismanaged as boolean,
+    createdOn: ep.createdon as string,
+    modifiedOn: ep.modifiedon as string,
+    sasKeyName: (ep.saskeyname as string) || null,
+    isSasKeySet,
+    solutionNamespace: (ep.solutionnamespace as string) || null,
+    urlMismatch,
+    sasKeyWarning,
+  };
+}
+
+/** Shape one `sdkmessageprocessingstep` row as a webhook registration. */
+function formatWebhookRegistration(step: Record<string, unknown>): WebhookRegistration {
+  const stageNum = step.stage as number;
+  const serviceEndpoint = step.eventhandler_serviceendpoint as Record<string, unknown> | null;
+
+  return {
+    id: step.sdkmessageprocessingstepid as string,
+    name: step.name as string,
+    endpointUrl: serviceEndpoint?.url as string | null,
+    triggerEntity: (step.sdkmessagefilterid as { primaryobjecttypecode?: string })?.primaryobjecttypecode || 'none',
+    triggerMessage: (step.sdkmessageid as { name?: string })?.name || 'Unknown',
+    filteringAttributes: step.filteringattributes
+      ? (step.filteringattributes as string).split(',')
+      : [],
+    asyncMode: (step.mode as number) === 1,
+    stage: (STAGE_NAMES[stageNum] || 'Unknown') as WebhookRegistration['stage'],
+    serviceEndpointId: step._eventhandler_value as string | null,
+    serviceEndpointName: serviceEndpoint?.name as string | null,
+    isManaged: step.ismanaged as boolean,
+    statusCode: step.statuscode as number,
+    enabled: (step.statuscode as number) === 1,
+  };
+}
+
+const ENV_VAR_TYPES: Record<number, string> = {
+  100000000: 'String',
+  100000001: 'Number',
+  100000002: 'Boolean',
+  100000003: 'JSON',
+  100000004: 'Data Source',
+  100000005: 'Secret',
+};
+
+/** Shape one `environmentvariabledefinition` row, masking anything that looks sensitive. */
+function formatEnvironmentVariable(ev: Record<string, unknown>): EnvironmentVariable {
+  const typeNum = ev.type as number;
+  const schemaName = ev.schemaname as string;
+  // Determine if sensitive: type 100000005 = Secret type
+  const isSecretType = typeNum === 100000005;
+  const isNameSensitive = SENSITIVE_NAME_PATTERNS.test(schemaName);
+
+  const values = ev.environmentvariabledefinition_environmentvariablevalue as Record<string, unknown>[] | null;
+  const currentValue = values && values.length > 0
+    ? (values[0].value as string)
+    : undefined;
+  const defaultValue = (ev.defaultvalue as string) || undefined;
+  const effectiveValue = currentValue ?? defaultValue;
+
+  // Value-based detection: catch secrets embedded in values (e.g. SharedAccessKey, Azure Function keys)
+  const isValueSensitive = !!effectiveValue && SENSITIVE_VALUE_PATTERNS.test(effectiveValue);
+  const isSensitive = isSecretType || isNameSensitive || isValueSensitive;
+
+  return {
+    id: ev.environmentvariabledefinitionid as string,
+    schemaName,
+    displayName: (ev.displayname as string) || schemaName,
+    type: ENV_VAR_TYPES[typeNum] || `Unknown (${typeNum})`,
+    currentValue,
+    defaultValue,
+    effectiveValue,
+    description: (ev.description as string) || undefined,
+    isManaged: ev.ismanaged as boolean,
+    isSensitive,
+    maskedValue: isSensitive ? '***' : undefined,
+  };
+}
 
 // ============================================================================
 // IntegrationAuditService
@@ -361,97 +550,102 @@ export class IntegrationAuditService {
     maxRecords: number = 100,
     excludeOotb: boolean = true
   ): Promise<ServiceEndpointsResult> {
-    // Query the serviceendpoint table
-    const response = await this.client.makeRequest<
-      ApiCollectionResponse<Record<string, unknown>>
-    >(
-      `api/data/v9.2/serviceendpoints?$select=serviceendpointid,name,url,namespaceaddress,path,contract,authtype,connectionmode,description,ismanaged,createdon,modifiedon,saskeyname,issaskeyset,solutionnamespace&$orderby=name&$top=${maxRecords}`
-    );
+    const { stepCounts, stepCountFailure } = await this.countEndpointMessageSteps();
 
-    // Get SDK message step counts for each endpoint
-    const stepCounts = new Map<string, number>();
-    try {
-      const stepsResponse = await this.client.makeRequest<
-        ApiCollectionResponse<Record<string, unknown>>
-      >(
-        `api/data/v9.2/sdkmessageprocessingsteps?$filter=_eventhandler_value ne null&$select=_eventhandler_value&$top=5000`
-      );
+    let ootbExcluded = 0;
 
-      for (const step of stepsResponse.value) {
-        const endpointId = step._eventhandler_value as string;
-        if (endpointId) {
-          stepCounts.set(endpointId, (stepCounts.get(endpointId) || 0) + 1);
+    // Paged, not `$top`-capped, and the OOTB exclusion runs inside the paging loop: a cap
+    // of 100 now means 100 endpoints returned rather than 100 fetched and however many
+    // survived filtering. See the header of `services/paginate.ts`.
+    const { rows, hasMore, truncationReason } = await paginateDataverse<
+      Record<string, unknown>
+    >(this.client, {
+      endpoint:
+        'api/data/v9.2/serviceendpoints?$select=serviceendpointid,name,url,namespaceaddress,path,contract,authtype,connectionmode,description,ismanaged,createdon,modifiedon,saskeyname,issaskeyset,solutionnamespace&$orderby=name',
+      maxRecords,
+      keep: (row) => {
+        if (!excludeOotb) return true;
+        if (isOotbServiceEndpoint(formatServiceEndpoint(row, stepCounts))) {
+          ootbExcluded++;
+          return false;
         }
-      }
-    } catch {
-      // Continue without step counts if query fails
-    }
-
-    const endpoints: ServiceEndpoint[] = response.value.map((ep) => {
-      const contractNum = ep.contract as number;
-      const authNum = ep.authtype as number;
-      const connModeNum = ep.connectionmode as number;
-      const contractLabel = (CONTRACT_TYPES[contractNum] || 'Unknown') as ServiceEndpoint['contractType'];
-      const namespaceAddr = (ep.namespaceaddress as string) || null;
-      const url = (ep.url as string) || '';
-
-      // Detect url vs namespaceaddress mismatch for SB contracts
-      const isSbContract = ['Queue', 'Queue (Persistent)', 'Topic', 'EventHub'].includes(contractLabel);
-      const urlMismatch = isSbContract && !!namespaceAddr && !!url && namespaceAddr !== url;
-
-      // Detect SAS key not set when authType is SASKey
-      const isSasKeySet = ep.issaskeyset as boolean ?? false;
-      const sasKeyWarning = authNum === 5 && !isSasKeySet; // 5 = SASKey
-
-      return {
-        id: ep.serviceendpointid as string,
-        name: ep.name as string,
-        url,
-        namespaceAddress: namespaceAddr,
-        path: (ep.path as string) || null,
-        contractType: contractLabel,
-        authType: AUTH_TYPES[authNum] || `Unknown (${authNum})`,
-        connectionMode: CONNECTION_MODES[connModeNum] || `Unknown (${connModeNum})`,
-        description: (ep.description as string) || null,
-        messageStepCount: stepCounts.get(ep.serviceendpointid as string) || 0,
-        isManaged: ep.ismanaged as boolean,
-        createdOn: ep.createdon as string,
-        modifiedOn: ep.modifiedon as string,
-        sasKeyName: (ep.saskeyname as string) || null,
-        isSasKeySet,
-        solutionNamespace: (ep.solutionnamespace as string) || null,
-        urlMismatch,
-        sasKeyWarning,
-      };
+        return true;
+      },
     });
 
-    // Apply OOTB exclusion
-    let finalEndpoints = endpoints;
-    let ootbExcluded = 0;
-    if (excludeOotb) {
-      const result = filterOotb(endpoints, isOotbServiceEndpoint);
-      finalEndpoints = result.filtered;
-      ootbExcluded = result.excludedCount;
-    }
+    const endpoints = rows.map((row) => formatServiceEndpoint(row, stepCounts));
 
-    // Build summary from filtered list
     const byType: Record<string, number> = {};
     const byAuthType: Record<string, number> = {};
 
-    for (const ep of finalEndpoints) {
+    for (const ep of endpoints) {
       byType[ep.contractType] = (byType[ep.contractType] || 0) + 1;
       byAuthType[ep.authType] = (byAuthType[ep.authType] || 0) + 1;
     }
 
     return {
-      endpoints: finalEndpoints,
+      endpoints,
+      truncation: buildTruncation({
+        returnedCount: endpoints.length,
+        requestedMax: maxRecords,
+        hasMore,
+        truncationReason,
+      }),
       summary: {
-        total: finalEndpoints.length,
+        total: endpoints.length,
         byType,
         byAuthType,
         ...(ootbExcluded > 0 ? { ootbExcluded } : {}),
+        ...(stepCountFailure ? { stepCountFailure } : {}),
       },
     };
+  }
+
+  /**
+   * Count SDK message steps per service endpoint.
+   *
+   * Its own method because its failure mode is the point. This used to be a bare
+   * `catch {}` inside `getServiceEndpoints`, so a principal without read access to the
+   * step table produced `messageStepCount: 0` on every endpoint - which reads as "no
+   * steps registered" rather than "nobody counted". A failure, and a run that hit the
+   * safety ceiling, both return a null map and a reason instead.
+   */
+  private async countEndpointMessageSteps(): Promise<{
+    stepCounts: Map<string, number> | null;
+    stepCountFailure?: string;
+  }> {
+    try {
+      const { rows, hasMore } = await paginateDataverse<Record<string, unknown>>(
+        this.client,
+        {
+          endpoint:
+            'api/data/v9.2/sdkmessageprocessingsteps?$filter=_eventhandler_value ne null&$select=_eventhandler_value',
+          maxRecords: UNCAPPED,
+        }
+      );
+
+      if (hasMore) {
+        return {
+          stepCounts: null,
+          stepCountFailure: `Step-count query stopped at the ${PAGINATION_SAFETY_CEILING}-row safety ceiling, so per-endpoint counts would be undercounts`,
+        };
+      }
+
+      const stepCounts = new Map<string, number>();
+      for (const step of rows) {
+        const endpointId = step._eventhandler_value as string;
+        if (endpointId) {
+          stepCounts.set(endpointId, (stepCounts.get(endpointId) || 0) + 1);
+        }
+      }
+
+      return { stepCounts };
+    } catch (error) {
+      return {
+        stepCounts: null,
+        stepCountFailure: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   /**
@@ -517,62 +711,25 @@ export class IntegrationAuditService {
     requiredUrlStrings?: string[],
     excludeOotb: boolean = true
   ): Promise<EnvironmentVariablesResult> {
-    const ENV_VAR_TYPES: Record<number, string> = {
-      100000000: 'String',
-      100000001: 'Number',
-      100000002: 'Boolean',
-      100000003: 'JSON',
-      100000004: 'Data Source',
-      100000005: 'Secret',
-    };
+    let ootbExcluded = 0;
 
-    const response = await this.client.makeRequest<
-      ApiCollectionResponse<Record<string, unknown>>
-    >(
-      `api/data/v9.2/environmentvariabledefinitions?$select=environmentvariabledefinitionid,schemaname,displayname,type,defaultvalue,description,ismanaged&$expand=environmentvariabledefinition_environmentvariablevalue($select=value)&$orderby=schemaname&$top=${maxRecords}`
-    );
-
-    const allVariables: EnvironmentVariable[] = response.value.map((ev) => {
-      const typeNum = ev.type as number;
-      const schemaName = ev.schemaname as string;
-      // Determine if sensitive: type 100000005 = Secret type
-      const isSecretType = typeNum === 100000005;
-      const isNameSensitive = SENSITIVE_NAME_PATTERNS.test(schemaName);
-
-      const values = ev.environmentvariabledefinition_environmentvariablevalue as Record<string, unknown>[] | null;
-      const currentValue = values && values.length > 0
-        ? (values[0].value as string)
-        : undefined;
-      const defaultValue = (ev.defaultvalue as string) || undefined;
-      const effectiveValue = currentValue ?? defaultValue;
-
-      // Value-based detection: catch secrets embedded in values (e.g. SharedAccessKey, Azure Function keys)
-      const isValueSensitive = !!effectiveValue && SENSITIVE_VALUE_PATTERNS.test(effectiveValue);
-      const isSensitive = isSecretType || isNameSensitive || isValueSensitive;
-
-      return {
-        id: ev.environmentvariabledefinitionid as string,
-        schemaName,
-        displayName: (ev.displayname as string) || schemaName,
-        type: ENV_VAR_TYPES[typeNum] || `Unknown (${typeNum})`,
-        currentValue,
-        defaultValue,
-        effectiveValue,
-        description: (ev.description as string) || undefined,
-        isManaged: ev.ismanaged as boolean,
-        isSensitive,
-        maskedValue: isSensitive ? '***' : undefined,
-      };
+    const { rows, hasMore, truncationReason } = await paginateDataverse<
+      Record<string, unknown>
+    >(this.client, {
+      endpoint:
+        'api/data/v9.2/environmentvariabledefinitions?$select=environmentvariabledefinitionid,schemaname,displayname,type,defaultvalue,description,ismanaged&$expand=environmentvariabledefinition_environmentvariablevalue($select=value)&$orderby=schemaname',
+      maxRecords,
+      keep: (row) => {
+        if (!excludeOotb) return true;
+        if (isOotbEnvVar(formatEnvironmentVariable(row))) {
+          ootbExcluded++;
+          return false;
+        }
+        return true;
+      },
     });
 
-    // Apply OOTB exclusion
-    let finalVariables = allVariables;
-    let ootbExcluded = 0;
-    if (excludeOotb) {
-      const result = filterOotb(allVariables, isOotbEnvVar);
-      finalVariables = result.filtered;
-      ootbExcluded = result.excludedCount;
-    }
+    const finalVariables = rows.map(formatEnvironmentVariable);
 
     // Check for diverging variables (URL values not matching required patterns)
     const divergingVariables: DivergingVariable[] = [];
@@ -601,6 +758,12 @@ export class IntegrationAuditService {
     return {
       divergingVariables,
       allVariables: finalVariables,
+      truncation: buildTruncation({
+        returnedCount: finalVariables.length,
+        requestedMax: maxRecords,
+        hasMore,
+        truncationReason,
+      }),
       summary: {
         total: finalVariables.length,
         diverging: divergingVariables.length,
@@ -631,45 +794,26 @@ export class IntegrationAuditService {
     maxRecords: number = 100,
     excludeOotb: boolean = true
   ): Promise<WebhookRegistrationsResult> {
-    // Query SDK message processing steps that have an event handler (service endpoint)
-    // or are specifically configured as webhooks
-    const response = await this.client.makeRequest<
-      ApiCollectionResponse<Record<string, unknown>>
-    >(
-      `api/data/v9.2/sdkmessageprocessingsteps?$filter=_eventhandler_value ne null&$select=sdkmessageprocessingstepid,name,stage,mode,statuscode,filteringattributes,_eventhandler_value,ismanaged&$expand=sdkmessageid($select=name),sdkmessagefilterid($select=primaryobjecttypecode),eventhandler_serviceendpoint($select=name,url)&$orderby=name&$top=${maxRecords}`
-    );
+    let ootbExcluded = 0;
 
-    const webhooks: WebhookRegistration[] = response.value.map((step) => {
-      const stageNum = step.stage as number;
-      const serviceEndpoint = step.eventhandler_serviceendpoint as Record<string, unknown> | null;
-
-      return {
-        id: step.sdkmessageprocessingstepid as string,
-        name: step.name as string,
-        endpointUrl: serviceEndpoint?.url as string | null,
-        triggerEntity: (step.sdkmessagefilterid as { primaryobjecttypecode?: string })?.primaryobjecttypecode || 'none',
-        triggerMessage: (step.sdkmessageid as { name?: string })?.name || 'Unknown',
-        filteringAttributes: step.filteringattributes
-          ? (step.filteringattributes as string).split(',')
-          : [],
-        asyncMode: (step.mode as number) === 1,
-        stage: (STAGE_NAMES[stageNum] || 'Unknown') as WebhookRegistration['stage'],
-        serviceEndpointId: step._eventhandler_value as string | null,
-        serviceEndpointName: serviceEndpoint?.name as string | null,
-        isManaged: step.ismanaged as boolean,
-        statusCode: step.statuscode as number,
-        enabled: (step.statuscode as number) === 1,
-      };
+    // Steps that have an event handler (service endpoint) are the webhook registrations.
+    const { rows, hasMore, truncationReason } = await paginateDataverse<
+      Record<string, unknown>
+    >(this.client, {
+      endpoint:
+        'api/data/v9.2/sdkmessageprocessingsteps?$filter=_eventhandler_value ne null&$select=sdkmessageprocessingstepid,name,stage,mode,statuscode,filteringattributes,_eventhandler_value,ismanaged&$expand=sdkmessageid($select=name),sdkmessagefilterid($select=primaryobjecttypecode),eventhandler_serviceendpoint($select=name,url)&$orderby=name',
+      maxRecords,
+      keep: (row) => {
+        if (!excludeOotb) return true;
+        if (isOotbWebhook(formatWebhookRegistration(row))) {
+          ootbExcluded++;
+          return false;
+        }
+        return true;
+      },
     });
 
-    // Apply OOTB exclusion
-    let finalWebhooks = webhooks;
-    let ootbExcluded = 0;
-    if (excludeOotb) {
-      const result = filterOotb(webhooks, isOotbWebhook);
-      finalWebhooks = result.filtered;
-      ootbExcluded = result.excludedCount;
-    }
+    const finalWebhooks = rows.map(formatWebhookRegistration);
 
     // Build summary from filtered list
     const byEntity: Record<string, number> = {};
@@ -689,6 +833,12 @@ export class IntegrationAuditService {
 
     return {
       webhooks: finalWebhooks,
+      truncation: buildTruncation({
+        returnedCount: finalWebhooks.length,
+        requestedMax: maxRecords,
+        hasMore,
+        truncationReason,
+      }),
       summary: {
         total: finalWebhooks.length,
         byEntity,
@@ -711,43 +861,54 @@ export class IntegrationAuditService {
     const analyses: FlowComplexityAnalysis[] = [];
     let ootbExcluded = 0;
 
-    // Query env vars once for URL resolution
+    // One recorder for the per-flow definition fetches. Each failure used to be dropped
+    // in a bare `catch {}`, so a flow whose definition would not load vanished from the
+    // analysis and `summary.total` under-reported with nothing to show it had.
+    const definitions = new FanOutRecorder();
+
+    // Query env vars once for URL resolution. Its failure is reported rather than
+    // swallowed: without it, environment-variable references in flow URLs stay unresolved, and an
+    // unresolved URL looks the same as one that was never templated.
     let envVarMap: Map<string, string> | undefined;
+    let envVarResolutionFailure: string | undefined;
     try {
       envVarMap = await this.queryEnvironmentVariables();
-    } catch {
-      // Continue without env var resolution
+    } catch (error) {
+      envVarResolutionFailure =
+        error instanceof Error ? error.message : String(error);
     }
 
+    let listTruncation: TruncationInfo;
+
     if (flowId) {
-      // Analyze single flow
+      // Analyze single flow. The fetch itself is allowed to throw - the caller asked for
+      // this one flow - but a flow with no stored definition is recorded as a failure
+      // rather than returning an empty analysis that reads as a trivial flow.
       const flowDef = await this.flowService.getFlowDefinition(flowId, false) as Record<string, unknown>;
       const flowDefinition = flowDef.flowDefinition as Record<string, unknown>;
 
-      if (flowDefinition) {
-        const complexity = calculateFlowComplexity(flowDefinition);
-        const summary = this.flowService.parseFlowSummary(flowDefinition);
-        const urls = extractUrlsFromFlowDefinition(flowDefinition, envVarMap);
-        const secretWarnings = detectHardcodedSecrets(flowDefinition);
-        const envVars = urls
-          .filter((u) => u.environmentVariable)
-          .map((u) => u.environmentVariable!);
+      const analysis = await definitions.run(flowId, 'flow definition', async () => {
+        if (!flowDefinition) {
+          throw new Error('Flow has no stored definition (clientdata was empty)');
+        }
+        return this.analyseOneFlow(
+          flowId,
+          flowDef.name as string,
+          flowDef.state as string,
+          flowDefinition,
+          envVarMap
+        );
+      });
 
-        analyses.push({
-          id: flowId,
-          name: flowDef.name as string,
-          complexity,
-          connectors: summary.connectors as string[],
-          triggerType: summary.triggerInfo as string,
-          state: flowDef.state as string,
-          urls,
-          secretWarnings: secretWarnings.length > 0 ? secretWarnings : undefined,
-          environmentVariables: envVars.length > 0 ? [...new Set(envVars)] : undefined,
-        });
-      }
+      if (analysis) analyses.push(analysis);
+
+      listTruncation = buildTruncation({
+        returnedCount: 1,
+        requestedMax: 1,
+        hasMore: false,
+      });
     } else {
-      // Analyze all flows; maxFlows=0 means unlimited (use 5000 as safe upper bound)
-      const effectiveMax = maxFlows === 0 ? 5000 : maxFlows;
+      const effectiveMax = maxFlows === UNCAPPED ? FLOW_ANALYSIS_CEILING : maxFlows;
       const flowsResult = await this.flowService.getFlows({
         maxRecords: effectiveMax,
         excludeCustomerInsights: true,
@@ -755,44 +916,44 @@ export class IntegrationAuditService {
         excludeCopilotSales: true,
       });
 
+      // Carried up rather than discarded: `getFlows` pages and knows whether the list it
+      // returned was the population, and an analysis of the first N flows is otherwise
+      // indistinguishable from an analysis of all of them.
+      listTruncation = flowsResult.truncation;
+
       for (const flow of flowsResult.flows) {
-        // Skip managed (OOTB) flows when excludeOotb is enabled
+        // Skip managed (OOTB) flows when excludeOotb is enabled. Skipped before the
+        // recorder, because an excluded flow was never attempted.
         if (excludeOotb && flow.isManaged) {
           ootbExcluded++;
           continue;
         }
 
-        try {
-          const flowDef = await this.flowService.getFlowDefinition(
-            flow.workflowid,
-            false
-          ) as Record<string, unknown>;
-          const flowDefinition = flowDef.flowDefinition as Record<string, unknown>;
+        const analysis = await definitions.run(
+          flow.name,
+          'flow definition',
+          async () => {
+            const flowDef = await this.flowService.getFlowDefinition(
+              flow.workflowid,
+              false
+            ) as Record<string, unknown>;
+            const flowDefinition = flowDef.flowDefinition as Record<string, unknown>;
 
-          if (flowDefinition) {
-            const complexity = calculateFlowComplexity(flowDefinition);
-            const summary = this.flowService.parseFlowSummary(flowDefinition);
-            const urls = extractUrlsFromFlowDefinition(flowDefinition, envVarMap);
-            const secretWarnings = detectHardcodedSecrets(flowDefinition);
-            const envVars = urls
-              .filter((u) => u.environmentVariable)
-              .map((u) => u.environmentVariable!);
+            if (!flowDefinition) {
+              throw new Error('Flow has no stored definition (clientdata was empty)');
+            }
 
-            analyses.push({
-              id: flow.workflowid,
-              name: flow.name,
-              complexity,
-              connectors: summary.connectors as string[],
-              triggerType: summary.triggerInfo as string,
-              state: flow.state,
-              urls,
-              secretWarnings: secretWarnings.length > 0 ? secretWarnings : undefined,
-              environmentVariables: envVars.length > 0 ? [...new Set(envVars)] : undefined,
-            });
+            return this.analyseOneFlow(
+              flow.workflowid,
+              flow.name,
+              flow.state,
+              flowDefinition,
+              envVarMap
+            );
           }
-        } catch {
-          // Skip flows that fail to parse
-        }
+        );
+
+        if (analysis) analyses.push(analysis);
       }
     }
 
@@ -838,6 +999,9 @@ export class IntegrationAuditService {
 
     return {
       flows: analyses,
+      truncation: listTruncation,
+      fanOut: definitions.result(),
+      ...(envVarResolutionFailure ? { envVarResolutionFailure } : {}),
       summary: {
         total: analyses.length,
         byRiskLevel,
@@ -854,6 +1018,38 @@ export class IntegrationAuditService {
   }
 
   /**
+   * Score one flow definition. Extracted because the single-flow and all-flows branches
+   * scored it identically in two copies, and only one of the two was ever updated.
+   */
+  private analyseOneFlow(
+    id: string,
+    name: string,
+    state: string,
+    flowDefinition: Record<string, unknown>,
+    envVarMap: Map<string, string> | undefined
+  ): FlowComplexityAnalysis {
+    const complexity = calculateFlowComplexity(flowDefinition);
+    const summary = this.flowService.parseFlowSummary(flowDefinition);
+    const urls = extractUrlsFromFlowDefinition(flowDefinition, envVarMap);
+    const secretWarnings = detectHardcodedSecrets(flowDefinition);
+    const envVars = urls
+      .filter((u) => u.environmentVariable)
+      .map((u) => u.environmentVariable!);
+
+    return {
+      id,
+      name,
+      complexity,
+      connectors: summary.connectors as string[],
+      triggerType: summary.triggerInfo as string,
+      state,
+      urls,
+      secretWarnings: secretWarnings.length > 0 ? secretWarnings : undefined,
+      environmentVariables: envVars.length > 0 ? [...new Set(envVars)] : undefined,
+    };
+  }
+
+  /**
    * Generate a comprehensive integration audit report
    */
   async generateAuditReport(
@@ -863,6 +1059,11 @@ export class IntegrationAuditService {
     excludeOotb: boolean = true,
     maxRecords: number = 100
   ): Promise<IntegrationAuditReport> {
+    // Sections this report could not build at all. The environment-variable fetch used to
+    // be `.catch(() => undefined)`, so a report missing its whole env-var section looked
+    // exactly like a report of an environment with no environment variables.
+    const sectionFailures: { section: string; reason: string }[] = [];
+
     // Gather all data in parallel where possible
     const [
       endpointsResult,
@@ -875,8 +1076,30 @@ export class IntegrationAuditService {
       this.getWebhookRegistrations(maxRecords, excludeOotb),
       this.analyzeFlowComplexity(undefined, maxFlows, excludeOotb),
       this.pluginService.getPluginAssemblies(false, maxRecords),
-      this.getEnvironmentVariables(500, requiredUrlStrings, excludeOotb).catch(() => undefined),
+      this.getEnvironmentVariables(500, requiredUrlStrings, excludeOotb).catch(
+        (error: unknown) => {
+          sectionFailures.push({
+            section: 'environmentVariables',
+            reason: error instanceof Error ? error.message : String(error),
+          });
+          return undefined;
+        }
+      ),
     ]);
+
+    if (complexityResult.envVarResolutionFailure) {
+      sectionFailures.push({
+        section: 'flowUrlResolution',
+        reason: complexityResult.envVarResolutionFailure,
+      });
+    }
+
+    if (endpointsResult.summary.stepCountFailure) {
+      sectionFailures.push({
+        section: 'endpointMessageStepCounts',
+        reason: endpointsResult.summary.stepCountFailure,
+      });
+    }
 
     // Identify HTTP flows - populate targetUrls from URL extraction
     const httpFlows = complexityResult.flows
@@ -1011,7 +1234,13 @@ export class IntegrationAuditService {
     const completeness: AuditCompleteness = {
       requestedMax: maxRecords,
       pluginAssemblies: pluginAssemblies.truncation,
+      serviceEndpoints: endpointsResult.truncation,
+      webhooks: webhooksResult.truncation,
+      environmentVariables: envVarsResult?.truncation ?? null,
+      flows: complexityResult.truncation,
+      flowDefinitions: complexityResult.fanOut,
       unverified: UNVERIFIED_AUDIT_COLLECTIONS,
+      failures: sectionFailures,
     };
 
     // Generate markdown report using extracted formatter

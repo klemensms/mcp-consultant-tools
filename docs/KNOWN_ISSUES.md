@@ -111,44 +111,6 @@ behave unpredictably. Fix those first, then re-test whether a symptom remains.
 
 ---
 
-## Three `IntegrationAuditService` collections still fetch with `$top` and report no truncation
-
-**Status:** confirmed in source. **Affects:**
-`packages/powerplatform-core/src/services/IntegrationAuditService.ts` -
-`getServiceEndpoints:368`, `getEnvironmentVariables:532`, `getWebhookRegistrations:639`.
-Line numbers verified 2026-08-24; grep for `&$top=${maxRecords}` if they have drifted again.
-
-Each fetches with `&$top=${maxRecords}` and returns a summary whose `total` is the returned row
-count, with no `hasMore`, no `truncation` block and nothing else a caller could read to tell a
-capped page from a population. `gen-integration-audit` calls all three at a default cap of 100, so
-`Service Endpoints: 100` in the report can mean "there are 100" or "there are 400 and you were
-shown the first 100", and the report cannot say which. The audit's `summary.completeness.unverified`
-names these three plus flows for exactly that reason.
-
-All three also apply their OOTB exclusion **after** fetching (`filterOotb`), so filtering a full
-page below the cap makes a truncated fetch look exhausted - the client-side-filter half of the same
-defect, which `paginateDataverse`'s `keep` callback exists to close.
-
-Two more silent gaps in the same file, found in the same sweep:
-
-- **`getServiceEndpoints`' step-count query is capped at `$top=5000` and wrapped in a bare
-  `catch {}`** (line 387). When it fails or caps out, every affected endpoint reports
-  `messageStepCount: 0`, which reads as "no steps registered" rather than "not counted".
-- **`analyzeFlowComplexity` discards the `truncation` block `getFlows` now returns** (line 751) and
-  swallows every per-flow `getFlowDefinition` failure in a `catch {}` (line 794), so a flow that
-  could not be parsed vanishes from the analysis uncounted and `summary.total` under-reports with no
-  trace. Its `queryEnvironmentVariables` failure is swallowed too (line 719), which silently
-  degrades URL resolution.
-
-**Fix:** convert the three collection methods to `paginateDataverse` with the OOTB predicate moved
-into `keep`, and return a `TruncationInfo` from `buildTruncation` the way
-`PluginService.getPluginAssemblies` does. Then remove the collections from
-`UNVERIFIED_AUDIT_COLLECTIONS` as each one lands, so the report's own scope note shrinks with the
-work. For the swallowed failures, count and name them rather than dropping them - the fan-out
-recorder used by `azure-management` and `azure-defender` is the existing pattern.
-
----
-
 ## Unverified: `list-api-connections` trusts ARM's own split between secret and non-secret parameters
 
 **Status:** NOT confirmed against a live response. **Affects:**

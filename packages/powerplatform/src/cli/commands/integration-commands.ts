@@ -3,7 +3,7 @@
  */
 
 import type { Command } from 'commander';
-import { getGlobalFlags, handleCliError, truncationSuffix } from '@mcp-consultant-tools/core';
+import { fanOutSuffix, getGlobalFlags, handleCliError, truncationSuffix } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../types.js';
 import { outputResult } from '../output.js';
 
@@ -31,7 +31,14 @@ export function registerIntegrationCommands(program: Command, ctx: ServiceContex
         } else {
           const result = await ctx.pp.getServiceEndpoints(maxRecords, excludeOotb);
           outputResult(
-            { fileName: 'service-endpoints', data: result, summary: `Service endpoints: ${result.summary.total} found` },
+            {
+              fileName: 'service-endpoints',
+              data: result,
+              summary:
+                `Service endpoints: ${result.summary.total} found` +
+                `${truncationSuffix(result.truncation)}` +
+                `${result.summary.stepCountFailure ? ` [step counts unavailable: ${result.summary.stepCountFailure}]` : ''}`,
+            },
             getGlobalFlags(program)
           );
         }
@@ -47,7 +54,13 @@ export function registerIntegrationCommands(program: Command, ctx: ServiceContex
       try {
         const result = await ctx.pp.getWebhookRegistrations(parseInt(opts.max), !opts.includeOotb);
         outputResult(
-          { fileName: 'webhook-registrations', data: result, summary: `Webhook registrations: ${result.summary.total} found, ${result.summary.enabledCount} enabled` },
+          {
+            fileName: 'webhook-registrations',
+            data: result,
+            summary:
+              `Webhook registrations: ${result.summary.total} found, ${result.summary.enabledCount} enabled` +
+              `${truncationSuffix(result.truncation)}`,
+          },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'get webhook registrations'); }
@@ -69,7 +82,14 @@ export function registerIntegrationCommands(program: Command, ctx: ServiceContex
         );
         const summary = result.summary;
         outputResult(
-          { fileName: 'flow-complexity', data: result, summary: `Flow complexity: ${summary.total} flows analyzed, avg score ${summary.averageComplexity}, High/Critical: ${summary.byRiskLevel.High + summary.byRiskLevel.Critical}` },
+          {
+            fileName: 'flow-complexity',
+            data: result,
+            summary:
+              `Flow complexity: ${summary.total} flows analyzed, avg score ${summary.averageComplexity}, ` +
+              `High/Critical: ${summary.byRiskLevel.High + summary.byRiskLevel.Critical}` +
+              `${truncationSuffix(result.truncation)}${fanOutSuffix(result.fanOut)}`,
+          },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'analyze flow complexity'); }
@@ -102,6 +122,11 @@ export function registerIntegrationCommands(program: Command, ctx: ServiceContex
               `Integration audit: ${result.summary.flowCount} flows, ${result.summary.webhookCount} webhooks, ` +
               `${result.summary.serviceEndpointCount} endpoints, ${result.summary.pluginCount} plugins` +
               `${truncationSuffix(result.summary.completeness.pluginAssemblies)}` +
+              `${truncationSuffix(result.summary.completeness.serviceEndpoints)}` +
+              `${truncationSuffix(result.summary.completeness.webhooks)}` +
+              `${truncationSuffix(result.summary.completeness.flows)}` +
+              `${fanOutSuffix(result.summary.completeness.flowDefinitions)}` +
+              `${result.summary.completeness.failures.length > 0 ? ` [sections missing: ${result.summary.completeness.failures.map((f) => f.section).join(', ')}]` : ''}` +
               `${result.summary.completeness.unverified.length > 0 ? ` [completeness not verified for: ${result.summary.completeness.unverified.join(', ')}]` : ''}`,
           },
           getGlobalFlags(program)
@@ -124,7 +149,14 @@ export function registerIntegrationCommands(program: Command, ctx: ServiceContex
           !opts.includeOotb
         );
         outputResult(
-          { fileName: 'env-variables', data: result, summary: `Environment variables: ${result.summary.total} found${result.divergingVariables.length > 0 ? `, ${result.divergingVariables.length} diverging` : ''}` },
+          {
+            fileName: 'env-variables',
+            data: result,
+            summary:
+              `Environment variables: ${result.summary.total} found` +
+              `${result.divergingVariables.length > 0 ? `, ${result.divergingVariables.length} diverging` : ''}` +
+              `${truncationSuffix(result.truncation)}`,
+          },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'get environment variables'); }

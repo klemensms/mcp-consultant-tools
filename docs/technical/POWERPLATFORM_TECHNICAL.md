@@ -393,11 +393,34 @@ Validates Dataverse entities against 6 configurable rules:
 
 | Tool | Key Parameters | Returns |
 |------|---------------|---------|
-| `get-service-endpoints` | `maxRecords?` (default: 100), `requiredUrlStrings?`, `outputFormat?` (summary/full), `excludeOotb?` (default: true) | Endpoints: name, URL, contract type, auth type, step count; flagged diverging endpoints |
-| `get-webhook-registrations` | `maxRecords?` (default: 100), `excludeOotb?` (default: true) | Webhook steps: name, URL, trigger entity, message, filtering attributes, enabled status |
-| `analyze-flow-complexity` | `flowId?`, `maxFlows?` (default: 0=unlimited), `outputFormat?` (summary/full), `excludeOotb?` (default: true) | Complexity score, risk level, URL extraction, hardcoded secret detection per flow |
+| `get-service-endpoints` | `maxRecords?` (default: 100, 0=all), `requiredUrlStrings?`, `outputFormat?` (summary/full), `excludeOotb?` (default: true) | Endpoints: name, URL, contract type, auth type, step count; flagged diverging endpoints; `truncation` |
+| `get-webhook-registrations` | `maxRecords?` (default: 100, 0=all), `excludeOotb?` (default: true) | Webhook steps: name, URL, trigger entity, message, filtering attributes, enabled status; `truncation` |
+| `analyze-flow-complexity` | `flowId?`, `maxFlows?` (default: 0=all, ceiling 5,000), `outputFormat?` (summary/full), `excludeOotb?` (default: true) | Complexity score, risk level, URL extraction, hardcoded secret detection per flow; `truncation` + `fanOut` |
 | `gen-integration-audit` | `maxFlows?`, `maxRecords?` (default: 100), `requiredUrlStrings?`, `outputFormat?` (summary/full), `excludeOotb?` (default: true) | Pre-formatted Markdown report + JSON summary |
-| `get-env-variables` | `maxRecords?` (default: 500), `requiredUrlStrings?`, `outputFormat?` (summary/full), `excludeOotb?` (default: true) | Env var definitions: schema name, type, current/default values; sensitive values auto-masked |
+| `get-env-variables` | `maxRecords?` (default: 500, 0=all), `requiredUrlStrings?`, `outputFormat?` (summary/full), `excludeOotb?` (default: true) | Env var definitions: schema name, type, current/default values; sensitive values auto-masked; `truncation` |
+
+<integration-audit-completeness>
+
+**Every integration collection pages and reports whether its cap bit.** `get-service-endpoints`,
+`get-webhook-registrations`, `get-env-variables` and the flow list behind `analyze-flow-complexity`
+all follow `@odata.nextLink` via `paginateDataverse` and return a `truncation` block. The OOTB
+exclusion runs *inside* the paging loop, so `maxRecords: 100` means 100 rows returned rather than
+100 fetched and however many survived filtering. `maxRecords: 0` means all rows, up to the
+50,000-row safety ceiling; `analyze-flow-complexity` additionally stops at 5,000 flows because each
+one costs a definition fetch, and says so in its `truncation`.
+
+Three per-item failures are named rather than dropped:
+- **`messageStepCount` is `null`, not `0`, when the step-count query fails.** No steps registered
+  and nobody counted are different findings. `summary.stepCountFailure` carries the reason.
+- **A flow whose definition cannot be read appears in `fanOut.failures`.** It is absent from the
+  analysis either way, but `summary.total` short of `fanOut.attempted` is now arithmetic rather
+  than inference.
+- **`gen-integration-audit` names any section it could not build** in `summary.completeness.failures`,
+  so a report with no environment-variable section is distinguishable from an environment with no
+  environment variables. `summary.completeness` carries a `TruncationInfo` per collection, and
+  `unverified` lists any collection that still caps without reporting it (currently empty).
+
+</integration-audit-completeness>
 
 <complexity-scoring>
 

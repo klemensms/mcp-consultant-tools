@@ -10,9 +10,10 @@
  *    so every assembly reported `description: null` - which reads as "this assembly has no
  *    description" rather than "the query did not ask for it".
  *
- * The report caps three other collections it still cannot vouch for, so the completeness
- * block names them rather than implying the whole report is verified. That is asserted here
- * too: a partial guarantee read as a total one is worse than none.
+ * The report caps four other collections too, and each of those now pages and reports its
+ * own truncation, so the completeness block states every one either way. That is asserted
+ * here too: a partial guarantee read as a total one is worse than none, so `unverified`
+ * being empty has to be a claim the payload makes rather than a field that vanished.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -126,20 +127,27 @@ describe('IntegrationAuditService.generateAuditReport completeness', () => {
     expect(complete.markdownReport).not.toContain('TRUNCATED');
   });
 
-  it('names the collections whose completeness it does not verify, rather than implying it does', async () => {
+  it('vouches for every collection it caps, and says so per collection', async () => {
     const result = await report([assemblyRow(1)], 100, 100);
+    const c = result.summary.completeness;
 
-    // The report caps endpoints, webhooks, env vars and flows too, and those methods
-    // report no truncation. A completeness block that covered only assemblies while
-    // looking like it covered the report is the failure this guards.
-    expect(result.summary.completeness.unverified).toEqual([
-      'serviceEndpoints',
-      'webhooks',
-      'environmentVariables',
-      'flows',
-    ]);
-    expect(result.markdownReport).toContain('Completeness is **not verified** for');
-    expect(result.summary.completeness.requestedMax).toBe(100);
+    // A completeness block that covered only assemblies while looking like it covered the
+    // whole report is the failure this guards. Endpoints, webhooks, env vars and flows all
+    // page now, so each carries its own block and nothing is left unverified.
+    expect(c.unverified).toEqual([]);
+    expect(c.serviceEndpoints.hasMore).toBe(false);
+    expect(c.webhooks.hasMore).toBe(false);
+    expect(c.environmentVariables?.hasMore).toBe(false);
+    expect(c.flows.hasMore).toBe(false);
+    expect(c.failures).toEqual([]);
+    expect(c.requestedMax).toBe(100);
+
+    // The markdown a reader acts on states each one rather than staying silent.
+    expect(result.markdownReport).toContain('service-endpoint list is complete at');
+    expect(result.markdownReport).toContain('webhook-registration list is complete at');
+    expect(result.markdownReport).toContain('environment-variable list is complete at');
+    expect(result.markdownReport).toContain('flow list is complete at');
+    expect(result.markdownReport).not.toContain('Completeness is **not verified** for');
   });
 
   it('reports an uncapped run as uncapped rather than as a cap of zero', async () => {
