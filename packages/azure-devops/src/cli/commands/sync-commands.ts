@@ -3,7 +3,7 @@
  */
 
 import type { Command } from 'commander';
-import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
+import { fanOutSuffix, getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../types.js';
 import { outputResult } from '../output.js';
 
@@ -48,7 +48,12 @@ export function registerSyncCommands(program: Command, ctx: ServiceContext): voi
         if (result.pushed.length > 0) summary.push(`Updated ${result.pushed.length}`);
         if (result.failed.length > 0) summary.push(`Failed ${result.failed.length}`);
         outputResult(
-          { persist: false, fileName: `sync-push-${project}`, data: result, summary: summary.join(', ') || 'No changes pushed' },
+          {
+            persist: false,
+            fileName: `sync-push-${project}`,
+            data: result,
+            summary: (summary.join(', ') || 'No changes pushed') + fanOutSuffix(result.imagePushes),
+          },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'sync work items from file'); }
@@ -78,7 +83,11 @@ export function registerSyncCommands(program: Command, ctx: ServiceContext): voi
       try {
         const result = await ctx.sync.listSyncedWorkItems(opts.folder);
         outputResult(
-          { fileName: `sync-list`, data: result, summary: `Synced work items in ${result.folder}` },
+          {
+            fileName: `sync-list`,
+            data: result,
+            summary: `Synced work items in ${result.folder}: ${result.count} file(s)` + fanOutSuffix(result.fanOut),
+          },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'list synced work items'); }
@@ -130,7 +139,11 @@ export function registerSyncCommands(program: Command, ctx: ServiceContext): voi
         const ids = parentIds.map(id => parseInt(id, 10));
         const result = await ctx.sync.syncTasksToFile(project, ids, opts.folder, opts.skipAutoConvert);
         outputResult(
-          { fileName: `sync-pull-tasks`, data: result, summary: `Synced tasks for ${result.pulled?.length || 0} parent(s)` },
+          {
+            fileName: `sync-pull-tasks`,
+            data: result,
+            summary: `Synced tasks for ${result.pulled?.length || 0} parent(s)` + fanOutSuffix(result.fanOut),
+          },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'sync tasks to file'); }

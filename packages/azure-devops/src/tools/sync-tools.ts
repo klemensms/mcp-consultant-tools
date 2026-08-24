@@ -1,6 +1,7 @@
 /**
  * Sync Tools - 8 tools for work item sync and task sync operations
  */
+import { fanOutSuffix } from '@mcp-consultant-tools/core';
 import { z } from 'zod';
 import {
   descWithExamples,
@@ -82,7 +83,10 @@ export function registerSyncTools(server: any, ctx: ServiceContext): void {
         if (result.failed.length > 0) summary.push(`Failed: ${result.failed.length}`);
 
         return {
-          content: [{ type: "text", text: `${summary.join(', ')}:\n\n${JSON.stringify(result, null, 2)}` }],
+          content: [{
+            type: "text",
+            text: `${summary.join(', ')}${fanOutSuffix(result.imagePushes)}:\n\n${JSON.stringify(result, null, 2)}`,
+          }],
         };
       } catch (error: any) {
         console.error("Error syncing work items from files:", error);
@@ -121,7 +125,12 @@ export function registerSyncTools(server: any, ctx: ServiceContext): void {
     async ({ folder }: any) => {
       try {
         const result = await ctx.sync.listSyncedWorkItems(folder);
-        return { content: [{ type: "text", text: `Synced work items in ${result.folder}:\n\n${JSON.stringify(result, null, 2)}` }] };
+        return {
+          content: [{
+            type: "text",
+            text: `Synced work items in ${result.folder}: ${result.count} file(s)${fanOutSuffix(result.fanOut)}\n\n${JSON.stringify(result, null, 2)}`,
+          }],
+        };
       } catch (error: any) {
         console.error("Error listing synced work items:", error);
         return { content: [{ type: "text", text: `Failed to list synced work items: ${error.message}` }] };
@@ -194,7 +203,10 @@ export function registerSyncTools(server: any, ctx: ServiceContext): void {
       try {
         const result = await ctx.sync.syncTasksToFile(project, parentIds, folder, skipAutoConvert);
         return {
-          content: [{ type: "text", text: `Synced tasks for ${result.pulled.length} parent(s) to local files:\n\n${JSON.stringify(result, null, 2)}` }],
+          content: [{
+            type: "text",
+            text: `Synced tasks for ${result.pulled.length} parent(s) to local files${fanOutSuffix(result.fanOut)}:\n\n${JSON.stringify(result, null, 2)}`,
+          }],
         };
       } catch (error: any) {
         console.error("Error syncing tasks to files:", error);

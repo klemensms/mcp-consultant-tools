@@ -5,6 +5,7 @@
  * All runs are created with isAutomated: true to bypass the Test Plan requirement.
  */
 
+import { FanOutRecorder, type FanOutInfo } from '@mcp-consultant-tools/core';
 import type { AzureDevOpsClient } from '../azure-devops-client.js';
 import type { WorkItemService } from './work-item-service.js';
 
@@ -26,7 +27,17 @@ export class TestService {
       testCaseIds?: number[];
       buildId?: number;
     }
-  ): Promise<{ runId: number; name: string; url: string; webAccessUrl: string }> {
+  ): Promise<{
+    runId: number;
+    name: string;
+    url: string;
+    webAccessUrl: string;
+    /**
+     * The per-case hyperlink updates. A case that failed to link is absent from the run,
+     * so a run created with two of three cases is not a run created cleanly.
+     */
+    linkedTestCases: FanOutInfo;
+  }> {
     this.client.validateProject(project);
 
     const body: any = {
@@ -45,26 +56,28 @@ export class TestService {
     const webAccessUrl = response.webAccessUrl ||
       `https://dev.azure.com/${this.client.organization}/${encodeURIComponent(project)}/_testManagement/runs?runId=${runId}&_a=runCharts`;
 
-    // Link test cases to run via hyperlinks (workaround for missing artifact link support)
+    // Link test cases to run via hyperlinks (workaround for missing artifact link support).
+    // A case that fails to link is absent from the run, so the failure goes in the payload
+    // rather than only on stderr: a run missing half its cases used to be returned as if
+    // it had been created cleanly.
+    const linkedTestCases = new FanOutRecorder();
+
     if (options?.testCaseIds && options.testCaseIds.length > 0) {
       const dateStr = new Date().toISOString().split('T')[0];
       for (const testCaseId of options.testCaseIds) {
-        try {
-          await this.workItem.updateWorkItem(project, testCaseId, [
+        await linkedTestCases.run(String(testCaseId), 'link to run', () =>
+          this.workItem.updateWorkItem(project, testCaseId, [
             {
               op: 'add',
               path: '/relations/-',
               value: {
                 rel: 'Hyperlink',
                 url: webAccessUrl,
-                attributes: { comment: `Test Run #${runId} — ${name} (${dateStr})` },
+                attributes: { comment: `Test Run #${runId} - ${name} (${dateStr})` },
               },
             },
-          ]);
-        } catch (err: any) {
-          // Non-fatal: log but don't fail the run creation
-          console.error(`Warning: failed to link test case #${testCaseId} to run #${runId}: ${err.message}`);
-        }
+          ])
+        );
       }
     }
 
@@ -73,6 +86,7 @@ export class TestService {
       name: response.name,
       url: response.url,
       webAccessUrl,
+      linkedTestCases: linkedTestCases.result(),
     };
   }
 
@@ -229,7 +243,15 @@ export class TestService {
   async getTestCaseHistory(
     project: string,
     testCaseId: number
-  ): Promise<Array<{ runId: number; runName: string; outcome: string; completedDate: string; url: string }>> {
+  ): Promise<{
+    history: Array<{ runId: number; runName: string; outcome: string; completedDate: string; url: string }>;
+    /**
+     * The per-run results reads. A run whose results could not be read is named here
+     * rather than skipped, because a short history reads as "this case has not been run
+     * recently" and that is the wrong conclusion to hand someone.
+     */
+    fanOut: FanOutInfo;
+  }> {
     this.client.validateProject(project);
 
     // Get recent completed runs (last 100)
@@ -239,32 +261,36 @@ export class TestService {
 
     const runs = runsResponse.value || [];
     const history: Array<{ runId: number; runName: string; outcome: string; completedDate: string; url: string }> = [];
+    const reads = new FanOutRecorder();
 
     // Check each run for results referencing this test case
     for (const run of runs) {
-      try {
-        const resultsResponse = await this.client.get<any>(
-          `${project}/_apis/test/runs/${run.id}/results?api-version=7.0`
-        );
-        const results = resultsResponse.value || [];
-        const match = results.find((r: any) => r.testCase?.id === testCaseId);
-        if (match) {
-          history.push({
-            runId: run.id,
-            runName: run.name,
-            outcome: match.outcome,
-            completedDate: run.completedDate || '',
-            url: run.webAccessUrl || run.url,
-          });
+      const match = await reads.run(
+        run.name ?? `Run ${run.id}`,
+        'read run results',
+        async () => {
+          const resultsResponse = await this.client.get<any>(
+            `${project}/_apis/test/runs/${run.id}/results?api-version=7.0`
+          );
+          const results = resultsResponse.value || [];
+          return results.find((r: any) => r.testCase?.id === testCaseId) ?? null;
         }
-      } catch {
-        // Skip runs we can't read results for
+      );
+
+      if (match) {
+        history.push({
+          runId: run.id,
+          runName: run.name,
+          outcome: match.outcome,
+          completedDate: run.completedDate || '',
+          url: run.webAccessUrl || run.url,
+        });
       }
     }
 
     // Sort by completedDate descending
     history.sort((a, b) => (b.completedDate || '').localeCompare(a.completedDate || ''));
-    return history;
+    return { history, fanOut: reads.result() };
   }
 
   /**

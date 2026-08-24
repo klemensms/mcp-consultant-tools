@@ -8,6 +8,7 @@
  * Uses _apis/test/ (Basic license), not _apis/testplan/ (requires Test Plans license).
  * All runs set isAutomated: true to bypass the Test Plan requirement.
  */
+import { fanOutSuffix } from '@mcp-consultant-tools/core';
 import { z } from 'zod';
 import { zCoerceNumber, zCoerceNumberArray } from '../schemas.js';
 import type { ServiceContext } from '../types.js';
@@ -200,17 +201,24 @@ export function registerTestTools(server: any, ctx: ServiceContext): void {
     { readOnlyHint: true, openWorldHint: true },
     async ({ project, testCaseId }: any) => {
       try {
-        const history = await ctx.test.getTestCaseHistory(project, testCaseId);
+        const { history, fanOut } = await ctx.test.getTestCaseHistory(project, testCaseId);
         if (history.length === 0) {
-          return { content: [{ type: "text", text: `No test run history found for Test Case #${testCaseId}` }] };
+          // "No history" and "some runs could not be checked" are different answers, and
+          // the empty case is exactly where the difference matters most.
+          return {
+            content: [{
+              type: "text",
+              text: `No test run history found for Test Case #${testCaseId}${fanOutSuffix(fanOut)}`,
+            }],
+          };
         }
         const lines = history.map(h =>
-          `${h.outcome === 'Passed' ? 'PASS' : h.outcome === 'Failed' ? 'FAIL' : h.outcome} — Run #${h.runId} "${h.runName}" (${h.completedDate.split('T')[0]})`
+          `${h.outcome === 'Passed' ? 'PASS' : h.outcome === 'Failed' ? 'FAIL' : h.outcome} - Run #${h.runId} "${h.runName}" (${h.completedDate.split('T')[0]})`
         );
         return {
           content: [{
             type: "text",
-            text: `Test history for Test Case #${testCaseId} (${history.length} runs):\n\n${lines.join('\n')}`,
+            text: `Test history for Test Case #${testCaseId} (${history.length} runs)${fanOutSuffix(fanOut)}:\n\n${lines.join('\n')}`,
           }],
         };
       } catch (error: any) {

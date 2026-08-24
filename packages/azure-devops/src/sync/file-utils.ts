@@ -4,6 +4,7 @@
  * Handles file operations: reading, writing, path resolution, and folder scanning.
  */
 
+import { FanOutRecorder, type FanOutInfo } from '@mcp-consultant-tools/core';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { parseWorkItemMarkdown, ParsedWorkItemFile } from './markdown-serializer.js';
@@ -104,21 +105,29 @@ export async function readFileContent(filePath: string): Promise<string> {
 
 /**
  * List synced work item files in a folder
- * Returns list of parsed frontmatter from each file
+ * Returns list of parsed frontmatter from each file, plus what could not be read.
+ *
+ * A file that will not parse used to be skipped with a stderr warning, so the list - and
+ * the `count` the sync tools print from it - was silently short. `fanOut` names each one,
+ * because a folder with a corrupt file is not a folder with one fewer work item.
  */
 export async function listSyncedWorkItems(folder: string): Promise<{
-  id: number;
-  title: string;
-  state: string;
-  revision: number;
-  hasComments: boolean;
-  filePath: string;
-}[]> {
+  workItems: {
+    id: number;
+    title: string;
+    state: string;
+    revision: number;
+    hasComments: boolean;
+    filePath: string;
+  }[];
+  fanOut: FanOutInfo;
+}> {
   const config = getSyncConfig(folder);
+  const reads = new FanOutRecorder();
 
   // Check if folder exists
   if (!await fileExists(config.folder)) {
-    return [];
+    return { workItems: [], fanOut: reads.result() };
   }
 
   // List all .md files
@@ -148,27 +157,29 @@ export async function listSyncedWorkItems(folder: string): Promise<{
     const id = parseInt(idMatch[1], 10);
     const filePath = path.join(config.folder, file);
 
-    try {
+    const entry = await reads.run(filePath, 'parse work-item file', async () => {
       const parsed = await readWorkItemFile(filePath);
       const commentsPath = getCommentsFilePath(config.folder, id);
       const hasComments = await fileExists(commentsPath);
 
-      workItems.push({
+      return {
         id,
         title: parsed.frontmatter.title,
         state: parsed.frontmatter.state,
         revision: parsed.frontmatter.lastSyncedRevision,
         hasComments,
         filePath,
-      });
-    } catch (error: any) {
-      // Skip files that can't be parsed
-      console.error(`Warning: Could not parse ${filePath}: ${error.message}`);
-    }
+      };
+    });
+
+    if (entry !== null) workItems.push(entry);
   }
 
   // Sort by ID
-  return workItems.sort((a, b) => a.id - b.id);
+  return {
+    workItems: workItems.sort((a, b) => a.id - b.id),
+    fanOut: reads.result(),
+  };
 }
 
 /**

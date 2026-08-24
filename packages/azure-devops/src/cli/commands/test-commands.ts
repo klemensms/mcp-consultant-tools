@@ -3,7 +3,7 @@
  */
 
 import type { Command } from 'commander';
-import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
+import { fanOutSuffix, getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../types.js';
 import { outputResult } from '../output.js';
 
@@ -109,9 +109,15 @@ export function registerTestCommands(program: Command, ctx: ServiceContext): voi
     .argument('<testCaseId>', 'Test Case work item ID')
     .action(async (project: string, testCaseId: string) => {
       try {
-        const history = await ctx.test.getTestCaseHistory(project, parseInt(testCaseId));
+        const result = await ctx.test.getTestCaseHistory(project, parseInt(testCaseId));
         outputResult(
-          { fileName: `test-case-${testCaseId}-history`, data: history, summary: `Found ${history.length} run(s) for Test Case #${testCaseId}` },
+          {
+            fileName: `test-case-${testCaseId}-history`,
+            data: result,
+            summary:
+              `Found ${result.history.length} run(s) for Test Case #${testCaseId}` +
+              `${fanOutSuffix(result.fanOut)}`,
+          },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'get test case history'); }

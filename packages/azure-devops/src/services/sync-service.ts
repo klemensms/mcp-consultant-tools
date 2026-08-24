@@ -4,6 +4,7 @@
  * Wraps sync/ utilities and coordinates with WorkItemService for
  * local file <-> ADO synchronization.
  */
+import { FanOutRecorder } from '@mcp-consultant-tools/core';
 import type { WorkItemService } from './work-item-service.js';
 import {
   checkFieldFormats,
@@ -232,10 +233,15 @@ export class SyncService {
     const syncConfig = getSyncConfig(folder);
     validateFolderPath(syncConfig.folder);
 
-    const pushed: { id: number; oldRevision: number; newRevision: number; fieldsUpdated: string[]; convertedFields?: string[]; images?: { uploaded: number; reused: number; failed: number } }[] = [];
-    const partial: { id: number; oldRevision: number; newRevision: number; fieldsUpdated: string[]; skippedFields: string[]; convertedFields?: string[]; images?: { uploaded: number; reused: number; failed: number } }[] = [];
+    const pushed: { id: number; oldRevision: number; newRevision: number; fieldsUpdated: string[]; convertedFields?: string[]; images?: { uploaded: number; reused: number; failed: number; pushFailed?: string } }[] = [];
+    const partial: { id: number; oldRevision: number; newRevision: number; fieldsUpdated: string[]; skippedFields: string[]; convertedFields?: string[]; images?: { uploaded: number; reused: number; failed: number; pushFailed?: string } }[] = [];
     const created: { id: number; oldFile: string; newFile: string; parentId?: number }[] = [];
     const failed: { id?: number; file?: string; error: string }[] = [];
+
+    // Image pushes fan out per work item. A push that threw used to leave `imageStats`
+    // undefined and the item was reported as pushed cleanly, so a push that left every
+    // image behind looked identical to a push with no images in it.
+    const imagePushes = new FanOutRecorder();
 
     // Step 1: Auto-detect and process new_*.md files
     const newFiles = await findNewWorkItemFiles(syncConfig.folder);
@@ -331,18 +337,27 @@ export class SyncService {
         // Image push: rewrite local image refs in parsed content.
         //   - Manifest hit → reuse the original ADO URL (no upload).
         //   - New local file → upload, append to manifest, rewrite to new URL.
-        let imageStats: { uploaded: number; reused: number; failed: number } | undefined;
-        try {
-          const imgResult = await pushWorkItemImages(parsed, workItemId, project, syncConfig.folder, this.workItemService);
-          if (imgResult.uploaded || imgResult.reused || imgResult.failed.length) {
-            imageStats = {
-              uploaded: imgResult.uploaded,
-              reused: imgResult.reused,
-              failed: imgResult.failed.length,
-            };
-          }
-        } catch (imgError: any) {
-          console.error(`Image push failed for #${workItemId}: ${imgError.message}`);
+        let imageStats: { uploaded: number; reused: number; failed: number; pushFailed?: string } | undefined;
+        const before = imagePushes.result().failed;
+        const imgResult = await imagePushes.run(String(workItemId), 'push images', () =>
+          pushWorkItemImages(parsed, workItemId, project, syncConfig.folder, this.workItemService)
+        );
+
+        if (imgResult === null) {
+          // Recorded on the item as well as in the fan-out, because the per-item entry is
+          // what a caller reads when deciding whether this push landed.
+          imageStats = {
+            uploaded: 0,
+            reused: 0,
+            failed: 0,
+            pushFailed: imagePushes.result().failures[before]?.reason ?? 'unknown',
+          };
+        } else if (imgResult.uploaded || imgResult.reused || imgResult.failed.length) {
+          imageStats = {
+            uploaded: imgResult.uploaded,
+            reused: imgResult.reused,
+            failed: imgResult.failed.length,
+          };
         }
 
         const { operations, skippedFields, convertedFields } = buildPatchOperations(parsed, currentWorkItem, skipAutoConvert);
@@ -397,7 +412,7 @@ export class SyncService {
       }
     }
 
-    return { created, pushed, partial, failed, folder: syncConfig.folder };
+    return { created, pushed, partial, failed, folder: syncConfig.folder, imagePushes: imagePushes.result() };
   }
 
   async checkWorkItemMarkdown(project: string, workItemIds: number[]): Promise<any> {
@@ -455,12 +470,13 @@ export class SyncService {
     const syncConfig = getSyncConfig(folder);
     validateFolderPath(syncConfig.folder);
 
-    const workItems = await listSyncedWorkItems(syncConfig.folder);
+    const { workItems, fanOut } = await listSyncedWorkItems(syncConfig.folder);
 
     return {
       workItems,
       folder: syncConfig.folder,
       count: workItems.length,
+      fanOut,
     };
   }
 
@@ -513,9 +529,14 @@ export class SyncService {
     const syncConfig = getSyncConfig(folder);
     validateFolderPath(syncConfig.folder);
 
-    const pulled: { parentId: number; file: string; taskCount: number }[] = [];
+    const pulled: { parentId: number; file: string; taskCount: number; tasksUnreadable?: number }[] = [];
     const failed: { parentId: number; error: string }[] = [];
     const filesToCommit: { filePath: string; workItemId: number }[] = [];
+
+    // One recorder across every parent's children. A task that could not be fetched used to
+    // be logged to stderr and left out, so both the file and its `taskCount` came back
+    // short with nothing to show they had.
+    const taskFetches = new FanOutRecorder();
 
     await ensureFolderExists(syncConfig.folder);
 
@@ -527,25 +548,34 @@ export class SyncService {
         const queryResult = await this.workItemService.queryWorkItems(project, wiql, 200);
 
         const tasks: any[] = [];
+        const unreadable: { id: string; reason: string }[] = [];
+
         if (queryResult.workItems && queryResult.workItems.length > 0) {
           for (const wi of queryResult.workItems) {
-            try {
-              let task = await this.workItemService.getWorkItem(project, wi.id);
+            const before = taskFetches.result().failed;
 
-              const description = task.fields?.['System.Description'];
+            const task = await taskFetches.run(String(wi.id), 'fetch task', async () => {
+              const fetched = await this.workItemService.getWorkItem(project, wi.id);
+
+              const description = fetched.fields?.['System.Description'];
               if (description && !skipAutoConvert && isHtmlContent(description)) {
-                // Convert in memory only — never write the conversion back to ADO.
-                convertFieldsToMarkdownInMemory(task.fields, ['System.Description']);
+                // Convert in memory only - never write the conversion back to ADO.
+                convertFieldsToMarkdownInMemory(fetched.fields, ['System.Description']);
               }
 
+              return fetched;
+            });
+
+            if (task !== null) {
               tasks.push(task);
-            } catch (taskError: any) {
-              console.error(`Error fetching task ${wi.id}:`, taskError.message);
+            } else {
+              const failure = taskFetches.result().failures[before];
+              unreadable.push({ id: String(wi.id), reason: failure?.reason ?? 'unknown' });
             }
           }
         }
 
-        const markdown = tasksToMarkdown(parentWorkItem, tasks, project);
+        const markdown = tasksToMarkdown(parentWorkItem, tasks, project, unreadable);
         const filePath = getTasksFilePath(syncConfig.folder, parentId);
         await writeWorkItemFile(filePath, markdown);
 
@@ -553,6 +583,7 @@ export class SyncService {
           parentId,
           file: filePath,
           taskCount: tasks.length,
+          ...(unreadable.length > 0 ? { tasksUnreadable: unreadable.length } : {}),
         });
         filesToCommit.push({ filePath, workItemId: parentId });
       } catch (error: any) {
@@ -566,7 +597,7 @@ export class SyncService {
       committed = commitResult.committed;
     }
 
-    return { pulled, failed, folder: syncConfig.folder, committed };
+    return { pulled, failed, folder: syncConfig.folder, committed, fanOut: taskFetches.result() };
   }
 
   async syncTasksFromFile(

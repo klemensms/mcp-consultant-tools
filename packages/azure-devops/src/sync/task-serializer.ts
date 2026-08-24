@@ -149,7 +149,13 @@ function parseYamlValue(value: string): any {
 export function tasksToMarkdown(
   parentWorkItem: any,
   tasks: any[],
-  project: string
+  project: string,
+  /**
+   * Child tasks that exist on the parent but could not be fetched. Rendered as a warning
+   * rather than omitted, because the person editing this file is about to push it back and
+   * a task missing from the file is a task they will not know they left behind.
+   */
+  unreadable: { id: string; reason: string }[] = []
 ): string {
   const parentFields = parentWorkItem.fields || {};
 
@@ -163,6 +169,14 @@ export function tasksToMarkdown(
   let content = serializeFrontmatter(frontmatter);
   content += `\n\n# Tasks for User Story #${parentWorkItem.id}\n\n`;
   content += `> **Note**: This file supports upsert - edit existing tasks or add new ones below.\n\n`;
+
+  if (unreadable.length > 0) {
+    content += `> ⚠️ **${unreadable.length} child task(s) could not be read** and are missing from this file. Do not treat it as the complete task list for this story:\n`;
+    for (const failure of unreadable) {
+      content += `> - Task #${failure.id}: ${failure.reason}\n`;
+    }
+    content += `\n`;
+  }
 
   if (tasks.length === 0) {
     content += `_No tasks found for this User Story._\n\n`;
