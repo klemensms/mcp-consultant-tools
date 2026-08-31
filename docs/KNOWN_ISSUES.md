@@ -33,34 +33,6 @@ nothing. This is a release-shaped change spanning eighteen packages and two majo
 
 ---
 
-## `ValidationService.validateBestPractices` truncates its entity list and says nothing
-
-**Status:** confirmed in source. **Affects:**
-`packages/powerplatform-core/src/services/ValidationService.ts:112`.
-Line number verified 2026-08-24; grep for `maxEntities > 0` if it has drifted again.
-
-The solution-scoped path builds the entity list one `EntityDefinitions` read at a time, then applies
-the cap client-side and discards the surplus with no flag anywhere in the returned shape:
-
-```ts
-if (maxEntities > 0 && entities.length > maxEntities) {
-  entities = entities.slice(0, maxEntities);
-}
-```
-
-Nothing in `EntityValidationResult` or the aggregate report records that a cap was hit, so a
-validation report over the first `maxEntities` tables of a large solution is indistinguishable from
-one that covered the whole solution. This is the same false-completeness class as the `$top`
-defects, arriving by a different route: there is no `hasMore` field to get wrong because there is no
-`hasMore` field at all.
-
-**Fix:** return a `TruncationInfo` block built by `buildTruncation` from `@mcp-consultant-tools/core`
-alongside the results. The paging contract in
-`packages/powerplatform-core/src/services/paginate.ts` is the pattern; the reads that populate the
-list already report their failures through `result.fanOut`, so only the cap is unaccounted for.
-
----
-
 ## Unverified: `list-api-connections` trusts ARM's own split between secret and non-secret parameters
 
 **Status:** NOT confirmed against a live response. **Affects:**

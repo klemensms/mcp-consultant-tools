@@ -45,6 +45,13 @@ export function formatBestPracticesReport(result: BestPracticesValidationResult)
   if (result.summary.entitiesNotFullyChecked > 0) {
     sections.push(`| **Not fully checked** | **${result.summary.entitiesNotFullyChecked}** |`);
   }
+  if (result.truncation.hasMore) {
+    sections.push(
+      `| **Entities not validated (cap)** | **${
+        (result.truncation.totalAvailable ?? 0) - result.truncation.returnedCount
+      } of ${result.truncation.totalAvailable}** |`
+    );
+  }
   sections.push('');
 
   appendReadFailures(sections, result);
@@ -320,6 +327,11 @@ export function formatQuickSummary(result: BestPracticesValidationResult): strin
       `Not fully checked: ${result.summary.entitiesNotFullyChecked} (a rule could not be run - do not read this pass as clean)`
     );
   }
+  if (result.truncation.hasMore) {
+    lines.push(
+      `Capped at maxEntities=${result.truncation.requestedMax}: ${result.truncation.returnedCount} of ${result.truncation.totalAvailable} entities validated - this pass does not cover the solution`
+    );
+  }
   lines.push(`Execution Time: ${result.metadata.executionTimeMs}ms`);
 
   return lines.join('\n');
@@ -369,18 +381,33 @@ function appendReadFailures(
  *
  * The summary line is usually the only part of a validation run read before someone
  * concludes "clean", so the warning has to travel on it rather than sit in the payload.
+ *
+ * Covers both ways a pass can fall short: reads that were attempted and failed
+ * (`fanOut`), and entities the `maxEntities` cap meant were never attempted
+ * (`truncation`). A capped pass is not a complete one, so it must not return empty.
  */
 export function validationFanOutSuffix(result: BestPracticesValidationResult): string {
   const f = result.fanOut;
   const failed =
     f.entityDiscovery.failed + f.entityValidation.failed + f.optionSetLookups.failed;
-  if (failed === 0 && result.summary.entitiesNotFullyChecked === 0) return '';
+  if (
+    failed === 0 &&
+    result.summary.entitiesNotFullyChecked === 0 &&
+    !result.truncation.hasMore
+  ) {
+    return '';
+  }
 
   const parts: string[] = [];
   if (failed > 0) parts.push(`${failed} read(s) failed`);
   if (result.summary.entitiesNotFullyChecked > 0) {
     parts.push(`${result.summary.entitiesNotFullyChecked} entit(ies) not fully checked`);
   }
+  if (result.truncation.hasMore) {
+    parts.push(
+      `capped at ${result.truncation.returnedCount} of ${result.truncation.totalAvailable} entities`
+    );
+  }
 
-  return ` [INCOMPLETE: ${parts.join(', ')}. See fanOut - do not read this pass as clean]`;
+  return ` [INCOMPLETE: ${parts.join(', ')}. See fanOut and truncation - do not read this pass as clean]`;
 }

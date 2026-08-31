@@ -4,7 +4,7 @@
  * Read-only service for validating entities against best practices.
  */
 
-import { FanOutRecorder } from '@mcp-consultant-tools/core';
+import { buildTruncation, FanOutRecorder, UNCAPPED } from '@mcp-consultant-tools/core';
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
 import type {
   ApiCollectionResponse,
@@ -51,6 +51,9 @@ export class ValidationService {
     const optionSetLookups = new FanOutRecorder();
 
     let entities: string[] = [];
+    // The population the cap was applied to. Counted, not estimated: the solution's
+    // components are fully enumerated before the slice below discards any of them.
+    let discoveredEntityCount = 0;
     let solutionFriendlyName: string | undefined;
 
     // STEP 1: Discover entities
@@ -108,15 +111,20 @@ export class ValidationService {
         }
       }
 
-      // Apply max entities limit
+      discoveredEntityCount = entities.length;
+
+      // Apply max entities limit. The surplus is dropped here and reported through the
+      // `truncation` block, so a capped pass cannot be read as a complete one.
       if (maxEntities > 0 && entities.length > maxEntities) {
         entities = entities.slice(0, maxEntities);
       }
     } else if (entityLogicalNames) {
-      // Use explicit entity list
+      // Use explicit entity list. No cap applies on this path: the caller named the
+      // tables, so there is no population beyond what was asked for.
       entities = entityLogicalNames.filter((name) =>
         name.startsWith(publisherPrefix)
       );
+      discoveredEntityCount = entities.length;
     } else {
       throw new Error(
         'Either solutionUniqueName or entityLogicalNames must be provided'
@@ -258,6 +266,18 @@ export class ValidationService {
         entityDiscovery: entityDiscovery.result(),
         entityValidation: entityValidation.result(),
         optionSetLookups: optionSetLookups.result(),
+      },
+      truncation: {
+        ...buildTruncation({
+          returnedCount: entities.length,
+          requestedMax: solutionUniqueName ? maxEntities : UNCAPPED,
+          hasMore: entities.length < discoveredEntityCount,
+          truncationReason: 'requestedMax',
+        }),
+        // buildTruncation nulls this whenever the fetch stopped short, because a paged
+        // read genuinely does not know the total. This cap is different: it is applied
+        // after the enumeration finished, so the population is a count we hold.
+        totalAvailable: discoveredEntityCount,
       },
       violationsSummary,
       entities: results,

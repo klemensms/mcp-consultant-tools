@@ -14,6 +14,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## Reporting defects and ideas
+
+**Never raise a GitHub issue against this repo.** We build, maintain, fix and deploy every MCP consultant tool on this machine, so a defect or feature idea is reported in chat and fixed here, in the same session. An issue would only be a note to ourselves in a slower place.
+
 ## Project Overview
 
 MCP server providing intelligent access to Microsoft PowerPlatform/Dataverse, Azure DevOps, Figma, Application Insights, Log Analytics, Azure SQL, Service Bus, SharePoint, GitHub Enterprise, Azure B2C, Azure Storage, and Microsoft Fabric through an MCP-compatible interface.

@@ -75,7 +75,10 @@ Run both. `getFlowRuns` spelled its cap `$top=${limit + 1}` inline in the URL, w
 survived two separate counts of the defect - a grep for one spelling misses it.
 
 A cap enforced by slicing a list client-side counts as the same defect even with no `hasMore` field
-in sight. `ValidationService` still does this; it is recorded in `docs/KNOWN_ISSUES.md`.
+in sight. `ValidationService.validateBestPractices` does slice, and reports it: the enumeration
+finishes before the slice, so its `truncation` block carries a real `totalAvailable` rather than the
+null a paged read would give. If you add another client-side cap, follow that pattern and put the
+warning on the summary line too - `validationFanOutSuffix` is where a reader actually sees it.
 
 ## File Size Management
 

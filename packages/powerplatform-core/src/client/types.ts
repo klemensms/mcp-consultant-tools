@@ -106,6 +106,18 @@ export interface BestPracticesValidationResult {
     /** Per-attribute option-set expansions behind the Option Set Scope rule. */
     optionSetLookups: FanOutInfo;
   };
+  /**
+   * Whether the `maxEntities` cap left tables in the solution unvalidated.
+   *
+   * Distinct from `fanOut`, which counts reads that were attempted and failed. A capped
+   * table was never attempted, so it appears in neither `fanOut` nor `entities`, and
+   * without this block a partial pass is indistinguishable from a complete one.
+   *
+   * `totalAvailable` is populated here rather than nulled, because the cap is applied
+   * client-side after the solution's components have been fully enumerated: the
+   * population is counted, not estimated.
+   */
+  truncation: TruncationInfo;
   violationsSummary: ViolationSummaryByRule[];
   entities: EntityValidationResult[];
   statistics: {
