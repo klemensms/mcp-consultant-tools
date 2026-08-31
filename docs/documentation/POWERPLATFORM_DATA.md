@@ -136,13 +136,13 @@ See [pii-protection.md](pii-protection.md) for config schema and [PII_PROTECTION
 - **Lookup fields use `@odata.bind` syntax:** `"parentaccountid@odata.bind": "/accounts(<guid>)"`. Use `get-lookup-target` to discover the correct plural entity name and syntax for a given lookup field.
 - **`get-entity-metadata` returns `EntitySetName`:** Required to know the correct plural entity name for all data tools (e.g., `accounts`, `contacts`). Use this before performing CRUD operations on unfamiliar entities.
 - **All write operations are audit-logged:** Create, update, delete, and action executions are logged with timestamps, parameters, and execution time.
-- **PII protection is opt-in:** off by default; set `PII_PROTECTION=true` to redact. There is no environment-type gate — the server starts without it. Keeping PII protection on in production is a policy expectation the operator enforces; the "looks unprotected" heuristic exists in code but is not currently wired into startup, so the server does not warn or block.
+- **PII protection is opt-in:** off by default; set `PII_PROTECTION=true` to redact. There is no environment-type gate — the server starts without it. Keeping PII protection on in production is a policy expectation the operator enforces; the "looks unprotected" heuristic warns on stderr at startup when `POWERPLATFORM_URL` matches no non-prod hint, but it never blocks.
 
 ## Coming later (not yet active)
 
 | Variable | Status |
 |----------|--------|
-| `MCP_ENVIRONMENT_TYPE` | **Currently inert — has no runtime effect.** The server fixes the PII environment type to `production` internally and does not read this variable. It survives only inside a stderr warning string (and that warning is itself not yet wired into startup). Documented here so the intended configuration surface isn't lost; setting it today does nothing. |
+| `MCP_ENVIRONMENT_TYPE` | **Inert: has no runtime effect.** The server fixes the PII environment type to `production` internally and does not read this variable. The "looks unprotected" startup warning does fire, but it works off `POWERPLATFORM_URL`, not this variable. Documented here so the intended configuration surface isn't lost; setting it today does nothing. |
 
 ## Related Packages
 

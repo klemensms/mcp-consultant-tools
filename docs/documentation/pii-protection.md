@@ -34,7 +34,7 @@ PII_CONFIG_PATH=                    # optional: path to JSON config with field r
 | unset / `false` | pipeline off — raw data flows to the LLM (server starts normally) |
 | `true` | redaction active on every response |
 
-The pipeline is **off unless you turn it on** — there is no environment-type gate. **When protection is off against a production environment, raw data is sent to the LLM — set `PII_PROTECTION=true` to prevent that.** (Earlier v31 betas made these flags mandatory with a refuse-to-start gate; v32 relaxed that to pure opt-in.) The startup safety-net warning that flags a config that "looks unprotected" against a production environment is designed but not yet wired — see [Coming later (not yet active)](#coming-later-not-yet-active).
+The pipeline is **off unless you turn it on** — there is no environment-type gate. **When protection is off against a production environment, raw data is sent to the LLM — set `PII_PROTECTION=true` to prevent that.** (Earlier v31 betas made these flags mandatory with a refuse-to-start gate; v32 relaxed that to pure opt-in.) When protection is off and the configured environment identifier does not look like a non-prod environment, the server writes a `[PII WARNING]` line to stderr at startup. See [Notable behaviour](#notable-behaviour).
 
 ## What gets redacted
 
@@ -50,6 +50,8 @@ Every redacted MCP response ends with a footer like:
 ```
 
 ## Notable behaviour
+
+- **Startup warning when a config "looks unprotected":** when PII protection is off, the server compares the configured environment identifier (PowerPlatform URL, Azure DevOps organisation name, SQL server name, B2C tenant ID, or `REST_BASE_URL`) against a list of non-prod hints: `dev`, `uat`, `training`, `support`, `migration`, `sandbox`, `test` by default, overridable with `PII_NONPROD_HINTS` (comma-separated, case-insensitive substrings). If none match, a `[PII WARNING]` line goes to stderr naming the identifier. It does not block startup. This is the safety net for the "consultant copy-pasted a dev config and swapped the URL to prod" failure mode: the environment label is consultant-asserted, but the identifier is configuration-asserted and closer to ground truth.
 
 - **Refuse-to-start (opt-in misconfig only):** the server exits with code 1 and a stderr message only when you have opted into a setting and supplied an invalid value — specifically (a) `PII_SESSION_SALT` is set but is not exactly 64 hex characters, or (b) `PII_CONFIG_PATH` is set but the file fails to load. A server with no PII env vars starts normally with protection off.
 
@@ -180,9 +182,7 @@ If you find yourself adding the same patterns across multiple engagements, that'
 
 These items are designed and documented but **not yet wired into the running server** — setting the env vars below currently has no effect. They are preserved here so the intended configuration surface isn't lost.
 
-- **Environment-safety "looks unprotected" startup warning.** The intent: when PII protection is off (`PII_PROTECTION` unset or `false`), the server would check the configured environment identifier (PowerPlatform URL, ADO organisation name, SQL server name, or `REST_BASE_URL` for rest-api) against a list of non-prod hints (`dev`, `uat`, `training`, `support`, `migration`, `sandbox`, `test` by default). If none match, a stderr warning would fire at startup — a safety net for the "consultant copy-pasted a dev config and swapped the URL to prod" failure mode, with the hint list overridable via `PII_NONPROD_HINTS` (comma-separated). The warning would not block startup. **Status:** the check is implemented but has no caller, so it never fires today. Until it is wired in, `PII_NONPROD_HINTS` is inert.
-
-- **`MCP_ENVIRONMENT_TYPE`** — intended as the advisory environment identifier (`production` | `uat` | `dev`) that feeds the "looks unprotected" warning above. **Status:** currently inert — it is read by nothing in the PII pipeline and the internal environment type is fixed to `production`. Setting it has no runtime effect today.
+- **`MCP_ENVIRONMENT_TYPE`**: intended as an advisory declaration of the target environment (`production` | `uat` | `dev`). **Status:** inert. Nothing reads it: the "looks unprotected" warning works off the environment identifier, not this variable, and the internal environment type is fixed to `production`. Setting it has no runtime effect.
 
 ## Audit logging (Phase 6)
 

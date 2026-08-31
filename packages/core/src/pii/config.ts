@@ -454,7 +454,7 @@ export function checkEnvironmentLooksUnprotected(
     `[PII WARNING] PII protection is OFF and the configured environment identifier ` +
     `'${trimmed}' does not match any non-prod hint (${hints.join(', ')}). ` +
     `If this is a production environment, raw data will be sent to the LLM. ` +
-    `Set PII_PROTECTION=true and MCP_ENVIRONMENT_TYPE=production to enable protection, ` +
+    `Set PII_PROTECTION=true to enable protection, ` +
     `or extend PII_NONPROD_HINTS if your non-prod environment uses a different naming convention.`
   );
 }

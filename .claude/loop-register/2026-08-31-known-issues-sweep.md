@@ -10,13 +10,15 @@ Append-only. Close an item by changing its `State`; never rewrite or delete one.
 ### ⚑1 · PII warning is being wired up rather than deleted
 - **Kind:** assumption
 - **Hop:** origin · d3a49c9
-- **State:** open
+- **State:** implemented in hop 1; still open for Klemens to redirect
+- **Outcome (hop 1):** `createPiiPipelineFromEnv` now honours `options.environmentIdentifier` and calls `checkEnvironmentLooksUnprotected` at construction. Confirmed live in the built `azure-devops` CLI: warns on identifier `contoso`, silent on `contoso-dev`, silent with `PII_PROTECTION=true`. The function was not deleted. Reversing to deletion is still small and local; nothing built on top of it.
 - **Matters because:** `KNOWN_ISSUES` offered two directions and said not to leave the check half-live. The origin session chose to call `checkEnvironmentLooksUnprotected` at pipeline construction rather than delete it, on the grounds that removing a safety net is the more consequential direction and a stderr warning breaks nothing. Klemens was told the decision in one line and can redirect. If he prefers deletion, the reversal is small and local, and no later hop builds on it.
 
 ### ⚑2 · `MCP_ENVIRONMENT_TYPE` stays a dead env var for now
 - **Kind:** decision
 - **Hop:** origin · d3a49c9
-- **State:** open
+- **State:** open, but no longer advertised anywhere
+- **Outcome (hop 1):** the variable is still read by nothing. What changed is that it no longer *claims* to do something: it was removed from the warning's message string, and eleven docs that said it "feeds the looks unprotected warning" were corrected to say it is inert. The remaining decision is unchanged - wire it as a real control, or delete it and its documentation entirely. Until then the toolkit still ships a documented env var that does nothing, it just no longer tells operators to set it.
 - **Matters because:** wiring ⚑1 up leaves the env var still read by nothing. Turning it into a real control would be a new configuration contract and a possible breaking change, so it was deliberately left out of scope. Until it is either wired or removed, the toolkit ships a documented env var that does nothing, which is the exact false-affordance class this register's parent file exists to track.
 
 ### ⚑3 · `list-api-connections` redaction is a trade-off, not a patch
@@ -42,3 +44,15 @@ Append-only. Close an item by changing its `State`; never rewrite or delete one.
 - **Hop:** origin · d3a49c9
 - **State:** open
 - **Matters because:** chat delete returned 403 on 2026-08-20 and succeeded on 2026-08-31, so the tenant messaging policy changed in between. The channel surface was not retested, because it would have meant posting a throwaway message to a real channel. `packages/teams/CLAUDE.md` now records it as unknown rather than blocked. Anyone who reads it as blocked will skip a capability that may work.
+
+### ⚑7 · The core fix reaches only two of its five callers, and that is measured
+- **Kind:** gotcha
+- **Hop:** 1 · known-issues sweep
+- **State:** open
+- **Matters because:** `createPiiPipelineFromEnv` has five callers. `azure-devops` and `powerplatform-data` pin `core` at the workspace version and get the new warning. `azure-b2c` and `azure-sql` pin `33.0.0` and `rest-api` pins `34.1.0`, so all three resolve an old published `core` and get nothing - locally and on an end user's machine. Proven by running both built CLIs with identical inputs: `azure-devops` warned, `azure-sql` did not. Eighteen packages are stale in total, so this is not specific to the PII fix; every `core` change lands the same way. Written up as its own `KNOWN_ISSUES` entry and the counts in the root `CLAUDE.md` were corrected (they said 16 at `33.0.0` against a `34.1.0` workspace). Deliberately not fixed here: an eighteen-package, two-major bump is release-shaped.
+
+### ⚑8 · The CLI env-file question is answered, and the answer is worse than recorded
+- **Kind:** decision
+- **Hop:** 1 · known-issues sweep
+- **State:** open
+- **Matters because:** queue item 3 was recorded as unverified with the note that the stated mechanism was wrong. It is now confirmed, and the original mechanism was right after all. All four CLIs (`azure-sql`, `azure-devops`, `rest-api`, `azure-b2c`) run `const ctx = createServiceContext();` at module top level, one line above `program.parseAsync`, so it executes before Commander can run the `preAction` hook that calls `loadEnvAndResolve`. Anything supplied only via `--env-file` is invisible to the PII pipeline. The earlier rebuttal looked at `context-factory.ts`, which is indeed an exported function, and missed that `cli.ts` calls it at import. The `KNOWN_ISSUES` entry has been rewritten as confirmed with the fix sketch. **This interacts with ⚑1:** on the CLI path the new warning is evaluated against unloaded env, so a run whose `--env-file` sets `PII_PROTECTION=true` still warns. The warning is wrong there until the lazy-context fix lands, which makes item 3 a higher priority than its queue position suggests.

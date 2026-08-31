@@ -5,57 +5,31 @@ source, what was not, and where to start.
 
 ---
 
-## PII protection: the options argument is discarded
+## 18 packages ship a two-major-old `core` to end users
 
-**Status:** confirmed in source. **Affects:** every caller of `createPiiPipelineFromEnv`.
+**Status:** confirmed 2026-08-31, in source and in a live run. **Affects:** every package whose
+`dependencies` pin `@mcp-consultant-tools/core` below the workspace version. Regenerate the list
+with a loop over `packages/*/package.json` rather than trusting the one below.
 
-`packages/core/src/pii/pipeline.ts:104` declares the parameter as `_options` — the underscore
-convention for "deliberately unused" — and the body ignores it entirely:
+The workspace is at `35.0.0-beta.1`. Fifteen packages pin `core` at `33.0.0` (`1password`,
+`application-insights`, `azure-b2c`, `azure-data-factory`, `azure-devops-admin`, `azure-sql`,
+`azure-storage`, `fabric`, `figma`, `github-enterprise`, `log-analytics`, `service-bus`,
+`sharepoint`, `teams`, `todoist`) and three pin `34.1.0` (`entra-id`, `message-center`,
+`rest-api`).
 
-```ts
-export function createPiiPipelineFromEnv(
-  _options?: CreatePiiPipelineOptions
-): PiiProtectionPipeline {
-  const ctx = loadPiiConfig();
-  return new PiiProtectionPipeline(ctx);
-}
-```
+npm honours the pin, so each of those packages installs its own copy of the old `core` under
+`packages/<pkg>/node_modules/` locally, and resolves the old published `core` on an end user's
+machine. Every fix made in `core` therefore reaches only the ten packages already on the
+workspace version.
 
-Callers pass a populated options object that goes nowhere:
+**Measured, not inferred.** After wiring the PII "looks unprotected" warning into
+`createPiiPipelineFromEnv`, the built `azure-devops` CLI (pinned `35.0.0-beta.1`) emits the
+warning and the built `azure-sql` CLI (pinned `33.0.0`) does not, from identical inputs.
 
-- `packages/azure-devops/src/context-factory.ts:28`
-- `packages/azure-sql/src/context-factory.ts:36`
-- `packages/azure-sql/src/index.ts:46`
-- `packages/powerplatform-data/src/context-factory.ts:18`
-
-Each supplies `{ environmentIdentifier: pickEnvironmentIdentifier() }`. The pipeline never sees it,
-so nothing downstream can vary by environment.
-
-**Fix:** either honour `options.environmentIdentifier` in `loadPiiConfig`, or delete
-`CreatePiiPipelineOptions` and the four call sites' arguments so the signature stops advertising a
-capability that does not exist.
-
----
-
-## PII protection: the "unprotected environment" warning is dead code
-
-**Status:** confirmed in source.
-
-`checkEnvironmentLooksUnprotected` is defined at `packages/core/src/pii/config.ts:440` and has
-**zero call sites** across the monorepo — it appears only in its own definition, the generated
-`build/*.d.ts`, and vendored `node_modules` copies of `core`.
-
-Related: `MCP_ENVIRONMENT_TYPE` is **read by no production code path**. Its only non-test occurrence
-is inside that dead function's message string (`config.ts:457`), which tells the operator to
-"Set `PII_PROTECTION=true` and `MCP_ENVIRONMENT_TYPE=production` to enable protection" — advice for
-a control that does not exist. `packages/core/src/pii/__tests__/config.test.ts:274` enshrines the
-gap: *"does not throw when `MCP_ENVIRONMENT_TYPE` is unset (no env-aware gating)"*.
-
-`example.mcp.json` in the toolkit repo deliberately omits `MCP_ENVIRONMENT_TYPE` rather than teach a
-control that is not wired up.
-
-**Fix:** call the check at pipeline construction, or delete the function, the env var and the
-message together. Do not leave it half-live.
+**Fix:** bump the pin in each stale package, then `rm -rf packages/<pkg>/node_modules/@mcp-consultant-tools/core`
+before `npm install` - npm leaves the old copy on disk otherwise and the bump appears to have done
+nothing. This is a release-shaped change spanning eighteen packages and two major versions of
+`core`, so it wants its own iteration and its own test pass, not a slot inside a bug fix.
 
 ---
 
@@ -87,25 +61,49 @@ list already report their failures through `result.fanOut`, so only the cap is u
 
 ---
 
-## Unverified: does `PII_PROTECTION` reach the CLI path?
+## `PII_PROTECTION` does not reach the CLI path when it comes from `--env-file`
 
-**Status:** NOT confirmed — recorded so it is not lost, and so the wrong mechanism is not chased.
+**Status:** confirmed in source 2026-08-31. **Affects:** the CLIs of `azure-sql`, `azure-devops`,
+`rest-api` and `azure-b2c`. Grep for `const ctx = createServiceContext();` in each `src/cli.ts`.
 
-An earlier investigation reported that `PII_PROTECTION` set in `.mcp.json` never reaches the CLI on
-`azure-sql`, `azure-devops`, `rest-api` and `azure-b2c`, because `createPiiPipelineFromEnv()` runs
-eagerly at module load, before the `preAction` hook injects the config env.
+All four CLIs build the ServiceContext at module top level, on the line immediately before
+`program.parseAsync(...)`:
 
-**The stated mechanism does not match the code.** `createServiceContext()` in
-`packages/azure-sql/src/context-factory.ts:35` is an exported function, not module-level
-initialisation, so the pipeline is built when it is called — not at import. The `preAction` hooks
-are at `packages/azure-sql/src/cli.ts:25` and `packages/azure-devops/src/cli.ts:21`.
+```ts
+program.hook('preAction', async (thisCommand) => {
+  const opts = thisCommand.opts();
+  await loadEnvAndResolve(opts.envFile);   // runs during parseAsync
+});
 
-The symptom may still be real; the explanation is wrong. Anyone picking this up should establish the
-actual call ordering between the `preAction` hook and the first `createServiceContext()` call before
-changing anything.
+const ctx = createServiceContext();        // runs at import, BEFORE the hook
+registerAllCommands(program, ctx);
 
-**Note:** the two confirmed defects above are sufficient on their own to make `PII_PROTECTION`
-behave unpredictably. Fix those first, then re-test whether a symptom remains.
+program.parseAsync(process.argv)...
+```
+
+Commander runs a `preAction` hook during `parseAsync`, so `loadEnvAndResolve` cannot have run when
+`createServiceContext()` executes. `createServiceContext()` calls `createPiiPipelineFromEnv()`,
+which reads `process.env` immediately. Anything supplied only through `--env-file` (or a `.env`
+that `loadEnvAndResolve` would have picked up) is therefore invisible to the pipeline: PII
+protection resolves to OFF and the layer toggles, hint list and session salt all fall back to
+defaults.
+
+An earlier note claimed the mechanism could not be module-level initialisation because
+`createServiceContext()` is an exported function. That is true of `context-factory.ts` and beside
+the point: `cli.ts` calls that function at import time.
+
+**The MCP server path is not affected.** There the context is built inside
+`registerAzureDevOpsTools()` (and its equivalents), by which point the MCP client has already put
+the `env:` block into `process.env`.
+
+**Second symptom, same cause.** The "looks unprotected" startup warning is evaluated at pipeline
+construction, so on the CLI path it is computed against unloaded env. A run whose `--env-file`
+sets `PII_PROTECTION=true` still warns that protection is off.
+
+**Fix:** build the context lazily, after the `preAction` hook has run - for example pass a
+`() => ServiceContext` thunk to `registerAllCommands`, or move the construction into an
+`action` wrapper. All four CLIs need the same change, and `packages/*/src/index.ts` must keep
+working unchanged.
 
 ---
 

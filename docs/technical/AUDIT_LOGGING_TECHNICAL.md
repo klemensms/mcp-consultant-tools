@@ -55,7 +55,7 @@ The audit subsystem produces a tamper-evident, hash-chained record of every Data
   | `MCP_AUDIT_OPERATOR`   | no                   | string                              | OS-fingerprint (`os-user@hostname`) | Override for the operator's directory identity. |
   | `MCP_AUDIT_PATH`       | no                   | path                                | `~/.mcp-audit`                   | Files land at `{path}/{client}/`. |
   | `MCP_AUDIT_ROTATION`   | no                   | `monthly` \| `weekly` \| `daily` \| `size:NMB` \| `size:NGB` | `monthly` | Malformed → refuse-to-start. |
-  | `MCP_ENVIRONMENT_TYPE` | no (advisory only)   | `production` \| `uat` \| `dev`      | none                             | v32: not read by audit or PII config; not a gate. Feeds the PII "looks unprotected" warning only. |
+  | `MCP_ENVIRONMENT_TYPE` | no                   | `production` \| `uat` \| `dev`      | none                             | **Inert.** Not read by audit or PII config, not a gate, and not used by the PII "looks unprotected" warning. |
 </env-vars>
 
 <tools>

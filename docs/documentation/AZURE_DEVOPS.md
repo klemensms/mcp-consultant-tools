@@ -160,11 +160,11 @@ ADO identity objects (`System.AssignedTo`, `System.CreatedBy`, `System.ChangedBy
 | unset / `false` | pipeline off — raw data flows to the LLM (server starts normally) |
 | `true` | redaction active on every response |
 
-`MCP_ENVIRONMENT_TYPE` is advisory only in v32 — it no longer gates startup; it only feeds the "looks unprotected" stderr warning below. (Earlier v31 betas made both flags mandatory with a refuse-to-start gate; v32 relaxed that to pure opt-in.)
+`MCP_ENVIRONMENT_TYPE` is inert: it does not gate startup and nothing reads it, including the "looks unprotected" warning below, which works off the environment identifier instead. (Earlier v31 betas made both flags mandatory with a refuse-to-start gate; v32 relaxed that to pure opt-in.)
 
 | Var | Values | Behaviour |
 |-----|--------|-----------|
-| `MCP_ENVIRONMENT_TYPE` | `production` \| `uat` \| `dev` | Optional, advisory only. Not a gate in v32; feeds the "looks unprotected" warning. |
+| `MCP_ENVIRONMENT_TYPE` | `production` \| `uat` \| `dev` | Optional. **Inert**: not a gate, and not used by the "looks unprotected" warning. Setting it has no runtime effect. |
 | `PII_PROTECTION` | `true` \| `false` | Off by default. Set `true` to enable redaction; `false`/unset is permitted in any environment. |
 | `PII_OBSERVE_MODE` | `true` \| `false` (default `false`) | When `true`, pipeline computes what it would redact but returns original data unchanged. Footer reports `(observe-mode — values not changed)`. |
 | `PII_CONFIG_PATH` | path to JSON file (optional) | Per-layer toggles, per-entity field rules, regex patterns, NER scan-fields. |

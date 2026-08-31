@@ -37,7 +37,7 @@ Token width chosen for birthday-paradox safety up to thousands of distinct entit
 
 <environment-detection>
 
-`MCP_ENVIRONMENT_TYPE` accepts `production`, `uat`, `dev`. In v32 it is **advisory only** — it no longer gates startup and is not read by `loadPiiConfig()` for any decision. It exists solely to feed the "looks unprotected" stderr warning heuristic (below); an unset or unknown value does not block startup.
+`MCP_ENVIRONMENT_TYPE` accepts `production`, `uat`, `dev`, and is **inert**: it does not gate startup, it is not read by `loadPiiConfig()` for any decision, and it does not feed the "looks unprotected" warning below, which works off the environment identifier instead. An unset or unknown value does not block startup.
 
 PII protection is **opt-in and off by default**. The pipeline is enabled only when `PII_PROTECTION=true` (or a `PII_CONFIG_PATH` file with `"enabled": true`); resolution order is `fileConfig.enabled ?? PII_PROTECTION ?? false`. There is no environment-type gate.
 
@@ -51,7 +51,7 @@ Refuse-to-start fires only on an **opted-in misconfiguration**: `PII_SESSION_SAL
 There is **no enforced gate and no break-glass** in v32: leaving `PII_PROTECTION` unset against a production environment is permitted and silently sends raw data to the LLM. Enabling protection is the operator's explicit responsibility; the URL-heuristic warning (below) is the only safety net. (Earlier v31 betas enforced a production refuse-to-start gate; v32 relaxed it to opt-in.)
 
 <url-heuristic-warning>
-When the pipeline ends up disabled (`PII_PROTECTION=false` in `uat` or `dev`), the loader checks the configured environment identifier against a list of non-prod hints. If none match, a stderr warning fires at startup. Server still starts — this is a heuristic safety net, not a gate.
+When the pipeline ends up disabled, `createPiiPipelineFromEnv` checks the `environmentIdentifier` passed by the calling package against a list of non-prod hints. If none match, a `[PII WARNING]` line is written to stderr as the pipeline is constructed, which for every package is at startup. The server still starts: this is a heuristic safety net, not a gate.
 
 Identifier source per package:
 - `powerplatform-data` — `POWERPLATFORM_URL` (full URL substring-matched)
@@ -60,7 +60,7 @@ Identifier source per package:
 - `rest-api` — `REST_BASE_URL` (full URL substring-matched)
 - `azure-b2c` — `AZURE_B2C_TENANT_ID` (tenant identifier — typically `<name>.onmicrosoft.com`, substring-matched)
 
-Default hint list: `dev`, `uat`, `training`, `support`, `migration`, `sandbox`, `test`. Override via `PII_NONPROD_HINTS` (comma-separated, case-insensitive substrings). Failure mode this catches: consultant copies a dev `.mcp.json`, swaps the URL to a production environment, leaves `MCP_ENVIRONMENT_TYPE=dev` and `PII_PROTECTION=false` because that's what was already there. The env-type label is consultant-asserted, but the URL is configuration-asserted — closer to ground truth.
+Default hint list: `dev`, `uat`, `training`, `support`, `migration`, `sandbox`, `test`. Override via `PII_NONPROD_HINTS` (comma-separated, case-insensitive substrings). Failure mode this catches: consultant copies a dev `.mcp.json`, swaps the URL to a production environment, leaves `PII_PROTECTION=false` because that's what was already there. An environment label is consultant-asserted, but the URL is configuration-asserted and closer to ground truth.
 </url-heuristic-warning>
 
 </environment-detection>
@@ -114,7 +114,7 @@ The loader returns a `LoadedPiiContext { config: PiiConfig; getSalt(): Buffer }`
 
 | Variable | Required | Values | Effect |
 |----------|----------|--------|--------|
-| `MCP_ENVIRONMENT_TYPE` | no (advisory only) | `production` \| `uat` \| `dev` | v32: not a gate. Feeds the "looks unprotected" stderr warning heuristic only. Not read for any startup decision. |
+| `MCP_ENVIRONMENT_TYPE` | no | `production` \| `uat` \| `dev` | **Inert.** Not a gate, not read for any startup decision, and not used by the "looks unprotected" warning. Setting it has no runtime effect. |
 | `PII_PROTECTION` | no (default `false`) | `true` \| `false` | Master switch. Off unless `true`. No environment-type gate — `false`/unset is permitted in any environment. |
 | `PII_OBSERVE_MODE` | no (default `false`) | `true` \| `false` | Run pipeline but return original data; report what would have been redacted. |
 | `PII_CONFIG_PATH` | no | filesystem path | JSON config with per-layer toggles, per-entity field rules, regex patterns, NER scan-fields. See config-schema above. |

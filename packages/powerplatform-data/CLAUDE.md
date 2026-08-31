@@ -67,7 +67,7 @@ MCP_AUDIT_LEVEL=lean              # off (default) | lean | full — set lean|ful
 MCP_AUDIT_CLIENT=Acme             # required when MCP_AUDIT_LEVEL is lean|full
 MCP_AUDIT_OPERATOR=jdoe@example.com     # optional; falls back to OS user
 MCP_AUDIT_PATH=~/.mcp-audit       # optional override
-MCP_ENVIRONMENT_TYPE=production   # optional, advisory only (feeds the "looks unprotected" warning)
+MCP_ENVIRONMENT_TYPE=production   # optional, inert: nothing reads it (the "looks unprotected" warning uses POWERPLATFORM_URL)
 ```
 
 See [audit-logging.md](../../docs/documentation/audit-logging.md).

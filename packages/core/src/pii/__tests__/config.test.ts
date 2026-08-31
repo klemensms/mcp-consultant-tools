@@ -271,14 +271,16 @@ describe('loadPiiConfig - backwards-compatible defaults', () => {
     expect(config.enabled).toBe(true);
   });
 
-  it('does not throw when MCP_ENVIRONMENT_TYPE is unset (no env-aware gating)', () => {
+  it('ignores MCP_ENVIRONMENT_TYPE entirely - it is not a control', () => {
     delete process.env.MCP_ENVIRONMENT_TYPE;
-    expect(() => loadPiiConfig()).not.toThrow();
-  });
+    const unset = loadPiiConfig();
+    expect(unset.config.enabled).toBe(false);
+    expect(unset.config.environmentType).toBe('production');
 
-  it('does not throw when MCP_ENVIRONMENT_TYPE is set to an unknown value (no validation)', () => {
     process.env.MCP_ENVIRONMENT_TYPE = 'whatever';
-    expect(() => loadPiiConfig()).not.toThrow();
+    const set = loadPiiConfig();
+    expect(set.config.enabled).toBe(false);
+    expect(set.config.environmentType).toBe('production');
   });
 
   it('respects file config enabled flag even when PII_PROTECTION is unset', () => {

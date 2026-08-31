@@ -1,4 +1,5 @@
 import {
+  checkEnvironmentLooksUnprotected,
   loadPiiConfig,
   type LoadedPiiContext,
 } from './config.js';
@@ -102,9 +103,14 @@ export interface CreatePiiPipelineOptions {
 }
 
 export function createPiiPipelineFromEnv(
-  _options?: CreatePiiPipelineOptions
+  options?: CreatePiiPipelineOptions
 ): PiiProtectionPipeline {
   const ctx = loadPiiConfig();
+  const warning = checkEnvironmentLooksUnprotected(
+    options?.environmentIdentifier,
+    ctx.config.enabled
+  );
+  if (warning) console.error(warning);
   return new PiiProtectionPipeline(ctx);
 }
 
