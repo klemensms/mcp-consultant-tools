@@ -61,7 +61,14 @@ Append-only. Close an item by changing its `State`; never rewrite or delete one.
 ### ⚑9 · `buildTruncation` cannot express a client-side cap, and the X2 sweep will hit this
 - **Kind:** gotcha
 - **Hop:** 1 · known-issues sweep
-- **State:** open
+- **State:** closed-by-L2
+- **Outcome (hop 2):** the warning was right and the answer turned out to be that `buildTruncation`
+  should not be used at those sites at all. Five of the six the entry sent to it are not caps: they
+  are a whole analysis crashing and returning its empty accumulator, so the helper would have had to
+  write `hasMore: true` and `truncationReason: 'requestedMax'`, both false. No `totalAvailable`
+  workaround was needed because no truncation block was built. The sixth (`BlobService.ts:298`) is a
+  genuine undeclared partial and is still open, blocked by ⚑12. The general rule is now in
+  `packages/powerplatform-core/CLAUDE.md` as a three-row table, so it is not register-only.
 - **Matters because:** `buildTruncation` sets `totalAvailable: hasMore ? null : returnedCount`, which is right for a paged read that genuinely cannot know the population and wrong for a cap applied client-side *after* an enumeration has finished, where the total is a count you already hold. `ValidationService` needed the built block spread and `totalAvailable` set from the counted value, or its report would have said "2 of unknown" when it could say "2 of 5". **The next hop's X2 sweep sends six sites to `buildTruncation`;** any of those that cap client-side needs the same treatment, and taking the helper's output unmodified will silently discard a known total. Recorded in `packages/powerplatform-core/CLAUDE.md` beside the paging rules, so it is not register-only. The alternative - adding an optional `totalAvailable` to `buildTruncation` itself - was not taken, because it is a `core` API change and ⚑7 means it would not reach the eighteen stale-pinned packages anyway.
 
 ### ⚑10 · An unrelated `CLAUDE.md` edit was swept into commit 023dd49
@@ -69,3 +76,56 @@ Append-only. Close an item by changing its `State`; never rewrite or delete one.
 - **Hop:** 1 · known-issues sweep
 - **State:** open
 - **Matters because:** a "Reporting defects and ideas" section (never raise a GitHub issue against this repo) appeared in the root `CLAUDE.md` mid-session, written by something other than this hop, and `git add -A` carried it into the ValidationService commit. Nothing is lost and the content looks deliberate, so it was not reverted - but the commit message does not mention it, so anyone reading that commit's diff will find a change the message does not explain. Flagged rather than fixed: rewriting a pushed-to-branch commit to tidy it is worse than a one-line note. Later hops in this chain should expect concurrent edits to shared files and prefer staging explicit paths over `git add -A`.
+
+### ⚑11 · A `KNOWN_ISSUES` entry's own prescription was wrong, and reading beat it again
+- **Kind:** gotcha
+- **Hop:** 2 · known-issues sweep
+- **State:** open
+- **Matters because:** the X2 entry named eleven sites and told the next hop which helper each
+  needed. On reading them, five of the six sent to `buildTruncation` were misclassified - not caps
+  at all - and following the sweep's prescription would have written false fields into the payloads
+  of the contract that exists to prevent exactly that. This is the second time in this chain that
+  reading the code contradicted the register of the code: hop 1 found `ValidationService` by reading
+  around a site rather than trusting the sweep, and hop 2 found the real NuGet swallow two frames
+  below the site the sweep named. **A `KNOWN_ISSUES` entry is a lead, not a specification.** Its own
+  fix line is the least reliable part of it, because it was written from the sweep output rather
+  than from the code. The entry has been rewritten to carry the correction rather than the wrong
+  advice, and the three-shapes rule is in `packages/powerplatform-core/CLAUDE.md`.
+
+### ⚑12 · Five fan-out sites are blocked by the stale `core` pin, and the block is now measured
+- **Kind:** deferred
+- **Hop:** 2 · known-issues sweep
+- **State:** open
+- **Matters because:** `azure-sql`, `azure-storage` and `service-bus` pin `@mcp-consultant-tools/core`
+  at `33.0.0`, which predates both `FanOutRecorder` and `buildTruncation`. A probe importing
+  `FanOutRecorder` into `azure-sql` fails with `TS2305: Module '"@mcp-consultant-tools/core"' has no
+  exported member 'FanOutRecorder'`, so the failure mode here is a loud build break rather than the
+  silent runtime divergence ⚑7 measured for a *changed* `core` behaviour. That distinction is worth
+  keeping: adding a new `core` export to a stale-pinned package fails at build; changing an existing
+  one passes the build and diverges at runtime. Four `FanOutRecorder` sites and one `buildTruncation`
+  site stay open until the pin bump tracked in `KNOWN_ISSUES` happens. The bump was deliberately not
+  pulled into this fix - eighteen packages across two majors is release-shaped.
+
+### ⚑13 · `powerplatform-data` ships no test harness, so one fix has no unit test
+- **Kind:** gotcha
+- **Hop:** 2 · known-issues sweep
+- **State:** open
+- **Matters because:** the package has no `test` script and no `vitest.config.ts`, and its tool
+  handlers are inline closures inside `server.tool(...)` registrations, so nothing in it is testable
+  without both adding the harness and extracting the handlers. The `get-lookup-target` fix
+  (a guessed `EntitySetName` printed into a copy-paste `@odata.bind` URL as if it had been read) is
+  therefore verified by driving the compiled handler with a stub server and a stub client, not by a
+  unit test. That probe did confirm both branches. Anyone changing this package should know its
+  `npm test` runs nothing, which is a quieter version of the "green suite proves little" gotcha:
+  here there is no suite at all. Adding vitest to it is a small, separate, worthwhile change.
+
+### ⚑14 · The fan-out sweep now reports 24 candidates, not 23
+- **Kind:** gotcha
+- **Hop:** 2 · known-issues sweep
+- **State:** closed-by-L2
+- **Outcome (hop 2):** the new one is `teams/src/message-content.ts:226`, `describeQuotedReply`'s
+  `JSON.parse` catch. Read and classified as **not a defect**: it still emits the `[quoted reply]`
+  marker, so the reader is told a quote was there, which is the part whose absence misleads. Added
+  to the entry's not-a-defect list with that reasoning, so the next hop does not re-read it. Worth
+  noting that the candidate list drifts between hops as unrelated code lands - regenerate it rather
+  than working from the entry's numbers, which is what the entry already says to do.
