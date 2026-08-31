@@ -129,3 +129,17 @@ Append-only. Close an item by changing its `State`; never rewrite or delete one.
   to the entry's not-a-defect list with that reasoning, so the next hop does not re-read it. Worth
   noting that the candidate list drifts between hops as unrelated code lands - regenerate it rather
   than working from the entry's numbers, which is what the entry already says to do.
+
+### ⚑15 · A new payload field was introduced instead of an existing helper
+- **Kind:** decision
+- **Hop:** 2 · known-issues sweep
+- **State:** open
+- **Matters because:** `FlowComplexityAnalysis` gained `analysisFailures: { section, reason }[]` and the
+  flow-complexity summary gained `flowsWithPartialAnalysis`, rather than the `buildTruncation` block
+  the `KNOWN_ISSUES` entry prescribed. The reasoning is in ⚑11 and it is sound, but it is still a new
+  shape in a returned payload rather than a reuse of a contract that already exists, so it is
+  Klemens's to confirm rather than the loop's to settle silently. It follows the naming
+  `IntegrationAuditService` already uses for `completeness.failures`, so it is not a novel convention,
+  and reversing it is local: three fields and one helper function in `analyseOneFlow`. **Not
+  load-bearing** - the remaining queue is an em-dash sweep and the closing hop, and neither builds on
+  this shape, so the chain proceeds. If it needs to change, changing it later costs the same as now.
