@@ -30,25 +30,29 @@ Append-only. Close an item by changing its `State`; never rewrite or delete one.
 ### ⚑4 · The two azure-defender entries need a live tenant run, not code
 - **Kind:** deferred
 - **Hop:** origin · d3a49c9
-- **State:** open
+- **State:** drained-to-KNOWN_ISSUES; open there pending a live tenant run
+- **Outcome (closing hop):** both entries verified present in `docs/KNOWN_ISSUES.md` - "Unverified: no assessment carries `Critical` severity or a `properties.risk` object" and "`implementationEffort` and `userImpact` are unpopulated on every assessment definition". The first carries "Do not report this as fixed" verbatim. No code change exists to make; they close on a live tenant run, so `KNOWN_ISSUES.md` is their correct and final home.
 - **Matters because:** both were deliberately excluded from this chain. One needs `defender-list-plans` run per subscription to read `summary.cspmEnabled`; the other needs `defender-diagnose-metadata-fields` against a real tenant, expecting a 403 at tenant scope. Neither is a code change and neither can be closed by any hop here. They stay open in `KNOWN_ISSUES.md` and the entries say plainly not to report them as fixed.
 
 ### ⚑5 · Teams cannot send or fetch a file, and closing it needs a consented scope
 - **Kind:** decision
 - **Hop:** origin · d3a49c9
-- **State:** open
+- **State:** drained-to-KNOWN_ISSUES; the consent question is Klemens's
+- **Outcome (closing hop):** verified as the entry "teams: files can be seen but neither sent nor fetched" in `docs/KNOWN_ISSUES.md`, carrying the `/shares/` fix sketch and the Scope Boundary warning. The build work is correctly parked; what is not a repo decision is whether to ask a Teams administrator to consent `Files.Read.All`, which is the gate on the whole thing.
 - **Matters because:** written up as a new `KNOWN_ISSUES` entry. The download half is small - Graph resolves a sharing URL through `/shares/` with no site or drive lookup - but it needs `Files.Read.All`, and an unconsented scope fails at sign-in and takes all 26 tools down rather than one. So it cannot be built speculatively: admin consent has to come first. Sending a file is larger and separate.
 
 ### ⚑6 · Channel message delete was not retested
 - **Kind:** gotcha
 - **Hop:** origin · d3a49c9
-- **State:** open
+- **State:** drained-to-`packages/teams/CLAUDE.md`; the retest itself needs a live channel
+- **Outcome (closing hop):** verified on disk at `packages/teams/CLAUDE.md:361` - "Treat the channel row as unknown rather than blocked - it has simply not been measured since the chat row moved", with the surface table above it at `:356`. The misreading this item existed to prevent is now blocked at the place an agent would read. Retesting means posting a throwaway message to a real channel, which is not a code change and not this chain's to do.
 - **Matters because:** chat delete returned 403 on 2026-08-20 and succeeded on 2026-08-31, so the tenant messaging policy changed in between. The channel surface was not retested, because it would have meant posting a throwaway message to a real channel. `packages/teams/CLAUDE.md` now records it as unknown rather than blocked. Anyone who reads it as blocked will skip a capability that may work.
 
 ### ⚑7 · The core fix reaches only two of its five callers, and that is measured
 - **Kind:** gotcha
 - **Hop:** 1 · known-issues sweep
-- **State:** open
+- **State:** drained-to-KNOWN_ISSUES; resolves on the pin bump, not on a decision
+- **Outcome (closing hop):** verified as the entry "18 packages ship a two-major-old `core` to end users" in `docs/KNOWN_ISSUES.md`, including the `rm -rf` step npm needs after a bump. The corrected counts are in the root `CLAUDE.md`. Nothing here is Klemens's to judge: it closes when someone runs the eighteen-package bump as its own iteration.
 - **Matters because:** `createPiiPipelineFromEnv` has five callers. `azure-devops` and `powerplatform-data` pin `core` at the workspace version and get the new warning. `azure-b2c` and `azure-sql` pin `33.0.0` and `rest-api` pins `34.1.0`, so all three resolve an old published `core` and get nothing - locally and on an end user's machine. Proven by running both built CLIs with identical inputs: `azure-devops` warned, `azure-sql` did not. Eighteen packages are stale in total, so this is not specific to the PII fix; every `core` change lands the same way. Written up as its own `KNOWN_ISSUES` entry and the counts in the root `CLAUDE.md` were corrected (they said 16 at `33.0.0` against a `34.1.0` workspace). Deliberately not fixed here: an eighteen-package, two-major bump is release-shaped.
 
 ### ⚑8 · The CLI env-file question is answered, and the answer is worse than recorded
@@ -74,13 +78,15 @@ Append-only. Close an item by changing its `State`; never rewrite or delete one.
 ### ⚑10 · An unrelated `CLAUDE.md` edit was swept into commit 023dd49
 - **Kind:** gotcha
 - **Hop:** 1 · known-issues sweep
-- **State:** open
+- **State:** drained-to-`CLAUDE.md` (closing hop)
+- **Outcome (closing hop):** the forward-looking half is now a root `CLAUDE.md` section, "Staging: name explicit paths, never `git add -A`", naming `023dd49` as the case that happened and `.claude/log.md` as the file never to stage by hand. The historical half is unchanged and stays unchanged: rewriting a pushed commit to tidy its message is worse than the note.
 - **Matters because:** a "Reporting defects and ideas" section (never raise a GitHub issue against this repo) appeared in the root `CLAUDE.md` mid-session, written by something other than this hop, and `git add -A` carried it into the ValidationService commit. Nothing is lost and the content looks deliberate, so it was not reverted - but the commit message does not mention it, so anyone reading that commit's diff will find a change the message does not explain. Flagged rather than fixed: rewriting a pushed-to-branch commit to tidy it is worse than a one-line note. Later hops in this chain should expect concurrent edits to shared files and prefer staging explicit paths over `git add -A`.
 
 ### ⚑11 · A `KNOWN_ISSUES` entry's own prescription was wrong, and reading beat it again
 - **Kind:** gotcha
 - **Hop:** 2 · known-issues sweep
-- **State:** open
+- **State:** drained-to-`packages/powerplatform-core/CLAUDE.md` and the X2 entry
+- **Outcome (closing hop):** both destinations verified on disk. The three-shapes table is at `packages/powerplatform-core/CLAUDE.md:85-95` and the X2 entry in `docs/KNOWN_ISSUES.md` carries the correction as a ⚠️ block rather than the wrong advice. The lesson held a third time in this hop: ⚑13 was recorded against one package and is true of fourteen.
 - **Matters because:** the X2 entry named eleven sites and told the next hop which helper each
   needed. On reading them, five of the six sent to `buildTruncation` were misclassified - not caps
   at all - and following the sweep's prescription would have written false fields into the payloads
@@ -95,7 +101,8 @@ Append-only. Close an item by changing its `State`; never rewrite or delete one.
 ### ⚑12 · Five fan-out sites are blocked by the stale `core` pin, and the block is now measured
 - **Kind:** deferred
 - **Hop:** 2 · known-issues sweep
-- **State:** open
+- **State:** drained-to-KNOWN_ISSUES; resolves on the pin bump, not on a decision
+- **Outcome (closing hop):** re-measured on disk - `azure-sql`, `azure-storage` and `service-bus` all still pin `@mcp-consultant-tools/core` at `33.0.0`. The five sites and the build-break-versus-silent-divergence distinction are both in the X2 entry in `docs/KNOWN_ISSUES.md`. Same gate as ⚑7.
 - **Matters because:** `azure-sql`, `azure-storage` and `service-bus` pin `@mcp-consultant-tools/core`
   at `33.0.0`, which predates both `FanOutRecorder` and `buildTruncation`. A probe importing
   `FanOutRecorder` into `azure-sql` fails with `TS2305: Module '"@mcp-consultant-tools/core"' has no
@@ -109,7 +116,8 @@ Append-only. Close an item by changing its `State`; never rewrite or delete one.
 ### ⚑13 · `powerplatform-data` ships no test harness, so one fix has no unit test
 - **Kind:** gotcha
 - **Hop:** 2 · known-issues sweep
-- **State:** open
+- **State:** drained-to-KNOWN_ISSUES as a new entry, at fourteen packages rather than one
+- **Outcome (closing hop):** measured across every manifest and it is **not one package**. The root script is `npm run test --workspaces --if-present`; fifteen packages declare a `test` script and **fourteen declare none, so `--if-present` skips them in silence** - no warning, no non-zero exit, nothing naming them. None of the fourteen holds a test file either. So the green "1,289 passing across 15 workspaces" this chain reported four times is accurate about what ran and silent about half the repo. `powerplatform-data`'s fourteen inline `server.tool(...)` closures were re-verified as the sharpest case. Written up as "`npm test` at the root runs nothing in 14 of 29 packages, and reports success", with a one-line first fix (drop `--if-present`) separated from the per-package work. The reproduce command in the entry was run, not just written: it returns 14.
 - **Matters because:** the package has no `test` script and no `vitest.config.ts`, and its tool
   handlers are inline closures inside `server.tool(...)` registrations, so nothing in it is testable
   without both adding the harness and extracting the handlers. The `get-lookup-target` fix
@@ -133,7 +141,8 @@ Append-only. Close an item by changing its `State`; never rewrite or delete one.
 ### ⚑15 · A new payload field was introduced instead of an existing helper
 - **Kind:** decision
 - **Hop:** 2 · known-issues sweep
-- **State:** open
+- **State:** decided in the closing hop - the shape stays
+- **Outcome (closing hop):** kept, and decided rather than escalated. It is a naming and payload-shape choice, which the repo's decision scope puts on the agent, not on Klemens: it reuses the naming `IntegrationAuditService` already applies to `completeness.failures`, it is covered by tests (`IntegrationAuditService.analysisFailures.test.ts`), and it carries no functional consequence he could weigh that the `buildTruncation` alternative would not. Reversal stays local - three fields and one helper in `analyseOneFlow`. Stated here so he can redirect it.
 - **Matters because:** `FlowComplexityAnalysis` gained `analysisFailures: { section, reason }[]` and the
   flow-complexity summary gained `flowsWithPartialAnalysis`, rather than the `buildTruncation` block
   the `KNOWN_ISSUES` entry prescribed. The reasoning is in ⚑11 and it is sound, but it is still a new
@@ -163,7 +172,8 @@ Append-only. Close an item by changing its `State`; never rewrite or delete one.
 ### ⚑17 · The sweep diverges eight files from `mcp-computer-use`, which is not on this machine
 - **Kind:** deferred
 - **Hop:** 3 · known-issues sweep
-- **State:** open
+- **State:** drained-to-`CLAUDE.md`; the mirror itself waits on that repo
+- **Outcome (closing hop):** `~/Repo/mcp-computer-use/` re-confirmed absent from this machine, so the mirror still cannot be done. Recorded in the root `CLAUDE.md` under "Files copied verbatim between repos" as a dated unmirrored divergence naming all eight files, so the next person to diff the two copies is told the comment noise is expected and told to apply the same substitution.
 - **Matters because:** the root `CLAUDE.md` lists eight files as mirrored verbatim to the sibling
   repo: `scripts/install-hooks.sh`, `scripts/hooks/pre-commit`, `scripts/hooks/commit-msg`,
   `scripts/internal-scan-lib.sh`, `scripts/scan-tarball.sh`, `.secret-scan-allowlist`,
@@ -177,7 +187,8 @@ Append-only. Close an item by changing its `State`; never rewrite or delete one.
 ### ⚑18 · This session's `grep` is a shell function, and one flag silently downgrades it
 - **Kind:** gotcha
 - **Hop:** 3 · known-issues sweep
-- **State:** open
+- **State:** open - proposed for the machine-local `CLAUDE.md`, which is Klemens's file
+- **Outcome (closing hop):** deliberately **not** drained into this repo. It is a property of Klemens's shell on this machine, not of this repo, so writing it here would put it where the agent that needs it is not looking. Its home is `/Users/klemensstelk/CLAUDE.md`, which is his to change. Put to him in the closing summary.
 - **Matters because:** `grep` here resolves to a shell function that routes to `ugrep`, which is what
   makes `-P` work at all on macOS. The function hands off to the system BSD `grep` whenever certain
   flags appear, `-Z` and `--null` among them. So `grep -rlIZP …`, written to make a NUL-separated

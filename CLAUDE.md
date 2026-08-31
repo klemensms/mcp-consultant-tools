@@ -18,6 +18,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Never raise a GitHub issue against this repo.** We build, maintain, fix and deploy every MCP consultant tool on this machine, so a defect or feature idea is reported in chat and fixed here, in the same session. An issue would only be a note to ourselves in a slower place.
 
+## Staging: name explicit paths, never `git add -A`
+
+Several Claude sessions run against this repo at once, and they edit shared files - the root `CLAUDE.md`, `docs/KNOWN_ISSUES.md`, `.claude/log.md`. `git add -A` sweeps another session's in-flight edit into your commit, where the message does not explain it and a later reader finds a change nobody can account for. This has happened: commit `023dd49` carries a `CLAUDE.md` section written by a different session. **Stage the paths you actually changed**, and read `git diff --cached --name-status` before committing. `.claude/log.md` is written by the `/log` hook from every session and is never yours to stage by hand.
+
 ## Project Overview
 
 MCP server providing intelligent access to Microsoft PowerPlatform/Dataverse, Azure DevOps, Figma, Application Insights, Log Analytics, Azure SQL, Service Bus, SharePoint, GitHub Enterprise, Azure B2C, Azure Storage, and Microsoft Fabric through an MCP-compatible interface.
@@ -56,6 +60,8 @@ These files are mirrored between this repo and `mcp-computer-use`. Edit both, or
 - `.internal-strings.local` (UNTRACKED in both repos - synced via private claude-config, never committed)
 
 **Deliberate divergences:** `mcp-computer-use` uses `MCP_CU_*` env prefix (not the verbose `MCP_COMPUTER_USE_*`); ships no prebuilt binaries (compile-from-source on postinstall); allowlists carry extra patterns for Apple frameworks, test fixtures with fake-secret strings, and `com.1password.1password8` bundle ID.
+
+**⚠️ Unmirrored divergence, 2026-08-31 - eight of the files above.** The repo-wide U+2014 / U+2013 sweep (`7f9c2c8`) changed all five `scripts/` files plus `.secret-scan-allowlist`, `.secret-scan-longstr-allowlist` and `.internal-scan-placeholders`, and `mcp-computer-use` is not checked out on this machine, so "edit both" could not be honoured. Every change is inside a `#` comment, so no hook behaviour moved on either side; the cost is that a diff of the two copies now shows comment noise. **Apply the same substitution to those eight files next time that repo is checked out**, before reading any diff between them as meaningful.
 
 ## Release Notes - Master-Doc Model
 

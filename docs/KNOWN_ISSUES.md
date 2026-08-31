@@ -232,3 +232,46 @@ not a message parameter - and is worth treating as separate work.
 
 ---
 
+## `npm test` at the root runs nothing in 14 of 29 packages, and reports success
+
+**Status:** measured 2026-08-31 across every package manifest. **Affects:** the whole repo's test
+signal, most sharply `powerplatform-data`. **Reproduce:**
+`for d in packages/*/; do node -e "const j=require('./$d/package.json'); console.log(j.name, j.scripts?.test ?? 'NO TEST SCRIPT')"; done`
+
+The root script is `npm run test --workspaces --if-present`. Fifteen packages declare a `test`
+script and run; **fourteen declare none, so `--if-present` skips them silently** - no warning, no
+non-zero exit, nothing in the output naming them. A full-repo run therefore prints a green
+aggregate ("1,289 passing across 15 workspaces") that is accurate about what ran and says nothing
+about the other fourteen.
+
+None of the fourteen contains a test file either, so this is an absence of tests rather than tests
+that are merely unwired: `1password`, `application-insights`, `azure-b2c`, `azure-storage`,
+`fabric`, `figma`, `github-enterprise`, `powerplatform`, `powerplatform-customization`,
+`powerplatform-data`, `rest-api`, `service-bus`, `sharepoint`, `todoist`.
+
+**Why this is a defect and not just a coverage gap.** The failure is that the aggregate looks the
+same either way. An agent that changes `packages/sharepoint/src`, runs `npm test`, sees green and
+reports the change verified has verified nothing, and the output gave it no way to tell.
+
+**`powerplatform-data` is the sharpest case** because a fix has already landed there without a unit
+test. Its fourteen tool handlers are inline `async` closures inside `server.tool(...)` registrations
+(`src/tools/{read,write,audit}-tools.ts`), so nothing in the package is reachable from a test
+without both adding the harness and extracting the handlers. The `get-lookup-target` fix - a guessed
+`EntitySetName` printed into a copy-paste `@odata.bind` URL as if it had been read - was verified by
+driving the compiled handler with a stub server and a stub client, which did exercise both branches
+but leaves no regression guard.
+
+**Fix, cheapest first:**
+
+1. **Make the silence visible.** Drop `--if-present` from the root `test` script, or add a
+   `"test": "echo 'no tests in <pkg>' && exit 0"` to each of the fourteen. Either way the run names
+   what it skipped. This is a one-line change and it is worth doing before the rest.
+2. **Add vitest** to a package at a time, starting with `powerplatform-data`. Copy the config from
+   `packages/powerplatform-core/`.
+3. **Extract the handlers** in `powerplatform-data` out of the `server.tool(...)` closures so they
+   can be called directly, following the `services/` and `tools/` split the reference package
+   (`packages/azure-devops/`) already uses.
+
+Steps 2 and 3 are per-package work and want their own iteration. Step 1 does not.
+
+---
