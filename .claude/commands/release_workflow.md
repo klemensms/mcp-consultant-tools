@@ -194,6 +194,27 @@ git push -u origin release/(X+1).0
 
 ---
 
+## 9. LOG THE RELEASE (mandatory)
+
+Run **`/log`** before you write the summary reply, not after. A release is the single most log-worthy event this repo produces, and it is the one an agent is most likely to skip, because publishing feels like the finish line.
+
+**This is not a judgement call. If you published anything, you log it.** Do not ask whether it is worth logging.
+
+The entry must carry, at minimum:
+
+- Which packages were published and at which versions, and which dist-tag they landed on.
+- The commit hash.
+- What was verified, and explicitly what was **not** - a release note that overstates verification is worse than one that admits a gap.
+- Anything that broke, surprised you or had to be worked around, in a `learned` field.
+
+`/log` writes both logs: the shareable entry to the repo log and the full one to the vault. **Sanitise the repo entry** - it is committed to a public repo, so no tenant URLs, real filenames, client identifiers or colleague names, only the sanctioned placeholders from the Public Repo Hygiene section of `CLAUDE.md`.
+
+Commit the log change and push it, so the repo log on the remote matches what was published.
+
+For a production release the entry additionally records the promotion itself: which versions moved to the `latest` tag, the merge to `main`, the tag created, and the next release branch opened.
+
+---
+
 ## QUICK REFERENCE COMMANDS
 
 ```bash

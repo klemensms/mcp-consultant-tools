@@ -208,12 +208,12 @@ Full architecture, MCP↔CLI parity rules, parameter-mapping conventions, core h
 
 ### Safe Release Workflow
 
-Use the slash commands — they encapsulate the full workflow including release-notes updates and Teams announcement.
+Use the slash commands — they encapsulate the full workflow including release-notes updates, the Teams announcement and the mandatory `/log` entry.
 
 1. **Local Testing:** `npm run build` → exercise the modified package(s) locally (mcp-local-tester or manual run).
-2. **Beta Release:** `/release_workflow_beta` — secret scan → `/product-releasenotes beta` (updates master + per-iteration, emits Teams message) → version bump → commit → `npm publish --tag beta` → handoff for testing.
+2. **Beta Release:** `/release_workflow_beta` — secret scan → `/product-releasenotes beta` (updates master + per-iteration, emits Teams message) → version bump → commit → `npm publish --tag beta` → `/log` → handoff for testing.
 3. **USER TESTING REQUIRED** — beta is exercised against real client environments before promotion.
-4. **Production Release:** `/release_workflow` — secret scan → `/product-releasenotes production` (flips master status banner, updates URLs to `main`) → version bump → commit → `npm publish` (latest) → merge to `main` → tag → next-release branch.
+4. **Production Release:** `/release_workflow` — secret scan → `/product-releasenotes production` (flips master status banner, updates URLs to `main`) → version bump → commit → `npm publish` (latest) → merge to `main` → tag → next-release branch → `/log`.
 
 Per-iteration release-notes files (`docs/release-notes/v{X.Y.Z}-beta.N.md`) are agent audit trail. The master file `docs/release-notes/v{MAJOR}.0.0.md` is the user-facing single source of truth — see the "Release Notes — Master-Doc Model" section above.
 
