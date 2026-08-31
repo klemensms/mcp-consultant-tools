@@ -9,11 +9,11 @@ MCP server for Azure Data Factory providing pipeline execution, monitoring, and 
 
 ## Configuration
 
-Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both — only the wrapper key and the file differ.
+Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
-### VS Code — recommended (1Password)
+### VS Code - recommended (1Password)
 
-Credentials are resolved at runtime via biometric authentication — no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
+Credentials are resolved at runtime via biometric authentication - no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
 
 ```json
 {
@@ -36,7 +36,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-### VS Code — alternative (local credentials)
+### VS Code - alternative (local credentials)
 
 ```json
 {
@@ -73,5 +73,5 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 
 - **Read-only by default.** Pipeline execution, cancellation, and rerun require `AZURE_DATA_FACTORY_ENABLE_WRITE=true`. Trigger start/stop requires a separate `AZURE_DATA_FACTORY_ENABLE_TRIGGER_CONTROL=true` flag.
 - **Linked service credentials are always redacted.** `adf-list-linked-services` automatically replaces connection strings, passwords, keys, and tokens with `[REDACTED]`.
-- **Rerun from failure.** `adf-rerun-pipeline` looks up the original run automatically — pass the failed `runId`, not the pipeline name.
-- **Debug runs: query yes, execute no.** *Executing* an unpublished/debug run is not possible through the REST API — `adf-run-pipeline` always runs the published version. But *querying* debug-run history (runs launched via the ADF Studio "Debug" button) IS possible: `adf-query-debug-pipeline-runs` reads them via an undocumented ARM operation that works with app-only auth given Data Factory Contributor RBAC. Debug-run history is retained server-side for only ~15 days, and results report `truncated` rather than a total count. A `status` filter is normalized to the API's wire casing (e.g. British `Cancelling` → `Canceling`) so an exact-match filter never silently returns zero.
+- **Rerun from failure.** `adf-rerun-pipeline` looks up the original run automatically - pass the failed `runId`, not the pipeline name.
+- **Debug runs: query yes, execute no.** *Executing* an unpublished/debug run is not possible through the REST API - `adf-run-pipeline` always runs the published version. But *querying* debug-run history (runs launched via the ADF Studio "Debug" button) IS possible: `adf-query-debug-pipeline-runs` reads them via an undocumented ARM operation that works with app-only auth given Data Factory Contributor RBAC. Debug-run history is retained server-side for only ~15 days, and results report `truncated` rather than a total count. A `status` filter is normalized to the API's wire casing (e.g. British `Cancelling` → `Canceling`) so an exact-match filter never silently returns zero.

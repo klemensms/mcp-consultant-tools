@@ -1,5 +1,5 @@
 /**
- * Task 45 — exercise all 13 audit-emitting tools + set-audit-engagement.
+ * Task 45 - exercise all 13 audit-emitting tools + set-audit-engagement.
  *
  * Goal: prove every tool produces exactly one audit record per call. Some
  * tools may legitimately fail if MCPTest doesn't have the relevant
@@ -16,7 +16,7 @@ import path from 'node:path';
 
 export default async function allTools(ctx) {
   // ============================================================
-  // PHASE 1 — set up: spawn pp-data with audit, create a fixture
+  // PHASE 1 - set up: spawn pp-data with audit, create a fixture
   // record we can read/update/associate against. Use audit=off
   // for fixture creation so we don't pollute the count.
   // ============================================================
@@ -42,7 +42,7 @@ export default async function allTools(ctx) {
   ctx.log('info', `created fixture2 ${fixture2.id}`);
 
   // ============================================================
-  // PHASE 2 — drive every audit-emitting tool exactly once
+  // PHASE 2 - drive every audit-emitting tool exactly once
   // ============================================================
   const session = await ctx.startClient({
     MCP_ENVIRONMENT_TYPE: 'uat',
@@ -98,7 +98,7 @@ export default async function allTools(ctx) {
   });
   calls.push(['create-record', createResult]);
   // Parse the GUID for cleanup (and for delete-record below).
-  // pp-data response has the GUID in the text response — try to extract.
+  // pp-data response has the GUID in the text response - try to extract.
   const createText = (createResult.content ?? []).map(c => c.text ?? '').join('\n');
   const guidMatch = createText.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
   const createdId = guidMatch ? guidMatch[0] : null;
@@ -115,14 +115,14 @@ export default async function allTools(ctx) {
     data: { jobtitle: 'AUDITTEST_AllTools_Job' },
   })]);
 
-  // execute-action — WhoAmI is a built-in unbound action that always works
+  // execute-action - WhoAmI is a built-in unbound action that always works
   calls.push(['execute-action', await callTool(session.client, 'execute-action', {
     actionName: 'WhoAmI',
     parameters: {},
   })]);
 
-  // associate-records — best-effort. Use account_primary_contact relationship between contacts.
-  // Most likely this will fail because we don't know the right relationship — that's fine,
+  // associate-records - best-effort. Use account_primary_contact relationship between contacts.
+  // Most likely this will fail because we don't know the right relationship - that's fine,
   // the audit record still emits.
   calls.push(['associate-records', await callTool(session.client, 'associate-records', {
     entityNamePlural: 'contacts',
@@ -138,7 +138,7 @@ export default async function allTools(ctx) {
     targetRecordId: fixture2.id,
   })]);
 
-  // delete-record — delete the create-record fixture (or another non-existent guid as fallback)
+  // delete-record - delete the create-record fixture (or another non-existent guid as fallback)
   const deleteId = createdId ?? '00000000-0000-0000-0000-000000000000';
   calls.push(['delete-record', await callTool(session.client, 'delete-record', {
     entityNamePlural: 'contacts',
@@ -146,14 +146,14 @@ export default async function allTools(ctx) {
     confirm: true,
   })]);
   if (createdId) {
-    // Successful delete — remove from cleanup list to avoid double-delete attempts
+    // Successful delete - remove from cleanup list to avoid double-delete attempts
     ctx.fixtureIds = ctx.fixtureIds.filter(f => f.id !== createdId);
   }
 
   await session.close();
 
   // ============================================================
-  // PHASE 3 — read JSONL, assert one record per tool surface
+  // PHASE 3 - read JSONL, assert one record per tool surface
   // ============================================================
   const records = await readAuditDir(path.join(ctx.auditPath, 'AllTools'));
   ctx.log('info', `audit records emitted: ${records.length}`);
@@ -200,7 +200,7 @@ export default async function allTools(ctx) {
   }
 
   // ============================================================
-  // PHASE 4 — chain integrity
+  // PHASE 4 - chain integrity
   // ============================================================
   const chain = walkChain(records);
   if (!chain.ok) throw new Error(`chain broken: ${JSON.stringify(chain)}`);

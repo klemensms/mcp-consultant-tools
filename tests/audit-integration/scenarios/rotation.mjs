@@ -15,8 +15,8 @@ function stripMeta(r) {
 
 export default async function rotation(ctx) {
   // ===========================================================
-  // PHASE 1 — Force size-based rotation. NOTE: implementation
-  // detail discovered during this test — `size:1KB` rotation in
+  // PHASE 1 - Force size-based rotation. NOTE: implementation
+  // detail discovered during this test - `size:1KB` rotation in
   // packages/core/src/audit/rotation.ts uses second-of-day to
   // pick a filename and does NOT enforce a byte threshold; the
   // effect is per-second rotation. To reliably get multiple
@@ -60,7 +60,7 @@ export default async function rotation(ctx) {
   }
 
   // ===========================================================
-  // PHASE 2 — readAuditDir + walkChain across all files
+  // PHASE 2 - readAuditDir + walkChain across all files
   // ===========================================================
   const allRecords = await readAuditDir(auditDir);
   const expectedTotal = TOTAL_CALLS + 1; // +1 for set-audit-engagement
@@ -77,7 +77,7 @@ export default async function rotation(ctx) {
   ctx.log('info', '✓ cross-file chain walks ok');
 
   // ===========================================================
-  // PHASE 3 — verify each cross-file boundary explicitly
+  // PHASE 3 - verify each cross-file boundary explicitly
   // ===========================================================
   for (let i = 0; i < files.length - 1; i++) {
     const recsA = await readAuditFile(files[i]);
@@ -96,7 +96,7 @@ export default async function rotation(ctx) {
   }
 
   // ===========================================================
-  // PHASE 4 — mcp-audit-cli verify across the directory
+  // PHASE 4 - mcp-audit-cli verify across the directory
   // ===========================================================
   const cli = spawnSync('node', [AUDIT_CLI_BUILD, 'verify', auditDir], { encoding: 'utf8' });
   if (cli.status !== 0) {
@@ -105,7 +105,7 @@ export default async function rotation(ctx) {
   ctx.log('info', `✓ CLI verify reported OK across ${files.length} files`);
 
   // ===========================================================
-  // PHASE 5 — daily filename derivation correctness
+  // PHASE 5 - daily filename derivation correctness
   // ===========================================================
   const dailySession = await ctx.startClient({
     MCP_ENVIRONMENT_TYPE: 'uat',

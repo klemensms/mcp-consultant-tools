@@ -17,7 +17,7 @@ async function listAllAuditArtefacts(dir) {
 }
 
 export default async function quarantine(ctx) {
-  // PHASE 1 — clean chain via real MCPTest reads
+  // PHASE 1 - clean chain via real MCPTest reads
   const session1 = await ctx.startClient({
     MCP_ENVIRONMENT_TYPE: 'uat',
     PII_PROTECTION: 'true',
@@ -45,7 +45,7 @@ export default async function quarantine(ctx) {
   if (!walkChain(cleanRecs).ok) throw new Error('clean chain failed walkChain');
   ctx.log('info', `✓ clean chain: ${cleanRecs.length} records`);
 
-  // PHASE 2 — tamper a mid-chain record
+  // PHASE 2 - tamper a mid-chain record
   const lines = (await readFile(originalFile, 'utf8')).split('\n').filter(Boolean);
   const r3 = JSON.parse(lines[2]);
   r3.tool.params = { tampered: 'yes' };
@@ -57,7 +57,7 @@ export default async function quarantine(ctx) {
   if (lib.ok) throw new Error('tamper check failed (chain unexpectedly ok)');
   ctx.log('info', `✓ tamper detected at seq ${lib.brokenAt}`);
 
-  // PHASE 3 — quarantine CLI
+  // PHASE 3 - quarantine CLI
   const cli = spawnSync(
     'node',
     [AUDIT_CLI_BUILD, 'quarantine', originalFile, '--reason', 'integration test'],
@@ -68,7 +68,7 @@ export default async function quarantine(ctx) {
   }
   ctx.log('info', `quarantine CLI: ${cli.stdout.trim().split('\n')[0]}`);
 
-  // PHASE 4 — inspect aftermath. Use the permissive lister because the
+  // PHASE 4 - inspect aftermath. Use the permissive lister because the
   // renamed broken file ends with a timestamp suffix, not `.jsonl`, so
   // `listAuditFiles` won't see it.
   const filesAfter = await listAllAuditArtefacts(auditDir);
@@ -107,7 +107,7 @@ export default async function quarantine(ctx) {
   }
   ctx.log('info', '✓ sentinel: prevHash=zero, seq=1, reason embedded, previousFile recorded');
 
-  // PHASE 5 — fresh session writes new chain anchored on sentinel
+  // PHASE 5 - fresh session writes new chain anchored on sentinel
   const session2 = await ctx.startClient({
     MCP_ENVIRONMENT_TYPE: 'uat',
     PII_PROTECTION: 'true',
@@ -126,7 +126,7 @@ export default async function quarantine(ctx) {
   }
   await session2.close();
 
-  // PHASE 6 — walk new chain (sentinel + 4 new records: set-engagement + 3 queries)
+  // PHASE 6 - walk new chain (sentinel + 4 new records: set-engagement + 3 queries)
   const newChainRecs = await readAuditFile(sentinelFile);
   if (newChainRecs.length !== 5) {
     throw new Error(`expected sentinel + 4 new records (=5), got ${newChainRecs.length}`);
@@ -143,7 +143,7 @@ export default async function quarantine(ctx) {
   }
   ctx.log('info', `✓ new chain: ${newChainRecs.length} records, seqs 1..5, walkChain ok`);
 
-  // PHASE 7 — verify CLI on the sentinel file alone (clean chain)
+  // PHASE 7 - verify CLI on the sentinel file alone (clean chain)
   const verifyNewOnly = spawnSync('node', [AUDIT_CLI_BUILD, 'verify', sentinelFile], {
     encoding: 'utf8',
   });
@@ -154,7 +154,7 @@ export default async function quarantine(ctx) {
   }
   ctx.log('info', `✓ verify <sentinel-file> alone → exit 0 (clean chain)`);
 
-  // PHASE 8 — verify CLI on the renamed broken file alone (still broken from tamper)
+  // PHASE 8 - verify CLI on the renamed broken file alone (still broken from tamper)
   const verifyBrokenOnly = spawnSync('node', [AUDIT_CLI_BUILD, 'verify', renamedFile], {
     encoding: 'utf8',
   });
@@ -165,16 +165,16 @@ export default async function quarantine(ctx) {
   }
   ctx.log('info', `✓ verify <broken-file> alone → exit 2 (tamper still detected)`);
 
-  // PHASE 9 — verify CLI on the directory.
+  // PHASE 9 - verify CLI on the directory.
   // Verify threads prev across files in alphabetical order. Files sort as:
   //   <original>.jsonl                     (sentinel + new chain)
-  //   <original>.jsonl.broken-<ts>         (broken file, prev chain — OUT OF BAND)
+  //   <original>.jsonl.broken-<ts>         (broken file, prev chain - OUT OF BAND)
   // The .broken-<ts> suffix means the file no longer matches the *.jsonl pattern that
   // mcp-audit-cli verify uses to enumerate files in a directory. This is intentional:
   // quarantined files are deliberately out-of-band so they don't pollute future verify
   // runs. The sentinel record points back at the broken file via .quarantine.previousFile
   // for forensic tracking. Operators who want to inspect a quarantined file pass it
-  // directly: `mcp-audit-cli verify <broken-file>` — which we asserted above returns 2.
+  // directly: `mcp-audit-cli verify <broken-file>` - which we asserted above returns 2.
   const verifyDir = spawnSync('node', [AUDIT_CLI_BUILD, 'verify', auditDir], { encoding: 'utf8' });
   if (verifyDir.status !== 0) {
     throw new Error(

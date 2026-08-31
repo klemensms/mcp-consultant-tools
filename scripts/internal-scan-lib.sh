@@ -1,26 +1,26 @@
 #!/bin/bash
-# SOURCE OF TRUTH: mcp-consultant-tools/scripts/internal-scan-lib.sh — mirrored to sibling repos verbatim.
+# SOURCE OF TRUTH: mcp-consultant-tools/scripts/internal-scan-lib.sh - mirrored to sibling repos verbatim.
 # Shared internal-identifier scanning functions.
 # Consumers: scripts/hooks/pre-commit, scripts/hooks/commit-msg, scripts/scan-tarball.sh
 #
 # This is a PUBLIC repo developed against internal client projects. Secrets are not the
-# only leak class — client identifiers (org names, environment URLs, file keys, work-item
+# only leak class - client identifiers (org names, environment URLs, file keys, work-item
 # IDs) must never be committed either. Two pattern sources:
 #
-#   1. .internal-strings.local (repo root) — PRIVATE denylist of known client/internal
+#   1. .internal-strings.local (repo root) - PRIVATE denylist of known client/internal
 #      identifiers. Untracked by design (gitignored via *.local); restore it from the
 #      private claude-config repo if missing. Sections:
-#        [SUBSTRING] — extended regex, matched case-insensitively anywhere
-#        [WORD]      — whole-word match, case-sensitive (for short codes)
-#      Denylist hits are NEVER false positives — do not bypass.
+#        [SUBSTRING] - extended regex, matched case-insensitively anywhere
+#        [WORD]      - whole-word match, case-sensitive (for short codes)
+#      Denylist hits are NEVER false positives - do not bypass.
 #
-#   2. .internal-scan-placeholders (repo root, committed) — sanctioned placeholder tokens.
+#   2. .internal-scan-placeholders (repo root, committed) - sanctioned placeholder tokens.
 #      Endpoint-heuristic hits containing one of these tokens are allowed.
 
 INTERNAL_LIST="${INTERNAL_LIST:-$REPO_ROOT/.internal-strings.local}"
 PLACEHOLDER_LIST="${PLACEHOLDER_LIST:-$REPO_ROOT/.internal-scan-placeholders}"
 
-# Real-looking internal endpoints (committable heuristics — work even without the private list)
+# Real-looking internal endpoints (committable heuristics - work even without the private list)
 ENDPOINT_PATTERNS='([a-z0-9-]+\.crm[0-9]*\.dynamics\.com|dev\.azure\.com/[A-Za-z0-9_-]+|[a-z0-9-]+\.sharepoint\.com|figma\.com/(board|file|design)/[A-Za-z0-9]{20,24}|[a-z0-9-]+\.b2clogin\.com|[a-z0-9-]+\.servicebus\.windows\.net|[a-z0-9-]+\.azurewebsites\.net)'
 
 _internal_section() {
@@ -39,7 +39,7 @@ _placeholder_filter() {
 }
 
 _warn_missing_denylist() {
-    echo "⚠️  $INTERNAL_LIST not found — internal-identifier denylist scan SKIPPED." >&2
+    echo "⚠️  $INTERNAL_LIST not found - internal-identifier denylist scan SKIPPED." >&2
     echo "   Restore it from the private claude-config repo (it is intentionally untracked)." >&2
 }
 
@@ -67,7 +67,7 @@ internal_scan() {
 
     ep=$(printf '%s\n' "$text" | grep -oiE "$ENDPOINT_PATTERNS" 2>/dev/null | sort -u | _placeholder_filter)
     if [ -n "$ep" ]; then
-        echo "🛑 REAL-LOOKING INTERNAL ENDPOINT in $label (use sanctioned placeholders — CLAUDE.md → Public Repo Hygiene):"
+        echo "🛑 REAL-LOOKING INTERNAL ENDPOINT in $label (use sanctioned placeholders - CLAUDE.md → Public Repo Hygiene):"
         printf '%s\n' "$ep" | head -10 | sed 's/^/     /'
         found=1
     fi
@@ -95,7 +95,7 @@ internal_scan_dir() {
 
     ep=$(grep -rhoiIE "$ENDPOINT_PATTERNS" "$dir" 2>/dev/null | sort -u | _placeholder_filter)
     if [ -n "$ep" ]; then
-        echo "🛑 REAL-LOOKING INTERNAL ENDPOINT in $label (use sanctioned placeholders — CLAUDE.md → Public Repo Hygiene):"
+        echo "🛑 REAL-LOOKING INTERNAL ENDPOINT in $label (use sanctioned placeholders - CLAUDE.md → Public Repo Hygiene):"
         printf '%s\n' "$ep" | head -10 | sed 's/^/     /'
         found=1
     fi

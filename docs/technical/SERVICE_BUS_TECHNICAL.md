@@ -61,7 +61,7 @@ private adminClients: Map<string, ServiceBusAdministrationClient> = new Map();
 
 <auth-method name="entra-id">
 
-**Microsoft Entra ID (OAuth 2.0)** — default, recommended for production
+**Microsoft Entra ID (OAuth 2.0)** - default, recommended for production
 
 - Uses `@azure/identity` `ClientSecretCredential` directly for client creation
 - MSAL `ConfidentialClientApplication` used for token introspection
@@ -79,7 +79,7 @@ Environment variables required:
 
 <auth-method name="connection-string">
 
-**Connection String** — for testing/legacy setups
+**Connection String** - for testing/legacy setups
 
 - Direct connection string authentication
 - Requires SharedAccessKey with Listen permissions
@@ -87,7 +87,7 @@ Environment variables required:
 - Set `SERVICEBUS_AUTH_METHOD=connection-string`
 
 Environment variable:
-- `SERVICEBUS_CONNECTION_STRING` — per namespace (can also be set per-resource in `SERVICEBUS_RESOURCES`)
+- `SERVICEBUS_CONNECTION_STRING` - per namespace (can also be set per-resource in `SERVICEBUS_RESOURCES`)
 
 </auth-method>
 
@@ -148,13 +148,13 @@ interface ServiceBusConfig {
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `SERVICEBUS_NAMESPACE` | Yes* | — | Single namespace FQDN |
-| `SERVICEBUS_RESOURCES` | Yes* | — | JSON array for multi-namespace |
-| `SERVICEBUS_TENANT_ID` | Entra ID | — | Azure tenant ID |
-| `SERVICEBUS_CLIENT_ID` | Entra ID | — | App registration client ID |
-| `SERVICEBUS_CLIENT_SECRET` | Entra ID | — | App registration secret |
+| `SERVICEBUS_NAMESPACE` | Yes* | - | Single namespace FQDN |
+| `SERVICEBUS_RESOURCES` | Yes* | - | JSON array for multi-namespace |
+| `SERVICEBUS_TENANT_ID` | Entra ID | - | Azure tenant ID |
+| `SERVICEBUS_CLIENT_ID` | Entra ID | - | App registration client ID |
+| `SERVICEBUS_CLIENT_SECRET` | Entra ID | - | App registration secret |
 | `SERVICEBUS_AUTH_METHOD` | No | `entra-id` | `entra-id` or `connection-string` |
-| `SERVICEBUS_CONNECTION_STRING` | Conn. str. | — | Full connection string |
+| `SERVICEBUS_CONNECTION_STRING` | Conn. str. | - | Full connection string |
 | `SERVICEBUS_SANITIZE_MESSAGES` | No | `false` | Enable PII redaction |
 | `SERVICEBUS_MAX_PEEK_MESSAGES` | No | `100` | Hard cap on peek operations |
 | `SERVICEBUS_MAX_SEARCH_MESSAGES` | No | `500` | Hard cap on search scans |
@@ -215,7 +215,7 @@ All 8 tools are read-only. No tool modifies, consumes, or deletes messages.
 
 **Returns:** Array of `ServiceBusResource` objects including `id`, `name`, `namespace`, `active` flag.
 
-**Notes:** Returns from in-memory config — no network call. Use `id` values as `resourceId` in all other tools.
+**Notes:** Returns from in-memory config - no network call. Use `id` values as `resourceId` in all other tools.
 
 </tool>
 
@@ -268,12 +268,12 @@ interface QueueInfo {
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `resourceId` | string | Yes | — | Resource ID |
-| `queueName` | string | Yes | — | Queue name |
+| `resourceId` | string | Yes | - | Resource ID |
+| `queueName` | string | Yes | - | Queue name |
 | `maxMessages` | number | No | 10 | Messages to peek (hard cap: 100) |
-| `sessionId` | string | No | — | Session ID for session-enabled queues |
+| `sessionId` | string | No | - | Session ID for session-enabled queues |
 
-**CRITICAL:** Uses `peekMessages()` only — never `receiveMessages()`. Messages remain in queue.
+**CRITICAL:** Uses `peekMessages()` only - never `receiveMessages()`. Messages remain in queue.
 
 </tool>
 
@@ -285,10 +285,10 @@ interface QueueInfo {
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `resourceId` | string | Yes | — | Resource ID |
-| `queueName` | string | Yes | — | Source queue name (DLQ path `queueName/$DeadLetterQueue` resolved internally) |
+| `resourceId` | string | Yes | - | Resource ID |
+| `queueName` | string | Yes | - | Source queue name (DLQ path `queueName/$DeadLetterQueue` resolved internally) |
 | `maxMessages` | number | No | 10 | Messages to peek (hard cap: 100) |
-| `sessionId` | string | No | — | Session ID for session-enabled DLQs |
+| `sessionId` | string | No | - | Session ID for session-enabled DLQs |
 
 **DLQ path:** The service appends `/$DeadLetterQueue` automatically. Pass the source queue name, not the DLQ path.
 
@@ -322,14 +322,14 @@ Uses `ServiceBusAdministrationClient.getQueueRuntimeProperties()` + `getQueue()`
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `resourceId` | string | Yes | — | Resource ID |
-| `queueName` | string | Yes | — | Queue name |
-| `bodyContains` | string | No | — | Case-insensitive text search in message body |
-| `correlationId` | string | No | — | Exact match on correlation ID |
-| `messageId` | string | No | — | Exact match on message ID |
-| `propertyKey` | string | No | — | Application property key to filter by |
-| `propertyValue` | any | No | — | Application property value to match (exact) |
-| `sessionId` | string | No | — | Session ID for session-enabled queues |
+| `resourceId` | string | Yes | - | Resource ID |
+| `queueName` | string | Yes | - | Queue name |
+| `bodyContains` | string | No | - | Case-insensitive text search in message body |
+| `correlationId` | string | No | - | Exact match on correlation ID |
+| `messageId` | string | No | - | Exact match on message ID |
+| `propertyKey` | string | No | - | Application property key to filter by |
+| `propertyValue` | any | No | - | Application property value to match (exact) |
+| `sessionId` | string | No | - | Session ID for session-enabled queues |
 | `maxMessages` | number | No | 50 | Maximum messages to scan (hard cap: 500) |
 
 **Returns:** `SearchResult`:
@@ -342,7 +342,7 @@ interface SearchResult {
 }
 ```
 
-**Search algorithm:** Peeks in batches of 100. Stops when `matchCount >= maxMessages` or no more messages. All filtering is client-side — Service Bus has no server-side message filtering API.
+**Search algorithm:** Peeks in batches of 100. Stops when `matchCount >= maxMessages` or no more messages. All filtering is client-side - Service Bus has no server-side message filtering API.
 
 **`matchesCriteria` logic:**
 ```typescript
@@ -402,9 +402,9 @@ private matchesCriteria(msg, criteria): boolean {
 **Data gathered:** `getQueueProperties()`, `getQueueConfigProperties()`, `peekMessages(10)`, `peekDeadLetterMessages(10)`.
 
 **Health status logic** (via `getQueueHealthStatus()`):
-- `critical` — DLQ has any messages, OR queue size > 90% of max
-- `warning` — active message count > 1000
-- `healthy` — none of the above
+- `critical` - DLQ has any messages, OR queue size > 90% of max
+- `warning` - active message count > 1000
+- `healthy` - none of the above
 
 **Recommendations generated:**
 - CRITICAL: Investigate DLQ immediately, check consumer health, consider scaling
@@ -462,7 +462,7 @@ async peekMessages(
     : client.createReceiver(queueName);
 
   try {
-    // CRITICAL: Use peekMessages() only — never receiveMessages()
+    // CRITICAL: Use peekMessages() only - never receiveMessages()
     const messages = await receiver.peekMessages(limit, {
       timeout: this.config.peekTimeout || 30000
     });
@@ -568,7 +568,7 @@ private accessToken: string | null = null;
 private tokenExpirationTime: number = 0;
 ```
 
-Note: Client creation uses `ClientSecretCredential` from `@azure/identity` directly — MSAL is used only for supplementary token operations.
+Note: Client creation uses `ClientSecretCredential` from `@azure/identity` directly - MSAL is used only for supplementary token operations.
 
 </token-management>
 
@@ -669,7 +669,7 @@ Use when sharing message content externally or in regulated environments.
 
 For Entra ID authentication, the service principal requires:
 - **Azure Service Bus Data Receiver** role on the namespace (or resource group)
-- Read-only access only — no Send, Manage, or Delete permissions required
+- Read-only access only - no Send, Manage, or Delete permissions required
 
 </rbac>
 
@@ -740,8 +740,8 @@ Maximum total scan: `maxMessages * 2` messages peeked (capped by `SERVICEBUS_MAX
 |-----------|---------|----------|----------------------|
 | Peek messages | 10 | 100 | `SERVICEBUS_MAX_PEEK_MESSAGES` |
 | Search scan | 50 | 500 | `SERVICEBUS_MAX_SEARCH_MESSAGES` |
-| Peek timeout | 30000 ms | — | `SERVICEBUS_PEEK_TIMEOUT` |
-| Queue list TTL | 300 s | — | `SERVICEBUS_CACHE_QUEUE_LIST_TTL` |
+| Peek timeout | 30000 ms | - | `SERVICEBUS_PEEK_TIMEOUT` |
+| Queue list TTL | 300 s | - | `SERVICEBUS_CACHE_QUEUE_LIST_TTL` |
 
 </limits>
 
@@ -782,16 +782,16 @@ packages/service-bus/src/
 
 | Command | Arguments | Options | MCP Tool |
 |---------|-----------|---------|----------|
-| `namespace list` | — | — | `sb-list-namespaces` |
-| `namespace test <resourceId>` | resourceId | — | `sb-test-connection` |
-| `namespace props <resourceId>` | resourceId | — | `sb-get-ns-props` |
+| `namespace list` | - | - | `sb-list-namespaces` |
+| `namespace test <resourceId>` | resourceId | - | `sb-test-connection` |
+| `namespace props <resourceId>` | resourceId | - | `sb-get-ns-props` |
 
 **Queue commands:**
 
 | Command | Arguments | Options | MCP Tool |
 |---------|-----------|---------|----------|
-| `queue list <resourceId>` | resourceId | — | `sb-list-queues` |
-| `queue props <resourceId> <queueName>` | resourceId, queueName | — | `sb-get-queue-props` |
+| `queue list <resourceId>` | resourceId | - | `sb-list-queues` |
+| `queue props <resourceId> <queueName>` | resourceId, queueName | - | `sb-get-queue-props` |
 | `queue peek <resourceId> <queueName>` | resourceId, queueName | `-n/--max-messages`, `-s/--session-id` | `sb-peek-messages` |
 | `queue peek-dlq <resourceId> <queueName>` | resourceId, queueName | `-n/--max-messages`, `-s/--session-id` | `sb-peek-deadletter` |
 | `queue search <resourceId> <queueName>` | resourceId, queueName | `-b/--body-contains`, `-c/--correlation-id`, `-m/--message-id`, `-k/--property-key`, `-v/--property-value`, `-s/--session-id`, `-n/--max-messages` | `sb-search-messages` |

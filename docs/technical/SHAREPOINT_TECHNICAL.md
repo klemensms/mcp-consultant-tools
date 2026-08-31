@@ -10,7 +10,7 @@ SharePoint Online integration via Microsoft Graph API. Provides tools for site m
 **Package:** `@mcp-consultant-tools/sharepoint`
 **MCP binary:** `mcp-spo`
 **CLI binary:** `mcp-spo-cli`
-**Tool count:** 16 read tools (always available) + 5 write tools (SHAREPOINT_ENABLE_WRITE=true) + 1 delete tool (SHAREPOINT_ENABLE_DELETE=true) = 16–22 tools
+**Tool count:** 16 read tools (always available) + 5 write tools (SHAREPOINT_ENABLE_WRITE=true) + 1 delete tool (SHAREPOINT_ENABLE_DELETE=true) = 16-22 tools
 **Prompts:** 10
 
 </overview>
@@ -84,11 +84,11 @@ scopes: ["https://graph.microsoft.com/.default"]
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `SHAREPOINT_TENANT_ID` | Yes | — | Azure tenant ID |
-| `SHAREPOINT_CLIENT_ID` | Yes | — | App registration client ID |
-| `SHAREPOINT_CLIENT_SECRET` | Yes | — | App registration client secret |
-| `SHAREPOINT_SITES` | One of these two | — | JSON array of site configs (see format below) |
-| `SHAREPOINT_SITE_URL` | One of these two | — | Single site URL; auto-creates `{id: 'default', name: 'Default SharePoint Site', active: true}` |
+| `SHAREPOINT_TENANT_ID` | Yes | - | Azure tenant ID |
+| `SHAREPOINT_CLIENT_ID` | Yes | - | App registration client ID |
+| `SHAREPOINT_CLIENT_SECRET` | Yes | - | App registration client secret |
+| `SHAREPOINT_SITES` | One of these two | - | JSON array of site configs (see format below) |
+| `SHAREPOINT_SITE_URL` | One of these two | - | Single site URL; auto-creates `{id: 'default', name: 'Default SharePoint Site', active: true}` |
 | `SHAREPOINT_MAX_DOWNLOAD_SIZE_MB` | No | `50` | Max file download size in MB |
 | `SHAREPOINT_MAX_UPLOAD_SIZE_MB` | No | `100` | Max file upload size in MB |
 | `SHAREPOINT_MAX_SEARCH_RESULTS` | No | `100` | Max search results returned |
@@ -134,12 +134,12 @@ scopes: ["https://graph.microsoft.com/.default"]
 
 | Tool | Description | Required Params | Optional Params |
 |------|-------------|-----------------|-----------------|
-| `spo-list-sites` | List all configured sites (active and inactive) | — | — |
-| `spo-get-site-info` | Site metadata: displayName, webUrl, dates, siteCollection | `siteId` | — |
-| `spo-test-connection` | Test site connectivity and verify permissions | `siteId` | — |
-| `spo-list-drives` | List all document libraries with quota, owner, dates | `siteId` | — |
-| `spo-get-drive-info` | Detailed library info including quota and owner | `siteId`, `driveId` | — |
-| `spo-clear-cache` | Clear in-memory cached responses | — | `siteId`, `pattern` |
+| `spo-list-sites` | List all configured sites (active and inactive) | - | - |
+| `spo-get-site-info` | Site metadata: displayName, webUrl, dates, siteCollection | `siteId` | - |
+| `spo-test-connection` | Test site connectivity and verify permissions | `siteId` | - |
+| `spo-list-drives` | List all document libraries with quota, owner, dates | `siteId` | - |
+| `spo-get-drive-info` | Detailed library info including quota and owner | `siteId`, `driveId` | - |
+| `spo-clear-cache` | Clear in-memory cached responses | - | `siteId`, `pattern` |
 
 **`spo-clear-cache` behavior:**
 - No parameters: clears all cache entries and the site ID resolution cache
@@ -156,8 +156,8 @@ scopes: ["https://graph.microsoft.com/.default"]
 | Tool | Description | Required Params | Optional Params |
 |------|-------------|-----------------|-----------------|
 | `spo-list-items` | List files and folders in a library or folder | `siteId`, `driveId` | `folderId` (defaults to root) |
-| `spo-get-item` | File/folder metadata by item ID | `siteId`, `driveId`, `itemId` | — |
-| `spo-get-item-by-path` | File/folder metadata by path relative to drive root | `siteId`, `driveId`, `path` | — |
+| `spo-get-item` | File/folder metadata by item ID | `siteId`, `driveId`, `itemId` | - |
+| `spo-get-item-by-path` | File/folder metadata by path relative to drive root | `siteId`, `driveId`, `path` | - |
 | `spo-search-items` | Search by filename/metadata (not full-text) | `siteId`, `query` | `driveId`, `limit` |
 | `spo-get-recent-items` | Recently modified items in a library | `siteId`, `driveId` | `limit` (default: 20, max: 100), `days` (default: 30) |
 | `spo-get-folder-structure` | Recursive folder tree | `siteId`, `driveId` | `folderId` (default: drive root), `depth` (default: 3, max: 10) |
@@ -180,8 +180,8 @@ scopes: ["https://graph.microsoft.com/.default"]
 |-----------|------|----------|-------------|
 | `siteId` | string | Yes | Site ID from configuration |
 | `driveId` | string | Yes | Drive ID |
-| `itemId` | string | No | Item ID — use this OR `path`, not both |
-| `path` | string | No | File path relative to drive root — use this OR `itemId`, not both |
+| `itemId` | string | No | Item ID - use this OR `path`, not both |
+| `path` | string | No | File path relative to drive root - use this OR `itemId`, not both |
 
 **Encoding logic (automatic, based on MIME type):**
 
@@ -391,7 +391,7 @@ Compares source and target SharePoint folders to verify document migration compl
 | `spo-validate-crm-integration` | `documentLocationId` | Calls `validateDocumentLocation`; returns formatted validation report |
 | `spo-document-location-audit` | `entityName` (optional), `recordId` (optional) | Calls `getCrmDocumentLocations` + `analyzeCrmDocumentLocations`; returns audit with insights and recommendations |
 | `spo-migration-verification-report` | `sourceSiteId`, `sourcePath`, `targetSiteId`, `targetPath` | Calls `verifyDocumentMigration` + `analyzeMigrationVerification`; returns full migration report |
-| `spo-setup-validation-guide` | — | Returns static setup checklist (Azure AD, permissions, site access, env vars) and testing steps |
+| `spo-setup-validation-guide` | - | Returns static setup checklist (Azure AD, permissions, site access, env vars) and testing steps |
 | `spo-troubleshooting-guide` | `errorType` (optional) | Returns static troubleshooting guide for 6 common error scenarios: access denied, site not found, auth failed, token acquisition, folder not found, doc location validation |
 | `spo-powerplatform-integration-health` | `entityName` (optional) | Calls `getCrmDocumentLocations` + `analyzeCrmDocumentLocations`; returns health summary with recommendations |
 
@@ -400,8 +400,8 @@ Compares source and target SharePoint folders to verify document migration compl
 <caching>
 
 **In-memory cache** on `SharePointService`. Two separate maps:
-- `cache: Map<string, CacheEntry<any>>` — general response cache (site info, drives)
-- `siteIdCache: Map<string, string>` — siteUrl → Graph API site ID
+- `cache: Map<string, CacheEntry<any>>` - general response cache (site info, drives)
+- `siteIdCache: Map<string, string>` - siteUrl → Graph API site ID
 
 **Cache key format:** `{method}:{siteId}:{resource}:{JSON.stringify(params)}`
 
@@ -415,7 +415,7 @@ Compares source and target SharePoint folders to verify document migration compl
 | `siteId` | Clears cache entries containing `:${siteId}:`, plus siteIdCache entries mapping to that siteId |
 | `pattern` | Clears cache entries whose key contains the pattern string |
 
-Item-level operations (`listItems`, `getItem`, etc.) do not use the cache — only site-level data (site info, drives) is cached.
+Item-level operations (`listItems`, `getItem`, etc.) do not use the cache - only site-level data (site info, drives) is cached.
 
 </caching>
 
@@ -526,7 +526,7 @@ mcp-spo-cli write delete --site-id intranet --drive-id b!abc123... --item-id ite
 - **Delete is gated separately** from write (two independent flags) to reduce blast radius.
 - **Delete requires double confirmation:** env flag + `confirm: true` parameter.
 - **Error messages are sanitized** before returning to clients (tokens and GUIDs stripped).
-- **No write operations use full-text search** — Graph API search is filename/metadata only, preventing unintended data exposure via search.
+- **No write operations use full-text search** - Graph API search is filename/metadata only, preventing unintended data exposure via search.
 - **App registration should use least-privilege:** `Sites.Read.All` + `Files.Read.All` for read-only deployments. Add `Sites.ReadWrite.All` + `Files.ReadWrite.All` only if write features are needed.
 
 </security>

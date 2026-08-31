@@ -20,7 +20,7 @@ The Figma package extracts design data from Figma files and FigJam boards and tr
 
 Two methods are supported. Only one is required.
 
-**Personal Access Token (PAT) — recommended:**
+**Personal Access Token (PAT) - recommended:**
 - Set `FIGMA_API_KEY` to the token value
 - Sends header: `X-Figma-Token: <token>`
 - Generate at: Figma Settings → Account → Personal access tokens
@@ -135,9 +135,9 @@ Figma responses are typically 20-200KB. The context-safe mechanism prevents larg
 **Applied to tools:** `get-figma-data`, `get-figma-semantic`, `extract-ado-stories`
 
 **Core helpers used:**
-- `getContextSafeConfig(cacheDir)` — reads env vars once at tool registration
-- `withContextSafeParam(schema)` — appends `returnFullResponse` to tool Zod schema
-- `createContextSafeResponse(opts)` — serializes, checks threshold, writes or returns inline
+- `getContextSafeConfig(cacheDir)` - reads env vars once at tool registration
+- `withContextSafeParam(schema)` - appends `returnFullResponse` to tool Zod schema
+- `createContextSafeResponse(opts)` - serializes, checks threshold, writes or returns inline
 
 </context-safe-responses>
 
@@ -157,15 +157,15 @@ Fetches comprehensive Figma design data and returns simplified, AI-friendly JSON
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `fileKey` | string | Yes | — | Alphanumeric key from Figma URL (e.g. `Abc123SampleFileKey000`) |
-| `nodeId` | string | No | — | Specific node ID(s). Format: `1234:5678` or multiple `1:10;2:20` (semicolon-separated) |
-| `depth` | number | No | — | Tree traversal depth limit. Prevents token overflow on large files. |
+| `fileKey` | string | Yes | - | Alphanumeric key from Figma URL (e.g. `Abc123SampleFileKey000`) |
+| `nodeId` | string | No | - | Specific node ID(s). Format: `1234:5678` or multiple `1:10;2:20` (semicolon-separated) |
+| `depth` | number | No | - | Tree traversal depth limit. Prevents token overflow on large files. |
 | `excludeStyles` | boolean | No | `true` | Strip all styling info (fills, strokes, effects, textStyle, opacity, borderRadius, globalVars.styles). Set `false` for visual data. |
 | `tablesToMarkdown` | boolean | No | `true` | Convert TABLE nodes to markdown table format. Significant token reduction. Set `false` for full node tree. |
 | `simplifyConnectors` | boolean | No | `true` | Reduce CONNECTOR nodes to just `{startNodeId, endNodeId, text}`. Set `false` for full connector data. |
 | `simplifyComponentInstances` | boolean | No | `true` | Keep componentId/componentProperties on INSTANCE nodes, remove visual styling. Set `false` for full instance data. |
 | `extractors` | array | No | all | Override extractor subset: `["layout", "text", "visuals", "component"]` |
-| `returnFullResponse` | boolean | No | — | Force inline response even if context-safe mode is enabled |
+| `returnFullResponse` | boolean | No | - | Force inline response even if context-safe mode is enabled |
 
 **Output structure:**
 ```typescript
@@ -201,12 +201,12 @@ Purpose-built for FigJam boards. Extracts semantically meaningful data (stickies
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `fileKey` | string | Yes | — | Figma file key from URL |
-| `nodeId` | string | No | — | Specific section/node ID. If omitted, extracts from entire file. |
-| `stickyColorOverrides` | object | No | — | Map hex colors to categories: `{"#FF00FF": "blocker"}`. Overrides HSL-based detection for exact hex matches. |
-| `storyIdPattern` | string | No | — | Custom regex string for story ID extraction. Compiled with `gi` flags. Invalid patterns return an error response. |
+| `fileKey` | string | Yes | - | Figma file key from URL |
+| `nodeId` | string | No | - | Specific section/node ID. If omitted, extracts from entire file. |
+| `stickyColorOverrides` | object | No | - | Map hex colors to categories: `{"#FF00FF": "blocker"}`. Overrides HSL-based detection for exact hex matches. |
+| `storyIdPattern` | string | No | - | Custom regex string for story ID extraction. Compiled with `gi` flags. Invalid patterns return an error response. |
 | `includeScreenshot` | boolean | No | `false` | When `true` and `nodeId` is set, fetches a 2x PNG via Figma Images API and prepends it as an image content block. Non-fatal: screenshot errors are logged but do not fail the tool. |
-| `returnFullResponse` | boolean | No | — | Force inline response |
+| `returnFullResponse` | boolean | No | - | Force inline response |
 
 **Sticky color categorization (HSL-based):**
 
@@ -285,12 +285,12 @@ Extracts ADO User Story Component instances from FigJam boards. Reduces ~200KB r
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `fileKey` | string | Yes | — | Figma file key |
-| `nodeId` | string | No | — | Section node ID to scope extraction. If omitted, extracts from entire file. |
-| `adoOrganization` | string | No | — | ADO organization name for constructing work item URLs |
-| `adoProject` | string | No | — | ADO project name for constructing work item URLs |
+| `fileKey` | string | Yes | - | Figma file key |
+| `nodeId` | string | No | - | Section node ID to scope extraction. If omitted, extracts from entire file. |
+| `adoOrganization` | string | No | - | ADO organization name for constructing work item URLs |
+| `adoProject` | string | No | - | ADO project name for constructing work item URLs |
 | `includePlaceholders` | boolean | No | `false` | Include components whose ADO Name contains "ADO xxxxx" (unfilled placeholders) |
-| `returnFullResponse` | boolean | No | — | Force inline response |
+| `returnFullResponse` | boolean | No | - | Force inline response |
 
 **Extraction logic:**
 1. Calls `getFigmaData` with `excludeStyles: true`, `simplifyComponentInstances: true`, `simplifyConnectors: true`
@@ -358,9 +358,9 @@ Downloads rendered images of Figma nodes to local disk using the Figma Images AP
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `fileKey` | string | Yes | — | Figma file key |
-| `nodeIds` | string | Yes | — | Semicolon-separated node IDs: `1:10;2:20` |
-| `localPath` | string | Yes | — | Local directory path (created if it does not exist) |
+| `fileKey` | string | Yes | - | Figma file key |
+| `nodeIds` | string | Yes | - | Semicolon-separated node IDs: `1:10;2:20` |
+| `localPath` | string | Yes | - | Local directory path (created if it does not exist) |
 | `format` | enum | No | `png` | Image format: `png`, `svg`, `jpg`, `pdf` |
 | `scale` | number | No | `2` | Scale factor 0.01-4. Default 2 (retina) |
 

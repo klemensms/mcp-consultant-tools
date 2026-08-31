@@ -1,5 +1,5 @@
 /**
- * Refuse-to-start matrix — Task 35 (Phase 15).
+ * Refuse-to-start matrix - Task 35 (Phase 15).
  *
  * Spawns pp-data subprocess with deliberately-bad config and asserts:
  *   - exit code === 1
@@ -62,7 +62,7 @@ export default async function refuseToStart(ctx) {
     },
   ];
 
-  // Case 4 — audit base directory unwritable.
+  // Case 4 - audit base directory unwritable.
   // Allocate a temp dir, chmod 000, point MCP_AUDIT_PATH at it.
   const unwritableDir = await tempDir('unwritable');
   await chmod(unwritableDir, 0o000);
@@ -79,7 +79,7 @@ export default async function refuseToStart(ctx) {
     cleanup: async () => safeChmodAndRemove(unwritableDir),
   });
 
-  // Case 5 — corrupted .chain-state file.
+  // Case 5 - corrupted .chain-state file.
   // Pre-stage a directory at MCP_AUDIT_PATH/<client>/.chain-state with garbage.
   const corruptDir = await tempDir('corrupt-state');
   const clientDir = path.join(corruptDir, 'TestCorrupt');
@@ -111,10 +111,10 @@ export default async function refuseToStart(ctx) {
       try {
         r = await spawnAndCaptureExit(c.env, 8000);
       } catch (err) {
-        // Timeout means the server kept running — did NOT refuse.
+        // Timeout means the server kept running - did NOT refuse.
         fail++;
         const detail = `did NOT exit within 8s (no refuse). err=${err.message}`;
-        ctx.log('error', `✗ ${c.name} — ${detail}`);
+        ctx.log('error', `✗ ${c.name} - ${detail}`);
         results.push({ name: c.name, ok: false, detail });
         continue;
       }
@@ -128,7 +128,7 @@ export default async function refuseToStart(ctx) {
       } else {
         fail++;
         const detail = `exitCode=${r.exitCode} stderr.match=${stderrOk} stderr=${r.stderr.slice(0, 400).replace(/\n/g, ' / ')}`;
-        ctx.log('error', `✗ ${c.name} — ${detail}`);
+        ctx.log('error', `✗ ${c.name} - ${detail}`);
         results.push({ name: c.name, ok: false, detail });
       }
     }

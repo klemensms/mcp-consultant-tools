@@ -11,9 +11,9 @@ End-to-end smoke test for the Phase A PII audit logging subsystem against `mcpte
 
 From the repo root, drive the following sequence via `mcp-local-tester` agent or the `/test-mcp-local` slash command, pointing at `tests/audit-smoke/.mcp.json`:
 
-1. `set-audit-engagement(['MCPTEST-001'], 'smoke test of audit subsystem')` — establishes the engagement.
-2. `query-records('contacts', "firstname eq 'Maria'", null, 5)` — first read.
-3. `query-records('contacts', "lastname eq 'Schmidt'", null, 5)` — second read.
+1. `set-audit-engagement(['MCPTEST-001'], 'smoke test of audit subsystem')` - establishes the engagement.
+2. `query-records('contacts', "firstname eq 'Maria'", null, 5)` - first read.
+3. `query-records('contacts', "lastname eq 'Schmidt'", null, 5)` - second read.
 4. **In a fresh subprocess** (engagement not set), try `query-records('contacts', "firstname eq 'Maria'", null, 5)` and expect `AuditEngagementUnsetError`.
 
 ## Manual verification

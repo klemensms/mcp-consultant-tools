@@ -9,9 +9,9 @@ HTML visual explainer.
 
 - **Server:** `pp-data` only. `rest-api`, `azure-devops`, `azure-sql`,
   `azure-b2c` will be added when test environments are available.
-- **Scenarios:** 6 — no-protection, L1 exclusion, L2 only, L2 + L3,
-  full L1–L4, observe-mode.
-- **Queries:** 4 — Maria contact (run 1), Maria contact (run 2 — exercises
+- **Scenarios:** 6 - no-protection, L1 exclusion, L2 only, L2 + L3,
+  full L1-L4, observe-mode.
+- **Queries:** 4 - Maria contact (run 1), Maria contact (run 2 - exercises
   cross-call correlation), Maria's annotation note, Contoso account with
   primary-contact lookup.
 - **Data target:** `acmedev.crm.dynamics.com` with the seeded fixtures
@@ -28,14 +28,14 @@ HTML visual explainer.
 | Annotation on Maria | `5c8ca556-7f44-f111-bec5-6045bdf2343f` | `notetext` packs all four PII shapes (email, phone, DOB-shape, two person names) into one free-text field. |
 
 To re-seed (e.g. fresh tenant): see `seed.md` for the canonical sequence.
-*[seed.md is a TODO — the seed is currently captured in the conversation log;
+*[seed.md is a TODO - the seed is currently captured in the conversation log;
 extract before next re-seed].*
 
 ## Capture workflow
 
 There are two paths. Both produce the same `output/manifest.json` schema.
 
-### Method A — Multi-MCP-server capture (CURRENT, RECOMMENDED)
+### Method A - Multi-MCP-server capture (CURRENT, RECOMMENDED)
 
 Pre-configure 6 MCP servers in `.mcp.json`, one per scenario, with the
 scenario's PII env vars baked into each. Restart Claude Code so all 6 load,
@@ -60,7 +60,7 @@ Steps:
 
 This is what was used to produce the current `output/`.
 
-### Method B — Subprocess runner (NOT CURRENTLY WORKING)
+### Method B - Subprocess runner (NOT CURRENTLY WORKING)
 
 A `run.mjs` Node script that spawns the pp-data MCP server as a subprocess
 per scenario and runs the queries through the SDK. Requires a working
@@ -96,7 +96,7 @@ Manifest schema (per result row):
 | `response_file` | Relative path under `output/`. |
 | `response_chars` | Length of the captured response text. |
 | `footer` | Extracted `[PII protection: ...]` summary, or `null` for unprotected scenarios. |
-| `extracted` | Map of `field → value` for the fields the query declares in `extractFields`. `undefined` means the field was absent from the response — interesting signal for L1 exclusion. |
+| `extracted` | Map of `field → value` for the fields the query declares in `extractFields`. `undefined` means the field was absent from the response - interesting signal for L1 exclusion. |
 
 The manifest also includes top-level `scenarios`, `queries`, `servers`,
 and `package_versions` so a single file is enough to reproduce the

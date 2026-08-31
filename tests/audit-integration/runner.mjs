@@ -86,7 +86,7 @@ async function runOne(name) {
     log('info', `← scenario pass: ${name} (${Date.now() - start}ms)`);
     result = { name, runId, ok: true, durationMs: Date.now() - start };
   } catch (err) {
-    log('error', `× scenario fail: ${name} — ${err.message}`);
+    log('error', `× scenario fail: ${name} - ${err.message}`);
     result = {
       name,
       runId,
@@ -174,7 +174,7 @@ async function main() {
   console.error(`\n[runner] SUMMARY: ${passed} passed, ${failed} failed (of ${results.length})`);
   for (const r of results) {
     const tag = r.ok ? '✓' : '✗';
-    console.error(`  ${tag} ${r.name} ${r.durationMs ? `(${r.durationMs}ms)` : ''}${r.error ? ` — ${r.error}` : ''}`);
+    console.error(`  ${tag} ${r.name} ${r.durationMs ? `(${r.durationMs}ms)` : ''}${r.error ? ` - ${r.error}` : ''}`);
   }
 
   await writeFile(

@@ -1,10 +1,10 @@
 #!/bin/bash
-# SOURCE OF TRUTH: mcp-consultant-tools/scripts/scan-tarball.sh — mirrored to sibling repos verbatim.
+# SOURCE OF TRUTH: mcp-consultant-tools/scripts/scan-tarball.sh - mirrored to sibling repos verbatim.
 # Scan the npm tarball a package would publish (i.e. the compiled build/ output that
 # actually ships) for internal/client identifiers and forbidden files.
 #
 # Why: pre-commit scans source diffs, but identifiers baked into examples compile into
-# build/ output and ship to npm — this gate catches that class. MANDATORY before every
+# build/ output and ship to npm - this gate catches that class. MANDATORY before every
 # `npm publish` (wired into /release_workflow and /release_workflow_beta).
 #
 # Usage: ./scripts/scan-tarball.sh packages/figma
@@ -56,7 +56,7 @@ if grep -q '"types"[[:space:]]*:' "$TMP/package/package.json" 2>/dev/null; then
     DTS_COUNT=$(find "$TMP/package" -name '*.d.ts' 2>/dev/null | wc -l | tr -d ' ')
     if [ "$DTS_COUNT" -eq 0 ]; then
         echo "🛑 Zero .d.ts files in the tarball but package.json declares \"types\"."
-        echo "   Likely a stale incremental build — run a CLEAN build (npm run build:release) and re-scan."
+        echo "   Likely a stale incremental build - run a CLEAN build (npm run build:release) and re-scan."
         FOUND=1
     fi
 fi
@@ -68,7 +68,7 @@ fi
 
 if [ $FOUND -eq 1 ]; then
     echo ""
-    echo "🛑 TARBALL SCAN FAILED for $PKG — do NOT publish. Fix the source, rebuild, re-scan."
+    echo "🛑 TARBALL SCAN FAILED for $PKG - do NOT publish. Fix the source, rebuild, re-scan."
     exit 1
 fi
 

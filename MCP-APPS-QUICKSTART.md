@@ -1,10 +1,10 @@
-# MCP Apps Quick Start — Agent Guide
+# MCP Apps Quick Start - Agent Guide
 
 ## TL;DR (for humans)
 
 This document tells a Claude agent how to add **interactive UI views** (charts, tables, cards) to an MCP server so they render inline in Claude Desktop instead of plain JSON. Give this file to an agent and point it at your MCP server codebase.
 
-MCP Apps is an extension to the MCP protocol. The server returns an HTML app alongside tool results. Claude Desktop renders it in an iframe. The agent (Claude) still sees the JSON text — the UI is for the human.
+MCP Apps is an extension to the MCP protocol. The server returns an HTML app alongside tool results. Claude Desktop renders it in an iframe. The agent (Claude) still sees the JSON text - the UI is for the human.
 
 **Prerequisites:** Your MCP server must use `@modelcontextprotocol/sdk`. The UI only renders in Claude Desktop (not Claude Code CLI).
 
@@ -26,7 +26,7 @@ You're building a small client-side web app that receives tool results via `post
 src/ui/
   my-app.html          # Entry point
   src/
-    main.ts            # App logic — receives data, picks views
+    main.ts            # App logic - receives data, picks views
     views/
       list-view.ts     # Renders arrays/tables
       card-view.ts     # Renders single items
@@ -81,7 +81,7 @@ app.ontoolresult = (result: any) => {
   }
 };
 
-// Theme support — host sends CSS variables
+// Theme support - host sends CSS variables
 app.onhostcontextchanged = (ctx: any) => {
   // Claude Desktop sends color/font vars; they're applied automatically via CSS vars
 };
@@ -115,7 +115,7 @@ export default defineConfig({
 });
 ```
 
-`vite-plugin-singlefile` inlines all JS/CSS into a single HTML file. This is required — MCP Apps serves the HTML as a single resource.
+`vite-plugin-singlefile` inlines all JS/CSS into a single HTML file. This is required - MCP Apps serves the HTML as a single resource.
 
 ### TypeScript config (`tsconfig.ui.json` at package root)
 
@@ -183,9 +183,9 @@ registerAppTool(server, "my-tool", {
 }, async ({ id }) => {
   const result = await doSomething(id);
   return {
-    // Text content — what the LLM sees (always include this)
+    // Text content - what the LLM sees (always include this)
     content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-    // Structured content — what the UI app receives via ontoolresult
+    // Structured content - what the UI app receives via ontoolresult
     structuredContent: { type: "my-detail", item: result },
   };
 });
@@ -194,7 +194,7 @@ registerAppTool(server, "my-tool", {
 ### Critical: always return both `content` and `structuredContent`
 
 - `content` is the fallback for clients that don't support MCP Apps (including Claude Code CLI)
-- `structuredContent` is what your UI app receives — design your own schema, the UI switches on it
+- `structuredContent` is what your UI app receives - design your own schema, the UI switches on it
 
 ## 5. Gotchas We Hit
 
@@ -202,7 +202,7 @@ registerAppTool(server, "my-tool", {
 
 2. **The UI is static.** You can't generate HTML at runtime on the server. The HTML app is a pre-built bundle served as a resource. All rendering logic lives in the client-side TypeScript.
 
-3. **SVG clipping.** If you render SVG charts, make sure the viewBox has enough padding for stroke widths. A circle with `radius=80` and `strokeWidth=30` extends to `95px` — your viewBox must accommodate that.
+3. **SVG clipping.** If you render SVG charts, make sure the viewBox has enough padding for stroke widths. A circle with `radius=80` and `strokeWidth=30` extends to `95px` - your viewBox must accommodate that.
 
 4. **Color maps.** If you categorize data by status/state/type, have a fallback for unknown values. Hash the string to generate a deterministic hue so unknowns don't all render as the same grey.
 
@@ -217,7 +217,7 @@ See `packages/azure-devops/` in this repo:
 | `src/index.ts` | Registers UI resource + tools |
 | `src/tools/work-item-tools.ts` | `registerAppTool()` usage with `structuredContent` |
 | `src/ui/work-items-app.html` | Entry HTML |
-| `src/ui/src/main.ts` | App logic — routes data to views |
+| `src/ui/src/main.ts` | App logic - routes data to views |
 | `src/ui/src/views/list-view.ts` | Table + donut chart |
 | `src/ui/src/views/card-view.ts` | Detail card |
 | `src/ui/src/chart.ts` | SVG donut chart renderer |

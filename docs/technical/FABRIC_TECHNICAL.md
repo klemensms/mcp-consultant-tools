@@ -5,12 +5,12 @@
 
 <overview>
 
-The Microsoft Fabric integration provides access to the Fabric REST API — workspaces, capacities, items, OneLake shortcuts, governance domains, and tenant-wide admin inventory. Authentication uses the Azure AD (Entra) service-principal client-credentials flow via `@azure/identity`.
+The Microsoft Fabric integration provides access to the Fabric REST API - workspaces, capacities, items, OneLake shortcuts, governance domains, and tenant-wide admin inventory. Authentication uses the Azure AD (Entra) service-principal client-credentials flow via `@azure/identity`.
 
 **Package:** `@mcp-consultant-tools/fabric`
 **Binaries:** `mcp-fabric` (MCP server), `mcp-fabric-cli` (CLI)
-**Tools:** 27 total — workspaces 8, capacities 4, items 8, shortcuts 3, domains 4, admin 3
-**Prompts:** 2 — `fabric-workspace-overview`, `fabric-tenant-inventory`
+**Tools:** 27 total - workspaces 8, capacities 4, items 8, shortcuts 3, domains 4, admin 3
+**Prompts:** 2 - `fabric-workspace-overview`, `fabric-tenant-inventory`
 
 </overview>
 
@@ -78,17 +78,17 @@ export interface ServiceContext {
 }
 ```
 
-All getters are lazy — the `FabricClient` (and therefore environment-variable validation) is constructed on the first service access.
+All getters are lazy - the `FabricClient` (and therefore environment-variable validation) is constructed on the first service access.
 
 ## Environment Variable Validation
 
 Validation occurs in `resolveAuthConfig()` (called by `createServiceContext()` when the client is first accessed):
 
-- `FABRIC_TENANT_ID` — required; throws listing all missing variables if absent
-- `FABRIC_CLIENT_ID` — required
-- `FABRIC_CLIENT_SECRET` — required
-- `FABRIC_ENABLE_WRITE` — optional; `"true"` enables create/update + assign operations (default `false`)
-- `FABRIC_ENABLE_DELETE` — optional; `"true"` enables delete operations (default `false`)
+- `FABRIC_TENANT_ID` - required; throws listing all missing variables if absent
+- `FABRIC_CLIENT_ID` - required
+- `FABRIC_CLIENT_SECRET` - required
+- `FABRIC_ENABLE_WRITE` - optional; `"true"` enables create/update + assign operations (default `false`)
+- `FABRIC_ENABLE_DELETE` - optional; `"true"` enables delete operations (default `false`)
 
 </architecture>
 
@@ -158,7 +158,7 @@ Every tool returns `isError: true` in the MCP response on failure. Write tools t
 | `fabric-assign-workspace-to-capacity` | write | `POST /workspaces/{id}/assignToCapacity` | `workspaceId`, `capacityId` |
 | `fabric-unassign-workspace-from-capacity` | write | `POST /workspaces/{id}/unassignFromCapacity` | `workspaceId` |
 
-The Fabric REST API has no per-capacity GET route — `fabric-get-capacity` retrieves the full list and filters by `id`, throwing `Capacity not found` if absent.
+The Fabric REST API has no per-capacity GET route - `fabric-get-capacity` retrieves the full list and filters by `id`, throwing `Capacity not found` if absent.
 
 </tool-group>
 
@@ -284,9 +284,9 @@ Domains are the governance grouping for workspaces. These routes use the Fabric 
 
 `fabric-client.ts` is an axios wrapper constructed with the auth config plus `{ enableWrite, enableDelete }`. Responsibilities:
 
-- **`request<T>()`** — acquires the auth header, builds the URL (core or admin base + optional query string), issues the request. HTTP 202 is surfaced as `{ accepted: true, status: 202, location, retryAfter }`; HTTP 204 / empty body returns `null`.
-- **`listAll<T>()`** — GETs a collection endpoint and follows `continuationToken` pagination, concatenating each page's `value` array.
-- **`checkWriteEnabled()` / `checkDeleteEnabled()`** — throw the feature-flag errors above; called by services before any mutating request.
+- **`request<T>()`** - acquires the auth header, builds the URL (core or admin base + optional query string), issues the request. HTTP 202 is surfaced as `{ accepted: true, status: 202, location, retryAfter }`; HTTP 204 / empty body returns `null`.
+- **`listAll<T>()`** - GETs a collection endpoint and follows `continuationToken` pagination, concatenating each page's `value` array.
+- **`checkWriteEnabled()` / `checkDeleteEnabled()`** - throw the feature-flag errors above; called by services before any mutating request.
 - Convenience methods: `get`, `post`, `patch`, `del`.
 
 </detail>
@@ -303,7 +303,7 @@ The core API uses a consistent `{ value: [...], continuationToken }` envelope, h
 
 ### Long-Running Operations
 
-Some Fabric create operations are asynchronous and return HTTP 202 with a `Location` header (operation status URL) and optionally `Retry-After`. `FabricClient.request()` returns these as an `AcceptedResult` (`{ accepted: true, status: 202, location, retryAfter }`) instead of throwing — the caller/agent can poll the `location` if needed.
+Some Fabric create operations are asynchronous and return HTTP 202 with a `Location` header (operation status URL) and optionally `Retry-After`. `FabricClient.request()` returns these as an `AcceptedResult` (`{ accepted: true, status: 202, location, retryAfter }`) instead of throwing - the caller/agent can poll the `location` if needed.
 
 </detail>
 
@@ -313,7 +313,7 @@ Some Fabric create operations are asynchronous and return HTTP 202 with a `Locat
 
 | Package | Purpose |
 |---------|---------|
-| `@azure/identity` | `ClientSecretCredential` — Entra service-principal token acquisition |
+| `@azure/identity` | `ClientSecretCredential` - Entra service-principal token acquisition |
 | `axios` | HTTP client for the Fabric REST API |
 | `zod` | Input validation for tool parameters |
 | `commander` | CLI framework |
@@ -404,9 +404,9 @@ Running with `--mcp-config` but no `--mcp-server` errors and lists the available
 
 ## Security Considerations
 
-- Never commit `FABRIC_CLIENT_SECRET` to version control — use environment variables or 1Password `op://` references.
+- Never commit `FABRIC_CLIENT_SECRET` to version control - use environment variables or 1Password `op://` references.
 - Write and delete operations are disabled by default; enable per-environment with `FABRIC_ENABLE_WRITE` / `FABRIC_ENABLE_DELETE` and grant the service principal only the workspace roles it needs (least privilege).
-- The `domain` and `admin` tools require Fabric admin rights — scope the service principal's admin access deliberately.
+- The `domain` and `admin` tools require Fabric admin rights - scope the service principal's admin access deliberately.
 - Tokens are held in-memory only (no disk persistence) and refreshed 5 minutes before expiry.
 - Rotate client secrets regularly (Azure recommends 90-day rotation).
 

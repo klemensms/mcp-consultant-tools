@@ -24,7 +24,7 @@ if [ ! -f "$REPO_ROOT/.internal-strings.local" ]; then
     echo ""
     echo "⚠️  .internal-strings.local not found at repo root."
     echo "   The internal-identifier denylist scan will be skipped until you restore it"
-    echo "   (it is intentionally untracked — maintainers sync it via a private repo)."
+    echo "   (it is intentionally untracked - maintainers sync it via a private repo)."
 fi
 
 echo ""

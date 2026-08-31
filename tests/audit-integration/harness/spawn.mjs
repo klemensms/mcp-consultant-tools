@@ -97,7 +97,7 @@ export async function spawnAndCaptureExit(envOverrides = {}, timeoutMs = 5000) {
     });
 
     // Close stdin so the MCP server doesn't wait on input. If it survives the close,
-    // it means startup succeeded — we'll let it run until timeout. For refuse-to-start
+    // it means startup succeeded - we'll let it run until timeout. For refuse-to-start
     // tests, the server exits before this matters.
     child.stdin.end();
   });

@@ -1,10 +1,10 @@
-# Audit Logging — Technical Reference
+# Audit Logging - Technical Reference
 
 > Comprehensive reference for the Phase A PII audit logging subsystem in `@mcp-consultant-tools/core` and `@mcp-consultant-tools/powerplatform-data`. User-facing summary at [audit-logging.md](../documentation/audit-logging.md).
 
 ## Overview
 
-The audit subsystem produces a tamper-evident, hash-chained record of every Dataverse MCP tool call. It is the demonstrable evidence layer that pairs with the PII redaction pipeline: the pipeline is the *technical mitigation*, the audit log is the *GDPR-defensible record* that the mitigation actually ran. Phase A scope is local-file-only, single Dataverse server. Phase B (multi-target sync, HMAC layer, additional servers) is out of scope here — see `<phase-b-roadmap>` below.
+The audit subsystem produces a tamper-evident, hash-chained record of every Dataverse MCP tool call. It is the demonstrable evidence layer that pairs with the PII redaction pipeline: the pipeline is the *technical mitigation*, the audit log is the *GDPR-defensible record* that the mitigation actually ran. Phase A scope is local-file-only, single Dataverse server. Phase B (multi-target sync, HMAC layer, additional servers) is out of scope here - see `<phase-b-roadmap>` below.
 
 <architecture>
   Per-MCP-server-process AuditPipeline. The pipeline is constructed at server
@@ -23,7 +23,7 @@ The audit subsystem produces a tamper-evident, hash-chained record of every Data
   line is one record terminated by `\n`. Concurrent writes from a single
   process are serialised through a Promise-chained write queue (the queue is
   per-pipeline-instance, so per-process). Cross-process writes are NOT
-  supported in Phase A — one MCP server per client per machine.
+  supported in Phase A - one MCP server per client per machine.
 
   In-memory chain state cached after first read on pipeline startup; persisted
   via atomic tmp+rename to `{basePath}/{client}/.chain-state` after every
@@ -43,7 +43,7 @@ The audit subsystem produces a tamper-evident, hash-chained record of every Data
   explicit stderr message naming the missing var (`MCP_AUDIT_CLIENT`), or on an
   invalid `MCP_AUDIT_LEVEL` / malformed `MCP_AUDIT_ROTATION`. With
   `MCP_AUDIT_LEVEL` unset/`off` the subsystem stays off and the server starts
-  normally — `off` is an explicit, valid state, not a silent degradation. There
+  normally - `off` is an explicit, valid state, not a silent degradation. There
   is no `MCP_ENVIRONMENT_TYPE` gate.
 </architecture>
 
@@ -74,15 +74,15 @@ The audit subsystem produces a tamper-evident, hash-chained record of every Data
 
     Sentinel: `workItemIds=['exploration']` is allowed but flagged as
     `engagement.source='exploration'`. Compliance review will challenge any
-    session that anchors records to `exploration` without a strong reason — it
+    session that anchors records to `exploration` without a strong reason - it
     exists for genuine pre-ticket investigation, not as a default.
 
     Source values:
-      - `'agent-explicit'` — `set-audit-engagement` was called with one or more
+      - `'agent-explicit'` - `set-audit-engagement` was called with one or more
         real work item IDs.
-      - `'exploration'` — `set-audit-engagement` was called with the literal
+      - `'exploration'` - `set-audit-engagement` was called with the literal
         `['exploration']` sentinel.
-      - `'unset'` — appears only on the context-change record itself when the
+      - `'unset'` - appears only on the context-change record itself when the
         prior engagement was never set.
   </tool>
 </tools>
@@ -235,7 +235,7 @@ The audit subsystem produces a tamper-evident, hash-chained record of every Data
 <refuse-to-start-matrix>
   Applied at server boot in `createAuditConfigFromEnv()`. Each row throws
   `AuditRefuseToStartError` with an explicit stderr message; process exits 1.
-  In v32 audit is **opt-in** — these only fire once you have engaged audit (or
+  In v32 audit is **opt-in** - these only fire once you have engaged audit (or
   supplied a malformed value). `MCP_ENVIRONMENT_TYPE` is NOT consulted.
 
   | Trigger                                                                  | Behaviour at config load     |
@@ -271,7 +271,7 @@ The audit subsystem produces a tamper-evident, hash-chained record of every Data
      omitted `undefined`, no whitespace).
   3. `sha256(canonicalize(record))` is the value used as `prevHash` of the
      NEXT record. The current record itself does NOT carry its own hash on
-     disk — verifiers recompute it during the walk.
+     disk - verifiers recompute it during the walk.
 
   Verifier algorithm (`mcp-audit-cli verify`):
   1. Open each `.jsonl` file in lexicographic filename order across
@@ -279,12 +279,12 @@ The audit subsystem produces a tamper-evident, hash-chained record of every Data
   2. For the very first record encountered: assert `prevHash === ZERO_HASH`.
   3. For every subsequent record: parse, canonicalize, hash; compare to the
      NEXT record's `prevHash`. Mismatch → BROKEN at file F, line L, seq S.
-  4. Threading: chain state persists across rotation boundaries — the last
+  4. Threading: chain state persists across rotation boundaries - the last
      record of `2026-04.jsonl` chains into the first record of
      `2026-05.jsonl`.
 
   Any byte change anywhere in the chain breaks all subsequent hashes.
-  Quarantine sentinels (above) deliberately reset the chain — they are the
+  Quarantine sentinels (above) deliberately reset the chain - they are the
   only mechanism for re-establishing forward progress after a confirmed
   break.
 </chain>
@@ -295,11 +295,11 @@ The audit subsystem produces a tamper-evident, hash-chained record of every Data
   | Strategy        | Filename pattern                          | Notes                                                                                              |
   |-----------------|-------------------------------------------|----------------------------------------------------------------------------------------------------|
   | `monthly` (default) | `{YYYY}-{MM}.jsonl`                   | E.g. `2026-05.jsonl`.                                                                              |
-  | `weekly`        | `{ISO-week-year}-W{ww}.jsonl`             | **ISO week-year, not calendar year** — late December / early January edge cases differ from `YYYY`.|
+  | `weekly`        | `{ISO-week-year}-W{ww}.jsonl`             | **ISO week-year, not calendar year** - late December / early January edge cases differ from `YYYY`.|
   | `daily`         | `{YYYY}-{MM}-{DD}.jsonl`                  | E.g. `2026-05-02.jsonl`.                                                                           |
   | `size:NMB|GB`   | `{YYYY}-{MM}-{DD}.jsonl` + `-{secondsPastMidnight}` suffix when threshold crossed | Daily filename plus seconds-since-midnight when current file ≥ threshold. |
 
-  Rotation never breaks the chain — the new file's first record's `prevHash`
+  Rotation never breaks the chain - the new file's first record's `prevHash`
   is the hash of the last record of the previous file.
 </rotation>
 
@@ -320,7 +320,7 @@ The audit subsystem produces a tamper-evident, hash-chained record of every Data
      (`lastSeq=1, lastHash=hash(sentinel), currentFile=F`).
   6. Subsequent emits append after the sentinel. Compliance can correlate
      the sentinel's `quarantine.previousFile` to investigate the original
-     break — the broken file is preserved alongside the new chain.
+     break - the broken file is preserved alongside the new chain.
 
   Quarantine inherits `environment.type` from the last parseable record in
   the broken file (falls back to `dev` if the file is unparseable from the
@@ -386,7 +386,7 @@ The audit subsystem produces a tamper-evident, hash-chained record of every Data
     cross-target so tampering on any one target is detectable.
   - Azure Storage UK provisioning for client-target (data-residency
     requirement for client-held copies).
-  - Layer 5 local-LLM safety net for the redaction stack — runs over the
+  - Layer 5 local-LLM safety net for the redaction stack - runs over the
     audit payload before write to catch anything the regex/NER layers
     missed.
   - Cross-process write coordination (file-locking or central agent) for
@@ -397,21 +397,21 @@ The audit subsystem produces a tamper-evident, hash-chained record of every Data
 
 The behaviours documented above are exercised end-to-end by the integration test suite at [`tests/audit-integration/`](../../tests/audit-integration/README.md). Each scenario drives a real `pp-data` MCP server subprocess against `mcptests.crm4.dynamics.com` and asserts on the resulting audit JSONL. Scenarios:
 
-- `refuse-to-start` — 5 process-level subprocess invocations validate the refuse-to-start matrix (server exits 1 with byte-exact stderr).
-- `refuse-to-execute` — verifies engagement-unset gate on every audit-emitting tool.
-- `tamper-detection` — 5 corruption modes against live records, both `walkChain` library and `mcp-audit-cli verify` exit 2.
-- `quarantine` — full round-trip from clean chain → tamper → quarantine → fresh chain anchored on sentinel.
-- `rotation` — `size:1KB` produces multiple files; cross-file hash continuity verified per boundary.
-- `context-switch` — `tool.contextChange` correctly tracks A → B engagement transitions.
-- `failed-calls` — failed tool calls still emit records with `result.success: false`.
-- `all-tools` — every one of the 14 audit-emitting tool surfaces produces exactly 1 record per call.
-- `pii-audit-matrix` — 6 PII configurations × 5 representative tools = 30 cells; per-cell redaction reports + raw-PII leakage assertions.
-- `leakage-sweep` — aggregate PII leakage check across all scenario outputs.
-- `search-cli` — every `mcp-audit-cli search` filter × format combination.
+- `refuse-to-start` - 5 process-level subprocess invocations validate the refuse-to-start matrix (server exits 1 with byte-exact stderr).
+- `refuse-to-execute` - verifies engagement-unset gate on every audit-emitting tool.
+- `tamper-detection` - 5 corruption modes against live records, both `walkChain` library and `mcp-audit-cli verify` exit 2.
+- `quarantine` - full round-trip from clean chain → tamper → quarantine → fresh chain anchored on sentinel.
+- `rotation` - `size:1KB` produces multiple files; cross-file hash continuity verified per boundary.
+- `context-switch` - `tool.contextChange` correctly tracks A → B engagement transitions.
+- `failed-calls` - failed tool calls still emit records with `result.success: false`.
+- `all-tools` - every one of the 14 audit-emitting tool surfaces produces exactly 1 record per call.
+- `pii-audit-matrix` - 6 PII configurations × 5 representative tools = 30 cells; per-cell redaction reports + raw-PII leakage assertions.
+- `leakage-sweep` - aggregate PII leakage check across all scenario outputs.
+- `search-cli` - every `mcp-audit-cli search` filter × format combination.
 
 ## Related
 
-- [audit-logging.md](../documentation/audit-logging.md) — user-facing summary, env mapping, copy-paste CLAUDE.md block.
-- [pii-protection.md](../documentation/pii-protection.md) — the redaction layer that runs before audit recording.
-- [PII_PROTECTION_TECHNICAL.md](PII_PROTECTION_TECHNICAL.md) — full PII pipeline reference.
-- [`tests/audit-integration/`](../../tests/audit-integration/README.md) — end-to-end integration test suite.
+- [audit-logging.md](../documentation/audit-logging.md) - user-facing summary, env mapping, copy-paste CLAUDE.md block.
+- [pii-protection.md](../documentation/pii-protection.md) - the redaction layer that runs before audit recording.
+- [PII_PROTECTION_TECHNICAL.md](PII_PROTECTION_TECHNICAL.md) - full PII pipeline reference.
+- [`tests/audit-integration/`](../../tests/audit-integration/README.md) - end-to-end integration test suite.

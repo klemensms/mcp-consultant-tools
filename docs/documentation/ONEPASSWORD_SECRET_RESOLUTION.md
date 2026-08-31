@@ -7,7 +7,7 @@ All MCP servers and CLI tools in this project support **1Password secret referen
 1. **1Password desktop app** installed ([download](https://1password.com/downloads))
 2. **1Password CLI integration enabled:** Open 1Password > Settings > Developer > enable **"Integrate with 1Password CLI"**
 
-That's it. No separate CLI download needed — the desktop app provides the CLI when you enable the integration.
+That's it. No separate CLI download needed - the desktop app provides the CLI when you enable the integration.
 
 ## How It Works
 
@@ -34,10 +34,10 @@ op://vault-name/item-name/field-name
 | `item-name` | The title of the item in 1Password (e.g., `Azure-DevOps-PAT`) |
 | `field-name` | The field within the item: `password`, `credential`, `username`, or any custom field label |
 
-> ⚠️ **Allowed characters.** Secret references only support letters, numbers, spaces, hyphens (`-`), underscores (`_`), and periods (`.`) in each part. Any other character — `&`, `/`, `@`, `#`, `(`, `)`, etc. — makes the whole reference **invalid**, and resolution fails with `invalid character in secret reference`. This typically surfaces downstream as a confusing authentication error from the target service (e.g. Entra `AADSTS7000215: Invalid client secret`), because the unresolved value is passed through as the literal secret.
+> ⚠️ **Allowed characters.** Secret references only support letters, numbers, spaces, hyphens (`-`), underscores (`_`), and periods (`.`) in each part. Any other character - `&`, `/`, `@`, `#`, `(`, `)`, etc. - makes the whole reference **invalid**, and resolution fails with `invalid character in secret reference`. This typically surfaces downstream as a confusing authentication error from the target service (e.g. Entra `AADSTS7000215: Invalid client secret`), because the unresolved value is passed through as the literal secret.
 >
 > If a vault or item name contains an unsupported character, either:
-> 1. **Rename the item/vault** in 1Password to use only supported characters (preferred — keeps references readable), or
+> 1. **Rename the item/vault** in 1Password to use only supported characters (preferred - keeps references readable), or
 > 2. **Use UUIDs instead of names**: `op://<vault-uuid>/<item-uuid>/<field-name>`. Get them with `op item get "Item Name" --format json` (`id` and `vault.id`).
 >
 > **Always verify a new reference resolves before saving it** (prints nothing on success):
@@ -131,11 +131,11 @@ This gives 2 minutes instead of 60 seconds.
 
 ## Reducing Repeated Prompts (machines without a fingerprint reader)
 
-On a machine with **Touch ID / Windows Hello**, biometric approval is near-instant — you get one quick prompt and the rest are silent. There is nothing to do; you can skip this section.
+On a machine with **Touch ID / Windows Hello**, biometric approval is near-instant - you get one quick prompt and the rest are silent. There is nothing to do; you can skip this section.
 
-On a machine **without** a fingerprint reader, 1Password falls back to your account password. Because Claude Code launches all your MCP servers **at the same time**, each one hits a locked 1Password simultaneously — so on a cold start you can be asked for your password once per server (3, 4, 5+ times). This is purely the concurrency: once 1Password is unlocked, every later resolution reuses the session silently.
+On a machine **without** a fingerprint reader, 1Password falls back to your account password. Because Claude Code launches all your MCP servers **at the same time**, each one hits a locked 1Password simultaneously - so on a cold start you can be asked for your password once per server (3, 4, 5+ times). This is purely the concurrency: once 1Password is unlocked, every later resolution reuses the session silently.
 
-The fix is to resolve every secret **once, up front**, before the servers start. The `mcp-warm-secrets` command does exactly that — it reads your `.mcp.json`, resolves all `op://` references in a single prompt (one per 1Password account), and populates the cache the servers read from. It refuses to run if 1Password isn't signed in, so it can never leave a half-resolved cache.
+The fix is to resolve every secret **once, up front**, before the servers start. The `mcp-warm-secrets` command does exactly that - it reads your `.mcp.json`, resolves all `op://` references in a single prompt (one per 1Password account), and populates the cache the servers read from. It refuses to run if 1Password isn't signed in, so it can never leave a half-resolved cache.
 
 ### One-time setup
 
@@ -146,12 +146,12 @@ The fix is to resolve every secret **once, up front**, before the servers start.
 
 2. Wrap the `claude` command in your shell profile so it warms first, then launches as normal. Add **one** of these:
 
-   **bash / zsh** — `~/.bashrc` or `~/.zshrc`:
+   **bash / zsh** - `~/.bashrc` or `~/.zshrc`:
    ```bash
    claude() { mcp-warm-secrets >/dev/null 2>&1; command claude "$@"; }
    ```
 
-   **PowerShell** — `$PROFILE`:
+   **PowerShell** - `$PROFILE`:
    ```powershell
    function claude {
        mcp-warm-secrets | Out-Null
@@ -161,9 +161,9 @@ The fix is to resolve every secret **once, up front**, before the servers start.
 
 3. Reload your shell (or open a new terminal).
 
-You keep starting Claude with `claude` exactly as before — it now silently warms 1Password first. By default `mcp-warm-secrets` reads `.mcp.json` from the current directory; to point at a specific file, change the wrapper to `mcp-warm-secrets /path/to/.mcp.json`.
+You keep starting Claude with `claude` exactly as before - it now silently warms 1Password first. By default `mcp-warm-secrets` reads `.mcp.json` from the current directory; to point at a specific file, change the wrapper to `mcp-warm-secrets /path/to/.mcp.json`.
 
-> **You'll still get one prompt per fresh session.** Without biometric, 1Password must be unlocked once whenever the cache is cold (every 60 minutes). This setup turns *many* prompts into *one* — only a fingerprint reader can remove the last one.
+> **You'll still get one prompt per fresh session.** Without biometric, 1Password must be unlocked once whenever the cache is cold (every 60 minutes). This setup turns *many* prompts into *one* - only a fingerprint reader can remove the last one.
 
 This is entirely optional and changes nothing for anyone else: if you don't add the wrapper, behaviour is exactly as it was.
 
@@ -191,7 +191,7 @@ Use 1Password secret references (op:// URIs) for all secret environment variable
 instead of hardcoding them.
 
 The 1Password item name for my credentials is: {1PASSWORD_ITEM_NAME}
-1Password vault (optional — only needed if item name is not unique): {VAULT NAME OR DELETE THIS LINE}
+1Password vault (optional - only needed if item name is not unique): {VAULT NAME OR DELETE THIS LINE}
 
 Steps:
 1. Look up the item in 1Password to find the vault and available fields:
@@ -230,7 +230,7 @@ https://github.com/klemensms/mcp-consultant-tools/blob/main/docs/documentation/
 
 For each MCP server in .mcp.json:
 1. Identify which env vars contain secrets (PATs, client secrets, API keys,
-   passwords, connection strings — anything that would be rotated or shouldn't
+   passwords, connection strings - anything that would be rotated or shouldn't
    be shared in plain text)
 2. For PATs/tokens where I provide the 1Password item name: look up the item
    to find the vault and field names:
@@ -267,7 +267,7 @@ Standard field mapping (unless op item get shows different fields):
 
 Known 1Password items:
 - ADO PAT: {REPLACE WITH YOUR 1PASSWORD ITEM NAME, e.g. "ADO-PAT"}
-- (Add any other known items, or omit — the agent will search by client_id)
+- (Add any other known items, or omit - the agent will search by client_id)
 
 For all other MCP servers with app registration credentials, take the
 hardcoded client_id value and search 1Password to find the matching entry.
@@ -288,7 +288,7 @@ Show me the final .mcp.json for review before saving.
 | `op: command not found` | CLI integration not enabled | 1Password > Settings > Developer > enable CLI integration |
 | `Failed to resolve 1Password secret(s)` | Wrong vault/item/field name | Verify with `op item get "ItemName"` |
 | `invalid character in secret reference` | Vault/item name contains an unsupported character (`&`, `/`, `@`, …) | Rename the item, or use UUIDs: `op://<vault-uuid>/<item-uuid>/<field>` |
-| Target service rejects auth (e.g. `AADSTS7000215: Invalid client secret`) even though the secret in 1Password is correct | The op:// reference never resolved (often the invalid-character problem above) and the literal/stale value was used | Test the reference directly: `op read "op://..." >/dev/null && echo OK`. Fix the reference, then **restart the MCP server** — references resolve at startup |
+| Target service rejects auth (e.g. `AADSTS7000215: Invalid client secret`) even though the secret in 1Password is correct | The op:// reference never resolved (often the invalid-character problem above) and the literal/stale value was used | Test the reference directly: `op read "op://..." >/dev/null && echo OK`. Fix the reference, then **restart the MCP server** - references resolve at startup |
 | Several prompts at once on startup | No fingerprint reader → all servers hit a locked 1Password concurrently | See [Reducing Repeated Prompts](#reducing-repeated-prompts-machines-without-a-fingerprint-reader) |
 | Repeated auth prompts | Cache expired or cleared | Normal after 60 minutes; re-authenticate |
 | Works first time, fails on restart | 1Password app locked/quit | Unlock 1Password before starting Claude Code |

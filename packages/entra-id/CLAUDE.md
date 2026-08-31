@@ -25,24 +25,24 @@ ENTRA_ID_CLIENT_SECRET=your-client-secret
 |------------|------|---------|
 | `Application.Read.All` | Application | Both tools, plus the `servicePrincipals` read that names API permissions |
 
-Least privilege — there is nothing narrower. Must be an **application** permission with admin consent (client credentials, no signed-in user).
+Least privilege - there is nothing narrower. Must be an **application** permission with admin consent (client credentials, no signed-in user).
 
 ## Tools
 
-- `entra-list-app-registrations` — audit credentials across the tenant; filters `no-credentials` / `expiring-credentials` / `expired-credentials`, narrowed by `credentialType`, thresholded by `expiryDays`, name-matched by `nameContains`
-- `entra-get-app-registration` — one app in full: secrets, certificates, redirect URIs, API permissions, exposed scopes
+- `entra-list-app-registrations` - audit credentials across the tenant; filters `no-credentials` / `expiring-credentials` / `expired-credentials`, narrowed by `credentialType`, thresholded by `expiryDays`, name-matched by `nameContains`
+- `entra-get-app-registration` - one app in full: secrets, certificates, redirect URIs, API permissions, exposed scopes
 
 ## Things that will bite you
 
-**A certificate is a credential.** The ported source filtered on secrets only, so an app whose sole credential was a certificate expiring tomorrow matched `no-secrets` and never matched `expiring-secrets` — a false all-clear. Here, `filter` covers both collections unless `credentialType` narrows it. If you touch `matchesFilter`, keep `credentialsFor()` in front of it.
+**A certificate is a credential.** The ported source filtered on secrets only, so an app whose sole credential was a certificate expiring tomorrow matched `no-secrets` and never matched `expiring-secrets` - a false all-clear. Here, `filter` covers both collections unless `credentialType` narrows it. If you touch `matchesFilter`, keep `credentialsFor()` in front of it.
 
 **An empty result is not a clean bill of health.** An `application` and its `servicePrincipal` hold **separate** credential collections in Graph. This package reads the app registration's only. Credentials added straight to a service principal (`Add-MgServicePrincipalPassword`, managed identities) are invisible here. Both tool descriptions say so; keep it that way.
 
-**Graph cannot filter on credential expiry.** `passwordCredentials` / `keyCredentials` appear nowhere in the filterable-properties table for `/applications`. Every filter is client-side and scans the whole tenant. Do not "optimise" it into a `$filter` — you will get a 400, or worse, a 200 with the wrong rows.
+**Graph cannot filter on credential expiry.** `passwordCredentials` / `keyCredentials` appear nowhere in the filterable-properties table for `/applications`. Every filter is client-side and scans the whole tenant. Do not "optimise" it into a `$filter` - you will get a 400, or worse, a 200 with the wrong rows.
 
 **Graph returns only what `$select` names.** `LIST_SELECT` and `DETAIL_SELECT` both include `passwordCredentials` and `keyCredentials`. Drop them and every app looks credential-free and the audit reads "nothing is expiring".
 
-**`$count=true` and `$search` silently no-op without `ConsistencyLevel: eventual`** — 200 OK, no error, missing count. This package avoids both entirely, which is why it sends no custom headers and does not have to re-attach them on `@odata.nextLink` requests (Graph does not carry them over).
+**`$count=true` and `$search` silently no-op without `ConsistencyLevel: eventual`** - 200 OK, no error, missing count. This package avoids both entirely, which is why it sends no custom headers and does not have to re-attach them on `@odata.nextLink` requests (Graph does not carry them over).
 
 **`@odata.nextLink` is used verbatim.** No `.select()`, no `.top()`, no `$skiptoken` extraction. Mutating it is explicitly unsupported.
 
@@ -50,7 +50,7 @@ Least privilege — there is nothing narrower. Must be an **application** permis
 
 **Only a 404 justifies the appId fallback in `getAppRegistration`.** The ported source caught every error from the object-id lookup, so a 403 from a missing `Application.Read.All` grant was reported as "app not found".
 
-**Graph never returns a secret's value** — only a three-character `hint`. `keyCredential.key` is always `null` on a list call. Neither is read.
+**Graph never returns a secret's value** - only a three-character `hint`. `keyCredential.key` is always `null` on a list call. Neither is read.
 
 ## Architecture Notes
 

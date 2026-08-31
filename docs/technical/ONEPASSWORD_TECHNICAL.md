@@ -20,10 +20,10 @@ The 1Password integration provides full CRUD access to 1Password vaults and item
 ## Architecture
 
 **Service classes:**
-- `OnePasswordClient` — SDK wrapper with lazy init, vault name-to-ID resolution, and allowlist enforcement
-- `ItemService` — Item CRUD, search, and batch operations
-- `VaultService` — Vault CRUD and permission management
-- `SecretService` — Secret reference resolution and password generation
+- `OnePasswordClient` - SDK wrapper with lazy init, vault name-to-ID resolution, and allowlist enforcement
+- `ItemService` - Item CRUD, search, and batch operations
+- `VaultService` - Vault CRUD and permission management
+- `SecretService` - Secret reference resolution and password generation
 
 **ServiceContext** (`types.ts`):
 ```typescript
@@ -81,16 +81,16 @@ packages/1password/src/
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `OP_SERVICE_ACCOUNT_TOKEN` | Yes | — | Service Account JWT token from 1Password |
+| `OP_SERVICE_ACCOUNT_TOKEN` | Yes | - | Service Account JWT token from 1Password |
 | `OP_ALLOWED_VAULTS` | No | `*` | Comma-separated vault names or IDs. `*` = all vaults accessible to the SA |
 | `OP_ENABLE_WRITE` | No | `false` | Enable create, update, and archive operations |
 | `OP_ENABLE_DELETE` | No | `false` | Enable delete operations (item, vault, batch delete) |
 | `OP_ENABLE_VAULT_ADMIN` | No | `false` | Enable vault permission management (grant/update/revoke) |
 
 **Vault filtering details:**
-- `OP_ALLOWED_VAULTS=*` — no secondary filter; SA permissions are the only constraint
-- `OP_ALLOWED_VAULTS=MyVault,TeamVault` — accept only these two vaults by name
-- `OP_ALLOWED_VAULTS=abc123,def456` — accept only these vault UUIDs
+- `OP_ALLOWED_VAULTS=*` - no secondary filter; SA permissions are the only constraint
+- `OP_ALLOWED_VAULTS=MyVault,TeamVault` - accept only these two vaults by name
+- `OP_ALLOWED_VAULTS=abc123,def456` - accept only these vault UUIDs
 - Mixed names and UUIDs are supported in the same list
 - The client resolves names to IDs on first use and caches the mapping for the session
 - SA vault permissions are immutable after SA creation; `OP_ALLOWED_VAULTS` provides a flexible secondary control
@@ -101,7 +101,7 @@ packages/1password/src/
 
 ### SDK Version
 
-**`@1password/sdk`** is pinned to `~0.4.0`. This is a v0.x SDK — patch versions are safe; minor versions may introduce breaking changes. Before upgrading beyond the pinned range, review the SDK changelog.
+**`@1password/sdk`** is pinned to `~0.4.0`. This is a v0.x SDK - patch versions are safe; minor versions may introduce breaking changes. Before upgrading beyond the pinned range, review the SDK changelog.
 
 The SDK authenticates via `OP_SERVICE_ACCOUNT_TOKEN` (Service Account JWT). Service Accounts are created in the 1Password admin console and granted vault-level permissions at creation time.
 
@@ -139,7 +139,7 @@ Unlike some other packages, all tools are always registered in the MCP tool list
 
 <tool name="list-vaults">
 
-**`list-vaults`** — List accessible 1Password vaults, filtered by `OP_ALLOWED_VAULTS`. Always enabled. Takes no parameters.
+**`list-vaults`** - List accessible 1Password vaults, filtered by `OP_ALLOWED_VAULTS`. Always enabled. Takes no parameters.
 
 Returns: array of vault objects with `id`, `name`, `description`, `type`, `createdAt`, `updatedAt`.
 
@@ -147,7 +147,7 @@ Returns: array of vault objects with `id`, `name`, `description`, `type`, `creat
 
 <tool name="get-vault">
 
-**`get-vault`** — Get vault details by name or ID. Always enabled.
+**`get-vault`** - Get vault details by name or ID. Always enabled.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -160,7 +160,7 @@ Returns: vault object. When `includeAccessors: true`, includes `accessors` array
 
 <tool name="create-vault">
 
-**`create-vault`** — Create a new 1Password vault. Requires `OP_ENABLE_WRITE=true`.
+**`create-vault`** - Create a new 1Password vault. Requires `OP_ENABLE_WRITE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -173,7 +173,7 @@ Returns: created vault object with `id`, `name`, `description`.
 
 <tool name="update-vault">
 
-**`update-vault`** — Update vault name or description. Requires `OP_ENABLE_WRITE=true`.
+**`update-vault`** - Update vault name or description. Requires `OP_ENABLE_WRITE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -185,7 +185,7 @@ Returns: created vault object with `id`, `name`, `description`.
 
 <tool name="delete-vault">
 
-**`delete-vault`** — Permanently delete a vault and all its items. This cannot be undone. Requires `OP_ENABLE_DELETE=true`.
+**`delete-vault`** - Permanently delete a vault and all its items. This cannot be undone. Requires `OP_ENABLE_DELETE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -195,7 +195,7 @@ Returns: created vault object with `id`, `name`, `description`.
 
 <tool name="grant-vault-permissions">
 
-**`grant-vault-permissions`** — Grant group(s) access to a vault. Requires `OP_ENABLE_VAULT_ADMIN=true`.
+**`grant-vault-permissions`** - Grant group(s) access to a vault. Requires `OP_ENABLE_VAULT_ADMIN=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -208,7 +208,7 @@ Returns: created vault object with `id`, `name`, `description`.
 
 <tool name="update-vault-permissions">
 
-**`update-vault-permissions`** — Update group vault permissions. Each entry in the array includes its own `vaultId`, allowing cross-vault updates in one call. Requires `OP_ENABLE_VAULT_ADMIN=true`.
+**`update-vault-permissions`** - Update group vault permissions. Each entry in the array includes its own `vaultId`, allowing cross-vault updates in one call. Requires `OP_ENABLE_VAULT_ADMIN=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -218,7 +218,7 @@ Returns: created vault object with `id`, `name`, `description`.
 
 <tool name="revoke-vault-permissions">
 
-**`revoke-vault-permissions`** — Remove group(s) access from a vault. Requires `OP_ENABLE_VAULT_ADMIN=true`.
+**`revoke-vault-permissions`** - Remove group(s) access from a vault. Requires `OP_ENABLE_VAULT_ADMIN=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -231,7 +231,7 @@ Returns: created vault object with `id`, `name`, `description`.
 
 <tool name="list-items">
 
-**`list-items`** — List items in a vault with optional filtering. Filtering is client-side (the SDK only supports state filtering natively). Always enabled.
+**`list-items`** - List items in a vault with optional filtering. Filtering is client-side (the SDK only supports state filtering natively). Always enabled.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -246,7 +246,7 @@ Returns: array of `ItemOverview` objects (summary, not full field data). Use `ge
 
 <tool name="get-item">
 
-**`get-item`** — Get full item details including all field values. Concealed fields (passwords, secrets) are returned in full by the SDK — callers are responsible for handling sensitive values. Always enabled.
+**`get-item`** - Get full item details including all field values. Concealed fields (passwords, secrets) are returned in full by the SDK - callers are responsible for handling sensitive values. Always enabled.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -259,20 +259,20 @@ Returns: full `Item` object including `id`, `vaultId`, `category`, `title`, `fie
 
 <tool name="batch-get-items">
 
-**`batch-get-items`** — Get up to 50 items at once from a vault. Uses SDK `items.getAll()`. Always enabled.
+**`batch-get-items`** - Get up to 50 items at once from a vault. Uses SDK `items.getAll()`. Always enabled.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `vaultId` | string | Yes | Vault name or UUID |
 | `itemIds` | string[] | Yes | Array of item UUIDs (max 50) |
 
-Returns partial results if some IDs are not found — see error handling section.
+Returns partial results if some IDs are not found - see error handling section.
 
 </tool>
 
 <tool name="search-items">
 
-**`search-items`** — Search items across all allowed vaults by title and/or tag. Iterates each allowed vault and aggregates matching items. Always enabled.
+**`search-items`** - Search items across all allowed vaults by title and/or tag. Iterates each allowed vault and aggregates matching items. Always enabled.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -285,7 +285,7 @@ Returns: array of `ItemOverview` objects with an additional `vaultId` field indi
 
 <tool name="create-item">
 
-**`create-item`** — Create a new item in a 1Password vault. Requires `OP_ENABLE_WRITE=true`.
+**`create-item`** - Create a new item in a 1Password vault. Requires `OP_ENABLE_WRITE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -293,7 +293,7 @@ Returns: array of `ItemOverview` objects with an additional `vaultId` field indi
 | `category` | string | Yes | Item category (see supported categories below) |
 | `title` | string | Yes | Item title |
 | `fields` | array | No | Item fields (see field structure below) |
-| `notes` | string | No | Item notes — top-level property, not a field |
+| `notes` | string | No | Item notes - top-level property, not a field |
 | `tags` | string[] | No | Item tags for categorization |
 | `websites` | array | No | Website entries for autofill (Login/Password items) |
 
@@ -319,7 +319,7 @@ Returns: created item object with assigned `id`.
 
 <tool name="update-item">
 
-**`update-item`** — Update an existing item using get-merge-put. Only include fields to change. Requires `OP_ENABLE_WRITE=true`.
+**`update-item`** - Update an existing item using get-merge-put. Only include fields to change. Requires `OP_ENABLE_WRITE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -330,26 +330,26 @@ Returns: created item object with assigned `id`.
 | `notes` | string | No | New notes (replaces existing) |
 | `tags` | string[] | No | New tags (replaces existing) |
 
-**Implementation:** The service fetches the current item (`items.get()`), merges the caller's changes, then writes the full object back (`items.put()`). The item `version` field is used for optimistic concurrency — if the item was modified between get and put, the SDK rejects the operation and the service returns an error suggesting a retry.
+**Implementation:** The service fetches the current item (`items.get()`), merges the caller's changes, then writes the full object back (`items.put()`). The item `version` field is used for optimistic concurrency - if the item was modified between get and put, the SDK rejects the operation and the service returns an error suggesting a retry.
 
 </tool>
 
 <tool name="archive-item">
 
-**`archive-item`** — Archive an item (soft removal). Item is hidden from default views but can be restored. Requires `OP_ENABLE_WRITE=true`.
+**`archive-item`** - Archive an item (soft removal). Item is hidden from default views but can be restored. Requires `OP_ENABLE_WRITE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `vaultId` | string | Yes | Vault name or UUID |
 | `itemId` | string | Yes | Item UUID |
 
-Uses SDK `items.archive()` — this is a dedicated SDK method, not a state update via `put`.
+Uses SDK `items.archive()` - this is a dedicated SDK method, not a state update via `put`.
 
 </tool>
 
 <tool name="batch-create-items">
 
-**`batch-create-items`** — Create up to 100 items at once using SDK `items.createAll()`. Requires `OP_ENABLE_WRITE=true`.
+**`batch-create-items`** - Create up to 100 items at once using SDK `items.createAll()`. Requires `OP_ENABLE_WRITE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -362,7 +362,7 @@ Each item in the array follows the same structure as `create-item` parameters. R
 
 <tool name="delete-item">
 
-**`delete-item`** — Permanently delete an item. This cannot be undone. Consider `archive-item` for soft removal. Requires `OP_ENABLE_DELETE=true`.
+**`delete-item`** - Permanently delete an item. This cannot be undone. Consider `archive-item` for soft removal. Requires `OP_ENABLE_DELETE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -373,14 +373,14 @@ Each item in the array follows the same structure as `create-item` parameters. R
 
 <tool name="batch-delete-items">
 
-**`batch-delete-items`** — Delete multiple items at once. This cannot be undone. Uses SDK `items.deleteAll()`. Requires `OP_ENABLE_DELETE=true`.
+**`batch-delete-items`** - Delete multiple items at once. This cannot be undone. Uses SDK `items.deleteAll()`. Requires `OP_ENABLE_DELETE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `vaultId` | string | Yes | Vault name or UUID |
 | `itemIds` | string[] | Yes | Array of item UUIDs |
 
-Returns per-item results — partial failure is surfaced with details on which items succeeded and which failed.
+Returns per-item results - partial failure is surfaced with details on which items succeeded and which failed.
 
 </tool>
 
@@ -388,7 +388,7 @@ Returns per-item results — partial failure is surfaced with details on which i
 
 <tool name="resolve-secret">
 
-**`resolve-secret`** — Resolve a single 1Password secret reference URI to its value. Always enabled.
+**`resolve-secret`** - Resolve a single 1Password secret reference URI to its value. Always enabled.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -405,19 +405,19 @@ Returns: the resolved secret value as a plain string.
 
 <tool name="resolve-secrets">
 
-**`resolve-secrets`** — Resolve multiple secret references in one call. Uses SDK `secrets.resolveAll()`. Always enabled.
+**`resolve-secrets`** - Resolve multiple secret references in one call. Uses SDK `secrets.resolveAll()`. Always enabled.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `references` | string[] | Yes | Array of `op://` reference URIs |
 
-Returns: per-reference results array. Each entry has either `value` (on success) or `error` (on failure). Partial failures are surfaced individually — a single failed reference does not fail the whole call.
+Returns: per-reference results array. Each entry has either `value` (on success) or `error` (on failure). Partial failures are surfaced individually - a single failed reference does not fail the whole call.
 
 </tool>
 
 <tool name="generate-password">
 
-**`generate-password`** — Generate a password or passphrase using 1Password's generator. Uses the SDK static method `Secrets.generatePassword(recipe)`. Always enabled.
+**`generate-password`** - Generate a password or passphrase using 1Password's generator. Uses the SDK static method `Secrets.generatePassword(recipe)`. Always enabled.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -494,13 +494,13 @@ All tool handlers catch errors and return `isError: true` with a descriptive mes
 
 - **Service Account token** must be stored as an environment variable and never committed to source control. Rotate immediately if exposed.
 - **Vault filtering** (`OP_ALLOWED_VAULTS`) provides defense-in-depth. SA permissions are the primary control; `OP_ALLOWED_VAULTS` is a configurable secondary filter.
-- **Feature flags default to disabled** — fail-closed. The safest state is the default state.
+- **Feature flags default to disabled** - fail-closed. The safest state is the default state.
 - **Delete vs. archive:** Delete is permanent and cannot be undone. Prefer `archive-item` for workflows that may need reversal.
-- **`OP_ENABLE_DELETE` is separate from `OP_ENABLE_WRITE`** — delete is the most destructive operation and requires its own explicit opt-in.
-- **`OP_ENABLE_VAULT_ADMIN` is the highest privilege tier** — vault permission changes affect all users with access. Requires its own separate opt-in.
-- **Concealed fields are returned in full** — `get-item` returns password/secret field values. This is SDK behavior. The caller is responsible for not logging or persisting these values inappropriately.
-- **MCP protocol compliance:** All logging uses `console.error()` (stderr). `console.log()` (stdout) is never used — stdout is reserved for the MCP JSON protocol.
-- **Optimistic concurrency on updates** — the `version` field prevents silent overwrites when multiple agents or users modify the same item concurrently.
+- **`OP_ENABLE_DELETE` is separate from `OP_ENABLE_WRITE`** - delete is the most destructive operation and requires its own explicit opt-in.
+- **`OP_ENABLE_VAULT_ADMIN` is the highest privilege tier** - vault permission changes affect all users with access. Requires its own separate opt-in.
+- **Concealed fields are returned in full** - `get-item` returns password/secret field values. This is SDK behavior. The caller is responsible for not logging or persisting these values inappropriately.
+- **MCP protocol compliance:** All logging uses `console.error()` (stderr). `console.log()` (stdout) is never used - stdout is reserved for the MCP JSON protocol.
+- **Optimistic concurrency on updates** - the `version` field prevents silent overwrites when multiple agents or users modify the same item concurrently.
 - **Rate limits:** ~10,000 requests/day per SA token; ~50,000/day per 1Password Business account. Use batch tools (`batch-get-items`, `batch-create-items`, `batch-delete-items`, `resolve-secrets`) to stay within limits.
 
 </security>
@@ -511,7 +511,7 @@ All tool handlers catch errors and return `isError: true` with a descriptive mes
 
 **Binary:** `mcp-op-cli`
 
-The CLI shares the same `ServiceContext` as the MCP server via `context-factory.ts`. All business logic lives in the service layer — CLI commands are thin wrappers.
+The CLI shares the same `ServiceContext` as the MCP server via `context-factory.ts`. All business logic lives in the service layer - CLI commands are thin wrappers.
 
 ### Command Groups
 

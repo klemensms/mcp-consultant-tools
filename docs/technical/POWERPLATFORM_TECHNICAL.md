@@ -117,7 +117,7 @@ The prefix is used for icon web resource naming and for `{prefix}` placeholder s
 - Token cached until near expiration
 
 **Interactive / SSO (for desktop users):**
-- Set `POWERPLATFORM_URL`, `POWERPLATFORM_CLIENT_ID`, `POWERPLATFORM_TENANT_ID` — omit `POWERPLATFORM_CLIENT_SECRET`
+- Set `POWERPLATFORM_URL`, `POWERPLATFORM_CLIENT_ID`, `POWERPLATFORM_TENANT_ID` - omit `POWERPLATFORM_CLIENT_SECRET`
 - Browser opens on first use via `InteractiveAuth`
 - Tokens cached ~90 days in user's profile directory
 
@@ -134,7 +134,7 @@ App registration requirements for interactive auth (all 4 steps required):
 
 1. **Authentication tab**: Enable "Allow public client flows" = Yes. Add platform: Mobile and desktop applications. Add redirect URI: `http://localhost`
 2. **API permissions**: Add Dynamics CRM → `user_impersonation` (delegated). Also add Microsoft Graph → `offline_access` (recommended) and `User.Read` (optional)
-3. **Admin consent**: Click "Grant admin consent for [Your Org]" — requires Global Administrator or Privileged Role Administrator. Without this, users see "Approval required" on first login
+3. **Admin consent**: Click "Grant admin consent for [Your Org]" - requires Global Administrator or Privileged Role Administrator. Without this, users see "Approval required" on first login
 4. **Application user**: In PowerPlatform Admin Center → Settings → Users + permissions → Application users → New app user → assign Basic User role (read-only) or appropriate CRUD role for data package
 
 </app-registration-interactive>
@@ -180,7 +180,7 @@ For `get-flow-run-details` (Power Automate Management API):
 | `get-plugin-assemblies` | `includeManaged?` (default: false), `maxRecords?` (default: 0 = all) | Assembly list with isolation mode, version, modified-by |
 | `get-plugin-asm-full` | `assemblyName`, `includeDisabled?` (default: false) | Assembly + all types, steps, images + automatic validation |
 | `get-entity-plugins` | `entityName`, `messageFilter?`, `includeDisabled?` (default: false) | All plugin steps on entity, organized by message and execution order |
-| `get-all-plugin-steps` | `includeDisabled?` (default: **true**), `maxRecords?` (default: 0 = all) | Environment-wide step inventory across all assemblies — for registration comparison between environments |
+| `get-all-plugin-steps` | `includeDisabled?` (default: **true**), `maxRecords?` (default: 0 = all) | Environment-wide step inventory across all assemblies - for registration comparison between environments |
 | `get-plugin-trace-logs` | `entityName?`, `messageName?`, `correlationId?`, `exceptionOnly?`, `hoursBack?` (default: 24), `maxRecords?` (default: 50), `pluginStepId?` | Trace logs with parsed exception details (type, message, stack trace), plus `exceptionCount` alongside `totalCount`. `exceptionOnly` excludes both null and empty `exceptiondetails`, so a clean window returns nothing rather than everything |
 
 **Automatic validation in `get-plugin-asm-full`:**
@@ -229,16 +229,16 @@ Client-side filters run inside the paging loop, so a `maxRecords` cap counts flo
 
 <flow-health-scan-architecture>
 
-**`scan-flow-health` is app-only friendly and honest about sampling.** It builds the flow list from the Dataverse `workflow` table (`category eq 5`, paginated via `@odata.nextLink`) and reads run history from the `flowrun` elastic table via the same Dataverse Web API — **no dependency on the Power Automate Management API**, so it works with service-principal (client-credentials) auth.
+**`scan-flow-health` is app-only friendly and honest about sampling.** It builds the flow list from the Dataverse `workflow` table (`category eq 5`, paginated via `@odata.nextLink`) and reads run history from the `flowrun` elastic table via the same Dataverse Web API - **no dependency on the Power Automate Management API**, so it works with service-principal (client-credentials) auth.
 
 Run classification is **case-insensitive** because `flowrun.status` is an unvalidated free-text column (Microsoft prose even uses "Success"); `Succeeded`/`Success` map to succeeded, `Failed`/`Faulted`/`TimedOut`/`Aborted` to failed, `Cancelled`/`Canceled` to cancelled, `Running`/`Waiting` to running.
 
 Honesty guarantees (each addresses a defect in the original source):
-- **Sampling is surfaced, not hidden.** Runs are sampled newest-first up to `maxRunsPerFlow`. When more runs existed in the window, the flow's `sampleTruncated` is `true` and the summary's `flowsSampleTruncated` counts them — a flow's `successRate` is never presented as a full-population figure when it is over a sample. `successRate` is `null` (not `0`) for a flow with no runs.
+- **Sampling is surfaced, not hidden.** Runs are sampled newest-first up to `maxRunsPerFlow`. When more runs existed in the window, the flow's `sampleTruncated` is `true` and the summary's `flowsSampleTruncated` counts them - a flow's `successRate` is never presented as a full-population figure when it is over a sample. `successRate` is `null` (not `0`) for a flow with no runs.
 - **Errored ≠ idle.** A flow whose run fetch fails (e.g. 403) is reported with `scanError` and counted in `flowsErrored`, kept distinct from genuinely idle flows in `flowsNoRuns`.
 - **Flow-list completeness.** `flowListTruncated` is `true` when there were more cloud flows than `maxFlows`.
 
-**Permission note:** `flowrun` records are user-owned, so the Dataverse Application User's security role must grant **Organization-scope Read on FlowRun** — without it, the scan sees no runs (or reports `scanError`) even though flows exist.
+**Permission note:** `flowrun` records are user-owned, so the Dataverse Application User's security role must grant **Organization-scope Read on FlowRun** - without it, the scan sees no runs (or reports `scanError`) even though flows exist.
 
 </flow-health-scan-architecture>
 
@@ -316,7 +316,7 @@ Response structure:
 | `get-views` | `entityLogicalName` | All views for entity |
 | `get-view-fetchxml` | `viewId` | FetchXML query definition |
 | `get-webres-deps` | `webResourceId` | All component dependencies |
-| `preview-unpublished` | — | All components with unpublished customizations |
+| `preview-unpublished` | - | All components with unpublished customizations |
 | `get-web-resource` | `webResourceId` | Web resource by ID |
 | `get-web-resources` | `nameFilter?` | Web resources by name pattern (contains) |
 
@@ -328,8 +328,8 @@ Response structure:
 
 | Tool | Key Parameters | Returns |
 |------|---------------|---------|
-| `get-publishers` | — | All solution publishers (excludes system publishers) |
-| `get-solutions` | — | All visible solutions |
+| `get-publishers` | - | All solution publishers (excludes system publishers) |
+| `get-solutions` | - | All visible solutions |
 | `get-solution-components` | `solutionUniqueName` | All components grouped by type with IDs and behavior settings |
 | `check-dependencies` | `componentId`, `componentType` | Dependencies blocking deletion |
 | `validate-schema-name` | `schemaName`, `prefix` | Name validation result against PowerPlatform naming rules |
@@ -343,7 +343,7 @@ Response structure:
 
 <tool-reference name="validate-dataverse">
 
-### validate-dataverse — Detailed Behavior
+### validate-dataverse - Detailed Behavior
 
 Validates Dataverse entities against 6 configurable rules:
 
@@ -359,13 +359,13 @@ Validates Dataverse entities against 6 configurable rules:
 **Validation modes:**
 1. Solution-based: pass `solutionUniqueName`
 2. Entity-based: pass `entityLogicalNames[]`
-(Mutually exclusive — pass only one)
+(Mutually exclusive - pass only one)
 
 **`requiredColumns` parameter:** Array of schema names to check on all non-RefData tables. Supports `{prefix}` placeholder (substituted with `publisherPrefix` at runtime). Default: `["{prefix}updatedbyprocess"]`. Example for SQL sync: `["{prefix}sqlcreatedon", "{prefix}sqlmodifiedon"]`
 
 **RefData handling:** Tables whose schema name starts with `{prefix}ref_` are skipped for the `required-column` rule.
 
-**Date filtering:** `recentDays: 30` (default) — only validate columns created in last 30 days. `recentDays: 0` — validate all columns regardless of creation date.
+**Date filtering:** `recentDays: 30` (default) - only validate columns created in last 30 days. `recentDays: 0` - validate all columns regardless of creation date.
 
 **Response structure:**
 ```typescript
@@ -374,7 +374,7 @@ Validates Dataverse entities against 6 configurable rules:
   summary: { entitiesChecked, attributesChecked, totalViolations, criticalViolations, warnings, compliantEntities },
   violationsSummary: [{
     rule, severity, totalCount,
-    affectedEntities: string[],   // Complete list — use this for reporting
+    affectedEntities: string[],   // Complete list - use this for reporting
     affectedColumns: string[],    // "entity.column" pairs
     action, recommendation?
   }],
@@ -469,8 +469,8 @@ Risk levels: Low (0-20), Medium (21-50), High (51-100), Critical (>100)
 
 | Tool | Key Parameters | Returns |
 |------|---------------|---------|
-| `get-connection-references` | — | All connection references |
-| `get-security-roles` | — | All security roles |
+| `get-connection-references` | - | All connection references |
+| `get-security-roles` | - | All security roles |
 | `get-security-role-privileges` | `roleId` | All privileges for a role |
 | `get-security-roles-by-solution` | `solutionUniqueName` | Roles in a specific solution |
 
@@ -524,11 +524,11 @@ Files: `src/prompts/entity-prompts.ts` (entity-overview, attribute-details, quer
 <startup-requirements>
 
 **Required environment variables at startup:**
-- `POWERPLATFORM_URL`, `POWERPLATFORM_CLIENT_ID`, `POWERPLATFORM_CLIENT_SECRET`, `POWERPLATFORM_TENANT_ID` — authentication
-- `PUBLISHER_PREFIX` — required; throws `Missing required configuration: PUBLISHER_PREFIX` if absent
+- `POWERPLATFORM_URL`, `POWERPLATFORM_CLIENT_ID`, `POWERPLATFORM_CLIENT_SECRET`, `POWERPLATFORM_TENANT_ID` - authentication
+- `PUBLISHER_PREFIX` - required; throws `Missing required configuration: PUBLISHER_PREFIX` if absent
 
 **Optional:**
-- `POWERPLATFORM_DEFAULT_SOLUTION` — used as fallback `solutionUniqueName` on any tool that accepts a solution parameter
+- `POWERPLATFORM_DEFAULT_SOLUTION` - used as fallback `solutionUniqueName` on any tool that accepts a solution parameter
 
 Note: Unlike the read-only package, service principal auth is required (no interactive auth path in this package's index.ts).
 
@@ -610,12 +610,12 @@ All schema changes require `publish-customizations` after.
 
 ### Quick Find views (querytype=4) limitation
 
-Quick Find savedqueries are **read-mostly via the Dataverse Web API**. This is a platform-side constraint, not an MCP implementation bug — verified by direct `PATCH /api/data/v9.2/savedqueries(id)` across multiple bypass strategies (property-level PUT, batch, bound/unbound actions, all `MSCRM.Bypass*` headers). Per-field behaviour:
+Quick Find savedqueries are **read-mostly via the Dataverse Web API**. This is a platform-side constraint, not an MCP implementation bug - verified by direct `PATCH /api/data/v9.2/savedqueries(id)` across multiple bypass strategies (property-level PUT, batch, bound/unbound actions, all `MSCRM.Bypass*` headers). Per-field behaviour:
 
 | PATCH field on querytype=4 | Behaviour |
 |---|---|
 | `fetchxml` | **Hard-fails** with HTTP 400 / Dataverse code `0x80040216` ("An unexpected error occurred") |
-| `name` | Returns 204, **silently discarded** — the record is not modified |
+| `name` | Returns 204, **silently discarded** - the record is not modified |
 | `layoutxml` | Returns 204, **silently discarded** |
 | `layoutjson` | Returns 204, **silently discarded** |
 | `description` | Works |
@@ -631,7 +631,7 @@ Quick Find savedqueries are **read-mostly via the Dataverse Web API**. This is a
 
 ## Form File Workflow Tools (3 tools)
 
-Source-control-friendly tooling for form XML. Mirrors the `deploy-web-resource-file` pattern — form XML lives in a local file, diffs are reviewable, deploys are deterministic across environments. See also: release notes `v30.0.0-beta.6-form-file-workflow.md`.
+Source-control-friendly tooling for form XML. Mirrors the `deploy-web-resource-file` pattern - form XML lives in a local file, diffs are reviewable, deploys are deterministic across environments. See also: release notes `v30.0.0-beta.6-form-file-workflow.md`.
 
 | Tool | Description | Notes |
 |------|-------------|-------|
@@ -640,7 +640,7 @@ Source-control-friendly tooling for form XML. Mirrors the `deploy-web-resource-f
 | `diff-form-file` | Read-only byte comparison of local file vs remote form | Returns `identical`, `localSize`, `remoteSize`, `localVersion`, `remoteVersion`. |
 
 **Guarantees:**
-- XML bytes never round-tripped through a parser (whitespace and attribute order preserved — otherwise every diff would explode).
+- XML bytes never round-tripped through a parser (whitespace and attribute order preserved - otherwise every diff would explode).
 - `<filePath>.history/` is append-only: every download/upload creates a timestamped snapshot.
 - Sidecar `.meta.json` is overwritten on download (Dataverse is source of truth) and updated on upload with `lastUploaded` block.
 
@@ -686,9 +686,9 @@ Source-control-friendly tooling for form XML. Mirrors the `deploy-web-resource-f
 | `register-plugin-step` | Register SDK message processing step | Resolves message/filter IDs; maps stage/mode enums |
 | `register-plugin-image` | Register pre/post image for a step | Maps imageType: PreImage=0, PostImage=1, Both=2 |
 | `deploy-plugin-complete` | End-to-end orchestration: upload + steps + images + publish | Recommended for full deployments |
-| `get-plugin-deploy-status` | Check deployment status of plugin assembly | — |
-| `get-plugin-packages` | List plugin packages | — |
-| `deploy-plugin-pkg` | Deploy a plugin package | — |
+| `get-plugin-deploy-status` | Check deployment status of plugin assembly | - |
+| `get-plugin-packages` | List plugin packages | - |
+| `deploy-plugin-pkg` | Deploy a plugin package | - |
 
 <plugin-deployment-detail>
 
@@ -708,9 +708,9 @@ Source-control-friendly tooling for form XML. Mirrors the `deploy-web-resource-f
 **Version extraction:** `extractAssemblyVersion()` parses PE header to extract .NET assembly version. Falls back to "1.0.0.0" on failure.
 
 **Step-by-step alternative:**
-1. `create-plugin-assembly` — upload DLL
-2. `register-plugin-step` — for each SDK message (Create/Update/Delete)
-3. `register-plugin-image` — for each step requiring pre/post images
+1. `create-plugin-assembly` - upload DLL
+2. `register-plugin-step` - for each SDK message (Create/Update/Delete)
+3. `register-plugin-image` - for each step requiring pre/post images
 4. `publish-customizations`
 
 </plugin-deployment-detail>
@@ -750,13 +750,13 @@ Source-control-friendly tooling for form XML. Mirrors the `deploy-web-resource-f
 
 <flow-creation>
 
-**`create-flow-from-def` — creating flows without a template source:**
+**`create-flow-from-def` - creating flows without a template source:**
 
 Use when no existing flow to clone. Provide `clientdata` JSON (complete flow definition with triggers and actions).
 
 Validation checks: JSON parsability, `properties` object, `properties.definition`, `triggers`, `actions`. Warns if `connectionReferences` is missing (optional but required for Dataverse connector flows).
 
-**`get-flow-def-template` — available templates:**
+**`get-flow-def-template` - available templates:**
 
 | Template | Trigger |
 |----------|---------|
@@ -837,7 +837,7 @@ The `update-entity-icon` tool uses Microsoft's Fluent UI System Icons (2,100+ ic
 7. Update entity metadata `IconVectorName` property
 8. Publish web resource (component type 61) and entity (component type 1)
 
-**This tool auto-publishes** — no separate `publish-customizations` call needed.
+**This tool auto-publishes** - no separate `publish-customizations` call needed.
 
 </icon-management>
 
@@ -871,13 +871,13 @@ Checks are implemented via `ServiceContext.checkCreateEnabled()` etc. in `types.
 | Development | true | true | true | true |
 | QA/UAT | false | false | false | false |
 | Production (automated) | false | false | false | false |
-| Production (operational) | gated | gated | false | — |
+| Production (operational) | gated | gated | false | - |
 
 </feature-flags>
 
 <tool-reference name="read-tools">
 
-## Read-Only Tools (6 — always available regardless of flags)
+## Read-Only Tools (6 - always available regardless of flags)
 
 | Tool | Key Parameters | Returns |
 |------|---------------|---------|
@@ -888,9 +888,9 @@ Checks are implemented via `ServiceContext.checkCreateEnabled()` etc. in `types.
 | `get-flow-runs` | `flowId`, `status?`, `startedAfter?`, `startedBefore?`, `maxRecords?` (default: 50, max: 250) | Run history: status, timestamps, trigger, error details |
 | `get-flow-run-details` | `flowId`, `runId` | Action-level execution details |
 
-**`get-entity-metadata` is essential** before CRUD on unfamiliar entities — Dataverse API requires the plural entity name (`entityNamePlural`), not the logical name.
+**`get-entity-metadata` is essential** before CRUD on unfamiliar entities - Dataverse API requires the plural entity name (`entityNamePlural`), not the logical name.
 
-**`get-lookup-target` is essential** for setting lookup field values — returns the correct `@odata.bind` syntax.
+**`get-lookup-target` is essential** for setting lookup field values - returns the correct `@odata.bind` syntax.
 
 **Common OData filter expressions:**
 
@@ -908,11 +908,11 @@ Checks are implemented via `ServiceContext.checkCreateEnabled()` etc. in `types.
 
 <tool-reference name="write-tools">
 
-## Write Tools (4 — require feature flags)
+## Write Tools (4 - require feature flags)
 
 <tool name="create-record">
 
-**`create-record`** — Requires `POWERPLATFORM_ENABLE_CREATE=true`
+**`create-record`** - Requires `POWERPLATFORM_ENABLE_CREATE=true`
 
 Parameters: `entityNamePlural` (required), `data` (required: JSON object with field names and values)
 
@@ -924,9 +924,9 @@ Audit log: `{ operation: 'create-record', operationType: 'CREATE', resourceId: e
 
 <tool name="update-record">
 
-**`update-record`** — Requires `POWERPLATFORM_ENABLE_UPDATE=true`
+**`update-record`** - Requires `POWERPLATFORM_ENABLE_UPDATE=true`
 
-Parameters: `entityNamePlural` (required), `recordId` (required: GUID), `data` (required: partial or full JSON — only specified fields updated)
+Parameters: `entityNamePlural` (required), `recordId` (required: GUID), `data` (required: partial or full JSON - only specified fields updated)
 
 Validation: `recordId` must be valid GUID format (`12345678-1234-1234-1234-123456789012`); data must not be empty; record existence checked by API.
 
@@ -936,13 +936,13 @@ Audit log: `{ operation: 'update-record', operationType: 'UPDATE', resourceId: '
 
 <tool name="delete-record">
 
-**`delete-record`** — Requires BOTH `POWERPLATFORM_ENABLE_DELETE=true` AND `confirm: true` parameter
+**`delete-record`** - Requires BOTH `POWERPLATFORM_ENABLE_DELETE=true` AND `confirm: true` parameter
 
 Parameters: `entityNamePlural` (required), `recordId` (required: GUID), `confirm` (required: must be `true`)
 
 **Operation is permanent and cannot be undone.** Without `confirm: true`: `Error: Delete operations require explicit confirmation (confirm: true)`
 
-No bulk delete tool exists — must iterate with individual confirmations.
+No bulk delete tool exists - must iterate with individual confirmations.
 
 Audit log: `{ operation: 'delete-record', operationType: 'DELETE', resourceId: '${entityNamePlural}/${recordId}', parameters: { entityNamePlural, recordId, confirmed: true }, ... }`
 
@@ -950,7 +950,7 @@ Audit log: `{ operation: 'delete-record', operationType: 'DELETE', resourceId: '
 
 <tool name="execute-action">
 
-**`execute-action`** — Requires `POWERPLATFORM_ENABLE_ACTIONS=true`
+**`execute-action`** - Requires `POWERPLATFORM_ENABLE_ACTIONS=true`
 
 Parameters: `actionName` (required: e.g., `"WhoAmI"`, `"new_CalculateTotals"`), `parameters?` (JSON object), `boundTo?` (object: `{ entityNamePlural, recordId }` for bound actions)
 
@@ -964,21 +964,21 @@ Common built-in actions: `WhoAmI` (unbound), `WinOpportunity` (bound: opportunit
 
 <tool-reference name="relationship-tools-data">
 
-## Relationship Tools (2 — split across flags)
+## Relationship Tools (2 - split across flags)
 
 | Tool | Requires | Description |
 |------|---------|-------------|
 | `associate-records` | `POWERPLATFORM_ENABLE_CREATE=true` | Associate two records via navigation property (N:N or 1:N) |
 | `disassociate-records` | `POWERPLATFORM_ENABLE_DELETE=true` | Remove association; does NOT delete either record |
 
-**`associate-records` is required for N:N relationships** — intersect entities do not support the Create message directly. Attempting `create-record` on an intersect entity returns error `0x80040800`.
+**`associate-records` is required for N:N relationships** - intersect entities do not support the Create message directly. Attempting `create-record` on an intersect entity returns error `0x80040800`.
 
 API call: `POST /api/data/v9.2/{entityNamePlural}({recordId})/{navigationProperty}/$ref`
 Body: `{ "@odata.id": "{orgUrl}/api/data/v9.2/{targetEntityNamePlural}({targetRecordId})" }`
 
 Use `get-entity-relationships` (read-only package) to find the correct `navigationProperty` name.
 
-If the relationship already exists: `Error: A record with matching key values already exists` — no action needed, records are already associated.
+If the relationship already exists: `Error: A record with matching key values already exists` - no action needed, records are already associated.
 
 </tool-reference>
 
@@ -996,7 +996,7 @@ If the relationship already exists: `Error: A record with matching key values al
 // Booleans
 { donotemail: true, followemail: false }
 
-// Lookup fields — @odata.bind syntax required
+// Lookup fields - @odata.bind syntax required
 {
   "parentaccountid@odata.bind": "/accounts(12345678-1234-1234-1234-123456789012)",
   "primarycontactid@odata.bind": "/contacts(87654321-4321-4321-4321-210987654321)",
@@ -1005,14 +1005,14 @@ If the relationship already exists: `Error: A record with matching key values al
 // Format: "<fieldname>@odata.bind": "/<pluralname>(<guid>)"
 // Use get-lookup-target to discover pluralname for a given lookup field
 
-// Option sets — integer values
+// Option sets - integer values
 {
   industrycode: 1,    // Use get-entity-attribute (read-only pkg) to find valid values
   statecode: 0,       // 0 = Active, 1 = Inactive
   statuscode: 1       // Status reason (entity-specific)
 }
 
-// Dates — ISO 8601 format
+// Dates - ISO 8601 format
 {
   birthdate: "1990-01-15",                     // Date only
   createdon: "2025-01-15T10:30:00Z",           // UTC (recommended)
@@ -1120,7 +1120,7 @@ mcp-pp-cli flow list --active-only --max 50 --name "invoice" \
 mcp-pp-cli flow search --name "sync" --entity account --category 5 --state 1 --max 100
 # add --description "<text>" to search the description field, or --no-description to omit it from results
 
-# Flow definition — parsed summary instead of full JSON
+# Flow definition - parsed summary instead of full JSON
 mcp-pp-cli flow definition aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee --summary
 
 # Run history for a flow, filtered by status and date window
@@ -1130,7 +1130,7 @@ mcp-pp-cli flow runs aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee \
 # Action-level detail for a single run (Management API)
 mcp-pp-cli flow run-details aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee 11111111-2222-3333-4444-555555555555
 
-# Environment-wide flow health scan — all flags (--all-flows also scans draft flows)
+# Environment-wide flow health scan - all flags (--all-flows also scans draft flows)
 mcp-pp-cli flow health --days 7 --max-runs 100 --max-flows 500 --all-flows --concurrency 5
 
 # Complete cloud-flow inventory (deployment metadata, no run history)
@@ -1151,7 +1151,7 @@ mcp-pp-cli flow business-rule aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
 # Plugin steps on a single entity
 mcp-pp-cli plugin entity account --message Update --include-disabled
 
-# Environment-wide step inventory — disabled steps are INCLUDED by default,
+# Environment-wide step inventory - disabled steps are INCLUDED by default,
 # so the output can be diffed against another environment to find registration drift
 mcp-pp-cli plugin steps
 mcp-pp-cli plugin steps --no-include-disabled   # enabled steps only
@@ -1237,10 +1237,10 @@ mcp-pp-data-cli --json data query contacts --filter "statecode eq 0"
 
 - **Production environments:** Install only `@mcp-consultant-tools/powerplatform` (read-only). Do not install the customization or data packages.
 - **Interactive auth for desktop:** No secrets on user machines; user's Dynamics security roles apply.
-- **Service principal for automation:** Use minimal security role — Basic User is sufficient for read-only.
+- **Service principal for automation:** Use minimal security role - Basic User is sufficient for read-only.
 - **Data package in production:** If required, enable only specific flags needed and implement human approval workflows. Never enable `POWERPLATFORM_ENABLE_DELETE=true` in production automation contexts.
 - **Customization package:** Use only in development/configuration environments with System Customizer role.
 - **Audit logs:** All write operations (data package) are automatically logged. Review logs regularly for anomalies.
-- **No bulk delete:** The data package intentionally has no bulk delete tool — each deletion requires explicit `confirm: true`.
+- **No bulk delete:** The data package intentionally has no bulk delete tool - each deletion requires explicit `confirm: true`.
 
 </security-best-practices>

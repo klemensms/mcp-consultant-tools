@@ -60,7 +60,7 @@ git clone https://github.com/klemensms/mcp-consultant-tools.git
 
 ## Updating
 
-Re-run the same install script. It's idempotent — already-installed tools get updated to the latest version.
+Re-run the same install script. It's idempotent - already-installed tools get updated to the latest version.
 
 ```bash
 # macOS/Linux
@@ -100,7 +100,7 @@ If you have an `.mcp.json` configured for MCP servers, CLI tools can read creden
 mcp-ado-cli --mcp-server my-ado-server work-item get MyProject 12345
 ```
 
-This reads the `env` block from the named server in `.mcp.json` — same credentials, zero duplication.
+This reads the `env` block from the named server in `.mcp.json` - same credentials, zero duplication.
 
 ### Getting Credentials
 
@@ -119,7 +119,7 @@ Copy-paste the prompt below into your agent's instructions (CLAUDE.md, system pr
 ````
 ## CLI Tools Available
 
-You have access to MCP Consultant Tools CLI — a set of 19 CLI tools for querying Azure DevOps, PowerPlatform/Dataverse, Azure SQL, Log Analytics, Application Insights, SharePoint, GitHub Enterprise, Azure Storage, Azure Data Factory, Azure B2C, Service Bus, Figma, 1Password, REST APIs, and Microsoft Teams.
+You have access to MCP Consultant Tools CLI - a set of 19 CLI tools for querying Azure DevOps, PowerPlatform/Dataverse, Azure SQL, Log Analytics, Application Insights, SharePoint, GitHub Enterprise, Azure Storage, Azure Data Factory, Azure B2C, Service Bus, Figma, 1Password, REST APIs, and Microsoft Teams.
 
 ### Installation / Update
 
@@ -131,7 +131,7 @@ npm install -g @mcp-consultant-tools/powerplatform@beta
 # ... etc. for each package needed
 ```
 
-To install ALL 19 tools at once, run each of these commands (they are independent — run them sequentially):
+To install ALL 19 tools at once, run each of these commands (they are independent - run them sequentially):
 
 ```bash
 npm install -g @mcp-consultant-tools/1password@beta
@@ -174,9 +174,9 @@ mcp-ado-cli work-item --help    # List commands in a group
 ### Authentication
 
 Pass credentials via one of:
-- `--env-file /path/to/.env` — reads key=value pairs from a .env file
-- `--mcp-server SERVER_NAME` — reads the env block from the nearest `.mcp.json` for that server name
-- `--mcp-server SERVER_NAME --mcp-config /path/to/.mcp.json` — explicit config path
+- `--env-file /path/to/.env` - reads key=value pairs from a .env file
+- `--mcp-server SERVER_NAME` - reads the env block from the nearest `.mcp.json` for that server name
+- `--mcp-server SERVER_NAME --mcp-config /path/to/.mcp.json` - explicit config path
 
 ### Available CLI Binaries
 

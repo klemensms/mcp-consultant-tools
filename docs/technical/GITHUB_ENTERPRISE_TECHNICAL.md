@@ -5,13 +5,13 @@
 
 <overview>
 
-The GitHub Enterprise integration enables repository access, branch management, PR workflows, and code search via the GitHub REST API v3. It is designed for cross-service bug investigation — correlating source code with ADO work items, PowerPlatform plugin deployments, and Application Insights exceptions.
+The GitHub Enterprise integration enables repository access, branch management, PR workflows, and code search via the GitHub REST API v3. It is designed for cross-service bug investigation - correlating source code with ADO work items, PowerPlatform plugin deployments, and Application Insights exceptions.
 
 **Primary use case:** Investigate bugs by finding source code related to ADO work items, analyzing recent changes, and correlating with deployed plugins.
 
 **Package:** `@mcp-consultant-tools/github-enterprise`
 **Binaries:** MCP: `mcp-ghe` | CLI: `mcp-ghe-cli`
-**Tool count:** 22–37 tools depending on feature flags; 5 prompts (always available)
+**Tool count:** 22-37 tools depending on feature flags; 5 prompts (always available)
 
 </overview>
 
@@ -22,16 +22,16 @@ The GitHub Enterprise integration enables repository access, branch management, 
 **Entry point:** `packages/github-enterprise/src/index.ts`
 
 **Service classes (in `services/`):**
-- `GitHubEnterpriseService` (`base-service.ts`) — Authentication, HTTP requests, caching, repository registry
-- `RepoService` (`repo-service.ts`) — Branches, files, commits, directory structure, code search
-- `PrService` (`pr-service.ts`) — Pull request read and write operations
+- `GitHubEnterpriseService` (`base-service.ts`) - Authentication, HTTP requests, caching, repository registry
+- `RepoService` (`repo-service.ts`) - Branches, files, commits, directory structure, code search
+- `PrService` (`pr-service.ts`) - Pull request read and write operations
 
 **Tool registrations (in `tools/`):**
-- `registerRepoTools(server, ctx)` — All repo, branch, file, commit, and search tools
-- `registerPrTools(server, ctx)` — All PR read and conditional write tools
+- `registerRepoTools(server, ctx)` - All repo, branch, file, commit, and search tools
+- `registerPrTools(server, ctx)` - All PR read and conditional write tools
 
 **Prompts (in `prompts/`):**
-- `registerGhePrompts(server, ctx)` — 5 structured output prompts
+- `registerGhePrompts(server, ctx)` - 5 structured output prompts
 
 **ServiceContext (`types.ts`):**
 ```typescript
@@ -62,7 +62,7 @@ Both services are lazy-initialized: `RepoService` and `PrService` receive the `G
 - Higher API rate limits than PAT
 - Installation-level access control
 - Tokens expire after 1 hour; the service caches tokens with a 5-minute safety buffer (`tokenExpirationTime = currentTime + 55 * 60 * 1000`)
-- Requires: `appId`, `appPrivateKey`, `appInstallationId` (not configurable via env in the current implementation — PAT is the only supported auth method via env vars)
+- Requires: `appId`, `appPrivateKey`, `appInstallationId` (not configurable via env in the current implementation - PAT is the only supported auth method via env vars)
 
 </auth-method>
 
@@ -104,8 +104,8 @@ Both services are lazy-initialized: `RepoService` and `PrService` receive the `G
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `GHE_TOKEN` | Yes | — | Personal access token |
-| `GHE_REPOS` | Yes | — | JSON array of repo configs |
+| `GHE_TOKEN` | Yes | - | Personal access token |
+| `GHE_REPOS` | Yes | - | JSON array of repo configs |
 | `GHE_BASE_URL` | No | `https://github.com` | GitHub instance URL; set to your GHE Server URL for self-hosted |
 | `GHE_API_VERSION` | No | `2022-11-28` | GitHub REST API version header |
 | `GHE_ENABLE_CACHE` | No | `true` | Enable in-memory response caching |
@@ -244,7 +244,7 @@ Returns commit history for a specific file (implemented as `getCommits()` filter
 | `limit` | number (optional) | Max commits; default 50 |
 
 **`ghe-update-file`** _(requires `GHE_ENABLE_WRITE=true`)_
-Content is base64-encoded before sending. `sha` is required for optimistic concurrency — get it from `ghe-get-file` first.
+Content is base64-encoded before sending. `sha` is required for optimistic concurrency - get it from `ghe-get-file` first.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -550,11 +550,11 @@ Prompts call service methods directly and return structured `user` role messages
 
 When no branch is specified, `getDefaultBranch(repoId)` runs this algorithm in order:
 
-1. **User-specified** — Validates the branch exists; throws with available branch list if not found
-2. **Configured default** — Uses `defaultBranch` from the repo's `GHE_REPOS` entry (`confidence: 'high'`)
-3. **Release branch auto-detect** — Finds all branches matching `release/` (case-insensitive), parses the version number, picks the highest (`confidence: 'medium'`)
-4. **Fallback to main/master** — Uses `main` or `master` if no release branches found (`confidence: 'low'`)
-5. **Error** — Throws with list of available branches if none of the above work
+1. **User-specified** - Validates the branch exists; throws with available branch list if not found
+2. **Configured default** - Uses `defaultBranch` from the repo's `GHE_REPOS` entry (`confidence: 'high'`)
+3. **Release branch auto-detect** - Finds all branches matching `release/` (case-insensitive), parses the version number, picks the highest (`confidence: 'medium'`)
+4. **Fallback to main/master** - Uses `main` or `master` if no release branches found (`confidence: 'low'`)
+5. **Error** - Throws with list of available branches if none of the above work
 
 The response always includes `branch`, `reason`, `confidence`, and optionally `alternatives` and `message`. When `confidence` is not `'high'`, the message advises the user to specify a branch explicitly if the auto-detected one is wrong.
 

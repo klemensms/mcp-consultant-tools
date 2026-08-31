@@ -40,7 +40,7 @@ AZURE_SQL_USERNAME=mcp_readonly
 AZURE_SQL_PASSWORD=SecurePassword123!
 ```
 
-Single-server mode reads only server, port, database, username, and password — SQL authentication only. **Azure AD authentication** is configured **per server, inside the `AZURE_SQL_SERVERS` JSON** (not via top-level env vars): add `useAzureAd: true` plus `azureAdClientId` / `azureAdClientSecret` / `azureAdTenantId` to the server entry.
+Single-server mode reads only server, port, database, username, and password - SQL authentication only. **Azure AD authentication** is configured **per server, inside the `AZURE_SQL_SERVERS` JSON** (not via top-level env vars): add `useAzureAd: true` plus `azureAdClientId` / `azureAdClientSecret` / `azureAdTenantId` to the server entry.
 
 ### Safety Limits
 
@@ -74,7 +74,7 @@ SQL_ENABLE_DELETE=true         # DELETE statements (requires WHERE clause)
 # Index creation
 SQL_ENABLE_INDEX_CREATE=true   # CREATE NONCLUSTERED INDEX on unindexed FK columns
 
-# Unrestricted execution (break glass — tool hidden when off)
+# Unrestricted execution (break glass - tool hidden when off)
 SQL_ENABLE_UNRESTRICTED=true  # Any T-SQL: DDL, DML, EXEC, multi-batch with GO
 ```
 
@@ -98,12 +98,12 @@ SQL_ENABLE_UNRESTRICTED=true  # Any T-SQL: DDL, DML, EXEC, multi-batch with GO
 - `sql-get-failed-queries` - Recent exception/timeout queries (default: top 50)
 - `sql-get-query-plan` - XML execution plan(s) for one `queryId` (can exceed 1 MB)
 
-When Query Store is off these tools fail with an actionable message rather than returning an empty result — the `sys.query_store_*` views return zero rows when disabled, which would otherwise read as a healthy database.
+When Query Store is off these tools fail with an actionable message rather than returning an empty result - the `sys.query_store_*` views return zero rows when disabled, which would otherwise read as a healthy database.
 
 **Session Diagnostics (read-only, no feature flag; require `VIEW SERVER STATE` / `VIEW DATABASE STATE`):**
 - `sql-get-blocking-chains` - Live blocking hierarchy, head blockers and blocked sessions
 - `sql-get-executing-requests` - Currently running queries with live CPU/read stats; `includePlan` attaches plans
-- `sql-get-deadlock-graphs` - Recent deadlocks from `system_health` XEvents — **not supported on Azure SQL Database**
+- `sql-get-deadlock-graphs` - Recent deadlocks from `system_health` XEvents - **not supported on Azure SQL Database**
 - `sql-get-long-running-transactions` - Open user transactions past a threshold (default 30s)
 
 **Space Diagnostics (read-only, no feature flag):**
@@ -112,7 +112,7 @@ When Query Store is off these tools fail with an actionable message rather than 
 - `sql-get-tempdb-space` - TempDB file breakdown (version store / user / internal objects)
 - `sql-get-tempdb-session-usage` - Sessions consuming TempDB, ranked by net allocation
 
-These eight read DMVs, **not** Query Store — do not reuse `assertQueryStoreEnabled()` for them. They need no proactive gate at all: an unauthorised DMV read raises a SQL error rather than returning zero rows, so an empty result genuinely means "nothing to report". The one exception is `sql-get-deadlock-graphs`, which probes `SERVERPROPERTY('EngineEdition')` and refuses on Azure SQL Database (edition `5`), where the `system_health` session does not exist.
+These eight read DMVs, **not** Query Store - do not reuse `assertQueryStoreEnabled()` for them. They need no proactive gate at all: an unauthorised DMV read raises a SQL error rather than returning zero rows, so an empty result genuinely means "nothing to report". The one exception is `sql-get-deadlock-graphs`, which probes `SERVERPROPERTY('EngineEdition')` and refuses on Azure SQL Database (edition `5`), where the `system_health` session does not exist.
 
 The two TempDB tools always describe the resolved **connection's** TempDB; `database` selects the pool, not the inspected database. They reach TempDB via three-part name (`tempdb.sys.*`), which works on both platforms.
 
@@ -123,10 +123,10 @@ The two TempDB tools always describe the resolved **connection's** TempDB; `data
 
 `sql-get-index-usage-stats` guards three traps in `sys.dm_db_index_usage_stats`, and its result shape exists to make them visible:
 - The counters **reset** on engine restart, and on database detach / offline / AUTO_CLOSE. `summary.statsWindowHours` (computed server-side via `DATEDIFF`, so no timezone skew) reports how long they have accumulated. A restart an hour ago makes every index look dormant.
-- A never-used index has **no row** in the DMV, not a row of zeros. Hence the LEFT JOIN and `hasUsageData`. `isUnused` deliberately requires `hasUsageData` **and** `userUpdates > 0` — the engine maintains the index on every write and nothing reads it. An index with no row has seen no activity of any kind: absence of evidence, not evidence of disuse.
+- A never-used index has **no row** in the DMV, not a row of zeros. Hence the LEFT JOIN and `hasUsageData`. `isUnused` deliberately requires `hasUsageData` **and** `userUpdates > 0` - the engine maintains the index on every write and nothing reads it. An index with no row has seen no activity of any kind: absence of evidence, not evidence of disuse.
 - The DMV covers neither memory-optimized nor spatial indexes, so both are excluded rather than reported as unused.
 
-`sql-get-missing-fk-indexes` evaluates each FK column separately, so a composite foreign key reports its columns one by one. "Missing" means no index has that column as its **leading** key — an FK column at position 2 of a composite index cannot serve the lookup.
+`sql-get-missing-fk-indexes` evaluates each FK column separately, so a composite foreign key reports its columns one by one. "Missing" means no index has that column as its **leading** key - an FK column at position 2 of a composite index cannot serve the lookup.
 
 **Write Operations (feature-flag gated):**
 - `sql-manage-view` - Create or update a view
@@ -142,7 +142,7 @@ The two TempDB tools always describe the resolved **connection's** TempDB; `data
 - `sql-create-fk-indexes` - Create `IX_<table>_<column>` on every FK column lacking a leading-key index; returns one row per attempt (created / skipped / failed with its error)
 - `sql-execute-unrestricted` - Execute any T-SQL without restrictions (conditionally registered, hidden when flag is off)
 
-`sql-create-fk-indexes` is additive (`destructiveHint: false`, like `sql-manage-view`) and stays visible when its flag is off, failing with an explicit message. `sql-execute-unrestricted` is the deliberate exception that hides. Each `CREATE INDEX` takes a schema lock and can run for minutes on a large table. Generated DDL is assembled with `QUOTENAME()` — catalog names may legally contain `]`, and bracket concatenation would let one break out of the identifier.
+`sql-create-fk-indexes` is additive (`destructiveHint: false`, like `sql-manage-view`) and stays visible when its flag is off, failing with an explicit message. `sql-execute-unrestricted` is the deliberate exception that hides. Each `CREATE INDEX` takes a schema lock and can run for minutes on a large table. Generated DDL is assembled with `QUOTENAME()` - catalog names may legally contain `]`, and bracket concatenation would let one break out of the identifier.
 
 ## Security
 

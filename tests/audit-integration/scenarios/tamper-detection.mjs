@@ -1,5 +1,5 @@
 /**
- * Task 39 — Tamper detection.
+ * Task 39 - Tamper detection.
  *
  * Generates a clean audit chain via real MCPTest reads, then exercises 5 tamper
  * modes against the JSONL file and verifies that BOTH the in-process walkChain
@@ -14,7 +14,7 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
 export default async function tamperDetection(ctx) {
-  // PHASE 1 — build a clean chain of 6 records (1 set-engagement + 5 reads)
+  // PHASE 1 - build a clean chain of 6 records (1 set-engagement + 5 reads)
   const session = await ctx.startClient({
     MCP_ENVIRONMENT_TYPE: 'uat',
     PII_PROTECTION: 'true',
@@ -51,7 +51,7 @@ export default async function tamperDetection(ctx) {
     throw new Error(`unexpected seq sequence: ${seqs.join(',')}`);
   }
   if (!walkChain(cleanRecs).ok) {
-    throw new Error('clean chain failed walkChain — bug in foundation');
+    throw new Error('clean chain failed walkChain - bug in foundation');
   }
   ctx.log('info', 'clean chain: 6 records (seq 1..6), chain OK');
 
@@ -92,11 +92,11 @@ export default async function tamperDetection(ctx) {
     }
     ctx.log(
       'info',
-      `✓ ${name} — walkChain ${lib.ok ? 'ok (lib-tolerated; CLI caught)' : `break at seq ${lib.brokenAt}`}, CLI exit=2`,
+      `✓ ${name} - walkChain ${lib.ok ? 'ok (lib-tolerated; CLI caught)' : `break at seq ${lib.brokenAt}`}, CLI exit=2`,
     );
   }
 
-  // CASE A — modify a field in the middle. Tampering seq 3's body changes its
+  // CASE A - modify a field in the middle. Tampering seq 3's body changes its
   // computed hash; seq 4's prevHash check fails first.
   await runTamper(
     'A: modify field at seq 3',
@@ -110,7 +110,7 @@ export default async function tamperDetection(ctx) {
     4,
   );
 
-  // CASE B — delete seq 4 entirely. seq 5's prevHash points at vanished hash.
+  // CASE B - delete seq 4 entirely. seq 5's prevHash points at vanished hash.
   await runTamper(
     'B: delete seq 4',
     async (f) => {
@@ -121,7 +121,7 @@ export default async function tamperDetection(ctx) {
     5,
   );
 
-  // CASE C — reorder seq 2 and seq 5. Don't constrain brokenAt (depends on
+  // CASE C - reorder seq 2 and seq 5. Don't constrain brokenAt (depends on
   // walker behaviour with seq jumps).
   await runTamper('C: reorder seq 2 ↔ 5', async (f) => {
     const lines = (await readFile(f, 'utf8')).split('\n').filter(Boolean);
@@ -129,9 +129,9 @@ export default async function tamperDetection(ctx) {
     await writeFile(f, lines.join('\n') + '\n');
   });
 
-  // CASE D — truncate file mid-record (chop last 50 bytes). The CLI's
+  // CASE D - truncate file mid-record (chop last 50 bytes). The CLI's
   // verifyFile filters out empty lines via `.filter(l => l.length > 0)` then
-  // tries JSON.parse on each — it will hit "malformed JSON" on the truncated
+  // tries JSON.parse on each - it will hit "malformed JSON" on the truncated
   // last line and exit 2. The local walkChain may behave differently
   // depending on readAuditFile error handling, so tolerate lib.ok.
   await runTamper(
@@ -144,7 +144,7 @@ export default async function tamperDetection(ctx) {
     { tolerateLibOk: true },
   );
 
-  // CASE E — modify prevHash directly on seq 4. Walker's expected-prev for
+  // CASE E - modify prevHash directly on seq 4. Walker's expected-prev for
   // seq 4 still equals seq 3's hash, so check fails AT seq 4.
   await runTamper(
     'E: modify prevHash on seq 4',

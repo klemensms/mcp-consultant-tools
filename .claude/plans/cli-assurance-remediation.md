@@ -12,7 +12,7 @@ towards an error**. A wrong number that looks like good news is not cross-checke
 an engagement, so the report reads as an all-clear. Two defects invert this and
 manufacture false alarm instead.
 
-## Acceptance criterion — applies to every task below
+## Acceptance criterion - applies to every task below
 
 For each fix, add a test that asserts the **failure** case, not just the success case:
 
@@ -27,24 +27,24 @@ A fix that only proves the happy path does not close its task.
 - [x] **X3 · one truncation contract** across `powerplatform` list commands. Shipped in
       `v35.0.0-beta.17`. Closed D1, D2, D3, D4 and D6. See
       `docs/release-notes/v35.0.0-beta.17.md`.
-- [x] **T1 · D5 — `plugin trace-logs --exception-only`**. Filter now excludes the empty
+- [x] **T1 · D5 - `plugin trace-logs --exception-only`**. Filter now excludes the empty
       string as well as null, and the payload carries `exceptionCount` alongside
       `totalCount`. Not yet published; lands on `release/35.0`.
-- [x] **T2 · X2 — aggregate failure counts**, scoped as planned to the shared contract
+- [x] **T2 · X2 - aggregate failure counts**, scoped as planned to the shared contract
       plus one package. `FanOutRecorder` / `fanOutSuffix` in `@mcp-consultant-tools/core`,
       `outputResult` exits 1 on a payload whose fan-out lost items, and all 15 swallowing
       `catch` blocks in `azure-management` now report. The remaining packages are the
       unscheduled sweep in register item 2.
-- [x] **T7 · D12 — `--include-configuration` fails silently**. Closed by T2 in the same
+- [x] **T7 · D12 - `--include-configuration` fails silently**. Closed by T2 in the same
       edit: the 403s are now counted and named, and each site carries
       `configurationUnavailable: true` so a blank cannot read as "no settings".
-- [x] **T3 · D8 — `graph role-assignments` resolves no role name**. The lookup now joins
+- [x] **T3 · D8 - `graph role-assignments` resolves no role name**. The lookup now joins
       on the trailing GUID rather than the whole id, because the two sides carry
       different scope prefixes. A wholly unresolved result declares itself via
       `summary.note`, and `roleDefinitionsFound` separates "lookup returned nothing"
       from "returned definitions that did not match". Root cause is inferred from the
       measured evidence, not confirmed live - see register item 11.
-- [x] **T4 · D9 — `networking event-grid-topics` reports zero while topics exist**.
+- [x] **T4 · D9 - `networking event-grid-topics` reports zero while topics exist**.
       `includeSystemTopics` now decides whether system topics are **listed**, not whether
       they are **looked for**, so `summary.total` is what exists and `summary.listed` is
       what came back. `summary.note` names the shortfall, and both queries run through
@@ -52,14 +52,14 @@ A fix that only proves the happy path does not close its task.
       `systemTopicsUnavailable` / `customTopicsUnavailable` and exits 1 rather than
       shrinking the counts. Costs one extra ARM list call per invocation, deliberately.
       Unit-verified only - no Azure credentials on this machine. See register item 12.
-- [x] **T5 · D21 — `fn stats` triple-counts every function**. `collapseFunctionStats`
+- [x] **T5 · D21 - `fn stats` triple-counts every function**. `collapseFunctionStats`
       strips the `Functions.` prefix, drops blank-named host rows, and keeps the
       highest-counting variant **whole** so `SuccessRate` stays consistent with the counts
       beside it. Reports the reshaping in a `normalization` block, appended by hand to
       every markdown surface because `formatTableAsMarkdown` keeps only the tables.
       `UniqueFunctions` is dropped from the query: inside a `by FunctionName` summarize it
       was always 1. See register item 13.
-- [x] **T6 · D20 — `workspace metadata` returns the schema catalogue, not the workspace's
+- [x] **T6 · D20 - `workspace metadata` returns the schema catalogue, not the workspace's
       tables**. Both halves of the plan's suggested fix, because the command was answering a
       different question from the one it was asked. `la-get-metadata` declares its own scope
       (`scope.kind: 'schema-catalogue'`, the table count, and a note naming where the other
@@ -67,7 +67,7 @@ A fix that only proves the happy path does not close its task.
       `workspace tables`) is new and answers what the workspace actually holds, from
       `Usage | summarize by DataType, QuantityUnit`. A zero is scoped to its window and to
       ingestion-metered data, both stated. 14 tools now. See register items 16 and 17.
-- [x] **T8 · D22 — `query error-summary --table FunctionAppLogs` builds an invalid query**.
+- [x] **T8 · D22 - `query error-summary --table FunctionAppLogs` builds an invalid query**.
       Root cause: the dedupe branch grouped by `InvocationId`, an Application Insights
       column. `FunctionAppLogs` names it `FunctionInvocationId` and has no `OperationId` at
       all. The query API resolves column names before it reads a row, which is why the
@@ -83,7 +83,7 @@ A fix that only proves the happy path does not close its task.
       dedupe key was used rather than claiming `OperationId` everywhere. The technical doc's
       own `FunctionAppLogs` schema block was wrong the same way and seeded the defect - it
       is corrected. Unit-verified only. See register items 18 to 21.
-- [x] **T15 · D7 — `plugin get` returns a different assembly shape from `plugin list`**.
+- [x] **T15 · D7 - `plugin get` returns a different assembly shape from `plugin list`**.
       Both calls now go through `formatPluginAssembly` in `powerplatform-core`'s
       `PluginService.ts`, with `formatPluginAssemblyDetail` adding the columns only
       `plugin get` selects (`description`, `culture`, `publicKeyToken`, `sourceType`,
@@ -96,7 +96,7 @@ A fix that only proves the happy path does not close its task.
       an External assembly as None. An unrecognised isolation mode now reports
       `Unknown (<value>)` instead of falling through to `External`. Unit-verified only.
       See register items 22 to 24.
-- [x] **T10 · D14 — assessment list omits identity- and subscription-scoped assessments**.
+- [x] **T10 · D14 - assessment list omits identity- and subscription-scoped assessments**.
       The cause is not a filter in this repo's code: the ARM list at subscription scope
       enumerates assessments on resources **inside** the subscription, and neither an
       identity object nor the subscription itself is one, so those rows were never in the
@@ -112,7 +112,7 @@ A fix that only proves the happy path does not close its task.
       take out exactly what the second source recovers. The Resource Graph POST moved to
       `utils/resource-graph.ts`, shared with attack paths, and follows `$skipToken` up to 20
       pages. Unit-verified only. See register items 27 to 30.
-- [x] **T11 · D15 — `attack-path` drops the entire risk payload**. Cause: `mapAttackPathRow`
+- [x] **T11 · D15 - `attack-path` drops the entire risk payload**. Cause: `mapAttackPathRow`
       mapped a fixed allowlist of `properties` keys taken from Microsoft's published
       attack-path field table, and discarded every key off it. Live rows on a tenant whose
       attack paths come from Microsoft Security Exposure Management carry a different,
@@ -157,7 +157,7 @@ A fix that only proves the happy path does not close its task.
       object from api-version 2025-05-04 with no hint that a real estate returned none.
       6 new tests, `azure-defender` 91 to 97, repo 1049 to 1055. Unit-verified only. See
       register items 36 to 38 and the ⚑34 update.
-- [x] **T14 · D10, D11 — App Service and Front Door payload gaps**. Both halves were
+- [x] **T14 · D10, D11 - App Service and Front Door payload gaps**. Both halves were
       "the code never asked ARM", not a mapping gap and not a swallowed 403, so all three
       causes the task arrived with were wrong. **D10:** `AppServicePlans_List` at
       subscription scope returns a *subset* of each plan's properties unless
@@ -180,7 +180,7 @@ A fix that only proves the happy path does not close its task.
       `networking front-door get <name>` when it is `networking get-front-door <name>`.
       5 new tests, `azure-management` 51 to 56, repo 1055 to 1060. Unit-verified only. See
       register items 40 and 41, and the ⚑8 / ⚑39 updates.
-- [x] **T16 · D26 — the `code-review` cache path follows the working directory**. The
+- [x] **T16 · D26 - the `code-review` cache path follows the working directory**. The
       location is deliberate and stays: `.context/` resolves against the working directory
       because the cache belongs to the project being worked on. What was wrong was the
       silence. `outputResult` in `core` now always names the file it wrote on stderr,
@@ -192,7 +192,7 @@ A fix that only proves the happy path does not close its task.
       `mktemp -d` against the built CLI. **The plan's claim that `docs/KNOWN_ISSUES.md`
       already recorded the repo-wide version was wrong** - there is no such entry - so the
       durable record is `.claude/refs/cli-architecture.md`. See register item 42.
-- [x] **T17 · D24, D25 — retested, not re-fixed**. Both defects are confirmed fixed in the
+- [x] **T17 · D24, D25 - retested, not re-fixed**. Both defects are confirmed fixed in the
       current build, so nothing was rewritten. D25 is verified **end-to-end**: the built
       CLI run against a nonexistent Azure DevOps organisation returns a real 404 whose hint
       names the project, the organisation and `cr-list-repos`, with no SAML or "Developer
@@ -202,7 +202,7 @@ A fix that only proves the happy path does not close its task.
       half remains unproven: whether a clone now fails in seconds instead of hanging needs
       a machine with a controlling terminal and a real organisation, exactly as
       `v35.0.0-beta.14.md` states. See the ⚑6 update.
-- [x] **T18 half 1 · D18 — the `azure-defender` coverage gap**. Two new read-only
+- [x] **T18 half 1 · D18 - the `azure-defender` coverage gap**. Two new read-only
       commands. **`defender-list-alerts`** returns security alerts across the subscription
       with status and severity breakdowns, and names every entity carrying more than one,
       because clustering is the finding rather than the count. `Alerts_List` takes no
@@ -343,7 +343,7 @@ more than one when its context measurement allows.
     off everywhere" does not explain it on its own. Inferred across two measurements that may
     not be the same subscription - see register item 33.
 
-### T13 · D16 — `assessment list-assessment-metadata` returns null for the ranking fields
+### T13 · D16 - `assessment list-assessment-metadata` returns null for the ranking fields
 - **Package:** `azure-defender`
 - **Severity:** Major.
 - **Measured:** `implementationEffort` and `userImpact` are `null` on **all 1,302**
@@ -397,7 +397,7 @@ more than one when its context measurement allows.
 
 ## Not actionable in this repo
 
-### T9 · X1 — the documented invocation idiom fails on macOS, in all six CLIs
+### T9 · X1 - the documented invocation idiom fails on macOS, in all six CLIs
 - **Severity:** Major by blast radius. **Status: cannot be fixed here.**
 - **The defect is real:** the docs show `ARM="npx -y --package=... mcp-azure-mgmt ..."` then
   `$ARM ...`. zsh does not word-split an unquoted variable and is the macOS default shell, so

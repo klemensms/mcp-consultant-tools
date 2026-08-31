@@ -23,14 +23,14 @@ param: z.string().describe(descWithExamples("What it does", MY_EXAMPLES))
 
 ## Description guidelines
 
-**Tool descriptions** (2nd arg to `server.tool()`) — 1–2 sentences, what it does (not how), include prerequisites like `requires FEATURE_FLAG=true`.
+**Tool descriptions** (2nd arg to `server.tool()`) - 1-2 sentences, what it does (not how), include prerequisites like `requires FEATURE_FLAG=true`.
 
-**Parameter descriptions** — explain purpose, list valid values/defaults, add examples for complex params (queries, JSON, enums, IDs).
+**Parameter descriptions** - explain purpose, list valid values/defaults, add examples for complex params (queries, JSON, enums, IDs).
 
 ## What makes a good example
 
 - Real-world use cases
-- 2–4 diverse scenarios
+- 2-4 diverse scenarios
 - Realistic values matching the param type
 - Cover simple case, filtering/querying, and relationships
 - Prioritize tools with complex query syntax (WIQL, OData), JSON/object params, or multiple modes

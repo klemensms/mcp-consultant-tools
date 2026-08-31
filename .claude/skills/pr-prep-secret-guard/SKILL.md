@@ -30,11 +30,11 @@ git diff --cached --name-only
 ## High-Risk Files
 
 **STOP and warn** if any of these are staged:
-- `.env`, `.env.*` — Never commit
-- `.claude/settings.json` — Often contains embedded secrets
-- `*.pem`, `*.key`, `*.p12`, `*.pfx` — Private keys
+- `.env`, `.env.*` - Never commit
+- `.claude/settings.json` - Often contains embedded secrets
+- `*.pem`, `*.key`, `*.p12`, `*.pfx` - Private keys
 - `credentials.json`, `secrets.json`, `auth*.json`, `*token*.json`
-- `**/config/*.json` — May contain hardcoded credentials
+- `**/config/*.json` - May contain hardcoded credentials
 
 ## Secret Patterns
 

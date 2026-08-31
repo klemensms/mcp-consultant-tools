@@ -83,7 +83,7 @@ function extractFacts(text, fields) {
   const out = {};
   for (const field of fields ?? []) {
     const escaped = escapeRegexLiteral(field);
-    // Match "field": "value" — captures null/empty separately.
+    // Match "field": "value" - captures null/empty separately.
     const stringMatch = text.match(new RegExp(`"${escaped}":\\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`));
     if (stringMatch) {
       out[field] = stringMatch[1];
@@ -219,7 +219,7 @@ function groupQueriesByServer(qs) {
 }
 
 async function main() {
-  // Reset output (responses dir only — keep parent dir to preserve any
+  // Reset output (responses dir only - keep parent dir to preserve any
   // user-added README/notes).
   if (existsSync(RESPONSES_DIR)) {
     rmSync(RESPONSES_DIR, { recursive: true, force: true });
@@ -282,7 +282,7 @@ async function main() {
   const toolErrorCount = results.filter((r) => r.is_error).length;
   const okCount = results.filter((r) => !r.error && !r.is_error).length;
   process.stderr.write(
-    `\nDone. ${results.length} results — ${okCount} ok, ${toolErrorCount} tool-returned-error, ${callErrorCount} call-threw, ${refusedCount} refused-to-start.\n`
+    `\nDone. ${results.length} results - ${okCount} ok, ${toolErrorCount} tool-returned-error, ${callErrorCount} call-threw, ${refusedCount} refused-to-start.\n`
   );
   process.stderr.write(
     `Manifest: ${path.relative(REPO_ROOT, manifestPath)}\n`

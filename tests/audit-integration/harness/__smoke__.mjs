@@ -21,11 +21,11 @@ async function main() {
     });
 
     if (result?.isError) {
-      console.error('[smoke] FAIL — tool returned error');
+      console.error('[smoke] FAIL - tool returned error');
       console.error(JSON.stringify(result, null, 2));
       process.exit(1);
     }
-    console.error('[smoke] OK — got tool result with', (result.content ?? []).length, 'content parts');
+    console.error('[smoke] OK - got tool result with', (result.content ?? []).length, 'content parts');
   } finally {
     await session.close();
   }

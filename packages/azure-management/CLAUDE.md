@@ -78,7 +78,7 @@ AZURE_MGMT_ENABLE_WRITE=false                 # Enable write operations: restart
 - `list-detectors` - App Service diagnostic detectors
 - `get-detector` - Run one detector over a time range
 
-### App Services (Write — requires AZURE_MGMT_ENABLE_WRITE=true)
+### App Services (Write - requires AZURE_MGMT_ENABLE_WRITE=true)
 - `restart-app-service` - Restart an App Service
 - `stop-app-service` - Stop a running App Service
 - `start-app-service` - Start a stopped App Service
@@ -155,19 +155,19 @@ adding a fifth mapper.
 
 **Resource Graph has no query-parameter binding.** Filter values are escaped into the KQL literal by `src/utils/kql.ts`, which escapes the backslash *before* the quote. Escaping only the quote lets a trailing `\` close the literal and inject clauses. Never interpolate a value into a query without `kqlString()`.
 
-**Compare `type` with `=~`, never `==`.** A wrong-cased `type` literal compiles and returns zero rows — a false all-clear, not an error. Same for `tostring(properties) contains`: `contains` takes a `string`, and `properties` is `dynamic`.
+**Compare `type` with `=~`, never `==`.** A wrong-cased `type` literal compiles and returns zero rows - a false all-clear, not an error. Same for `tostring(properties) contains`: `contains` takes a `string`, and `properties` is `dynamic`.
 
-**`truncated: true` means the counts are a lower bound.** Resource Graph withholds `$skipToken` whenever it truncates, so a full 1000-row page with no continuation token is indistinguishable from "exactly one page exists". Every Resource Graph tool reports `truncated`; `summary` always describes exactly the rows returned. Paged queries carry `| order by id asc` — without a deterministic sort, `$skipToken` duplicates and drops rows.
+**`truncated: true` means the counts are a lower bound.** Resource Graph withholds `$skipToken` whenever it truncates, so a full 1000-row page with no continuation token is indistinguishable from "exactly one page exists". Every Resource Graph tool reports `truncated`; `summary` always describes exactly the rows returned. Paged queries carry `| order by id asc` - without a deterministic sort, `$skipToken` duplicates and drops rows.
 
 **`list-diagnostic-settings` distinguishes "nothing configured" from "could not look".** A resource type that does not support diagnostic settings answers `200 []`. A `403` or `404` *rejects*. The si source bucketed every rejection as "not configured", turning a permissions gap into a clean audit result. `ArmClient` errors now carry `.status` (`getArmErrorStatus()`) so the two stay apart. Any new fan-out across resources must do the same.
 
-**`list-role-assignments` returns `roleDefinitionName: null`, never `"Unknown"`,** when a role definition cannot be read — a fabricated `Unknown` reads like a real role in `byRole`. The whole-lowercased-id join is correct **only** against ARG's `authorizationresources` table; the raw ARM REST APIs put a subscription prefix on one side and not the other.
+**`list-role-assignments` returns `roleDefinitionName: null`, never `"Unknown"`,** when a role definition cannot be read - a fabricated `Unknown` reads like a real role in `byRole`. The whole-lowercased-id join is correct **only** against ARG's `authorizationresources` table; the raw ARM REST APIs put a subscription prefix on one side and not the other.
 
 **`list-event-grid-topics` counts both topic types, and lists only one by default.** `includeSystemTopics` decides what appears in `topics`, not what is looked for, so `summary.total` is what exists and `summary.listed` is what came back. This is deliberate: the command used to enumerate custom topics only and report a subscription holding 15 system topics as a clean `total: 0`, indistinguishable from a subscription holding nothing. `summary.note` names the shortfall when there is one, and a refused query sets `systemTopicsUnavailable` / `customTopicsUnavailable` rather than leaving a zero that looks like a count. Any new command that enumerates one type out of several must do the same.
 
 **`list-subscriptions` returning `[]` is a permissions signal.** `GET /subscriptions` is RBAC-filtered and answers `200 []`, never `403`, when the principal holds no role assignment. Partial subscription access is equally invisible to Resource Graph: it returns a clean `200` with only the readable subscriptions.
 
-**`get-log-stream` blocks the MCP client** for up to 30 seconds. Bounds are enforced twice — Zod schema *and* a service-side clamp — because a CLI caller bypasses the schema. The si source allowed 120s/2000 lines; deliberately not honoured. An empty stream is not evidence the app is idle: filesystem logging is off by default and self-disables after 12 hours.
+**`get-log-stream` blocks the MCP client** for up to 30 seconds. Bounds are enforced twice - Zod schema *and* a service-side clamp - because a CLI caller bypasses the schema. The si source allowed 120s/2000 lines; deliberately not honoured. An empty stream is not evidence the app is idle: filesystem logging is off by default and self-disables after 12 hours.
 
 **Kudu SCM auth is unverified.** `ScmClient` sends an ARM-audience token; `az webapp log tail` uses `https://appservice.azure.com`. If Kudu ever rejects ARM tokens, every SCM call here 401s. Reported explicitly as `SCM authentication rejected`. Not changed, because it would risk breaking the already-shipped `get-app-service-logs`.
 
@@ -183,7 +183,7 @@ adding a fifth mapper.
 - **Read-only by default**: Write tools require `AZURE_MGMT_ENABLE_WRITE=true`
 - **Secret redaction**: Connection strings and keys are redacted by default
 - **Per-call unredaction**: `get-app-service` supports `showValues` to override redaction for a single call
-- **Config merge**: `set-app-service-config` merges with existing settings — never replaces the full set
+- **Config merge**: `set-app-service-config` merges with existing settings - never replaces the full set
 - **Audit logging**: All API calls logged to stderr
 
 ## MCP Configuration

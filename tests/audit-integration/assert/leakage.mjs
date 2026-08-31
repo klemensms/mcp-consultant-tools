@@ -1,5 +1,5 @@
 /**
- * sweepForPii — grep every record body for known-PII fixture strings.
+ * sweepForPii - grep every record body for known-PII fixture strings.
  *
  * Returns {leaked: [{seq, file, fixturePath, fixtureValue, foundIn}], cleanCount}
  * - cleanCount = number of records that contained NO known-PII strings
@@ -69,7 +69,7 @@ function stringifyByPath(record) {
 
 /**
  * Asserts that every fixture string appears NOWHERE in any record. Returns the
- * leakage report — caller should check `leaked.length === 0` and pretty-print
+ * leakage report - caller should check `leaked.length === 0` and pretty-print
  * a useful failure message if not.
  */
 export function assertNoLeakage(records, fixtures) {

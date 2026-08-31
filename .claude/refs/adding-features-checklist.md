@@ -1,4 +1,4 @@
-# Scope: Mandatory checklists for adding tools, domains, and integrations to a package. Load when implementing a new MCP tool, adding a service domain to an existing package, or scaffolding a brand-new integration package. Mirrors the canonical Service-Tool-Prompt layering — see `package-architecture.md` for the architectural backdrop.
+# Scope: Mandatory checklists for adding tools, domains, and integrations to a package. Load when implementing a new MCP tool, adding a service domain to an existing package, or scaffolding a brand-new integration package. Mirrors the canonical Service-Tool-Prompt layering - see `package-architecture.md` for the architectural backdrop.
 
 ## Adding a tool to an existing domain
 

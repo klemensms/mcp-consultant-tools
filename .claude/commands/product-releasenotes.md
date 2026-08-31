@@ -9,7 +9,7 @@ allowed-tools:
   - Bash
 arguments:
   - name: mode
-    description: "'beta' (default — update master + per-iteration beta file, output Teams message for beta channel), 'production' (finalize master with release date, output Teams message for production), or 'check' (read-only — show what would change without writing)."
+    description: "'beta' (default - update master + per-iteration beta file, output Teams message for beta channel), 'production' (finalize master with release date, output Teams message for production), or 'check' (read-only - show what would change without writing)."
     required: false
 ---
 
@@ -83,7 +83,7 @@ Examples that are **NOT** breaking:
 - Bug fixes whose old behaviour was already broken.
 - Internal refactors with no public surface change.
 
-Identify the **affected packages** — the set of MCP packages whose `.mcp.json` consumer needs to do something. This is usually a subset of the functionally-changed set (e.g. `core` changes but no consumer touches `core` directly).
+Identify the **affected packages** - the set of MCP packages whose `.mcp.json` consumer needs to do something. This is usually a subset of the functionally-changed set (e.g. `core` changes but no consumer touches `core` directly).
 
 ## Step 4: Update the master file
 
@@ -92,7 +92,7 @@ The master file is the user-facing single source of truth for the release branch
 ```
 # Release Notes: v{MAJOR}.0.0
 
-**Status:** {one of: "In beta. Currently shipping as v{CORE_VERSION} on the `beta` npm tag." | "Released — v{X.Y.Z} on the `latest` npm tag (date: YYYY-MM-DD)."}
+**Status:** {one of: "In beta. Currently shipping as v{CORE_VERSION} on the `beta` npm tag." | "Released - v{X.Y.Z} on the `latest` npm tag (date: YYYY-MM-DD)."}
 **Branch:** `release/{X.Y}`
 **First beta:** YYYY-MM-DD
 **Production release date:** {YYYY-MM-DD or TBD}
@@ -109,7 +109,7 @@ The master file is the user-facing single source of truth for the release branch
    - **Don't want to read further?** Copy the block under [⚡ Quick upgrade](#-quick-upgrade--copy-paste-for-your-claude-agent) into a fresh Claude conversation. Your agent will scan your configs, propose changes, and show you a diff before writing.
    - **Want the details?** Continue reading after the upgrade block.
 
-## ⚡ Quick upgrade — copy-paste for your Claude agent
+## ⚡ Quick upgrade - copy-paste for your Claude agent
    {ONLY IF breaking changes exist}
 
    {short prose: which packages, why this is needed}
@@ -118,7 +118,7 @@ The master file is the user-facing single source of truth for the release branch
    Read {REPO_URL}/blob/{BRANCH}/{MASTER_FILE}
    (the v{MAJOR}.0.0 release notes for @mcp-consultant-tools/*).
 
-   Then scan every MCP server config you can find on this machine — project-level
+   Then scan every MCP server config you can find on this machine - project-level
    .mcp.json, ~/.claude.json, Claude Desktop's claude_desktop_config.json, and any
    other config locations the local agent host is known to use. Identify any
    servers whose `args` reference these packages:
@@ -160,11 +160,11 @@ Rules:
 - The two breaking-change sections (⚠️ + ⚡) appear **only** when breaking changes exist.
 - Use emoji headers exactly as shown.
 - Tone: present tense, professional, concise. Avoid "comprehensive", "seamless", "full support".
-- Aggregate related commits into single bullets — don't list every micro-change.
+- Aggregate related commits into single bullets - don't list every micro-change.
 - Group bug fixes by area, not by commit.
 - Include `Related work items: #xxxx, #yyyy` at the end of relevant sections when commit messages reference work items. Deduplicate.
 
-When **updating** an existing master file, MERGE the new content into existing sections — don't overwrite. The master accretes content as new betas land. If a previous beta already documented something, leave it; just add the delta.
+When **updating** an existing master file, MERGE the new content into existing sections - don't overwrite. The master accretes content as new betas land. If a previous beta already documented something, leave it; just add the delta.
 
 ## Step 5: Update the per-iteration file (beta mode only)
 
@@ -179,8 +179,8 @@ Create or update `docs/release-notes/v{CORE_VERSION}.md` with a focused changelo
 
 > Per-iteration agent-level detail. The user-facing single source of truth is [`v{MAJOR}.0.0.md`](v{MAJOR}.0.0.md).
 
-## ⚡ Quick upgrade — copy-paste for your Claude agent
-   {if this iteration introduces breaking changes — same block as master}
+## ⚡ Quick upgrade - copy-paste for your Claude agent
+   {if this iteration introduces breaking changes - same block as master}
 
 ## Overview
 
@@ -202,17 +202,17 @@ Create or update `docs/release-notes/v{CORE_VERSION}.md` with a focused changelo
 ## Step 6: Production-mode finalization
 
 If `mode == production`:
-1. Update master status banner from `In beta...` → `Released — v{X.Y.Z} on the `latest` npm tag (date: YYYY-MM-DD)`.
+1. Update master status banner from `In beta...` → `Released - v{X.Y.Z} on the `latest` npm tag (date: YYYY-MM-DD)`.
 2. Add the production release date.
 3. Update GitHub URLs in the agent block from `release/{X.Y}` → `main` (after merge, the file lives on main).
 4. Do NOT delete or rewrite per-iteration beta files.
-5. Do NOT regenerate content from scratch — the master already has it.
+5. Do NOT regenerate content from scratch - the master already has it.
 
 ## Step 7: Output the Teams message
 
 After writing files, print a single fenced code block ready to copy-paste into Teams. Pick the right format:
 
-### Breaking changes — beta mode
+### Breaking changes - beta mode
 
 ```text
 ⚠️ Breaking changes just shipped to the @beta channel for @mcp-consultant-tools (v{CORE_VERSION}).
@@ -220,11 +220,11 @@ After writing files, print a single fenced code block ready to copy-paste into T
 If your .mcp.json uses any of these MCP servers, your config needs updating:
 {affected-packages bullet list}
 
-Release notes (paste-ready agent prompt at the top — let your agent do the work):
+Release notes (paste-ready agent prompt at the top - let your agent do the work):
 {REPO_URL}/blob/{BRANCH}/{MASTER_FILE}
 ```
 
-### Breaking changes — production mode
+### Breaking changes - production mode
 
 ```text
 🚀 v{MAJOR}.0.0 is now live on the `latest` channel for @mcp-consultant-tools.
@@ -232,27 +232,27 @@ Release notes (paste-ready agent prompt at the top — let your agent do the wor
 This release contains breaking changes. If your .mcp.json uses any of these MCP servers and you haven't already upgraded from beta, your config needs updating:
 {affected-packages bullet list}
 
-Release notes (paste-ready agent prompt at the top — let your agent do the work):
+Release notes (paste-ready agent prompt at the top - let your agent do the work):
 {REPO_URL}/blob/main/{MASTER_FILE}
 ```
 
-### No breaking changes — beta mode
+### No breaking changes - beta mode
 
 ```text
 ℹ️ New beta of @mcp-consultant-tools: v{CORE_VERSION}.
 
-No action required — drop-in upgrade.
+No action required - drop-in upgrade.
 {one-line summary of what's new}
 
 Release notes: {REPO_URL}/blob/{BRANCH}/{MASTER_FILE}
 ```
 
-### No breaking changes — production mode
+### No breaking changes - production mode
 
 ```text
 🚀 v{MAJOR}.0.0 is now live on `latest` for @mcp-consultant-tools.
 
-No breaking changes — drop-in upgrade.
+No breaking changes - drop-in upgrade.
 {one-line summary}
 
 Release notes: {REPO_URL}/blob/main/{MASTER_FILE}
@@ -266,7 +266,7 @@ Print to terminal:
 - The Teams message (in a fenced code block, ready to copy-paste)
 - Reminder: "Now run `/release_workflow_beta` (or `/release_workflow` for production) to publish."
 
-Do NOT commit or push — the workflow command handles that.
+Do NOT commit or push - the workflow command handles that.
 
 ---
 
@@ -276,5 +276,5 @@ Do NOT commit or push — the workflow command handles that.
 - **Master file is canonical.** Per-iteration files supplement it; never replace.
 - **Teams message is mandatory output.** Even if no breaking changes, produce the appropriate informational variant. The maintainer posts these to your internal Teams.
 - **Don't include the upgrade block when there's no breaking change.** It would train users to ignore it.
-- **One copy-pasteable Teams block.** No surrounding commentary inside the code fence — keep it clean for paste.
+- **One copy-pasteable Teams block.** No surrounding commentary inside the code fence - keep it clean for paste.
 - **Verify auto-derived URLs.** The repo URL must be `https://github.com/...`, never SSH form. The branch in URLs is `release/X.Y` for beta mode, `main` for production mode.

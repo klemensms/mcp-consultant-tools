@@ -39,7 +39,7 @@ async function main() {
   const files = await readdir(clientDir);
   const jsonl = files.find((f) => f.endsWith('.jsonl'));
   if (!jsonl) {
-    console.error('[smoke-audit] FAIL — no JSONL produced');
+    console.error('[smoke-audit] FAIL - no JSONL produced');
     console.error('files:', files);
     process.exit(1);
   }
@@ -51,7 +51,7 @@ async function main() {
     console.error('  -', r.seq, r.tool.name, '→', r.result.success ? 'ok' : 'fail');
   }
   if (lines.length < 2) {
-    console.error('[smoke-audit] FAIL — expected ≥2 records (set-engagement + query)');
+    console.error('[smoke-audit] FAIL - expected ≥2 records (set-engagement + query)');
     process.exit(1);
   }
   console.error('[smoke-audit] PASS');

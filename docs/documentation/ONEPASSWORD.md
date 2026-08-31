@@ -21,13 +21,13 @@ brew install --cask 1password-cli
 
 Open **1Password** > **Settings** > **Developer** > tick **"Integrate with 1Password CLI"**.
 
-This allows the `op` CLI to use the desktop app's session — no separate login or Service Account token needed. The desktop app must be running and unlocked when the MCP server is used.
+This allows the `op` CLI to use the desktop app's session - no separate login or Service Account token needed. The desktop app must be running and unlocked when the MCP server is used.
 
-> **Alternative: Service Account mode** — If you need unattended/automated access (CI/CD, shared servers) where biometric auth isn't possible, you can use a Service Account token instead. See [SDK Mode](#sdk-mode-service-account) below.
+> **Alternative: Service Account mode** - If you need unattended/automated access (CI/CD, shared servers) where biometric auth isn't possible, you can use a Service Account token instead. See [SDK Mode](#sdk-mode-service-account) below.
 
 ## Quick Start (CLI Mode)
 
-No token needed — just install the CLI and enable integration above, then add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both — only the wrapper key and the file differ.
+No token needed - just install the CLI and enable integration above, then add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
 ### VS Code
 
@@ -49,7 +49,7 @@ No token needed — just install the CLI and enable integration above, then add 
 }
 ```
 
-**`OP_ACCOUNT`** — Required if you have multiple 1Password accounts (personal + team). Set to the account URL shorthand (e.g., `my.1password.com` for personal, `mycompany.1password.eu` for team). Find yours with: `op account list`
+**`OP_ACCOUNT`** - Required if you have multiple 1Password accounts (personal + team). Set to the account URL shorthand (e.g., `my.1password.com` for personal, `mycompany.1password.eu` for team). Find yours with: `op account list`
 
 ### Claude Desktop
 

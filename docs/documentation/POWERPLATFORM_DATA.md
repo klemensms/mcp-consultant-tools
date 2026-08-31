@@ -11,15 +11,15 @@ MCP server for Dataverse record operations: query records, get records, create, 
 
 ## Configuration
 
-Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both — only the wrapper key and the file differ.
+Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
 > **PII protection (opt-in):** redaction is off by default. Set `PII_PROTECTION=true` to enable it. See [PII Protection](#pii-protection-v31) below.
 >
 > **Audit logging (opt-in):** off by default. Set `MCP_AUDIT_LEVEL=lean|full` (plus `MCP_AUDIT_CLIENT`) to enable. See [audit-logging.md](audit-logging.md).
 
-### VS Code — recommended (1Password)
+### VS Code - recommended (1Password)
 
-Credentials are resolved at runtime via biometric authentication — no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
+Credentials are resolved at runtime via biometric authentication - no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
 
 ```json
 {
@@ -30,7 +30,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
       "env": {
         "PII_PROTECTION": "true",
         "PII_OBSERVE_MODE": "false",
-        "PII_SESSION_SALT": "<paste 64-hex-char salt — openssl rand -hex 32>",
+        "PII_SESSION_SALT": "<paste 64-hex-char salt - openssl rand -hex 32>",
         "MCP_AUDIT_LEVEL": "full",
         "MCP_AUDIT_CLIENT": "Acme",
         "MCP_AUDIT_OPERATOR": "jdoe@example.com",
@@ -50,7 +50,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-### VS Code — alternative (local credentials)
+### VS Code - alternative (local credentials)
 
 ```json
 {
@@ -61,7 +61,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
       "env": {
         "PII_PROTECTION": "true",
         "PII_OBSERVE_MODE": "false",
-        "PII_SESSION_SALT": "<paste 64-hex-char salt — openssl rand -hex 32>",
+        "PII_SESSION_SALT": "<paste 64-hex-char salt - openssl rand -hex 32>",
         "MCP_AUDIT_LEVEL": "full",
         "MCP_AUDIT_CLIENT": "Acme",
         "MCP_AUDIT_OPERATOR": "jdoe@example.com",
@@ -106,37 +106,37 @@ Read-only tools (`query-records`, `get-record`, `get-entity-metadata`, `get-look
 
 ## PII Protection (v31+)
 
-A 4-layer redaction pipeline runs on every `query-records` response (via `DataService.queryRecords`). This is one of three packages that performs redaction — the others are `azure-devops` (work item fields and identity objects) and `azure-sql` (query result rows). See [pii-protection.md](pii-protection.md) for the full surface and layer-by-layer reference.
+A 4-layer redaction pipeline runs on every `query-records` response (via `DataService.queryRecords`). This is one of three packages that performs redaction - the others are `azure-devops` (work item fields and identity objects) and `azure-sql` (query result rows). See [pii-protection.md](pii-protection.md) for the full surface and layer-by-layer reference.
 
-**PII protection is opt-in and off by default. Set `PII_PROTECTION=true` to enable redaction — there is no environment-type gate, and the server starts normally without it.**
+**PII protection is opt-in and off by default. Set `PII_PROTECTION=true` to enable redaction - there is no environment-type gate, and the server starts normally without it.**
 
 | `PII_PROTECTION` | Behaviour |
 |---|---|
-| unset / `false` | pipeline off — raw data flows to the LLM (server starts normally) |
+| unset / `false` | pipeline off - raw data flows to the LLM (server starts normally) |
 | `true` | redaction active on every response |
 
-`MCP_ENVIRONMENT_TYPE` has no runtime effect today — see [Coming later (not yet active)](#coming-later-not-yet-active). The server fixes the PII environment type to `production` internally and does not read the variable. (Earlier v31 betas made PII flags mandatory with a refuse-to-start gate; v32 relaxed that to pure opt-in.)
+`MCP_ENVIRONMENT_TYPE` has no runtime effect today - see [Coming later (not yet active)](#coming-later-not-yet-active). The server fixes the PII environment type to `production` internally and does not read the variable. (Earlier v31 betas made PII flags mandatory with a refuse-to-start gate; v32 relaxed that to pure opt-in.)
 
 | Var | Values | Behaviour |
 |-----|--------|-----------|
 | `PII_PROTECTION` | `true` \| `false` | Off by default. Set `true` to enable redaction; `false`/unset is permitted in any environment. |
-| `PII_OBSERVE_MODE` | `true` \| `false` (default `false`) | When `true`, pipeline computes what it would redact but returns original data unchanged. Footer reports `(observe-mode — values not changed)`. |
+| `PII_OBSERVE_MODE` | `true` \| `false` (default `false`) | When `true`, pipeline computes what it would redact but returns original data unchanged. Footer reports `(observe-mode - values not changed)`. |
 | `PII_SESSION_SALT` | 64-hex-char string (optional) | Cross-MCP correlation salt read by core PII. Set the same value across servers so identical input values tokenise identically (enables cross-server validation without exposing raw PII). Unset, empty, or whitespace falls back to a per-process random salt. If set, it must be exactly 64 hex characters or the server refuses to start. Generate with `openssl rand -hex 32`. |
 | `PII_CONFIG_PATH` | path to JSON file (optional) | Per-layer toggles, per-entity field rules, regex patterns, NER scan-fields. See [pii-protection.md](pii-protection.md) for the schema. |
 | `PII_NONPROD_HINTS` | comma-separated substrings (optional) | Override the URL-heuristic non-prod hint list (defaults: `dev,uat,training,support,migration,sandbox,test`). |
 
-When PII protection is off (`PII_PROTECTION` unset or `false`), a heuristic check compares `POWERPLATFORM_URL` against the non-prod hint list to flag the "consultant copy-pasted a dev config and swapped the URL to prod" failure mode. This is the intended safety net, but it is currently NOT wired into startup — no warning fires today, and the server always starts. Treat "PII off in production" as a policy expectation the operator enforces, not something the server blocks.
+When PII protection is off (`PII_PROTECTION` unset or `false`), a heuristic check compares `POWERPLATFORM_URL` against the non-prod hint list to flag the "consultant copy-pasted a dev config and swapped the URL to prod" failure mode. This is the intended safety net, but it is currently NOT wired into startup - no warning fires today, and the server always starts. Treat "PII off in production" as a policy expectation the operator enforces, not something the server blocks.
 
 See [pii-protection.md](pii-protection.md) for config schema and [PII_PROTECTION_TECHNICAL.md](../technical/PII_PROTECTION_TECHNICAL.md) for layer-by-layer reference.
 
 ## Notable Behavior
 
 - **`delete-record` requires double confirmation:** Both `POWERPLATFORM_ENABLE_DELETE=true` and the `confirm: true` parameter must be set. Deletion is permanent and cannot be undone.
-- **`associate-records` uses `ENABLE_CREATE`:** For N:N relationships, use `associate-records` instead of `create-record` — intersect entities do not support the Create message directly (error `0x80040800`).
+- **`associate-records` uses `ENABLE_CREATE`:** For N:N relationships, use `associate-records` instead of `create-record` - intersect entities do not support the Create message directly (error `0x80040800`).
 - **Lookup fields use `@odata.bind` syntax:** `"parentaccountid@odata.bind": "/accounts(<guid>)"`. Use `get-lookup-target` to discover the correct plural entity name and syntax for a given lookup field.
 - **`get-entity-metadata` returns `EntitySetName`:** Required to know the correct plural entity name for all data tools (e.g., `accounts`, `contacts`). Use this before performing CRUD operations on unfamiliar entities.
 - **All write operations are audit-logged:** Create, update, delete, and action executions are logged with timestamps, parameters, and execution time.
-- **PII protection is opt-in:** off by default; set `PII_PROTECTION=true` to redact. There is no environment-type gate — the server starts without it. Keeping PII protection on in production is a policy expectation the operator enforces; the "looks unprotected" heuristic warns on stderr at startup when `POWERPLATFORM_URL` matches no non-prod hint, but it never blocks.
+- **PII protection is opt-in:** off by default; set `PII_PROTECTION=true` to redact. There is no environment-type gate - the server starts without it. Keeping PII protection on in production is a policy expectation the operator enforces; the "looks unprotected" heuristic warns on stderr at startup when `POWERPLATFORM_URL` matches no non-prod hint, but it never blocks.
 
 ## Coming later (not yet active)
 

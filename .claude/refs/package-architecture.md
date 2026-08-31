@@ -1,4 +1,4 @@
-# Scope: Canonical Service-Tool-Prompt layering for `packages/*` — file structure, naming conventions, ServiceContext pattern, tool organization, file-size limits, and the MCP stdio rule. Load when scaffolding a new package, refactoring an existing one, or auditing an unfamiliar package against the standard.
+# Scope: Canonical Service-Tool-Prompt layering for `packages/*` - file structure, naming conventions, ServiceContext pattern, tool organization, file-size limits, and the MCP stdio rule. Load when scaffolding a new package, refactoring an existing one, or auditing an unfamiliar package against the standard.
 
 ## Service-Tool-Prompt Pattern (v28+)
 
@@ -55,7 +55,7 @@ packages/{name}/src/
 
 ## ServiceContext + Entry Point Pattern
 
-`types.ts` defines a readonly `ServiceContext` interface with one getter per domain service. `index.ts` builds it with lazy initialization (services constructed on first access via `??=`). `context-factory.ts` mirrors this for CLI use — keep them in sync.
+`types.ts` defines a readonly `ServiceContext` interface with one getter per domain service. `index.ts` builds it with lazy initialization (services constructed on first access via `??=`). `context-factory.ts` mirrors this for CLI use - keep them in sync.
 
 `index.ts` structure: imports → `createServiceContext()` → `register{Package}Tools(server)` (backward-compat export for meta) → self-executing block (`if (import.meta.url === pathToFileURL(...).href)`) using `createMcpServer()` + `createEnvLoader()` from core.
 

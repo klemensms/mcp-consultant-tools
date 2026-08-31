@@ -22,7 +22,7 @@ Capabilities: .NET target-framework end-of-life scanning, NuGet package auditing
 - **Clone manager** (`utils/clone-manager.ts`): shallow `git clone --depth=1` into `mkdtemp`, with the credential embedded in the clone URL. Guarantees temp-dir cleanup and redacts the credential from any error message.
 - **GitHub App auth** (`utils/ghe-app-auth.ts`): RS256 JWT (10-minute expiry, `iat` back-dated 60s) exchanged for a cached installation token.
 - **Services** (`services/`): `RepositoryService`, `DotnetVersionService`, `NugetPackageService`, `ComplexityService`, `PackageService`. Business logic only.
-- **NuGet** is independent of the provider — it uses the public nuget.org API via an injected JSON fetcher and needs no credential.
+- **NuGet** is independent of the provider - it uses the public nuget.org API via an injected JSON fetcher and needs no credential.
 - **ServiceContext** in `context-factory.ts` is shared by the MCP server (`index.ts`) and the CLI (`cli.ts`).
 
 </architecture>
@@ -64,7 +64,7 @@ GitHub Apps cannot authenticate to the GitHub Packages API (a GitHub-confirmed 4
 | `CODE_REVIEW_ALLOWED_REPOSITORIES` | all | optional | Comma-separated repo allowlist |
 
 A missing variable produces a structured error naming every missing variable for the chosen provider
-and auth method — never an empty result.
+and auth method - never an empty result.
 
 ### Azure DevOps service-principal auth
 
@@ -84,10 +84,10 @@ schedule. Absent, the variable defaults to `pat` and every pre-existing configur
   organisation is answered `401 TF401444`. This is an identity-provisioning problem, not a bad
   credential, so it is mapped to a named error carrying the principal's object id rather than a
   generic 401. Resolve it under **Organization settings > Users**. The identity in that response is
-  a backslash triple (`tenant\tenant\principal`), so the object id is the **last** segment — the
+  a backslash triple (`tenant\tenant\principal`), so the object id is the **last** segment - the
   first two are the tenant id, which finds nothing in a Users search.
 - **Clone failures carry the same explanation.** A clone authenticates separately and receives no
-  `TF401444` body — git reports only `fatal: Authentication failed`. Under `entra-id` the membership
+  `TF401444` body - git reports only `fatal: Authentication failed`. Under `entra-id` the membership
   prerequisite is appended to that error; under `pat`, a scope/expiry hint. A non-auth clone failure
   (repository not found, bad branch) is passed through untouched.
 - **Redirects.** Azure DevOps answers a rejected credential with a `302` to a sign-in page rather
@@ -95,7 +95,7 @@ schedule. Absent, the variable defaults to `pat` and every pre-existing configur
   authentication error; following the redirect would yield HTML with no `value` array and surface an
   auth failure as an `undefined.map` crash.
 - **Secret hygiene.** The token-error message is built from the response body only. An axios error
-  carries the outbound form body — including the client secret — on `error.config.data`.
+  carries the outbound form body - including the client secret - on `error.config.data`.
 
 </configuration>
 
@@ -124,7 +124,7 @@ Version and vulnerability info for one NuGet package. Params: `packageId`, `curr
 </tool>
 
 <tool name="cr-complexity">
-Estimate cyclomatic complexity, LOC, and method length for C#/TS/JS. Params: `project`, `repository`, `branch?`, `pathFilter?`, `fileExtensions?` (default `.cs,.ts,.js`), `maxFiles?` (default 5000, 0 = unlimited). Summary reports `truncated` when the cap trims the set. Complexity is an estimate — see known limitations.
+Estimate cyclomatic complexity, LOC, and method length for C#/TS/JS. Params: `project`, `repository`, `branch?`, `pathFilter?`, `fileExtensions?` (default `.cs,.ts,.js`), `maxFiles?` (default 5000, 0 = unlimited). Summary reports `truncated` when the cap trims the set. Complexity is an estimate - see known limitations.
 </tool>
 
 <tool name="cr-review">
@@ -149,8 +149,8 @@ Latest STABLE release version of a GitHub Enterprise package (pre-release/featur
 
 ## NuGet API contract
 
-- The registration base URL is **discovered** from `https://api.nuget.org/v3/index.json` (preferring `RegistrationsBaseUrl/3.6.0`, gzip + SemVer2), never hardcoded — the docs require dynamic discovery.
-- Latest/latest-stable come from the last registration page. When that page is non-inlined (128+ total versions — every popular package), its `@id` is fetched so the data is never silently blank.
+- The registration base URL is **discovered** from `https://api.nuget.org/v3/index.json` (preferring `RegistrationsBaseUrl/3.6.0`, gzip + SemVer2), never hardcoded - the docs require dynamic discovery.
+- Latest/latest-stable come from the last registration page. When that page is non-inlined (128+ total versions - every popular package), its `@id` is fetched so the data is never silently blank.
 - Vulnerabilities are read from each version's `catalogEntry.vulnerabilities` (`advisoryUrl` + `severity` only) for the referenced version.
 - "Latest stable" excludes any version with a SemVer prerelease label.
 
@@ -160,9 +160,9 @@ Latest STABLE release version of a GitHub Enterprise package (pre-release/featur
 
 ## Known limitations
 
-- **Not verified against a live Azure DevOps organization, GitHub Enterprise instance, or authenticated NuGet feed.** No AzDO org, GHE org, or private NuGet feed was available during development. Every REST path, API version, NuGet registration shape, GitHub App JWT flow, and clone-URL construction is verified against the vendors' published documentation and exercised with unit tests against injected stubs — but almost no call in `CodeReviewClient`, `GheAppAuth`, or the NuGet fetcher has run against a real endpoint. The clone path (`git clone`) has not been run against a real repository. Two exceptions, both unauthenticated probes taken while adding `entra-id`: the Entra token endpoint (confirming the client-credentials request shape, via an `AADSTS90002` for a placeholder tenant) and `dev.azure.com` REST (confirming the `302`-to-sign-in behaviour that `maxRedirects: 0` exists to catch).
-- **The `entra-id` path has never authenticated to an *accepted* identity.** A live tenant run (2026-08-13) confirmed the token is issued, sent and accepted, and that Azure DevOps rejects the identity with `TF401444` — but no service principal is yet a member of an Azure DevOps organization, so no clone has ever succeeded, `cr-review` has never run end to end, and the "an unreadable repository fails loudly rather than returning an empty result" criterion is untestable while *every* repository is unreadable (there is no readable case to contrast against).
-- **The Azure DevOps PAT clone path was broken from the package's first release until beta.3** — the PAT went in the clone URL's username position, leaving git with no password, so it prompted and died with `could not read Password` before reaching Azure DevOps regardless of PAT validity. Fixed to the empty-username form. **`buildGheCloneUrl` still uses `https://<token>@host`**: that is the common GitHub idiom and has not been disproven, but no clone has ever been run against a real GitHub Enterprise host, so it is unverified.
+- **Not verified against a live Azure DevOps organization, GitHub Enterprise instance, or authenticated NuGet feed.** No AzDO org, GHE org, or private NuGet feed was available during development. Every REST path, API version, NuGet registration shape, GitHub App JWT flow, and clone-URL construction is verified against the vendors' published documentation and exercised with unit tests against injected stubs - but almost no call in `CodeReviewClient`, `GheAppAuth`, or the NuGet fetcher has run against a real endpoint. The clone path (`git clone`) has not been run against a real repository. Two exceptions, both unauthenticated probes taken while adding `entra-id`: the Entra token endpoint (confirming the client-credentials request shape, via an `AADSTS90002` for a placeholder tenant) and `dev.azure.com` REST (confirming the `302`-to-sign-in behaviour that `maxRedirects: 0` exists to catch).
+- **The `entra-id` path has never authenticated to an *accepted* identity.** A live tenant run (2026-08-13) confirmed the token is issued, sent and accepted, and that Azure DevOps rejects the identity with `TF401444` - but no service principal is yet a member of an Azure DevOps organization, so no clone has ever succeeded, `cr-review` has never run end to end, and the "an unreadable repository fails loudly rather than returning an empty result" criterion is untestable while *every* repository is unreadable (there is no readable case to contrast against).
+- **The Azure DevOps PAT clone path was broken from the package's first release until beta.3** - the PAT went in the clone URL's username position, leaving git with no password, so it prompted and died with `could not read Password` before reaching Azure DevOps regardless of PAT validity. Fixed to the empty-username form. **`buildGheCloneUrl` still uses `https://<token>@host`**: that is the common GitHub idiom and has not been disproven, but no clone has ever been run against a real GitHub Enterprise host, so it is unverified.
 - **Cyclomatic complexity is a regex-based estimate, not an AST measurement.** Known heuristic ceilings: a `case` or operator inside a string literal can be over-counted; a C# nullable-type declaration (`int?`) can register as a ternary; and decision points inside a nested lambda are counted for both the nested and enclosing method. Reports carry a `methodology` note; treat values as approximate. Upgrade path: a real C#/TS parser if exactness is required.
 - **.NET EOL dates are a maintained table** (dates only; `isEol` is computed at runtime). The dates were verified against Microsoft's lifecycle pages and `dotnet/core` in 2026-07; a newly announced date change would need a table edit. Frameworks with no fixed EOL (.NET Framework 4.7.x/4.8/4.8.1, OS-tied) are never flagged.
 - **NuGet lookups target nuget.org only.** Packages on a private feed return empty version data (reported as `unknown`), not an error.
@@ -207,7 +207,7 @@ npm run build --workspace=packages/code-review
 npm test --workspace=packages/code-review   # 80 tests, no live API
 ```
 
-Services take injected clients/fetchers, so tests use plain stub objects — **zero `vi.mock`**. The boundaries where the ported source had bugs are tested directly: clone-URL redaction, date-driven EOL classification, non-inlined NuGet registration pages, per-version vulnerability matching, SemVer latest-version selection, the complexity `else if` count, and the provider config/guards.
+Services take injected clients/fetchers, so tests use plain stub objects - **zero `vi.mock`**. The boundaries where the ported source had bugs are tested directly: clone-URL redaction, date-driven EOL classification, non-inlined NuGet registration pages, per-version vulnerability matching, SemVer latest-version selection, the complexity `else if` count, and the provider config/guards.
 
 </testing>
 
@@ -222,38 +222,38 @@ Global flags (any command): `--json` (raw JSON to stdout instead of the summary)
 Each command below is shown with every flag it accepts:
 
 ```bash
-# list-repos — flags: -p/--project
+# list-repos - flags: -p/--project
 mcp-code-review-cli list-repos --project MyProject
 mcp-code-review-cli list-repos --project MyProject --json
 
-# tree <repository> — flags: -p/--project, -b/--branch
+# tree <repository> - flags: -p/--project, -b/--branch
 mcp-code-review-cli tree MyRepo --project MyProject --branch main
 
-# check-dotnet <repository> — flags: -p/--project, -b/--branch
+# check-dotnet <repository> - flags: -p/--project, -b/--branch
 mcp-code-review-cli check-dotnet MyRepo --project MyProject --branch main
 
-# check-nuget <repository> — flags: -p/--project, -b/--branch, --skip-vulnerabilities
+# check-nuget <repository> - flags: -p/--project, -b/--branch, --skip-vulnerabilities
 mcp-code-review-cli check-nuget MyRepo --project MyProject --branch main
 mcp-code-review-cli check-nuget MyRepo --project MyProject --skip-vulnerabilities   # reference-only inventory, no NuGet API calls
 
-# nuget-info <packageId> — flags: -v/--version
+# nuget-info <packageId> - flags: -v/--version
 mcp-code-review-cli nuget-info Newtonsoft.Json --version 13.0.1
 
-# complexity <repository> — flags: -p/--project, -b/--branch, --path, --ext, --max-files, --no-limit
+# complexity <repository> - flags: -p/--project, -b/--branch, --path, --ext, --max-files, --no-limit
 mcp-code-review-cli complexity MyRepo --project MyProject --branch main --path src/ --ext .cs,.ts --max-files 2000
 mcp-code-review-cli complexity MyRepo --project MyProject --no-limit   # analyse all matching files (overrides --max-files)
 
-# review <repository> — flags: -p/--project, -b/--branch, --skip-complexity, --max-files
+# review <repository> - flags: -p/--project, -b/--branch, --skip-complexity, --max-files
 mcp-code-review-cli review MyRepo --project MyProject --branch main --max-files 2000
 mcp-code-review-cli review MyRepo --project MyProject --skip-complexity
 
-# packages — flags: --org (required), --type          [github-enterprise provider only]
+# packages - flags: --org (required), --type          [github-enterprise provider only]
 mcp-code-review-cli packages --org your-org --type nuget
 
-# package-versions <packageName> — flags: --org (required), --type   [github-enterprise provider only]
+# package-versions <packageName> - flags: --org (required), --type   [github-enterprise provider only]
 mcp-code-review-cli package-versions my-lib --org your-org --type npm
 
-# latest-package-version <packageName> — flags: --org (required)     [github-enterprise provider only]
+# latest-package-version <packageName> - flags: --org (required)     [github-enterprise provider only]
 mcp-code-review-cli latest-package-version my-lib --org your-org
 ```
 
@@ -263,9 +263,9 @@ mcp-code-review-cli latest-package-version my-lib --org your-org
 
 ## Troubleshooting
 
-- **"Missing code-review configuration for provider ..."** — set the named variables for your `CODE_REVIEW_PROVIDER`.
-- **"GitHub Packages API cannot be used with the github-app provider"** — use `CODE_REVIEW_PROVIDER=github-enterprise` with a classic PAT that has `read:packages`.
-- **403 while listing an org** — the token may need SAML SSO authorization for that organization.
-- **A package shows `unknown` status** — it is not on nuget.org (private feed) or its version could not be resolved; not treated as safe.
+- **"Missing code-review configuration for provider ..."** - set the named variables for your `CODE_REVIEW_PROVIDER`.
+- **"GitHub Packages API cannot be used with the github-app provider"** - use `CODE_REVIEW_PROVIDER=github-enterprise` with a classic PAT that has `read:packages`.
+- **403 while listing an org** - the token may need SAML SSO authorization for that organization.
+- **A package shows `unknown` status** - it is not on nuget.org (private feed) or its version could not be resolved; not treated as safe.
 
 </troubleshooting>

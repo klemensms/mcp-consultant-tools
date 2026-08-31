@@ -22,7 +22,7 @@ anything matching the trigger checklist.
 - **Matters because:** `v35.0.0-beta.17` switched five `powerplatform` list commands from
   `$top` to `Prefer: odata.maxpagesize` and shipped to the beta tag. The mechanism is
   copied from `DataService.queryRecords`, which has shipped since beta.5, but the changed
-  path has never run against a live environment — there are no PowerPlatform credentials
+  path has never run against a live environment - there are no PowerPlatform credentials
   on this machine. If the mechanism is wrong, five commands are broken on the beta tag and
   every later hop that touches `powerplatform` builds on it. Not load-bearing for the
   queue's other packages, which is why the chain proceeds. Klemens has the credentials;
@@ -380,7 +380,7 @@ anything matching the trigger checklist.
 ### ⚑26 · T12's api-version bump may resolve part of T11 and T13, so their order matters
 - **Kind:** assumption
 - **Hop:** L3 · queue triage
-- **State:** closed-by-L5 — the ordering dependency is void (the api-version was never
+- **State:** closed-by-L5 - the ordering dependency is void (the api-version was never
   stale, see the L4 update) and T11 landed without needing T12. T12 is re-scoped in the plan
   file from "raise the api-version" to "find out why the fields are absent", with the
   candidate causes ranked; the open question moved to ⚑33 and ⚑34.
@@ -808,7 +808,7 @@ anything matching the trigger checklist.
   by an earlier hop contains em-dashes, which Klemens's standing rule bars from every output
   channel including code. Fixing it means editing user-facing strings that two tests match
   on, which is not this task's scope. Left for whoever next touches that file, or for a
-  deliberate sweep - a repo-wide `grep -rn '—' packages/*/src` is the work-list.
+  deliberate sweep - a repo-wide `grep -rn '-' packages/*/src` is the work-list.
 
 ### ⚑33 update (L7) · the question is now answerable from this package, in one call
 - `defender-list-plans` reads `Microsoft.Security/pricings` and reports `cspmEnabled` for

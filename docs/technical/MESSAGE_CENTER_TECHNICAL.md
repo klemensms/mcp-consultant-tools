@@ -21,20 +21,20 @@ The Message Center integration reads Microsoft 365 Service Health and Message Ce
 ## Architecture
 
 **Client layer:**
-- `MessageCenterClient` — wraps `Client.initWithMiddleware` from `@microsoft/microsoft-graph-client`, authenticated by `TokenCredentialAuthenticationProvider` over `ClientSecretCredential`. Graph's own middleware chain supplies the retry handler (429/503, honouring `Retry-After`), so this class carries no retry loop. It exposes `get()` (single resource, optional `$expand`), `paginate()` (follows `@odata.nextLink`, honest `truncated`), `getRaw()` (binary body for the PIR stream), and `enhanceError()` (maps 401/403/404/429 to messages that name the missing grant).
+- `MessageCenterClient` - wraps `Client.initWithMiddleware` from `@microsoft/microsoft-graph-client`, authenticated by `TokenCredentialAuthenticationProvider` over `ClientSecretCredential`. Graph's own middleware chain supplies the retry handler (429/503, honouring `Retry-After`), so this class carries no retry loop. It exposes `get()` (single resource, optional `$expand`), `paginate()` (follows `@odata.nextLink`, honest `truncated`), `getRaw()` (binary body for the PIR stream), and `enhanceError()` (maps 401/403/404/429 to messages that name the missing grant).
 
-Auth mirrors `packages/entra-id` (`@azure/identity` + `@microsoft/microsoft-graph-client`) — the closest sibling: Graph, client credentials, read-only. No additional dependency.
+Auth mirrors `packages/entra-id` (`@azure/identity` + `@microsoft/microsoft-graph-client`) - the closest sibling: Graph, client credentials, read-only. No additional dependency.
 
 **Service classes** (each takes an injected `MessageCenterClient`, so pagination and error normalisation apply once):
-- `HealthService` — service-health overviews, issues, incident report
-- `MessageService` — Message Center posts
+- `HealthService` - service-health overviews, issues, incident report
+- `MessageService` - Message Center posts
 
 `ServiceContext` exposes two lazy getters (`health`, `messages`). There is exactly **one** `createServiceContext()` (in `context-factory.ts`), imported by both `index.ts` and `cli.ts`.
 
 **Pure, unit-tested functions** (no Graph client required):
-- `matchesIssue(issue, options)` / `matchesMessage(message, options)` — client-side, case-insensitive filter predicates
-- `findServiceHealth(services, nameOrId)` — case-insensitive match on the display name or the id
-- `decodeIncidentReport(buffer, issueId)` — text/base64 sniffing for the PIR stream
+- `matchesIssue(issue, options)` / `matchesMessage(message, options)` - client-side, case-insensitive filter predicates
+- `findServiceHealth(services, nameOrId)` - case-insensitive match on the display name or the id
+- `decodeIncidentReport(buffer, issueId)` - text/base64 sniffing for the PIR stream
 - `equalsIgnoreCase` / `includesIgnoreCase` / `someIncludesIgnoreCase` / `sortByLastModifiedDesc`
 - `isAnnouncementId` / `assertAnnouncementId`
 
@@ -80,7 +80,7 @@ Verified against Microsoft Learn on 2026-07-11. Graph v1.0; all seven endpoints 
 | Server-side `$filter`/`$orderby`/`$count`/`$search` are **undocumented** for the `issues` and `messages` collections, and Graph's known-issues page warns unsupported query parameters "might fail silently" (200 OK, full result) | **Every filter and ordering is client-side.** The client sends no `$filter`/`$search`/`$count`. The source this was ported from built these server-side and reported the returned count as the filtered total. |
 | `$top` is undocumented for these collections and "might return an error" | `paginate()` sends no `$top`; it follows `@odata.nextLink` from the default page. The collections are small. |
 | Enum casing differs between the docs (camelCase: `advisory`, `stayInformed`, `normal`) and every example payload (PascalCase: `Advisory`, `StayInformed`, `Normal`) | **Every enum comparison is case-insensitive** (`equalsIgnoreCase`). A case-sensitive check would silently match zero rows on live data. |
-| `serviceHealthIssue.isResolved` is a Boolean and is the authoritative resolved flag | Resolved/unresolved is derived from `isResolved`, never from the `status` enum. `serviceHealth` (overview) has no `isResolved` — only `status`. |
+| `serviceHealthIssue.isResolved` is a Boolean and is the authoritative resolved flag | Resolved/unresolved is derived from `isResolved`, never from the `status` enum. `serviceHealth` (overview) has no `isResolved` - only `status`. |
 | `serviceHealth` id vs `service`: the URL key for a single healthOverview is the **display-name string** ("Exchange Online"); the `id` ("Exchange") is separate | `get-service-health` fetches `healthOverviews?$expand=issues` and matches the caller's value case-insensitively on **both** `service` and `id`, rather than putting it in the URL path (a wrong key would be a 404 reported as not-found). |
 | The only two ways to reach issues are the top-level `/issues` collection and `$expand=issues`; there is **no** `/healthOverviews/{service}/issues` sub-collection. Both return identical `serviceHealthIssue` objects | `list-health-issues` uses `/issues`; `get-service-health` uses `$expand=issues`. |
 | `messages.services` and `issue.service` are **display-name strings**, not stable ids/enums | Service filters are case-insensitive substring matches; the tool descriptions point callers at `m365-list-service-health` for exact names. |
@@ -98,7 +98,7 @@ Sources: [Service Communications API overview](https://learn.microsoft.com/en-us
 All seven tools carry `readOnlyHint: true, openWorldHint: true`.
 
 <tool name="m365-list-service-health">
-Status of every subscribed Microsoft 365 service (`GET /admin/serviceAnnouncement/healthOverviews`). One row per service (`id`, `service`, `status`). No issue expansion — call `m365-get-service-health` for a single service's issues.
+Status of every subscribed Microsoft 365 service (`GET /admin/serviceAnnouncement/healthOverviews`). One row per service (`id`, `service`, `status`). No issue expansion - call `m365-get-service-health` for a single service's issues.
 
 | Parameter | Type | Required | Notes |
 |-----------|------|----------|-------|
@@ -180,9 +180,9 @@ Returns the `serviceUpdateMessage`.
 
 ## Known limitations
 
-- **Not verified against a live Microsoft 365 tenant.** Every Graph path and response shape is checked against Microsoft's published v1.0 schemas and unit-tested against stubbed clients — but no call in this package has run against a real tenant. Two facts are flagged UNCONFIRMED by Microsoft's own docs and are the most worth re-confirming against a live tenant: (1) the exact wire casing of the status/classification/category/severity enums (schema says camelCase, examples say PascalCase); (2) which server-side query options, if any, these collections honour. The package's client-side, case-insensitive design is built to be correct either way.
-- **Client-side filtering means a truncated result under-reports.** A filter scans the whole fetched collection; `maxResults` trims afterwards. `truncated: true` means the counts are a lower bound — omit `maxResults` for a full picture.
-- **`serviceUpdateMessage.viewPoint` is null under application permissions** — read/archive/favourite state is a per-user concept and is not available with client-credentials auth.
+- **Not verified against a live Microsoft 365 tenant.** Every Graph path and response shape is checked against Microsoft's published v1.0 schemas and unit-tested against stubbed clients - but no call in this package has run against a real tenant. Two facts are flagged UNCONFIRMED by Microsoft's own docs and are the most worth re-confirming against a live tenant: (1) the exact wire casing of the status/classification/category/severity enums (schema says camelCase, examples say PascalCase); (2) which server-side query options, if any, these collections honour. The package's client-side, case-insensitive design is built to be correct either way.
+- **Client-side filtering means a truncated result under-reports.** A filter scans the whole fetched collection; `maxResults` trims afterwards. `truncated: true` means the counts are a lower bound - omit `maxResults` for a full picture.
+- **`serviceUpdateMessage.viewPoint` is null under application permissions** - read/archive/favourite state is a per-user concept and is not available with client-credentials auth.
 - **The PIR content-type is not pinned by Microsoft.** `decodeIncidentReport` returns UTF-8 text when the body decodes cleanly, otherwise base64. A binary document (e.g. a Word file) is returned as base64 with `format: "base64"`.
 - **No delegated (user) auth.** This package uses app-only client credentials. Delegated access additionally requires the signed-in user to hold an Entra admin role.
 
@@ -203,7 +203,7 @@ Returns the `serviceUpdateMessage`.
 `MessageCenterClient.enhanceError` maps Graph failures by `statusCode`:
 - **401** → names the three `MESSAGE_CENTER_*` variables to check.
 - **403** → names the required `ServiceHealth.Read.All` and `ServiceMessage.Read.All` application permissions.
-- **404** → "Not found while …" (used for a missing issue/message, or a missing PIR — the incident-report error additionally mentions `postIncidentReviewPublished`).
+- **404** → "Not found while …" (used for a missing issue/message, or a missing PIR - the incident-report error additionally mentions `postIncidentReviewPublished`).
 - **429** → "Throttled … retry shortly" (Graph's middleware already honours `Retry-After`).
 
 Missing configuration is caught in `createServiceContext` before any network call, returning a structured `isError` result that names each missing variable. Malformed issue/message IDs are rejected by `assertAnnouncementId` before reaching a URL. Unknown enum values are rejected by Zod (MCP) or `parseEnum` (CLI) before the handler runs.
@@ -231,7 +231,7 @@ npm run build --workspace=packages/message-center
 npm test --workspace=packages/message-center   # 46 tests, no live API
 ```
 
-Services take an injected client, so tests use plain stub objects — **zero `vi.mock`**. Coverage centres on the ported bug class: the docs-vs-wire casing gap (`matchesIssue`/`matchesMessage` matching camelCase filters against PascalCase wire values), the `isResolved`/`isMajorChange` boolean filters (including a missing flag treated as false), truncation honesty (filter scans all, then trims), client-side ordering, case-insensitive service resolution, PIR text/base64 decoding, and ID validation before any network call.
+Services take an injected client, so tests use plain stub objects - **zero `vi.mock`**. Coverage centres on the ported bug class: the docs-vs-wire casing gap (`matchesIssue`/`matchesMessage` matching camelCase filters against PascalCase wire values), the `isResolved`/`isMajorChange` boolean filters (including a missing flag treated as false), truncation honesty (filter scans all, then trims), client-side ordering, case-insensitive service resolution, PIR text/base64 decoding, and ID validation before any network call.
 
 </testing>
 
@@ -243,17 +243,17 @@ Binary: `mcp-message-center-cli`. Command name = tool name minus the `m365-` pre
 
 **Global flags** (any command): `--json` (raw JSON instead of the summary), `--no-cache` (skip the cache file), `--env-file <path>` (load a `.env`), `--mcp-config <path>` (load env from an `.mcp.json`), `--mcp-server <name>` (server name within that config, defaults to `.mcp.json` in cwd).
 
-**Command flags** (every option, with its short alias — enum values and booleans are validated before any Graph call):
+**Command flags** (every option, with its short alias - enum values and booleans are validated before any Graph call):
 
 | Command | Positional | Flags |
 |---------|-----------|-------|
-| `health list-service-health` | — | `-m, --max-results <count>` |
-| `health get-service-health` | `<service>` | — |
-| `health list-health-issues` | — | `-s, --service <name>`, `-c, --classification <advisory\|incident>`, `-r, --is-resolved <true\|false>`, `-m, --max-results <count>` |
-| `health get-health-issue` | `<issueId>` | — |
-| `health get-incident-report` | `<issueId>` | — |
-| `message list-messages` | — | `-c, --category <preventOrFixIssue\|planForChange\|stayInformed>`, `-v, --severity <normal\|high\|critical>`, `-s, --service <name>`, `-M, --is-major-change <true\|false>`, `-m, --max-results <count>` |
-| `message get-message` | `<messageId>` | — |
+| `health list-service-health` | - | `-m, --max-results <count>` |
+| `health get-service-health` | `<service>` | - |
+| `health list-health-issues` | - | `-s, --service <name>`, `-c, --classification <advisory\|incident>`, `-r, --is-resolved <true\|false>`, `-m, --max-results <count>` |
+| `health get-health-issue` | `<issueId>` | - |
+| `health get-incident-report` | `<issueId>` | - |
+| `message list-messages` | - | `-c, --category <preventOrFixIssue\|planForChange\|stayInformed>`, `-v, --severity <normal\|high\|critical>`, `-s, --service <name>`, `-M, --is-major-change <true\|false>`, `-m, --max-results <count>` |
+| `message get-message` | `<messageId>` | - |
 
 Examples (each list command shown with every flag):
 
@@ -289,6 +289,6 @@ CLI option parsing (`parseEnum`, `parseBoolean`, `parsePositiveInt`) rejects bad
 | `Service not found: 'X'. Available services: …` | Wrong service name | Use one of the names listed, or call `m365-list-service-health`. Matching is case-insensitive. |
 | `Not found … incident report … postIncidentReviewPublished` | The issue has no published PIR | Only issues with status `postIncidentReviewPublished` have one. |
 | A filter returns fewer rows than expected with `truncated: true` | `maxResults` cut the client-side-filtered list | Omit `maxResults`, or raise it, for a full count. |
-| `issueId must be a service-announcement ID` | ID contained non-alphanumeric characters | Pass the bare ID, e.g. `EX226792` — no slashes, spaces, or quotes. |
+| `issueId must be a service-announcement ID` | ID contained non-alphanumeric characters | Pass the bare ID, e.g. `EX226792` - no slashes, spaces, or quotes. |
 
 </troubleshooting>

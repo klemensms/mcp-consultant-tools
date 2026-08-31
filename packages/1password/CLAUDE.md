@@ -4,15 +4,15 @@
 
 - **Purpose:** Full CRUD access to 1Password vaults and items
 - **Tools:** 21 tools, 0 prompts
-- **Production-Safe:** NO — operational use; write, delete, and admin operations require explicit feature flags
+- **Production-Safe:** NO - operational use; write, delete, and admin operations require explicit feature flags
 - **Auth backends:** CLI mode (default, via `op` CLI + desktop app) or SDK mode (via `@1password/sdk` Service Account token)
-- **SDK:** `@1password/sdk` (pinned to `~0.4.0`); v0.x — minor version changes may be breaking
+- **SDK:** `@1password/sdk` (pinned to `~0.4.0`); v0.x - minor version changes may be breaking
 
 ## Environment Variables
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `OP_SERVICE_ACCOUNT_TOKEN` | No | — | Service Account JWT token. If set → SDK mode. If unset → CLI mode |
+| `OP_SERVICE_ACCOUNT_TOKEN` | No | - | Service Account JWT token. If set → SDK mode. If unset → CLI mode |
 | `OP_ALLOWED_VAULTS` | No | `*` | Comma-separated vault names or IDs. `*` = all accessible vaults |
 | `OP_ENABLE_WRITE` | No | `false` | Enable create, update, archive operations |
 | `OP_ENABLE_DELETE` | No | `false` | Enable delete operations (including batch delete) |
@@ -47,33 +47,33 @@ When `OP_SERVICE_ACCOUNT_TOKEN` is set, the server uses the `@1password/sdk` wit
 ## Key Tools by Tier
 
 ### Read (always enabled)
-- `list-vaults` — List accessible vaults (filtered by `OP_ALLOWED_VAULTS`)
-- `get-vault` — Get vault details, optionally including accessor (group) info
-- `list-items` — List items in a vault with title/tag/state filtering (client-side)
-- `get-item` — Get full item with all fields including concealed values
-- `batch-get-items` — Get up to 50 items at once
-- `search-items` — Search across all allowed vaults by title/tag
-- `resolve-secret` — Resolve an `op://vault/item/field` reference to its value
-- `resolve-secrets` — Resolve multiple references in one call (per-reference results)
-- `generate-password` — Generate random, memorable, or PIN passwords
+- `list-vaults` - List accessible vaults (filtered by `OP_ALLOWED_VAULTS`)
+- `get-vault` - Get vault details, optionally including accessor (group) info
+- `list-items` - List items in a vault with title/tag/state filtering (client-side)
+- `get-item` - Get full item with all fields including concealed values
+- `batch-get-items` - Get up to 50 items at once
+- `search-items` - Search across all allowed vaults by title/tag
+- `resolve-secret` - Resolve an `op://vault/item/field` reference to its value
+- `resolve-secrets` - Resolve multiple references in one call (per-reference results)
+- `generate-password` - Generate random, memorable, or PIN passwords
 
 ### Write (require `OP_ENABLE_WRITE=true`)
-- `create-item` — Create item with category, fields, notes, tags, websites
-- `update-item` — Update existing item (get-merge-put with optimistic concurrency)
-- `archive-item` — Soft-remove an item
-- `create-vault` — Create a new vault
-- `update-vault` — Update vault name/description
-- `batch-create-items` — Create up to 100 items at once
+- `create-item` - Create item with category, fields, notes, tags, websites
+- `update-item` - Update existing item (get-merge-put with optimistic concurrency)
+- `archive-item` - Soft-remove an item
+- `create-vault` - Create a new vault
+- `update-vault` - Update vault name/description
+- `batch-create-items` - Create up to 100 items at once
 
 ### Delete (require `OP_ENABLE_DELETE=true`)
-- `delete-item` — Permanently delete an item (cannot be undone)
-- `delete-vault` — Permanently delete a vault and all its items (cannot be undone)
-- `batch-delete-items` — Delete multiple items at once (cannot be undone)
+- `delete-item` - Permanently delete an item (cannot be undone)
+- `delete-vault` - Permanently delete a vault and all its items (cannot be undone)
+- `batch-delete-items` - Delete multiple items at once (cannot be undone)
 
 ### Vault Admin (require `OP_ENABLE_VAULT_ADMIN=true`)
-- `grant-vault-permissions` — Grant group(s) access to a vault
-- `update-vault-permissions` — Update group permissions (each entry specifies its own vaultId)
-- `revoke-vault-permissions` — Remove group(s) access from a vault
+- `grant-vault-permissions` - Grant group(s) access to a vault
+- `update-vault-permissions` - Update group permissions (each entry specifies its own vaultId)
+- `revoke-vault-permissions` - Remove group(s) access from a vault
 
 ## Permissions Model
 
@@ -81,7 +81,7 @@ Tools accept human-readable permission names: `read`, `create`, `update`, `delet
 
 ## Update Pattern
 
-`update-item` uses **get-merge-put**: the service fetches the current item, merges the caller's changes, then puts the full object back. The item's `version` field is used for optimistic concurrency — concurrent edits will be detected and an error returned suggesting a retry.
+`update-item` uses **get-merge-put**: the service fetches the current item, merges the caller's changes, then puts the full object back. The item's `version` field is used for optimistic concurrency - concurrent edits will be detected and an error returned suggesting a retry.
 
 ## CLI Usage
 

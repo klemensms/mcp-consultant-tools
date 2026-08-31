@@ -9,23 +9,23 @@ Azure DevOps integration for wiki access, work item management, pull requests, b
 
 > **Admin Tools:** For pipelines, service connections, agent pools, and environments, see `@mcp-consultant-tools/azure-devops-admin`
 
-## Downstream skill — keep in sync
+## Downstream skill - keep in sync
 
 The work-item sync surface (file format, annotation rules, push/pull semantics, gotchas) is mirrored in the `ado-pulling-pushing-items-m` skill at:
 
 `<your-skills-directory>/ado-pulling-pushing-items-m/SKILL.md`
 
-When you change anything that affects how `sync-work-item-to-file` / `sync-work-item-from-file` / `sync-tasks-*` parse, serialize, or round-trip data — especially the annotation parser, the markdown serializer, or any field-mapping behaviour — also update that skill. The skill's "Critical Gotchas" and "Annotation-driven sync format" sections are the agent-facing contract for what's safe to do in a synced markdown file. Drift between this package and the skill produces silent data-loss bugs in client workflows.
+When you change anything that affects how `sync-work-item-to-file` / `sync-work-item-from-file` / `sync-tasks-*` parse, serialize, or round-trip data - especially the annotation parser, the markdown serializer, or any field-mapping behaviour - also update that skill. The skill's "Critical Gotchas" and "Annotation-driven sync format" sections are the agent-facing contract for what's safe to do in a synced markdown file. Drift between this package and the skill produces silent data-loss bugs in client workflows.
 
-## Bug content is analysed by AI — PII rule
+## Bug content is analysed by AI - PII rule
 
 Bug bodies, repro steps, and comments are routinely read by AI agents (this package's `get-work-item`, `query-work-items`, and the `sync-work-item-to-file` flow all surface that text directly into the agent's context). Anyone raising or editing a bug must treat the content as agent-visible:
 
-- Do **not** paste raw PII into bug content — names, emails, phone numbers, addresses, dates of birth, or any directly identifying member/customer IDs.
+- Do **not** paste raw PII into bug content - names, emails, phone numbers, addresses, dates of birth, or any directly identifying member/customer IDs.
 - Replace each such value with a **reference ID** (CRM contact GUID, member number, account ID). The agent resolves those via the appropriate MCP tool, with the destination system's redaction pipeline applied at fetch time.
 - Redact PII in screenshots before attaching.
 
-**Why this is binding on bug authors and not just the agent:** raw PII pasted into a bug ends up in the agent's context. If the agent then constructs a Dataverse `query-records` filter from that string, the filter is recorded verbatim in the audit log — there's no platform-side redaction over filter parameters. Closing the channel at the bug-authoring step is the cleanest control. See `packages/powerplatform-data/CLAUDE.md` "Operator responsibility — PII in filters" and `docs/documentation/audit-logging.md` "Operator responsibility — filter parameters and PII" for the full picture. ADO-side PII redaction is on the Phase C roadmap; this rule is the operator-side control until it lands.
+**Why this is binding on bug authors and not just the agent:** raw PII pasted into a bug ends up in the agent's context. If the agent then constructs a Dataverse `query-records` filter from that string, the filter is recorded verbatim in the audit log - there's no platform-side redaction over filter parameters. Closing the channel at the bug-authoring step is the cleanest control. See `packages/powerplatform-data/CLAUDE.md` "Operator responsibility - PII in filters" and `docs/documentation/audit-logging.md` "Operator responsibility - filter parameters and PII" for the full picture. ADO-side PII redaction is on the Phase C roadmap; this rule is the operator-side control until it lands.
 
 ## Environment Configuration
 
@@ -66,7 +66,7 @@ MCP_ADO_SYNC_TEMPLATE_DIR=                  # Optional: override built-in per-ty
                                              # (user-story.md, bug.md, task.md, feature.md, epic.md).
                                              # Unset = use built-ins shipped with the package.
 
-# Legacy custom-field overrides (v30.0.0-beta.16 and earlier — parse-only after beta.18)
+# Legacy custom-field overrides (v30.0.0-beta.16 and earlier - parse-only after beta.18)
 # These env vars are consulted ONLY when reading pre-annotation files so legacy
 # heading → refname fallback resolves to your custom field GUIDs. New installs
 # should instead ship custom templates via MCP_ADO_SYNC_TEMPLATE_DIR.
@@ -191,7 +191,7 @@ Token-efficient local editing by syncing ADO work items to markdown files.
 - `sync-work-item-from-file` - Push local changes back to ADO. Auto-detects new_*.md files to create new work items (requires `AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true`)
 - `create-work-item-file` - Create a new work item template file locally for any type (User Story, Bug, Feature, Epic, Task). Parent is optional.
 - `create-user-story-file` - Backward-compatible alias for `create-work-item-file` with type='User Story' (requires parentId)
-- `check-work-item-markdown` - Inspect whether fields are markdown or HTML (HTML fields still sync — they auto-convert to markdown locally on pull; this tool no longer gates syncing)
+- `check-work-item-markdown` - Inspect whether fields are markdown or HTML (HTML fields still sync - they auto-convert to markdown locally on pull; this tool no longer gates syncing)
 - `list-synced-work-items` - List locally synced files
 
 **Workflow: Edit Existing Work Items**
@@ -239,7 +239,7 @@ sync-work-item-from-file(project)
 # Renames file to {newId}.md (e.g., 1047.md)
 ```
 
-**File Format (v30.0.0-beta.18+ — annotation-driven):**
+**File Format (v30.0.0-beta.18+ - annotation-driven):**
 
 Two channels:
 1. **Frontmatter keys** are ADO reference names (with friendly aliases for the common ones).
@@ -300,7 +300,7 @@ Anything the agent wants to persist on the work item.
 
 Any key that doesn't match an alias is treated as a raw refname (e.g.
 `Custom.ConsultancyProcess: "Discovery"`). Adding a new ADO custom field to
-sync is just adding one line — no code change.
+sync is just adding one line - no code change.
 
 **Reserved frontmatter keys** (not sent to ADO): `id`, `type`, `project`,
 `parent`, `url`, `lastSyncedRevision`, `lastSyncedAt`.
@@ -308,7 +308,7 @@ sync is just adding one line — no code change.
 **Body sections** map heading-content to a single refname. The
 `<!-- ado-field: REFNAME -->` comment MUST be the first non-empty line after
 the `##` heading. A `##` heading WITHOUT this comment is **not** treated as
-a section boundary — it is preserved as content of whichever annotated
+a section boundary - it is preserved as content of whichever annotated
 section currently encloses it. This means a field body (e.g. Repro Steps)
 may contain its own `##` headings without truncating the field on push.
 
@@ -366,7 +366,7 @@ via a legacy heading→refname fallback:
 | Legacy heading | Refname |
 |----------------|---------|
 | `# Description` (non-Bug) | `System.Description` |
-| `# Description` (Bug type) | `Microsoft.VSTS.TCM.ReproSteps` — fixes a long-standing bug |
+| `# Description` (Bug type) | `Microsoft.VSTS.TCM.ReproSteps` - fixes a long-standing bug |
 | `# Repro Steps` | `Microsoft.VSTS.TCM.ReproSteps` |
 | `# Acceptance Criteria` | `Microsoft.VSTS.Common.AcceptanceCriteria` |
 | `# How to Test` | `Custom.Howtotest` (overridable via `AZUREDEVOPS_SYNC_FIELD_HOW_TO_TEST` at legacy-parse time) |
@@ -377,9 +377,9 @@ No migration command required; `sync-work-item-to-file` does it as a side
 effect.
 
 **Limitations:**
-- HTML body fields auto-convert to Markdown — on **pull** in the local file only (read-only; the ADO item is never modified or revision-bumped). On **push**, only fields you actually edited are written back (as Markdown); a field you didn't touch keeps its original ADO HTML. The push compares your local Markdown against the Markdown the pull would produce, so an unedited HTML field — including a complex table — is left untouched (`buildPatchOperations` / `buildTaskPatchOperations` change-detection). HTML tables become Markdown pipe tables; complex tables raise a lossy-conversion warning with the ADO original preserved (`sync-work-item-to-file` returns `conversionWarnings`)
-- Comments are read-only (can pull but not push) — but image references in comment bodies ARE downloaded and rewritten on pull
-- Task sync (task-serializer.ts) still uses the pre-annotation format — out of scope for this change
+- HTML body fields auto-convert to Markdown - on **pull** in the local file only (read-only; the ADO item is never modified or revision-bumped). On **push**, only fields you actually edited are written back (as Markdown); a field you didn't touch keeps its original ADO HTML. The push compares your local Markdown against the Markdown the pull would produce, so an unedited HTML field - including a complex table - is left untouched (`buildPatchOperations` / `buildTaskPatchOperations` change-detection). HTML tables become Markdown pipe tables; complex tables raise a lossy-conversion warning with the ADO original preserved (`sync-work-item-to-file` returns `conversionWarnings`)
+- Comments are read-only (can pull but not push) - but image references in comment bodies ARE downloaded and rewritten on pull
+- Task sync (task-serializer.ts) still uses the pre-annotation format - out of scope for this change
 
 ### Image attachments (v30.0.0-beta.16+)
 
@@ -415,17 +415,17 @@ Requires `AZUREDEVOPS_ENABLE_WORK_ITEM_WRITE=true`.
 
 ## Things that will bite you
 
-**`issue.type` on a build timeline is lowercase only — `error` / `warning`.** Matching `"Error"` finds nothing and reports a clean build. `build-issues` compares case-insensitively.
+**`issue.type` on a build timeline is lowercase only - `error` / `warning`.** Matching `"Error"` finds nothing and reports a clean build. `build-issues` compares case-insensitively.
 
 **A timeline record's `type` (`Stage` / `Job` / `Task`) is NOT a documented enum.** Microsoft types it as a bare string. Never filter on it without a case-insensitive compare, and never assume a missing `Stage` record means "no stages".
 
-**`errorCount` / `warningCount` on a timeline record are independent of its `issues[]`.** A record can report a count with no message attached. `build-issues` returns both and sets `countersExceedListedIssues` when they disagree — summing counters while listing only records with issues silently under-reports.
+**`errorCount` / `warningCount` on a timeline record are independent of its `issues[]`.** A record can report a count with no message attached. `build-issues` returns both and sets `countersExceedListedIssues` when they disagree - summing counters while listing only records with issues silently under-reports.
 
 **Never diff the output of `get-variable-group`.** It masks secrets to the literal `***SECRET***`, so two *different* secrets compare equal. The comparison tools read the raw payload and branch on `isSecret`, never on the value. Azure DevOps returns a secret as `{isSecret: true, value: null}` and **omits `isSecret` entirely** for a normal variable.
 
 **`compare-environments` suffixes are caller-overridable for a reason.** A hardcoded list matched zero groups forever for a team naming things `-prd`. It returns `unmatchedGroups` and `incompleteSets` so an empty result is explainable rather than a false all-clear.
 
-**Git refs carry `objectId` but no date.** You cannot order branches by time from the refs API. `latest-release-branch` therefore sorts by version name, digit-aware (`release/10` > `release/9`), and *excludes* branches with no digit (`release/next`) rather than letting one win arbitrarily — reporting them in `ignoredNonVersionBranches`.
+**Git refs carry `objectId` but no date.** You cannot order branches by time from the refs API. `latest-release-branch` therefore sorts by version name, digit-aware (`release/10` > `release/9`), and *excludes* branches with no digit (`release/next`) rather than letting one win arbitrarily - reporting them in `ignoredNonVersionBranches`.
 
 **Refs paging uses the `x-ms-continuationtoken` RESPONSE header**, not a body field, and `$top` caps at 1000. `list-branches` follows it and sets `truncated` honestly.
 
@@ -591,7 +591,7 @@ get-checklist-report(project="MyProject", workItemType="User Story", workItemSta
 
 ## Test Management Tools (v30+)
 
-Tools for creating and managing automated test runs via the ADO Test Management API (`_apis/test/`). Uses the Basic license endpoint — does NOT require the Azure Test Plans extension.
+Tools for creating and managing automated test runs via the ADO Test Management API (`_apis/test/`). Uses the Basic license endpoint - does NOT require the Azure Test Plans extension.
 
 **Key design decisions:**
 - All runs set `isAutomated: true` to bypass the Test Plan requirement
@@ -610,7 +610,7 @@ Tools for creating and managing automated test runs via the ADO Test Management 
 **Workflow:**
 ```bash
 # 1. Create a test run
-create-test-run(project="MyProject", name="Plugin Test — #1928 — 2026-04-10")
+create-test-run(project="MyProject", name="Plugin Test - #1928 - 2026-04-10")
 
 # 2. Add results
 add-test-results(project="MyProject", runId=175, results=[
@@ -626,10 +626,10 @@ link-test-case(project="MyProject", testCaseId=1930, storyId=1928, runId=175, ru
 ```
 
 **Key gotchas:**
-- `isAutomated: true` is set automatically — no Test Plan needed
-- `_apis/testplan/` endpoints require Azure Test Plans license (extra cost) — these tools avoid them
+- `isAutomated: true` is set automatically - no Test Plan needed
+- `_apis/testplan/` endpoints require Azure Test Plans license (extra cost) - these tools avoid them
 - Test run ↔ work item links are Hyperlinks, not artifact links (ADO limitation)
-- `testCase.id` on results doesn't create backlinks on the work item — use `link-test-case` explicitly
+- `testCase.id` on results doesn't create backlinks on the work item - use `link-test-case` explicitly
 
 ## Reference
 
@@ -650,7 +650,7 @@ mcp-ado-cli work-item get MyProject 12345
 mcp-ado-cli pull-request list MyProject --repository MyRepo
 
 # Test runs
-mcp-ado-cli test create-run MyProject "Plugin Test — #1928"
+mcp-ado-cli test create-run MyProject "Plugin Test - #1928"
 mcp-ado-cli test list-runs MyProject --state Completed
 mcp-ado-cli test run-results MyProject 175
 mcp-ado-cli test case-history MyProject 1930

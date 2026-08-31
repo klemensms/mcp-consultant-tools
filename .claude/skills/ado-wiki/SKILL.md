@@ -29,7 +29,7 @@ Every wiki page follows this structure:
 
 Add `<!--⭐️Header⭐️-->` above every header for readability.
 
-**TOC control**: Use `#` sparingly—only main actions should appear in TOC. Prefer `**bold text**` over sub-headers to avoid TOC clutter.
+**TOC control**: Use `#` sparingly-only main actions should appear in TOC. Prefer `**bold text**` over sub-headers to avoid TOC clutter.
 
 ## Syntax Reference
 
@@ -106,6 +106,6 @@ Acme-ADO-beta:update-wiki-page
 ## Best Practices
 
 - **Shorter is better**: Move lengthy sections to sub-pages with clear links
-- **Quick Start is key**: This is the most important section—cut through the fluff
+- **Quick Start is key**: This is the most important section-cut through the fluff
 - **Hide complexity**: Use collapsible sections for explanatory content
 - **Link both ways**: When creating sub-pages, backlink between them

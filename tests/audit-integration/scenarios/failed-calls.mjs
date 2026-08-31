@@ -71,14 +71,14 @@ export default async function failedCalls(ctx) {
       returnedError++;
       ctx.log('info', `✓ ${c.name} returned error as expected`);
     } else {
-      ctx.log('warn', `${c.name} did NOT return error — got ${JSON.stringify(r).slice(0, 200)}`);
+      ctx.log('warn', `${c.name} did NOT return error - got ${JSON.stringify(r).slice(0, 200)}`);
     }
     observed.push({ name: c.name, isError: isErr });
   }
 
   await session.close();
 
-  // Read audit JSONL — every case should have produced one record with result.success=false
+  // Read audit JSONL - every case should have produced one record with result.success=false
   const records = await readAuditDir(path.join(ctx.auditPath, 'FailedCalls'));
   ctx.log('info', `${records.length} audit records emitted`);
 
@@ -97,7 +97,7 @@ export default async function failedCalls(ctx) {
 
   // Validate the 5 tool-call records. We only enforce result.success=false on
   // cases that actually returned isError at the MCP layer. Cases that returned
-  // success at the tool layer (Dataverse semantics — e.g. update on non-existent
+  // success at the tool layer (Dataverse semantics - e.g. update on non-existent
   // returning 204) are recorded as observed and skipped from the failure asserts.
   let strictlyFailedRecords = 0;
   for (let i = 0; i < cases.length; i++) {
@@ -124,7 +124,7 @@ export default async function failedCalls(ctx) {
       strictlyFailedRecords++;
       ctx.log('info', `  ✓ ${c.name} → success=false, error=${r.result.error.slice(0, 100)}`);
     } else {
-      ctx.log('info', `  ~ ${c.name} → success=${r.result?.success} (Dataverse semantics — not a hard fail)`);
+      ctx.log('info', `  ~ ${c.name} → success=${r.result?.success} (Dataverse semantics - not a hard fail)`);
     }
   }
 
@@ -140,11 +140,11 @@ export default async function failedCalls(ctx) {
   );
 
   // Hard requirement: at least one case actually failed and emitted success=false.
-  // If zero cases failed, the scenario is meaningless — flag a bug because
+  // If zero cases failed, the scenario is meaningless - flag a bug because
   // none of these inputs should plausibly succeed across MCPTest.
   if (strictlyFailedRecords === 0) {
     throw new Error(
-      'No case produced a result.success=false record — scenario provides no value. ' +
+      'No case produced a result.success=false record - scenario provides no value. ' +
       'Either Dataverse silently accepted every malformed call (unlikely) or the audit ' +
       'pipeline is dropping failure records (Phase A bug).',
     );

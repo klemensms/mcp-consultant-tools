@@ -5,7 +5,7 @@
 
 <overview>
 
-The Azure Storage integration provides access to all four Azure Storage services — Blob, File Shares, Queue, and Table — through 47 tools and 8 prompts. It supports multi-account configuration with both Entra ID and connection string authentication. Read operations are always available; write and delete operations require feature flags.
+The Azure Storage integration provides access to all four Azure Storage services - Blob, File Shares, Queue, and Table - through 47 tools and 8 prompts. It supports multi-account configuration with both Entra ID and connection string authentication. Read operations are always available; write and delete operations require feature flags.
 
 **Package:** `@mcp-consultant-tools/azure-storage`
 **Binaries:** MCP `mcp-storage` / CLI `mcp-storage-cli`
@@ -24,10 +24,10 @@ The Azure Storage integration provides access to all four Azure Storage services
 - Supports multiple storage accounts with active/inactive flags
 
 **Sub-services** (one per storage type):
-- `BlobService` (`src/services/BlobService.ts`) — containers and blobs
-- `QueueService` (`src/services/QueueService.ts`) — queues and messages
-- `TableService` (`src/services/TableService.ts`) — tables and entities
-- `FileService` (`src/services/FileService.ts`) — file shares, directories, and files
+- `BlobService` (`src/services/BlobService.ts`) - containers and blobs
+- `QueueService` (`src/services/QueueService.ts`) - queues and messages
+- `TableService` (`src/services/TableService.ts`) - tables and entities
+- `FileService` (`src/services/FileService.ts`) - file shares, directories, and files
 
 **ServiceContext** (`src/types.ts`):
 ```typescript
@@ -95,12 +95,12 @@ az role assignment create --role "Storage File Data SMB Share Contributor" --ass
 | Variable | Default | Required | Description |
 |----------|---------|----------|-------------|
 | `AZURE_STORAGE_AUTH_METHOD` | `entra-id` | No | `entra-id` or `connection-string` |
-| `AZURE_STORAGE_TENANT_ID` | — | For Entra ID | Azure tenant ID |
-| `AZURE_STORAGE_CLIENT_ID` | — | For Entra ID | App registration client ID |
-| `AZURE_STORAGE_CLIENT_SECRET` | — | For Entra ID | App registration client secret |
+| `AZURE_STORAGE_TENANT_ID` | - | For Entra ID | Azure tenant ID |
+| `AZURE_STORAGE_CLIENT_ID` | - | For Entra ID | App registration client ID |
+| `AZURE_STORAGE_CLIENT_SECRET` | - | For Entra ID | App registration client secret |
 | `AZURE_STORAGE_ACCOUNTS` | `[]` | Yes (or fallback) | JSON array of account config objects |
-| `AZURE_STORAGE_ACCOUNT_NAME` | — | Fallback only | Single account name (creates a default account with id `"default"`) |
-| `AZURE_STORAGE_CONNECTION_STRING` | — | Fallback only | Connection string for single account fallback |
+| `AZURE_STORAGE_ACCOUNT_NAME` | - | Fallback only | Single account name (creates a default account with id `"default"`) |
+| `AZURE_STORAGE_CONNECTION_STRING` | - | Fallback only | Connection string for single account fallback |
 | `AZURE_STORAGE_MAX_BLOB_SIZE_MB` | `100` | No | Max blob upload size in MB; upload rejected if exceeded |
 | `AZURE_STORAGE_MAX_LIST_RESULTS` | `1000` | No | Max items returned by list operations |
 | `AZURE_STORAGE_ENABLE_WRITE` | `false` | No | Feature flag: enables create, upload, copy, set-metadata/tags (19 tools) |
@@ -119,7 +119,7 @@ az role assignment create --role "Storage File Data SMB Share Contributor" --ass
     "name": "Production Storage",
     "accountName": "prodstorageaccount",
     "active": true,
-    "connectionString": "optional — overrides global Entra ID for this account"
+    "connectionString": "optional - overrides global Entra ID for this account"
   },
   {
     "id": "dev",
@@ -130,10 +130,10 @@ az role assignment create --role "Storage File Data SMB Share Contributor" --ass
 ]
 ```
 
-- `id` — used in every tool call as `accountId`
-- `accountName` — actual Azure storage account name (used to construct service URLs)
-- `active` — set to `false` to disable without removing config
-- `connectionString` — optional per-account override
+- `id` - used in every tool call as `accountId`
+- `accountName` - actual Azure storage account name (used to construct service URLs)
+- `active` - set to `false` to disable without removing config
+- `connectionString` - optional per-account override
 
 If `AZURE_STORAGE_ACCOUNTS` is not set, the service falls back to `AZURE_STORAGE_ACCOUNT_NAME` + optional `AZURE_STORAGE_CONNECTION_STRING`, creating a synthetic account with `id: "default"`.
 
@@ -168,83 +168,83 @@ Error message pattern:
 
 47 total tools across all four storage types.
 
-**Blob Storage — 15 tools**
+**Blob Storage - 15 tools**
 
 | Tool | Write Flag | Delete Flag | Description |
 |------|-----------|------------|-------------|
-| `blob-list-accounts` | — | — | List all configured storage accounts |
-| `blob-test-connection` | — | — | Test connectivity and verify permissions for all storage services on an account |
-| `blob-list-containers` | — | — | List containers with metadata; supports prefix filter and maxResults |
-| `blob-get-container` | — | — | Get container properties and metadata |
-| `blob-create-container` | Yes | — | Create new container |
-| `blob-delete-container` | — | Yes | Delete container and all contents |
-| `blob-list-blobs` | — | — | List blobs in a container; supports prefix filter and maxResults |
-| `blob-get-blob` | — | — | Get blob properties, metadata, and index tags |
-| `blob-download-blob` | — | — | Download blob content as text or base64 |
-| `blob-upload-blob` | Yes | — | Upload content to blob; size limit enforced via `MAX_BLOB_SIZE_MB` |
-| `blob-delete-blob` | — | Yes | Delete a blob |
-| `blob-copy-blob` | Yes | — | Copy blob within or between containers in the same account |
-| `blob-set-metadata` | Yes | — | Set or update blob metadata (key-value pairs, not indexed) |
-| `blob-set-tags` | Yes | — | Set or update blob index tags (indexed, searchable) |
-| `blob-search-tags` | — | — | Search blobs across all containers using OData tag filter |
+| `blob-list-accounts` | - | - | List all configured storage accounts |
+| `blob-test-connection` | - | - | Test connectivity and verify permissions for all storage services on an account |
+| `blob-list-containers` | - | - | List containers with metadata; supports prefix filter and maxResults |
+| `blob-get-container` | - | - | Get container properties and metadata |
+| `blob-create-container` | Yes | - | Create new container |
+| `blob-delete-container` | - | Yes | Delete container and all contents |
+| `blob-list-blobs` | - | - | List blobs in a container; supports prefix filter and maxResults |
+| `blob-get-blob` | - | - | Get blob properties, metadata, and index tags |
+| `blob-download-blob` | - | - | Download blob content as text or base64 |
+| `blob-upload-blob` | Yes | - | Upload content to blob; size limit enforced via `MAX_BLOB_SIZE_MB` |
+| `blob-delete-blob` | - | Yes | Delete a blob |
+| `blob-copy-blob` | Yes | - | Copy blob within or between containers in the same account |
+| `blob-set-metadata` | Yes | - | Set or update blob metadata (key-value pairs, not indexed) |
+| `blob-set-tags` | Yes | - | Set or update blob index tags (indexed, searchable) |
+| `blob-search-tags` | - | - | Search blobs across all containers using OData tag filter |
 
 </tool-group>
 
 <tool-group name="file-shares">
 
-**File Shares — 12 tools**
+**File Shares - 12 tools**
 
 | Tool | Write Flag | Delete Flag | Description |
 |------|-----------|------------|-------------|
-| `file-list-shares` | — | — | List file shares |
-| `file-get-share` | — | — | Get share properties and quota usage |
-| `file-create-share` | Yes | — | Create a file share with optional quota (GB) |
-| `file-delete-share` | — | Yes | Delete a file share |
-| `file-list-items` | — | — | List files and directories in a path |
-| `file-create-directory` | Yes | — | Create a directory |
-| `file-delete-directory` | — | Yes | Delete a directory |
-| `file-get-file` | — | — | Get file properties |
-| `file-download-file` | — | — | Download file content |
-| `file-upload-file` | Yes | — | Upload file content |
-| `file-delete-file` | — | Yes | Delete a file |
-| `file-copy-file` | Yes | — | Copy a file within the same share |
+| `file-list-shares` | - | - | List file shares |
+| `file-get-share` | - | - | Get share properties and quota usage |
+| `file-create-share` | Yes | - | Create a file share with optional quota (GB) |
+| `file-delete-share` | - | Yes | Delete a file share |
+| `file-list-items` | - | - | List files and directories in a path |
+| `file-create-directory` | Yes | - | Create a directory |
+| `file-delete-directory` | - | Yes | Delete a directory |
+| `file-get-file` | - | - | Get file properties |
+| `file-download-file` | - | - | Download file content |
+| `file-upload-file` | Yes | - | Upload file content |
+| `file-delete-file` | - | Yes | Delete a file |
+| `file-copy-file` | Yes | - | Copy a file within the same share |
 
 </tool-group>
 
 <tool-group name="queue-storage">
 
-**Queue Storage — 10 tools**
+**Queue Storage - 10 tools**
 
 | Tool | Write Flag | Delete Flag | Description |
 |------|-----------|------------|-------------|
-| `queue-list-queues` | — | — | List queues |
-| `queue-get-queue` | — | — | Get queue properties and approximate message count |
-| `queue-create-queue` | Yes | — | Create a queue |
-| `queue-delete-queue` | — | Yes | Delete a queue |
-| `queue-send-message` | Yes | — | Send a message to a queue |
-| `queue-peek-messages` | — | — | Read messages without affecting visibility (non-destructive) |
-| `queue-receive-messages` | Yes | — | Receive messages and hide them for a visibility timeout; caller must delete after processing |
-| `queue-delete-message` | — | Yes | Delete a message after successful processing (requires `messageId` + `popReceipt`) |
-| `queue-update-message` | Yes | — | Update message content or visibility timeout |
-| `queue-clear-messages` | — | Yes | Clear all messages from a queue |
+| `queue-list-queues` | - | - | List queues |
+| `queue-get-queue` | - | - | Get queue properties and approximate message count |
+| `queue-create-queue` | Yes | - | Create a queue |
+| `queue-delete-queue` | - | Yes | Delete a queue |
+| `queue-send-message` | Yes | - | Send a message to a queue |
+| `queue-peek-messages` | - | - | Read messages without affecting visibility (non-destructive) |
+| `queue-receive-messages` | Yes | - | Receive messages and hide them for a visibility timeout; caller must delete after processing |
+| `queue-delete-message` | - | Yes | Delete a message after successful processing (requires `messageId` + `popReceipt`) |
+| `queue-update-message` | Yes | - | Update message content or visibility timeout |
+| `queue-clear-messages` | - | Yes | Clear all messages from a queue |
 
 </tool-group>
 
 <tool-group name="table-storage">
 
-**Table Storage — 10 tools**
+**Table Storage - 10 tools**
 
 | Tool | Write Flag | Delete Flag | Description |
 |------|-----------|------------|-------------|
-| `table-list-tables` | — | — | List tables |
-| `table-create-table` | Yes | — | Create a table |
-| `table-delete-table` | — | Yes | Delete a table |
-| `table-get-entity` | — | — | Get an entity by `PartitionKey` and `RowKey` |
-| `table-query-entities` | — | — | Query entities with OData filter; supports `select` projection |
-| `table-insert-entity` | Yes | — | Insert a new entity |
-| `table-update-entity` | Yes | — | Update or replace an entity (merge or replace mode) |
-| `table-upsert-entity` | Yes | — | Insert or update an entity |
-| `table-delete-entity` | — | Yes | Delete an entity by `PartitionKey` and `RowKey` |
+| `table-list-tables` | - | - | List tables |
+| `table-create-table` | Yes | - | Create a table |
+| `table-delete-table` | - | Yes | Delete a table |
+| `table-get-entity` | - | - | Get an entity by `PartitionKey` and `RowKey` |
+| `table-query-entities` | - | - | Query entities with OData filter; supports `select` projection |
+| `table-insert-entity` | Yes | - | Insert a new entity |
+| `table-update-entity` | Yes | - | Update or replace an entity (merge or replace mode) |
+| `table-upsert-entity` | Yes | - | Insert or update an entity |
+| `table-delete-entity` | - | Yes | Delete an entity by `PartitionKey` and `RowKey` |
 | `table-batch-operation` | Yes | Yes | Execute multiple operations in a single transaction (same partition key required) |
 
 </tool-group>
@@ -463,7 +463,7 @@ Standard queue processing pattern (receive → process → delete):
    messageId=<from step 1>, popReceipt=<from step 1>
 ```
 
-If processing fails: do nothing — message reappears after visibility timeout expires.
+If processing fails: do nothing - message reappears after visibility timeout expires.
 If `popReceipt` mismatch error: the receipt is stale (timeout expired); re-receive to get fresh receipt.
 
 </example>
@@ -499,7 +499,7 @@ Use blob-copy-blob with:
 - destinationBlob: "imports/file.csv"
 ```
 
-Cross-account copy is not supported — copy is within the same storage account only.
+Cross-account copy is not supported - copy is within the same storage account only.
 
 </example>
 
@@ -510,23 +510,23 @@ Cross-account copy is not supported — copy is within the same storage account 
 <error-cases>
 
 **Authentication errors:**
-- `"No authentication configured for account '{id}'"` — account has no connection string and no Entra ID credential was created. Check `AZURE_STORAGE_AUTH_METHOD` and credential env vars.
-- `"AuthorizationPermissionMismatch"` — app registration missing required RBAC role. Assign the appropriate role on the storage account.
+- `"No authentication configured for account '{id}'"` - account has no connection string and no Entra ID credential was created. Check `AZURE_STORAGE_AUTH_METHOD` and credential env vars.
+- `"AuthorizationPermissionMismatch"` - app registration missing required RBAC role. Assign the appropriate role on the storage account.
 
 **Configuration errors:**
-- `"Failed to parse AZURE_STORAGE_ACCOUNTS JSON"` — invalid JSON in accounts env var
-- `"Missing Azure Storage configuration: AZURE_STORAGE_ACCOUNTS or AZURE_STORAGE_ACCOUNT_NAME"` — neither account configuration path is set
-- `"Storage account not found"` — `accountId` not in configuration, or account has `active: false`
+- `"Failed to parse AZURE_STORAGE_ACCOUNTS JSON"` - invalid JSON in accounts env var
+- `"Missing Azure Storage configuration: AZURE_STORAGE_ACCOUNTS or AZURE_STORAGE_ACCOUNT_NAME"` - neither account configuration path is set
+- `"Storage account not found"` - `accountId` not in configuration, or account has `active: false`
 
 **Network errors:**
-- `"getaddrinfo ENOTFOUND {accountName}.blob.core.windows.net"` — wrong account name or network connectivity issue. Verify `accountName` and DNS.
+- `"getaddrinfo ENOTFOUND {accountName}.blob.core.windows.net"` - wrong account name or network connectivity issue. Verify `accountName` and DNS.
 
 **Resource errors:**
-- `"ContainerNotFound"` — container doesn't exist; use `blob-list-containers` to see available containers
-- `"BlobNotFound"` — blob path is wrong or doesn't exist; use `blob-list-blobs` with prefix to locate
-- `"TableNotFound"` — table doesn't exist; use `table-list-tables` to see available tables
-- `"InvalidInput"` in OData filter — malformed filter syntax; check value quoting and operator usage
-- `"PopReceipt mismatch"` — queue message receipt is stale (visibility timeout expired); re-receive to get fresh `popReceipt`
+- `"ContainerNotFound"` - container doesn't exist; use `blob-list-containers` to see available containers
+- `"BlobNotFound"` - blob path is wrong or doesn't exist; use `blob-list-blobs` with prefix to locate
+- `"TableNotFound"` - table doesn't exist; use `table-list-tables` to see available tables
+- `"InvalidInput"` in OData filter - malformed filter syntax; check value quoting and operator usage
+- `"PopReceipt mismatch"` - queue message receipt is stale (visibility timeout expired); re-receive to get fresh `popReceipt`
 
 **Operation errors:**
 - Blob size limit exceeded: upload rejected with configured max size in error message

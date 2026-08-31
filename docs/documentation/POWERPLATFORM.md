@@ -9,11 +9,11 @@ Production-safe MCP server providing read-only access to Dynamics 365 / Datavers
 
 ## Configuration
 
-Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both — only the wrapper key and the file differ.
+Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
-### VS Code — recommended (1Password)
+### VS Code - recommended (1Password)
 
-Credentials are resolved at runtime via biometric authentication — no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
+Credentials are resolved at runtime via biometric authentication - no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
 
 ```json
 {
@@ -32,7 +32,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-### VS Code — alternative (local credentials)
+### VS Code - alternative (local credentials)
 
 ```json
 {
@@ -83,7 +83,7 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 ## Notable Behavior
 
 - **`get-flows` filters by default:** Excludes Customer Insights (CXP_ prefix), SYSTEM-modified flows, and Copilot for Sales flows. Use `excludeCustomerInsights: false` etc. to include them. Response includes exclusion statistics.
-- **`scan-flow-health` needs Organization-scope Read on FlowRun:** It reads run history from the Dataverse `flowrun` table (app-only friendly, no management API). Because `flowrun` records are user-owned, the app registration's Dataverse security role must grant **Organization-scope Read on FlowRun** — otherwise the scan sees no runs and reports each flow with `scanError` rather than a false all-healthy. Success rates are honest about sampling: a flow with more runs than `maxRunsPerFlow` is flagged `sampleTruncated`, and a flow with no runs reports `successRate: null` (not `0`).
+- **`scan-flow-health` needs Organization-scope Read on FlowRun:** It reads run history from the Dataverse `flowrun` table (app-only friendly, no management API). Because `flowrun` records are user-owned, the app registration's Dataverse security role must grant **Organization-scope Read on FlowRun** - otherwise the scan sees no runs and reports each flow with `scanError` rather than a false all-healthy. Success rates are honest about sampling: a flow with more runs than `maxRunsPerFlow` is flagged `sampleTruncated`, and a flow with no runs reports `successRate: null` (not `0`).
 - **`get-flow-inventory` vs `get-flows`:** `get-flow-inventory` paginates to a guaranteed-complete list of every cloud flow (for deployment audits); `get-flows` returns a single filtered page (for interactive investigation).
 - **`validate-dataverse` validates publisher prefix compliance:** Pass your `publisherPrefix` (e.g., `"contoso_"`) to check naming conventions, lookup naming, option set scope, required columns, and entity icons across a solution or specific entities.
 - **`gen-integration-audit` is the top-level audit tool:** Aggregates service endpoints, webhooks, flow complexity, environment variables, and plugin inventory into a single Markdown report. Use `outputFormat: "summary"` to surface only flagged items.

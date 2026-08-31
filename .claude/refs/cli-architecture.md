@@ -50,7 +50,7 @@ export function registerDomainCommands(program: any, ctx: ServiceContext): void 
 }
 ```
 
-## CLI Maintenance Strategy — every MCP tool has a matching CLI command
+## CLI Maintenance Strategy - every MCP tool has a matching CLI command
 
 CLI is a first-class citizen alongside MCP tools. Maintaining parity is non-negotiable.
 
@@ -65,7 +65,7 @@ CLI is a first-class citizen alongside MCP tools. Maintaining parity is non-nego
 
 - **Services are the single source of truth.** MCP tools and CLI commands both call the same service methods. Never duplicate business logic in CLI.
 - **`context-factory.ts` mirrors `index.ts`.** Every getter added to `createServiceContext()` in `index.ts` must be added to `context-factory.ts`. Common triggers: new service import, new lazy getter, changed env validation, changed client config.
-- **CLI commands are thin wrappers** — ~5–15 lines: parse args, call service, format output. Complexity belongs in services.
+- **CLI commands are thin wrappers** - ~5-15 lines: parse args, call service, format output. Complexity belongs in services.
 - **Always wrap `.action()` in try/catch with `handleCliError(error, 'command-name')`.**
 - **Output:** `outputResult()` for everything. Summary → stdout, full JSON → `.context/.mcp-{abbrev}-cache/`. `--json` flag outputs raw JSON only.
 - **Where the cache lands.** `.context/` is resolved against `process.cwd()`, not the package or the repo root, so it follows wherever the command was run from. That is deliberate - the cache belongs to the project being worked on, and a run inside a client repo should leave its JSON there. It also means a run started in a temporary or home directory leaves the payload there, and payloads reach several MB. `outputResult` therefore always names the file it wrote on stderr (`--json` included - stderr does not pollute the JSON on stdout), and warns when the working directory is not inside a git repository, which is the case where the file is scattered rather than collected. `--no-cache` skips the write entirely.
@@ -77,23 +77,23 @@ CLI is a first-class citizen alongside MCP tools. Maintaining parity is non-nego
   const pkg = require('../package.json');   // build/ is flat, so ../ is the package root
   ```
 
-  A string literal there goes stale silently and nothing fails when it does. Before v35 beta.13, 19 CLIs reported versions as old as `27.0.0`, and **every** server reported `1.0.0` (meta said `15.0.0`) in the MCP initialize handshake — the version an MCP client displays. It survived eight major releases because a wrong version breaks nothing; it only misinforms.
+  A string literal there goes stale silently and nothing fails when it does. Before v35 beta.13, 19 CLIs reported versions as old as `27.0.0`, and **every** server reported `1.0.0` (meta said `15.0.0`) in the MCP initialize handshake - the version an MCP client displays. It survived eight major releases because a wrong version breaks nothing; it only misinforms.
 
-  **`resolvePackageVersion()` in core does not save you.** It walks up from `process.argv[1]`, which finds the right `package.json` when a build is executed directly but **not under `npx`**, where the bin shim sits in a different tree. Under npx the hardcoded fallback is exactly what the user sees — and npx is how these packages are actually consumed. `createRequire(import.meta.url)` resolves against the module itself and works in both.
+  **`resolvePackageVersion()` in core does not save you.** It walks up from `process.argv[1]`, which finds the right `package.json` when a build is executed directly but **not under `npx`**, where the bin shim sits in a different tree. Under npx the hardcoded fallback is exactly what the user sees - and npx is how these packages are actually consumed. `createRequire(import.meta.url)` resolves against the module itself and works in both.
 
   A guard test in `packages/meta/src/__tests__/entrypoint-versions.test.ts` scans every `src/index.ts` and `src/cli.ts` in the monorepo and fails on any literal, naming the offending file.
-- **Write commands must pass `persist: false`.** Reads cache by default — an agent greps that JSON instead of re-running the call, which is the whole point of the cache. A write's cached payload is only an echo of the arguments, so it has nothing worth grepping, while creating `.context/` in whatever directory the command happened to be run from is a surprise. This was found in the field: a reaction command created a `.context/` inside a cloud-synced folder, which then synced.
+- **Write commands must pass `persist: false`.** Reads cache by default - an agent greps that JSON instead of re-running the call, which is the whole point of the cache. A write's cached payload is only an echo of the arguments, so it has nothing worth grepping, while creating `.context/` in whatever directory the command happened to be run from is a surprise. This was found in the field: a reaction command created a `.context/` inside a cloud-synced folder, which then synced.
 
-  **Classification rule — read the description, don't guess from the name.** If a command's own `.description()` tells the user to set an `ENABLE_*_WRITE=true` / `ENABLE_*_DELETE=true` flag, it is a write by the repo's own documentation. That rule needs no judgement and it is enforced by a guard test (below). Verb-prefix matching is what the first sweep used and it missed 21 commands — `batch-create`, `push`, `str-replace`, `vote`, `copy`, `insert`, `upsert`, `receive`, `unassign`, `queue`, `drop`, `archive`, `disassociate`. It also gets `azure-storage queue receive` backwards: it reads like a read, but receiving hides the message and changes its visibility.
+  **Classification rule - read the description, don't guess from the name.** If a command's own `.description()` tells the user to set an `ENABLE_*_WRITE=true` / `ENABLE_*_DELETE=true` flag, it is a write by the repo's own documentation. That rule needs no judgement and it is enforced by a guard test (below). Verb-prefix matching is what the first sweep used and it missed 21 commands - `batch-create`, `push`, `str-replace`, `vote`, `copy`, `insert`, `upsert`, `receive`, `unassign`, `queue`, `drop`, `archive`, `disassociate`. It also gets `azure-storage queue receive` backwards: it reads like a read, but receiving hides the message and changes its visibility.
 
-  For the residue that mutates without naming a flag in its text (`azure-sql crud insert`, `azure-devops-admin pipeline queue`), judge by what the command *does*. Note that write-sounding names are not enough in the other direction either: `runs`, `run-details`, `run-saved-query`, `run-results`, `deployments` and `publishers` all read, and all keep their cache. So does `rest-api batch` — its cached payload is the actual response bodies, which is the thing worth grepping.
+  For the residue that mutates without naming a flag in its text (`azure-sql crud insert`, `azure-devops-admin pipeline queue`), judge by what the command *does*. Note that write-sounding names are not enough in the other direction either: `runs`, `run-details`, `run-saved-query`, `run-results`, `deployments` and `publishers` all read, and all keep their cache. So does `rest-api batch` - its cached payload is the actual response bodies, which is the thing worth grepping.
 
   A guard test in `packages/meta/src/__tests__/cli-write-cache.test.ts` enforces the description rule across the monorepo, naming any offender as `file:line (command)`.
 
-  Packages **not** following this convention, because they do not use the shared wrapper at all: `github-enterprise` and `powerplatform-customization` print with `console.log` and never cache anything (the guard skips them automatically — it derives the exclusion from whether the package's `output.ts` supports `persist`, not from a hardcoded list). `sharepoint` has its own `outputResult` implementation which honours `persist` but ignores the global `--no-cache` flag entirely — a separate defect, recorded in the v35 known issues.
-- **A read's cache lands in the current working directory, and it can contain client data.** `outputResult` resolves `.context/{cacheDir}/` against `process.cwd()`, so where the file goes is decided by wherever the command happened to be started. Running a CLI from `/tmp` puts the JSON in `/private/tmp/.context/` — measured in the field, a 2 MB review of a real client repository. On a client engagement that is client data landing somewhere nobody is tracking, and nobody cleans up.
+  Packages **not** following this convention, because they do not use the shared wrapper at all: `github-enterprise` and `powerplatform-customization` print with `console.log` and never cache anything (the guard skips them automatically - it derives the exclusion from whether the package's `output.ts` supports `persist`, not from a hardcoded list). `sharepoint` has its own `outputResult` implementation which honours `persist` but ignores the global `--no-cache` flag entirely - a separate defect, recorded in the v35 known issues.
+- **A read's cache lands in the current working directory, and it can contain client data.** `outputResult` resolves `.context/{cacheDir}/` against `process.cwd()`, so where the file goes is decided by wherever the command happened to be started. Running a CLI from `/tmp` puts the JSON in `/private/tmp/.context/` - measured in the field, a 2 MB review of a real client repository. On a client engagement that is client data landing somewhere nobody is tracking, and nobody cleans up.
 
-  This is the cache working as designed, not a bug — but it means **the working directory is part of the invocation.** Start assurance runs from the engagement folder, and treat `.context/` as client-confidential wherever it appears. `--no-cache` suppresses the file (except in `sharepoint`, per above).
+  This is the cache working as designed, not a bug - but it means **the working directory is part of the invocation.** Start assurance runs from the engagement folder, and treat `.context/` as client-confidential wherever it appears. `--no-cache` suppresses the file (except in `sharepoint`, per above).
 
 ## Parameter Mapping Convention
 
@@ -111,10 +111,10 @@ CLI is a first-class citizen alongside MCP tools. Maintaining parity is non-nego
 
 | Helper | Purpose |
 |--------|---------|
-| `createCliProgram({ name, description, version })` | Commander program with `--json`, `--no-cache`, `--env-file` options. **`version` must be `pkg.version`, never a literal — see below.** |
-| `loadEnvForCli(envFilePath?)` | Loads `.env` (CLI only — MCP servers don't need this) |
+| `createCliProgram({ name, description, version })` | Commander program with `--json`, `--no-cache`, `--env-file` options. **`version` must be `pkg.version`, never a literal - see below.** |
+| `loadEnvForCli(envFilePath?)` | Loads `.env` (CLI only - MCP servers don't need this) |
 | `getGlobalFlags(program)` | Extracts `{ json, cache }` from Commander opts |
-| `outputResult({ fileName, data, summary, cacheDir, persist? }, flags)` | Writes summary + caches JSON. `persist: false` on write commands skips the cache entirely — no file, no `.context/` directory. |
+| `outputResult({ fileName, data, summary, cacheDir, persist? }, flags)` | Writes summary + caches JSON. `persist: false` on write commands skips the cache entirely - no file, no `.context/` directory. |
 | `handleCliError(error, commandName)` | Formats error, exits code 1 |
 
 ## Verification After CLI Changes
@@ -131,4 +131,4 @@ done
 
 ## Documentation to update on CLI changes
 
-`packages/{pkg}/CLAUDE.md` (CLI Usage) • `docs/technical/{INTEGRATION}_TECHNICAL.md` (CLI Architecture — primary reference) • binary mapping table in `package-binaries.md` (only if a new package or rename).
+`packages/{pkg}/CLAUDE.md` (CLI Usage) • `docs/technical/{INTEGRATION}_TECHNICAL.md` (CLI Architecture - primary reference) • binary mapping table in `package-binaries.md` (only if a new package or rename).

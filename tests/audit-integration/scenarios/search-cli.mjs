@@ -1,5 +1,5 @@
 /**
- * Task 46 — mcp-audit-cli search filter × format matrix.
+ * Task 46 - mcp-audit-cli search filter × format matrix.
  *
  * Generates a small synthetic corpus by running pp-data multiple times
  * with varied (client, operator, engagement) tuples, then exercises every
@@ -36,7 +36,7 @@ function runSearch(args) {
 
 export default async function searchCli(ctx) {
   // ============================================================
-  // PHASE 1 — generate corpus: 3 clients × varied operators
+  // PHASE 1 - generate corpus: 3 clients × varied operators
   // ============================================================
   await runSession(ctx, {
     MCP_AUDIT_CLIENT: 'AlphaCo',
@@ -76,10 +76,10 @@ export default async function searchCli(ctx) {
   if (allGamma.length !== 4) throw new Error(`GammaCo expected 4 records, got ${allGamma.length}`);
 
   // ============================================================
-  // PHASE 2 — filter option matrix
+  // PHASE 2 - filter option matrix
   // ============================================================
   // Helper that runs search and counts data lines (table/json/csv all
-  // include header lines — count rows by parsing).
+  // include header lines - count rows by parsing).
   function countResults(out, fmt) {
     if (fmt === 'json') {
       try {
@@ -146,18 +146,18 @@ export default async function searchCli(ctx) {
     {
       name: '--entity contacts (substring on tool.params.entityNamePlural)',
       extra: ['--entity', 'contact'],
-      // applies to query-records (7) and count-records (1) — set-engagement has no entityNamePlural.
+      // applies to query-records (7) and count-records (1) - set-engagement has no entityNamePlural.
       // The exact count depends on whether `--entity` filters out records without the field.
       // We assert "at least 7, at most 11".
       expectAtLeast: 7, expectAtMost: 11,
     },
     {
-      name: '--since (ISO timestamp 1 hour ago — should match all)',
+      name: '--since (ISO timestamp 1 hour ago - should match all)',
       extra: ['--since', new Date(Date.now() - 60 * 60 * 1000).toISOString()],
       expectAtLeast: 11, expectAtMost: 11,
     },
     {
-      name: '--until (ISO timestamp 1 hour ago — should match none)',
+      name: '--until (ISO timestamp 1 hour ago - should match none)',
       extra: ['--until', new Date(Date.now() - 60 * 60 * 1000).toISOString()],
       expectAtLeast: 0, expectAtMost: 0,
     },
@@ -187,7 +187,7 @@ export default async function searchCli(ctx) {
   ctx.log('info', `${passed}/${cases.length} filter cases passed`);
 
   // ============================================================
-  // PHASE 3 — output format matrix
+  // PHASE 3 - output format matrix
   // ============================================================
   for (const fmt of ['table', 'json', 'csv']) {
     const r = runSearch({ base: ctx.auditPath, extra: ['--format', fmt] });

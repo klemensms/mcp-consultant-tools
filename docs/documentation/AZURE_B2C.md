@@ -9,11 +9,11 @@ MCP server for Azure Active Directory B2C user management via Microsoft Graph AP
 
 ## Configuration
 
-Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both — only the wrapper key and the file differ.
+Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
-### VS Code — recommended (1Password)
+### VS Code - recommended (1Password)
 
-Credentials are resolved at runtime via biometric authentication — no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
+Credentials are resolved at runtime via biometric authentication - no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
 
 > **PII protection (opt-in):** redaction is off by default. Set `PII_PROTECTION=true` to enable it. See [PII Protection](#pii-protection-v31) below.
 
@@ -40,7 +40,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-### VS Code — alternative (local credentials)
+### VS Code - alternative (local credentials)
 
 > **PII protection (opt-in):** redaction is off by default. Set `PII_PROTECTION=true` to enable it.
 
@@ -89,23 +89,23 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 
 ## Notable Behavior
 
-- All write operations are **disabled by default**. Each category (password, create, update, delete) has its own flag — enable only what you need.
+- All write operations are **disabled by default**. Each category (password, create, update, delete) has its own flag - enable only what you need.
 - Password operations (`b2c-reset-user-password`, `b2c-force-pwd-change`) only work for **local accounts** (email/password sign-in). They fail silently for social or federated accounts.
 - `b2c-delete-user` requires both `AZURE_B2C_ENABLE_USER_DELETE=true` and `confirmDeletion: true` in the tool call. Deletion is irreversible.
 - `b2c-list-users` and `b2c-get-user` accept `includeAllFields=true` to return all Graph API fields, including `extension_*` custom attributes (e.g., `CrmContactId`, `MemberId`).
-- **PII protection is opt-in:** off by default; set `PII_PROTECTION=true` to redact. There is no environment-type gate — the server starts without it. When protection is off, a stderr warning fires if the configured tenant ID (`AZURE_B2C_TENANT_ID`) doesn't look like a non-prod environment.
+- **PII protection is opt-in:** off by default; set `PII_PROTECTION=true` to redact. There is no environment-type gate - the server starts without it. When protection is off, a stderr warning fires if the configured tenant ID (`AZURE_B2C_TENANT_ID`) doesn't look like a non-prod environment.
 
 ## PII Protection (v31+)
 
-A 4-layer redaction pipeline runs on every B2C user response (`b2c-list-users`, `b2c-get-user`, `b2c-search-users`, `b2c-create-user`, `b2c-update-user`). Default field rules redact `givenName`, `surname`, `displayName`, `mail`, `otherMails`, `mobilePhone`. The L3 email regex additionally catches `userPrincipalName` (typically email-shaped). Borderline fields (`streetAddress`, `city`, `postalCode`, `country`, `jobTitle`) are NOT in defaults — opt-in via `PII_CONFIG_PATH` if a particular client treats those as PII.
+A 4-layer redaction pipeline runs on every B2C user response (`b2c-list-users`, `b2c-get-user`, `b2c-search-users`, `b2c-create-user`, `b2c-update-user`). Default field rules redact `givenName`, `surname`, `displayName`, `mail`, `otherMails`, `mobilePhone`. The L3 email regex additionally catches `userPrincipalName` (typically email-shaped). Borderline fields (`streetAddress`, `city`, `postalCode`, `country`, `jobTitle`) are NOT in defaults - opt-in via `PII_CONFIG_PATH` if a particular client treats those as PII.
 
-This is one of five packages that performs redaction — the others are `powerplatform-data` (Dataverse query responses), `azure-devops` (work-item fields), `azure-sql` (SQL query rows), and `rest-api` (any HTTP body). See [pii-protection.md](pii-protection.md) for the full surface and layer-by-layer reference.
+This is one of five packages that performs redaction - the others are `powerplatform-data` (Dataverse query responses), `azure-devops` (work-item fields), `azure-sql` (SQL query rows), and `rest-api` (any HTTP body). See [pii-protection.md](pii-protection.md) for the full surface and layer-by-layer reference.
 
-**PII protection is opt-in and off by default. Set `PII_PROTECTION=true` to enable redaction — there is no environment-type gate, and the server starts normally without it.**
+**PII protection is opt-in and off by default. Set `PII_PROTECTION=true` to enable redaction - there is no environment-type gate, and the server starts normally without it.**
 
 | `PII_PROTECTION` | Behaviour |
 |---|---|
-| unset / `false` | pipeline off — raw data flows to the LLM (server starts normally) |
+| unset / `false` | pipeline off - raw data flows to the LLM (server starts normally) |
 | `true` | redaction active on every response |
 
 | Var | Values | Behaviour |
@@ -122,8 +122,8 @@ See [pii-protection.md](pii-protection.md) for config schema and [PII_PROTECTION
 
 ## Coming later (not yet active)
 
-This variable is documented in shared config examples but **not read by this package** — setting it currently has no effect. The environment type is fixed to `production` internally. It is listed here so the intended configuration surface isn't lost:
+This variable is documented in shared config examples but **not read by this package** - setting it currently has no effect. The environment type is fixed to `production` internally. It is listed here so the intended configuration surface isn't lost:
 
 | Variable | Purpose (planned) |
 |----------|-------------------|
-| `MCP_ENVIRONMENT_TYPE` | Declare the target environment (`production` \| `uat` \| `dev`). Currently inert for this package — fixed to `production`; not consumed by the server. |
+| `MCP_ENVIRONMENT_TYPE` | Declare the target environment (`production` \| `uat` \| `dev`). Currently inert for this package - fixed to `production`; not consumed by the server. |

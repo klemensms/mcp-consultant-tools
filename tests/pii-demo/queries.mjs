@@ -25,7 +25,7 @@ export const queries = [
   {
     id: 'pp-maria-1',
     server: 'pp-data',
-    label: 'Query Maria Schmidt — configured fields (run 1)',
+    label: 'Query Maria Schmidt - configured fields (run 1)',
     description:
       'Returns Maria with the full set of configured PII fields. Baseline for L2 demo and the first half of the cross-call correlation check.',
     tool: 'query-records',
@@ -53,7 +53,7 @@ export const queries = [
   {
     id: 'pp-maria-2',
     server: 'pp-data',
-    label: 'Query Maria Schmidt — cross-call correlation (run 2)',
+    label: 'Query Maria Schmidt - cross-call correlation (run 2)',
     description:
       'Same Maria queried by a different filter. In the full-l1-l4 scenario the firstname token MUST match pp-maria-1. In a fresh process it MUST differ.',
     tool: 'query-records',
@@ -69,7 +69,7 @@ export const queries = [
     server: 'pp-data',
     label: 'Annotation note attached to Maria',
     description:
-      'Free-text notetext field with embedded email, phone, DOB-shape date, and two person names. L3 + L4 territory — L2 has no field rules for the annotation entity.',
+      'Free-text notetext field with embedded email, phone, DOB-shape date, and two person names. L3 + L4 territory - L2 has no field rules for the annotation entity.',
     tool: 'query-records',
     args: {
       entityNamePlural: 'annotations',
@@ -83,7 +83,7 @@ export const queries = [
     server: 'pp-data',
     label: 'Account with primary-contact lookup (OData annotation NER test)',
     description:
-      "Selects the lookup field `_primarycontactid_value` on Contoso. Dataverse returns the GUID plus a FormattedValue annotation (e.g. 'Maria Schmidt'). Layer 4 NER must redact the annotation — this exercises the v1 'relationship name problem'.",
+      "Selects the lookup field `_primarycontactid_value` on Contoso. Dataverse returns the GUID plus a FormattedValue annotation (e.g. 'Maria Schmidt'). Layer 4 NER must redact the annotation - this exercises the v1 'relationship name problem'.",
     tool: 'query-records',
     args: {
       entityNamePlural: 'accounts',
@@ -100,9 +100,9 @@ export const queries = [
   {
     id: 'pp-maria-update',
     server: 'pp-data',
-    label: 'Update Maria — write-path redaction + yomifullname + footer (beta.4)',
+    label: 'Update Maria - write-path redaction + yomifullname + footer (beta.4)',
     description:
-      "Sets Maria.jobtitle to 'Senior Consultant'. Dataverse PATCH with Prefer: return=representation echoes the full updated contact back in the response, so firstname, lastname, emailaddress1, mobilephone, birthdate, description, plus yomifullname all appear in the body. Beta.3 wired write-path redaction so bodies redact; beta.4 closes F4 (yomifullname redacts via new default contact rule) and F5 (the [PII protection: ...] audit footer now appears at the end of the response — was missing on writes through beta.3).",
+      "Sets Maria.jobtitle to 'Senior Consultant'. Dataverse PATCH with Prefer: return=representation echoes the full updated contact back in the response, so firstname, lastname, emailaddress1, mobilephone, birthdate, description, plus yomifullname all appear in the body. Beta.3 wired write-path redaction so bodies redact; beta.4 closes F4 (yomifullname redacts via new default contact rule) and F5 (the [PII protection: ...] audit footer now appears at the end of the response - was missing on writes through beta.3).",
     tool: 'update-record',
     args: {
       entityNamePlural: 'contacts',

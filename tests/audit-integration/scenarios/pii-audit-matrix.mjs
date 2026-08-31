@@ -1,5 +1,5 @@
 /**
- * Task 37 — PII × audit configuration matrix.
+ * Task 37 - PII × audit configuration matrix.
  *
  * For each PII configuration × representative tool, spawn pp-data with
  * MCP_AUDIT_LEVEL=full, run the tool against a known-PII fixture record,
@@ -10,12 +10,12 @@
  *  3. Capture per-cell redaction report (input + output).
  *  4. Hard-fail the scenario if the full-stack ("all-defaults") config
  *     leakage diverges from EXPECTED_HARD_FAIL_LEAKAGE (currently 2:
- *     both from Gap 1 — documented as operator responsibility, NOT
- *     patched. Gap 3 was resolved on 2026-05-04 — see
+ *     both from Gap 1 - documented as operator responsibility, NOT
+ *     patched. Gap 3 was resolved on 2026-05-04 - see
  *     docs/programmes/pii-and-audit/pending/known-gaps.md). Any
- *     divergence — fewer or more — is treated as a regression and must
+ *     divergence - fewer or more - is treated as a regression and must
  *     be explicitly acknowledged by updating the constant in the same
- *     commit. Other configs are descriptive — leakage profile is
+ *     commit. Other configs are descriptive - leakage profile is
  *     reported but does not fail the scenario, since a single-layer
  *     config is expected to leave some categories uncovered.
  *
@@ -191,29 +191,29 @@ function configEnvBuilder(name, configDir) {
 }
 
 const CONFIGS = [
-  { name: 'no-protection', expectedRedaction: 'NONE — leakage expected baseline' },
-  { name: 'all-defaults', expectedRedaction: 'L1+L2+L3+L4 — should fully redact known PII' },
-  { name: 'l1-only', expectedRedaction: 'L1 only (excludeFromSelect) — affects $select queries; response unredacted' },
-  { name: 'l2-only', expectedRedaction: 'L2 only (field rules) — name/email/phone fields redacted; description not in field rules' },
-  { name: 'l3-only', expectedRedaction: 'L3 only (regex) — emails/phones/dob globally redacted; names + addresses untouched' },
-  { name: 'observe-mode', expectedRedaction: 'Counts redactions but does not transform — leakage expected' },
-  { name: 'singular-only-contact', expectedRedaction: 'L1+L2+L3+L4 with per-tenant config keyed under SINGULAR contact only — must match plural-only-contacts' },
-  { name: 'plural-only-contacts',  expectedRedaction: 'L1+L2+L3+L4 with per-tenant config keyed under PLURAL contacts only — must match singular-only-contact' },
+  { name: 'no-protection', expectedRedaction: 'NONE - leakage expected baseline' },
+  { name: 'all-defaults', expectedRedaction: 'L1+L2+L3+L4 - should fully redact known PII' },
+  { name: 'l1-only', expectedRedaction: 'L1 only (excludeFromSelect) - affects $select queries; response unredacted' },
+  { name: 'l2-only', expectedRedaction: 'L2 only (field rules) - name/email/phone fields redacted; description not in field rules' },
+  { name: 'l3-only', expectedRedaction: 'L3 only (regex) - emails/phones/dob globally redacted; names + addresses untouched' },
+  { name: 'observe-mode', expectedRedaction: 'Counts redactions but does not transform - leakage expected' },
+  { name: 'singular-only-contact', expectedRedaction: 'L1+L2+L3+L4 with per-tenant config keyed under SINGULAR contact only - must match plural-only-contacts' },
+  { name: 'plural-only-contacts',  expectedRedaction: 'L1+L2+L3+L4 with per-tenant config keyed under PLURAL contacts only - must match singular-only-contact' },
 ];
 
 // HARD-FAIL CONFIG: the canonical "production safe" stack. We assert that
 // leakage in this config matches the *expected baseline* below. Any divergence
-// (more OR fewer leaks) is a regression — fewer leaks means a quietly-changed
+// (more OR fewer leaks) is a regression - fewer leaks means a quietly-changed
 // redaction behaviour that the author should explicitly acknowledge.
 const HARD_FAIL_CONFIG = 'all-defaults';
 
 // Expected leakage in the all-defaults config.
 //
-// This is currently 2 — composed of:
+// This is currently 2 - composed of:
 //   • 2 leaks from filter-inlined PII in `query-records` (firstname appears in
 //     `tool.params.filter` and `payload.input.filter`). Gap 1 is intentionally
-//     documented as operator responsibility, NOT patched — see
-//     docs/programmes/pii-and-audit/pending/known-gaps.md "Gap 1 — Resolved as".
+//     documented as operator responsibility, NOT patched - see
+//     docs/programmes/pii-and-audit/pending/known-gaps.md "Gap 1 - Resolved as".
 //
 // Gap 3 (3 leaks via `*@OData.Community.Display.V1.FormattedValue` annotations
 // on custom lookups) was resolved on 2026-05-04 by adding default-on
@@ -228,7 +228,7 @@ function buildToolSpecs(fixture) {
   return [
     {
       name: 'query-records',
-      // PII in the filter param — exercises L2/L3 on input redaction
+      // PII in the filter param - exercises L2/L3 on input redaction
       invoke: (client) =>
         queryRecords(client, {
           entityNamePlural: 'contacts',
@@ -261,13 +261,13 @@ function buildToolSpecs(fixture) {
           entityNamePlural: 'contacts',
           recordId: fixture.id,
           data: {
-            description: `${KNOWN_PII_STRINGS.description} — updated ${Date.now()}`,
+            description: `${KNOWN_PII_STRINGS.description} - updated ${Date.now()}`,
           },
         }),
     },
     {
       name: 'execute-action',
-      // WhoAmI is a standard Dataverse action with no PII — exercises the
+      // WhoAmI is a standard Dataverse action with no PII - exercises the
       // execute-action audit code path without any redaction expectations.
       invoke: (client) =>
         executeAction(client, {
@@ -340,7 +340,7 @@ function buildReportMd(cells, fixture, headline) {
   lines.push(`**Run timestamp:** ${new Date().toISOString()}`);
   lines.push(`**Fixture:** contact ${fixture.id} (${Object.keys(fixture.knownStrings).length} known-PII fields)`);
   lines.push(`**Audit level:** full (payload.input + payload.output captured)`);
-  lines.push(`**Hard-fail config:** \`${HARD_FAIL_CONFIG}\` — ${headline.hardFailVerdict}`);
+  lines.push(`**Hard-fail config:** \`${HARD_FAIL_CONFIG}\` - ${headline.hardFailVerdict}`);
   lines.push('');
   lines.push('## Headline');
   lines.push('');
@@ -456,8 +456,8 @@ export default async function piiAuditMatrix(ctx) {
   const headline = {
     hardFailVerdict:
       hardFailLeakage === EXPECTED_HARD_FAIL_LEAKAGE
-        ? `✓ leakage matches expected baseline (${EXPECTED_HARD_FAIL_LEAKAGE}) across ${hardFailCells.length} cells — Gap 1 (2, documented; Gap 3 resolved 2026-05-04)`
-        : `✗ leakage ${hardFailLeakage} ≠ expected ${EXPECTED_HARD_FAIL_LEAKAGE} across ${hardFailCells.length} cells — REGRESSION (any divergence is unexpected; investigate)`,
+        ? `✓ leakage matches expected baseline (${EXPECTED_HARD_FAIL_LEAKAGE}) across ${hardFailCells.length} cells - Gap 1 (2, documented; Gap 3 resolved 2026-05-04)`
+        : `✗ leakage ${hardFailLeakage} ≠ expected ${EXPECTED_HARD_FAIL_LEAKAGE} across ${hardFailCells.length} cells - REGRESSION (any divergence is unexpected; investigate)`,
   };
 
   const reportMd = buildReportMd(cells, fixture, headline);
@@ -491,14 +491,14 @@ export default async function piiAuditMatrix(ctx) {
     throw new Error(
       `[REGRESSION] config "${HARD_FAIL_CONFIG}" leaked ${hardFailLeakage} known-PII strings; ` +
         `expected baseline is ${EXPECTED_HARD_FAIL_LEAKAGE} (Gap 1 documented; Gap 3 resolved 2026-05-04). ` +
-        `Any divergence — including fewer leaks — must be explicitly acknowledged: ` +
+        `Any divergence - including fewer leaks - must be explicitly acknowledged: ` +
         `update EXPECTED_HARD_FAIL_LEAKAGE in the same commit that changes redaction behaviour.\n  ` +
         sample.join('\n  '),
     );
   }
   ctx.log(
     'info',
-    `✓ ${HARD_FAIL_CONFIG} matches expected baseline (${EXPECTED_HARD_FAIL_LEAKAGE} leaks) across ${hardFailCells.length} cells — Gap 1 documented; Gap 3 resolved 2026-05-04`,
+    `✓ ${HARD_FAIL_CONFIG} matches expected baseline (${EXPECTED_HARD_FAIL_LEAKAGE} leaks) across ${hardFailCells.length} cells - Gap 1 documented; Gap 3 resolved 2026-05-04`,
   );
 
   // Parity check: singular-only-contact and plural-only-contacts must produce
@@ -509,7 +509,7 @@ export default async function piiAuditMatrix(ctx) {
   const pluralCells = cells.filter((c) => c.config === 'plural-only-contacts');
   if (singularCells.length === 0 || pluralCells.length === 0) {
     throw new Error(
-      `[PARITY-FAIL] expected both singular-only-contact and plural-only-contacts to produce cells; got singular=${singularCells.length}, plural=${pluralCells.length} — check CONFIGS entries`,
+      `[PARITY-FAIL] expected both singular-only-contact and plural-only-contacts to produce cells; got singular=${singularCells.length}, plural=${pluralCells.length} - check CONFIGS entries`,
     );
   }
   const parityFailures = [];
@@ -523,7 +523,7 @@ export default async function piiAuditMatrix(ctx) {
     }
     if (sCell.leakageCount !== pCell.leakageCount) {
       parityFailures.push(
-        `Tool '${sCell.tool}': singular-only=${sCell.leakageCount}, plural-only=${pCell.leakageCount} — must be equal`,
+        `Tool '${sCell.tool}': singular-only=${sCell.leakageCount}, plural-only=${pCell.leakageCount} - must be equal`,
       );
     }
   }
@@ -536,7 +536,7 @@ export default async function piiAuditMatrix(ctx) {
   }
   if (parityFailures.length > 0) {
     throw new Error(
-      `[PARITY-FAIL] singular-only-contact / plural-only-contacts leak counts diverge — loader expansion is broken:\n  ${parityFailures.join('\n  ')}`,
+      `[PARITY-FAIL] singular-only-contact / plural-only-contacts leak counts diverge - loader expansion is broken:\n  ${parityFailures.join('\n  ')}`,
     );
   }
   ctx.log(

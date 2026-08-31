@@ -20,17 +20,17 @@ The Entra ID integration audits app registrations through the Microsoft Graph v1
 ## Architecture
 
 **Client layer:**
-- `EntraIdClient` — wraps `Client.initWithMiddleware` from `@microsoft/microsoft-graph-client`, authenticated by `TokenCredentialAuthenticationProvider` over `ClientSecretCredential`. Graph's own middleware chain supplies the retry handler (429/503, honouring `Retry-After`), so this class carries no retry loop. It paginates `@odata.nextLink`, caches resource service principals, and normalises Graph errors into messages that name the missing grant.
+- `EntraIdClient` - wraps `Client.initWithMiddleware` from `@microsoft/microsoft-graph-client`, authenticated by `TokenCredentialAuthenticationProvider` over `ClientSecretCredential`. Graph's own middleware chain supplies the retry handler (429/503, honouring `Retry-After`), so this class carries no retry loop. It paginates `@odata.nextLink`, caches resource service principals, and normalises Graph errors into messages that name the missing grant.
 
-Auth mirrors `packages/azure-b2c` (`@azure/identity` + `@microsoft/microsoft-graph-client`). Seven other packages in this repo wire `@azure/msal-node` by hand; azure-b2c is the closer precedent — Graph, client credentials, read-only — and needs no additional dependency.
+Auth mirrors `packages/azure-b2c` (`@azure/identity` + `@microsoft/microsoft-graph-client`). Seven other packages in this repo wire `@azure/msal-node` by hand; azure-b2c is the closer precedent - Graph, client credentials, read-only - and needs no additional dependency.
 
 **Service class** (takes an injected `EntraIdClient`, so pagination and error normalisation apply once):
-- `AppRegistrationService` — list and get, plus the pure mappers and predicates below
+- `AppRegistrationService` - list and get, plus the pure mappers and predicates below
 
 `ServiceContext` exposes one lazy getter. There is exactly **one** `createServiceContext()` (in `context-factory.ts`), imported by both `index.ts` and `cli.ts`.
 
 **Pure, unit-tested functions** (no Graph client required):
-- `classifyCredential(endDateTime, now, thresholdDays)` — the expiry state machine. `now` is injected, never read from the clock inside.
+- `classifyCredential(endDateTime, now, thresholdDays)` - the expiry state machine. `now` is injected, never read from the clock inside.
 - `toSecretInfo` / `toCertificateInfo` / `toSummary` / `countCredentials`
 - `matchesFilter(summary, filter, credentialType)` / `matchesName(summary, nameContains)`
 - `collectRedirectUris` / `resolvePermissions`
@@ -108,7 +108,7 @@ Audit app registrations for expiring or expired client secrets and certificates.
 
 Returns `{ applications, total, truncated, expiryDays }`. Each application carries `objectId`, `appId`, `displayName`, `secrets[]`, `certificates[]`, and `credentialCounts` (`secrets`, `certificates`, `expired`, `expiring`, `active`, `unknown`).
 
-`$select`: `id, appId, displayName, passwordCredentials, keyCredentials`. API permissions and redirect URIs are deliberately **not** fetched here — they belong to `entra-get-app-registration`, and resolving them would cost one extra Graph call per distinct resource app on every list.
+`$select`: `id, appId, displayName, passwordCredentials, keyCredentials`. API permissions and redirect URIs are deliberately **not** fetched here - they belong to `entra-get-app-registration`, and resolving them would cost one extra Graph call per distinct resource app on every list.
 </tool>
 
 <tool name="entra-get-app-registration">
@@ -121,7 +121,7 @@ Full detail for one app registration.
 
 Returns the list shape plus `createdDateTime`, `signInAudience`, `redirectUris[]`, `apiPermissions[]`, `exposedScopes[]`.
 
-Lookup order: `GET /applications/{id}` first, then `GET /applications(appId='{id}')` on a 404. **Only a 404 triggers the fallback** — a 403 surfaces as a permission error.
+Lookup order: `GET /applications/{id}` first, then `GET /applications(appId='{id}')` on a 404. **Only a 404 triggers the fallback** - a 403 surfaces as a permission error.
 
 Permission resolution: each distinct `requiredResourceAccess[].resourceAppId` is resolved in parallel via `GET /servicePrincipals(appId='{guid}')`, matching `resourceAccess[].id` against `appRoles[]` (type `Role` → Application) or `oauth2PermissionScopes[]` (type `Scope` → Delegated). A permission that cannot be resolved is returned with `unresolved: true` and its raw GUID as `permissionName`.
 </tool>
@@ -154,7 +154,7 @@ Two invariants worth preserving:
 
 ## Known limitations
 
-**Service-principal credentials are not scanned.** An `application` and its `servicePrincipal` hold two independent `passwordCredentials`/`keyCredentials` collections in Microsoft Graph. This package reads the app registration's. Credentials added directly to a service principal — via `Add-MgServicePrincipalPassword`, or on a managed identity / legacy service principal with no backing app registration — will not appear. **An empty result is therefore not proof that nothing in the tenant is expiring.** Both tool descriptions say so. Covering them would mean a second `/servicePrincipals` scan correlated by `appId`; it is a deliberate scope decision, not an oversight.
+**Service-principal credentials are not scanned.** An `application` and its `servicePrincipal` hold two independent `passwordCredentials`/`keyCredentials` collections in Microsoft Graph. This package reads the app registration's. Credentials added directly to a service principal - via `Add-MgServicePrincipalPassword`, or on a managed identity / legacy service principal with no backing app registration - will not appear. **An empty result is therefore not proof that nothing in the tenant is expiring.** Both tool descriptions say so. Covering them would mean a second `/servicePrincipals` scan correlated by `appId`; it is a deliberate scope decision, not an oversight.
 
 **Every filter scans the whole tenant.** Graph cannot filter on credential expiry or on a name substring, so a filtered list fetches all app registrations (999 per page) before trimming to `maxResults`. Truncating the fetch first would hide matches beyond the cut. `truncated: true` means `maxResults` cut the *filtered* list; the scan itself was complete.
 
@@ -168,7 +168,7 @@ Two invariants worth preserving:
 
 ## Query safety
 
-This package builds **no** OData `$filter` and **no** `$search` from caller input. The only caller-supplied value that reaches a Graph URL is an app registration's object ID or appId, and both are GUIDs — so `assertGuid()` is a complete defence and there is no string literal left to escape.
+This package builds **no** OData `$filter` and **no** `$search` from caller input. The only caller-supplied value that reaches a Graph URL is an app registration's object ID or appId, and both are GUIDs - so `assertGuid()` is a complete defence and there is no string literal left to escape.
 
 `nameContains` never reaches Graph; it is matched client-side. That is why a payload such as `x') or startswith(displayName,'` is rejected by `entra-get-app-registration` (not a GUID) and simply matches nothing in `entra-list-app-registrations`.
 
@@ -182,7 +182,7 @@ This package builds **no** OData `$filter` and **no** `$search` from caller inpu
 
 `EntraIdClient.paginate(path, select, maxResults?)` returns `{ items, truncated }`.
 
-It requests `$top=999` on the first page, then follows `@odata.nextLink` verbatim. When `maxResults` is set, it stops as soon as it holds one row more than the limit — that extra row is what makes `truncated` honest without a second request. A total that exactly equals `maxResults` reports `truncated: false`, because the row that would have proved truncation never arrived.
+It requests `$top=999` on the first page, then follows `@odata.nextLink` verbatim. When `maxResults` is set, it stops as soon as it holds one row more than the limit - that extra row is what makes `truncated` honest without a second request. A total that exactly equals `maxResults` reports `truncated: false`, because the row that would have proved truncation never arrived.
 
 `AppRegistrationService.listAppRegistrations` passes `maxResults` down to `paginate` **only when no client-side filter is set**. With a filter, it passes `undefined` (full scan) and trims afterwards.
 
@@ -213,10 +213,10 @@ Missing configuration is detected in `createServiceContext()` before any request
 ## Security
 
 - **Read-only.** No tool mutates anything; there are no write operations and no feature flags.
-- **No identifiers logged.** The tenant ID and client ID are never written to stderr — they land in transcripts, logs and CI output. `context-factory.ts` logs only `Entra ID client initialized`.
+- **No identifiers logged.** The tenant ID and client ID are never written to stderr - they land in transcripts, logs and CI output. `context-factory.ts` logs only `Entra ID client initialized`.
 - **Secrets cannot be exfiltrated.** Graph returns a secret's value only to the call that created it; this package only ever GETs.
 - **Least privilege.** `Application.Read.All` is the narrowest application permission that reads `/applications` and `/servicePrincipals`. No `Directory.Read.All` is required.
-- **GUID validation before URL construction** — see `<query-safety>`.
+- **GUID validation before URL construction** - see `<query-safety>`.
 
 </security>
 
@@ -229,7 +229,7 @@ npm run build --workspace=packages/entra-id
 npm test --workspace=packages/entra-id   # 77 tests, no live API
 ```
 
-`@azure/identity` and `@microsoft/microsoft-graph-client` are mocked at the module boundary, so the suite runs offline. ESM mocking in this repo requires `vi.mock(...)` followed by a **top-level `await import()`** of the module under test — a static import binds before the mock applies. See `src/__tests__/entra-client.test.ts`.
+`@azure/identity` and `@microsoft/microsoft-graph-client` are mocked at the module boundary, so the suite runs offline. ESM mocking in this repo requires `vi.mock(...)` followed by a **top-level `await import()`** of the module under test - a static import binds before the mock applies. See `src/__tests__/entra-client.test.ts`.
 
 Service tests inject a stub client object rather than mocking the Graph SDK, so the filter and truncation logic is tested without any transport concern.
 
@@ -268,7 +268,7 @@ Global flags (`--json`, `--no-cache`, `--env-file`, `--mcp-config`, `--mcp-serve
 | Every app reports zero secrets and zero certificates | A `$select` that omits the credential collections. Both `LIST_SELECT` and `DETAIL_SELECT` must name them. |
 | `App registration not found: {guid}` | The GUID matched neither an object ID nor an appId in this tenant. |
 | `appIdOrObjectId must be a GUID` | A display name was passed. Use `entra-list-app-registrations --name-contains` to find the GUID first. |
-| An app you know has an expiring secret is missing from `expiring-credentials` | Check whether the credential sits on the **service principal** rather than the app registration — see `<known-limitations>`. |
+| An app you know has an expiring secret is missing from `expiring-credentials` | Check whether the credential sits on the **service principal** rather than the app registration - see `<known-limitations>`. |
 | A permission shows a raw GUID with `unresolved: true` | The resource's service principal is absent from the tenant, or unreadable. The grant still exists; only its name is unknown. |
 
 </troubleshooting>

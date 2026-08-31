@@ -34,32 +34,32 @@ Sibling repos share this project's conventions but live outside the monorepo (na
 
 Conventions that MUST stay synchronized across this repo and every sibling. When you change one, mirror it in the other (same PR where possible) or document the divergence.
 
-- **npx publish pipeline** — `@mcp-consultant-tools/*` scope, `-beta.N` prereleases (`npm version prerelease --preid=beta` → `npm publish --tag beta`), promote via `npm dist-tag add @package@X.Y.Z latest`.
-- **npx config format** — `["-y", "--package=@mcp-consultant-tools/PACKAGE@TAG", "BINARY"]`. Binary mapping table is in this file.
-- **Layering** — `services/` business logic, `tools/` thin MCP wrappers, `cli/` thin Commander wrappers. ServiceContext shared via `context-factory.ts`.
-- **CLI parity** — every MCP tool has a matching CLI command.
-- **Core helpers** — `@mcp-consultant-tools/core`: `createMcpServer`, `createEnvLoader`, `createCliProgram`, `loadEnvForCli`, `outputResult`, `handleCliError`, `descWithExamples`. **API changes to core ripple to sibling repos on version bump.**
-- **MCP stdio hygiene** — no `console.log` in `src/`. Stderr only.
-- **Env var naming** — `MCP_{PACKAGE}_{SETTING}` prefix.
-- **Tool examples** — `descWithExamples()` for complex params.
-- **Secret-scan allowlists** — `.secret-scan-allowlist` + `.secret-scan-longstr-allowlist` per-repo.
-- **Release notes** — `docs/release-notes/vX.Y.Z-beta.N.md`, update "Changes Implemented" per change.
-- **MCP local testing** — `mcp-local-tester` agent + `.claude/templates/mcp-test-runner.mjs`.
+- **npx publish pipeline** - `@mcp-consultant-tools/*` scope, `-beta.N` prereleases (`npm version prerelease --preid=beta` → `npm publish --tag beta`), promote via `npm dist-tag add @package@X.Y.Z latest`.
+- **npx config format** - `["-y", "--package=@mcp-consultant-tools/PACKAGE@TAG", "BINARY"]`. Binary mapping table is in this file.
+- **Layering** - `services/` business logic, `tools/` thin MCP wrappers, `cli/` thin Commander wrappers. ServiceContext shared via `context-factory.ts`.
+- **CLI parity** - every MCP tool has a matching CLI command.
+- **Core helpers** - `@mcp-consultant-tools/core`: `createMcpServer`, `createEnvLoader`, `createCliProgram`, `loadEnvForCli`, `outputResult`, `handleCliError`, `descWithExamples`. **API changes to core ripple to sibling repos on version bump.**
+- **MCP stdio hygiene** - no `console.log` in `src/`. Stderr only.
+- **Env var naming** - `MCP_{PACKAGE}_{SETTING}` prefix.
+- **Tool examples** - `descWithExamples()` for complex params.
+- **Secret-scan allowlists** - `.secret-scan-allowlist` + `.secret-scan-longstr-allowlist` per-repo.
+- **Release notes** - `docs/release-notes/vX.Y.Z-beta.N.md`, update "Changes Implemented" per change.
+- **MCP local testing** - `mcp-local-tester` agent + `.claude/templates/mcp-test-runner.mjs`.
 
 ### Files copied verbatim between repos
 
 These files are mirrored between this repo and `mcp-computer-use`. Edit both, or record a deliberate divergence below:
 
-- `.claude/agents/mcp-local-tester.md`, `.claude/templates/mcp-test-runner.mjs` — both copies carry a `SOURCE OF TRUTH` header pointing here
+- `.claude/agents/mcp-local-tester.md`, `.claude/templates/mcp-test-runner.mjs` - both copies carry a `SOURCE OF TRUTH` header pointing here
 - `scripts/install-hooks.sh`, `scripts/hooks/pre-commit`, `scripts/hooks/commit-msg`, `scripts/internal-scan-lib.sh`, `scripts/scan-tarball.sh`
-- `.secret-scan-allowlist`, `.secret-scan-longstr-allowlist`, `.internal-scan-placeholders` — file/header aligned; per-repo pattern entries can differ
-- `.internal-strings.local` (UNTRACKED in both repos — synced via private claude-config, never committed)
+- `.secret-scan-allowlist`, `.secret-scan-longstr-allowlist`, `.internal-scan-placeholders` - file/header aligned; per-repo pattern entries can differ
+- `.internal-strings.local` (UNTRACKED in both repos - synced via private claude-config, never committed)
 
 **Deliberate divergences:** `mcp-computer-use` uses `MCP_CU_*` env prefix (not the verbose `MCP_COMPUTER_USE_*`); ships no prebuilt binaries (compile-from-source on postinstall); allowlists carry extra patterns for Apple frameworks, test fixtures with fake-secret strings, and `com.1password.1password8` bundle ID.
 
-## Release Notes — Master-Doc Model
+## Release Notes - Master-Doc Model
 
-**One master release-notes file per release branch is the user-facing single source of truth.** Per-iteration files capture agent-level audit detail. Use `/product-releasenotes beta` (or `production`) — never edit by hand. Master file is updated on every beta. Breaking-change pattern (warning + copy-paste agent block) is mandatory when relevant.
+**One master release-notes file per release branch is the user-facing single source of truth.** Per-iteration files capture agent-level audit detail. Use `/product-releasenotes beta` (or `production`) - never edit by hand. Master file is updated on every beta. Breaking-change pattern (warning + copy-paste agent block) is mandatory when relevant.
 
 Full lifecycle, file roles, hard rules, and breaking-change format: [`.claude/refs/release-notes-model.md`](.claude/refs/release-notes-model.md). Cross-doc: [`docs/release-notes/README.md`](docs/release-notes/README.md).
 
@@ -106,18 +106,18 @@ node .claude/templates/mcp-test-runner.mjs
 
 Install the pre-commit hook once: `./scripts/install-hooks.sh`. The hook scans for secret patterns; allowlists at `.secret-scan-allowlist` (keywords) and `.secret-scan-longstr-allowlist` (long strings) reduce false positives.
 
-**Auto-bypass policy** — when the hook blocks on commit, classify each flagged line:
+**Auto-bypass policy** - when the hook blocks on commit, classify each flagged line:
 - **All false positives** (env var references like `process.env.CLIENT_SECRET`, CLI command names like `reset-password`, comments, import paths, doc examples) → `git commit --no-verify` automatically AND add the patterns to the relevant allowlist so it doesn't trigger next time.
 - **Any real-looking secret** → STOP, alert the maintainer, do NOT bypass.
-- **This policy applies ONLY to the secret-pattern scan.** Internal-identifier hits (the 🛑 INTERNAL IDENTIFIER / INTERNAL ENDPOINT blocks) are NEVER bypassable — see "Public Repo Hygiene" below.
+- **This policy applies ONLY to the secret-pattern scan.** Internal-identifier hits (the 🛑 INTERNAL IDENTIFIER / INTERNAL ENDPOINT blocks) are NEVER bypassable - see "Public Repo Hygiene" below.
 
 **Never commit:** `.env*`, `.claude/settings.json`, `*.pem`, `*.key`, `*.p12`. **If you accidentally do:** rotate credentials immediately, remove from history with `git-filter-repo`, notify affected parties.
 
 ## Public Repo Hygiene (Preventing Internal-Info Leaks)
 
-This is a PUBLIC repo developed while testing against internal client projects. Secrets are not the only leak class — **client identifiers are equally forbidden**: client/project codenames, real ADO org/project names, real environment URLs, real Figma file keys, real work-item/test-run/record IDs, internal team/channel/policy names, colleague names.
+This is a PUBLIC repo developed while testing against internal client projects. Secrets are not the only leak class - **client identifiers are equally forbidden**: client/project codenames, real ADO org/project names, real environment URLs, real Figma file keys, real work-item/test-run/record IDs, internal team/channel/policy names, colleague names.
 
-**Sanctioned example values — use ONLY these in docs, tests, examples, tool descriptions, and release notes:**
+**Sanctioned example values - use ONLY these in docs, tests, examples, tool descriptions, and release notes:**
 
 | Kind | Sanctioned value |
 |------|------------------|
@@ -128,14 +128,14 @@ This is a PUBLIC repo developed while testing against internal client projects. 
 | GUIDs | `aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee` |
 | Emails / people | `jdoe@example.com`, `Jane Doe` |
 | Tenants / hosts | `contoso.sharepoint.com`, `yourtenant.b2clogin.com`, `your-ns.servicebus.windows.net` |
-| Company | `Contoso` / "your organisation" — never real consultancy or client names |
+| Company | `Contoso` / "your organisation" - never real consultancy or client names |
 
 **Rules:**
-- Never paste real values from client sessions into this repo — not in code, docs, tests, fixtures, release notes, OR commit messages. When documenting a real bug fix, say "a client project", not the project name.
-- Client-flavoured debug artifacts (exported flows, query results, scratch notes) go to gitignored locations (`.context/`, `*.local`) — never `tests/` or `docs/`.
+- Never paste real values from client sessions into this repo - not in code, docs, tests, fixtures, release notes, OR commit messages. When documenting a real bug fix, say "a client project", not the project name.
+- Client-flavoured debug artifacts (exported flows, query results, scratch notes) go to gitignored locations (`.context/`, `*.local`) - never `tests/` or `docs/`.
 - Internal workflow skills/playbooks belong in the private claude-config repo, never in this repo's `.claude/`.
-- The pre-commit and commit-msg hooks scan against `.internal-strings.local` (untracked private denylist — restore from claude-config if missing; new sensitive strings get ADDED there, never allowlisted away) plus committable endpoint heuristics with placeholders in `.internal-scan-placeholders`. **Internal-identifier hits are NEVER bypassable with `--no-verify`** — replace the value with a sanctioned placeholder instead.
-- Before every `npm publish`, `./scripts/scan-tarball.sh packages/{PACKAGE}` is mandatory (wired into both release workflows) — it scans the compiled tarball contents, the one place pre-commit can't see.
+- The pre-commit and commit-msg hooks scan against `.internal-strings.local` (untracked private denylist - restore from claude-config if missing; new sensitive strings get ADDED there, never allowlisted away) plus committable endpoint heuristics with placeholders in `.internal-scan-placeholders`. **Internal-identifier hits are NEVER bypassable with `--no-verify`** - replace the value with a sanctioned placeholder instead.
+- Before every `npm publish`, `./scripts/scan-tarball.sh packages/{PACKAGE}` is mandatory (wired into both release workflows) - it scans the compiled tarball contents, the one place pre-commit can't see.
 
 ## Monorepo Architecture (v28+)
 
@@ -184,7 +184,7 @@ Each technical doc includes: Architecture, Available Tools, Service Implementati
 
 ## ⚠️ MCP Protocol Requirement (HARD RULE)
 
-**NEVER use `console.log()` or write to stdout!** MCP uses stdio transport — any non-JSON stdout corrupts the protocol.
+**NEVER use `console.log()` or write to stdout!** MCP uses stdio transport - any non-JSON stdout corrupts the protocol.
 
 ```typescript
 console.log('...');    // ❌ FORBIDDEN - writes to stdout
@@ -194,7 +194,7 @@ console.warn('...');   // ✅ OK - writes to stderr
 
 ## Architecture, Adding Features & Tool Design
 
-The Service-Tool-Prompt pattern, canonical package structure, naming conventions, ServiceContext rules, file-size limits, and the mandatory checklists for adding a tool / domain / package are documented in scoped reference files — load when actually doing the work:
+The Service-Tool-Prompt pattern, canonical package structure, naming conventions, ServiceContext rules, file-size limits, and the mandatory checklists for adding a tool / domain / package are documented in scoped reference files - load when actually doing the work:
 
 - **Package architecture & naming:** [`.claude/refs/package-architecture.md`](.claude/refs/package-architecture.md). Reference package: `packages/azure-devops/`.
 - **Adding tools, domains, integration packages:** [`.claude/refs/adding-features-checklist.md`](.claude/refs/adding-features-checklist.md).
@@ -202,7 +202,7 @@ The Service-Tool-Prompt pattern, canonical package structure, naming conventions
 
 ## CLI
 
-Every package ships a Commander.js CLI alongside its MCP server, sharing the same services and ServiceContext. CLI parity with MCP tools is non-negotiable — every MCP tool has a matching CLI command.
+Every package ships a Commander.js CLI alongside its MCP server, sharing the same services and ServiceContext. CLI parity with MCP tools is non-negotiable - every MCP tool has a matching CLI command.
 
 Quickstart: `npx --package=@mcp-consultant-tools/azure-devops mcp-ado-cli wiki list MyProject`. Global flags: `--json`, `--no-cache`, `--env-file`. Output goes to stdout (summary) + `.context/.mcp-{abbrev}-cache/` (full JSON).
 
@@ -212,20 +212,20 @@ Full architecture, MCP↔CLI parity rules, parameter-mapping conventions, core h
 
 ### Safe Release Workflow
 
-Use the slash commands — they encapsulate the full workflow including release-notes updates, the Teams announcement and the mandatory `/log` entry.
+Use the slash commands - they encapsulate the full workflow including release-notes updates, the Teams announcement and the mandatory `/log` entry.
 
 1. **Local Testing:** `npm run build` → exercise the modified package(s) locally (mcp-local-tester or manual run).
-2. **Beta Release:** `/release_workflow_beta` — secret scan → `/product-releasenotes beta` (updates master + per-iteration, emits Teams message) → version bump → commit → `npm publish --tag beta` → `/log` → handoff for testing.
-3. **USER TESTING REQUIRED** — beta is exercised against real client environments before promotion.
-4. **Production Release:** `/release_workflow` — secret scan → `/product-releasenotes production` (flips master status banner, updates URLs to `main`) → version bump → commit → `npm publish` (latest) → merge to `main` → tag → next-release branch → `/log`.
+2. **Beta Release:** `/release_workflow_beta` - secret scan → `/product-releasenotes beta` (updates master + per-iteration, emits Teams message) → version bump → commit → `npm publish --tag beta` → `/log` → handoff for testing.
+3. **USER TESTING REQUIRED** - beta is exercised against real client environments before promotion.
+4. **Production Release:** `/release_workflow` - secret scan → `/product-releasenotes production` (flips master status banner, updates URLs to `main`) → version bump → commit → `npm publish` (latest) → merge to `main` → tag → next-release branch → `/log`.
 
-Per-iteration release-notes files (`docs/release-notes/v{X.Y.Z}-beta.N.md`) are agent audit trail. The master file `docs/release-notes/v{MAJOR}.0.0.md` is the user-facing single source of truth — see the "Release Notes — Master-Doc Model" section above.
+Per-iteration release-notes files (`docs/release-notes/v{X.Y.Z}-beta.N.md`) are agent audit trail. The master file `docs/release-notes/v{MAJOR}.0.0.md` is the user-facing single source of truth - see the "Release Notes - Master-Doc Model" section above.
 
-### npm Authentication (2FA bypass — standing rule)
+### npm Authentication (2FA bypass - standing rule)
 
-**When publishing (`npm publish`), retrieve the npm automation token from 1Password and use it — do NOT prompt for a 2FA one-time password, and do NOT ask the user.** The token bypasses 2FA; using it on publish is pre-authorized.
+**When publishing (`npm publish`), retrieve the npm automation token from 1Password and use it - do NOT prompt for a 2FA one-time password, and do NOT ask the user.** The token bypasses 2FA; using it on publish is pre-authorized.
 
-The publish-auth specifics (1Password item / vault / account + the temp-`.npmrc` token-fetch snippet) live in the untracked **`.claude/publish-auth.local.md`** — recreate it from 1Password if missing. Never write the token to a committed file or echo it; always use a temp `$HOME/.npmrc-*`, `chmod 600`, and `rm -f` after. If `op read` reports a sign-in prompt, ask the user to run `op signin`. If the token 401s, it has been rotated — ask the user to refresh the 1Password item.
+The publish-auth specifics (1Password item / vault / account + the temp-`.npmrc` token-fetch snippet) live in the untracked **`.claude/publish-auth.local.md`** - recreate it from 1Password if missing. Never write the token to a committed file or echo it; always use a temp `$HOME/.npmrc-*`, `chmod 600`, and `rm -f` after. If `op read` reports a sign-in prompt, ask the user to run `op signin`. If the token 401s, it has been rotated - ask the user to refresh the 1Password item.
 
 ### Version Bumping
 - `npm version prerelease --preid=beta`: Beta (1.0.0 → 1.0.0-beta.1)
@@ -269,7 +269,7 @@ Use the explicit `--package` form whenever the package name differs from the bin
 "args": ["-y", "--package=@mcp-consultant-tools/PACKAGE", "BINARY"]
 ```
 
-Always include ALL environment variables (with defaults) in MCP config examples — even optional ones — so users see every available option.
+Always include ALL environment variables (with defaults) in MCP config examples - even optional ones - so users see every available option.
 
 Full package → MCP-binary → CLI-binary mapping table + a worked example: [`.claude/refs/package-binaries.md`](.claude/refs/package-binaries.md).
 
@@ -279,4 +279,4 @@ Full package → MCP-binary → CLI-binary mapping table + a worked example: [`.
 
 ## Context Management
 
-See the `<context-management>` section in global `~/.claude/CLAUDE.md` — same rules apply here. Pipe verbose builds/tests to `.context/terminal/`, save MCP responses >50 lines to `.context/mcp/`, grep when needed.
+See the `<context-management>` section in global `~/.claude/CLAUDE.md` - same rules apply here. Pipe verbose builds/tests to `.context/terminal/`, save MCP responses >50 lines to `.context/mcp/`, grep when needed.

@@ -20,16 +20,16 @@ The Azure Defender integration reads Microsoft Defender for Cloud posture data t
 ## Architecture
 
 **Client layer:**
-- `AzureAuthProvider` — wraps `ClientSecretCredential`, caches the ARM token until 5 minutes before expiry
-- `DefenderClient` — authenticated axios instance against `management.azure.com`; retries `429/500/502/503/504` with exponential backoff (honouring `Retry-After`), normalises ARM error bodies into `Error(code: message)`, and paginates `nextLink` chains
+- `AzureAuthProvider` - wraps `ClientSecretCredential`, caches the ARM token until 5 minutes before expiry
+- `DefenderClient` - authenticated axios instance against `management.azure.com`; retries `429/500/502/503/504` with exponential backoff (honouring `Retry-After`), normalises ARM error bodies into `Error(code: message)`, and paginates `nextLink` chains
 
 **Service classes** (each takes an injected `DefenderClient`, so retries, error normalisation and pagination apply once):
-- `SecureScoreService` — secure score and score controls
-- `AssessmentService` — security assessments and the assessment-definition catalogue
-- `ComplianceService` — regulatory compliance standards, controls, assessments, and roll-up
-- `AttackPathService` — Defender CSPM attack paths via Azure Resource Graph
+- `SecureScoreService` - secure score and score controls
+- `AssessmentService` - security assessments and the assessment-definition catalogue
+- `ComplianceService` - regulatory compliance standards, controls, assessments, and roll-up
+- `AttackPathService` - Defender CSPM attack paths via Azure Resource Graph
 
-`ServiceContext` exposes four lazy getters. There is exactly **one** `createServiceContext()` (in `context-factory.ts`), imported by both `index.ts` and `cli.ts` — unlike `azure-sql`, which carries a duplicate private copy.
+`ServiceContext` exposes four lazy getters. There is exactly **one** `createServiceContext()` (in `context-factory.ts`), imported by both `index.ts` and `cli.ts` - unlike `azure-sql`, which carries a duplicate private copy.
 
 **Source layout:**
 ```
@@ -83,12 +83,12 @@ Verified against Microsoft Learn and `Azure/azure-rest-api-specs` on 2026-07-10.
 | `Microsoft.Security/secureScoreControls` | `2020-01-01` | Only GA version ever shipped |
 | `Microsoft.Security/assessments` | `2025-05-04` | Current GA. `2020-01-01` cannot express `Critical` severity and lacks the `risk` object |
 | `Microsoft.Security/assessmentMetadata` | `2025-05-04` | Current GA, same API area |
-| `Microsoft.Security/regulatoryCompliance*` | `2019-01-01-preview` | **Not stale.** This is the only version that has ever existed for this surface — no GA has shipped in seven years. Do not "upgrade" it |
+| `Microsoft.Security/regulatoryCompliance*` | `2019-01-01-preview` | **Not stale.** This is the only version that has ever existed for this surface - no GA has shipped in seven years. Do not "upgrade" it |
 | `Microsoft.Security/alerts` | `2022-01-01` | **Not stale.** Newest stable this surface has: `alerts.json` stops there in `Azure/azure-rest-api-specs`, and the TypeSpec-migrated `AlertsAPI/` folder still emits the same version (checked 2026-08-19) |
 | `Microsoft.Security/pricings` | `2024-01-01` | Newest stable. `2025-10-01-preview` exists; preview versions are not pinned here |
 | `Microsoft.ResourceGraph/resources` | `2024-04-01` | Current GA; `2021-03-01` differs only by one additive option field |
 
-A stale api-version does not fail loudly — it either 400s or returns an older schema that silently omits fields. Re-check before a release.
+A stale api-version does not fail loudly - it either 400s or returns an older schema that silently omits fields. Re-check before a release.
 
 </api-versions>
 
@@ -232,7 +232,7 @@ Compliance rolled up per standard.
 |-----------|------|----------|-------|
 | `standardName` | string | No | Omit for all standards |
 
-An **unknown** `standardName` throws, listing the available names. It does not return an empty summary — `averageCompliance: 0` would read as "totally non-compliant" rather than "no such standard".
+An **unknown** `standardName` throws, listing the available names. It does not return an empty summary - `averageCompliance: 0` would read as "totally non-compliant" rather than "no such standard".
 
 `compliancePercentage = passed / (passed + failed)`. Skipped and unsupported controls are excluded from the denominator (matching the Azure portal), so it will not equal `passedControls / totalControls`.
 </tool>
@@ -247,11 +247,11 @@ Attack paths identified by Defender CSPM.
 | `riskCategory` | string | No | Case-insensitive substring match against **both** `riskFactors` and `riskCategories` |
 | `riskLevel` | string | No | Case-insensitive substring match against **both** `riskLevel` and `potentialImpact`, e.g. `High` |
 | `displayNameContains` | string | No | Case-insensitive substring match against `displayName` |
-| `maxResults` | integer 1–500 | No | Default 100 |
+| `maxResults` | integer 1-500 | No | Default 100 |
 
 Returns `{ attackPaths, truncated, summary: { total, byRiskLevel, byRiskFactor, riskLevelNotReported, note? } }`. `byRiskFactor` counts each factor on each path, so it sums to more than `total`.
 
-Each risk filter emits an `or` across both spellings of its field, because a clause on one name alone matches nothing on a tenant returning the other shape — and an empty filtered list is indistinguishable from a subscription with no such paths.
+Each risk filter emits an `or` across both spellings of its field, because a clause on one name alone matches nothing on a tenant returning the other shape - and an empty filtered list is indistinguishable from a subscription with no such paths.
 
 `riskLevelNotReported` counts paths whose payload named no risk level under either spelling; they are bucketed under `NotReported` and `summary.note` appears. That is a gap in the payload, never evidence of low risk.
 
@@ -325,7 +325,7 @@ securityresources
 | where type == 'microsoft.security/attackpaths'
 ```
 
-The scope comes from the request body's `subscriptions` array, not a `where subscriptionId ==` clause — one less place to interpolate a value into KQL.
+The scope comes from the request body's `subscriptions` array, not a `where subscriptionId ==` clause - one less place to interpolate a value into KQL.
 
 ⚠️ **Two row shapes exist and a tenant returns one of them.** Microsoft's published field table describes only the legacy Defender CSPM shape. Live rows on a tenant whose attack paths come from Microsoft Security Exposure Management carry a different, undocumented set. Read **both** names for anything you filter, count or display: keying on one alone printed a `riskLevel: High` path as impact `Unknown` with no risk categories, on every path of a real estate.
 
@@ -380,7 +380,7 @@ Exposure Management shape, **absent from Microsoft's field table** and measured 
 
 The Resource Graph REST API has **no query-parameter binding**, so filter values must be escaped into the KQL string literal by hand (`src/utils/kql.ts`).
 
-`escapeKqlStringLiteral()` escapes the backslash **before** the quote. Escaping only the quote — as a naive implementation does — leaves a trailing `\` in the input free to escape the literal's closing quote, letting a caller break out and append clauses:
+`escapeKqlStringLiteral()` escapes the backslash **before** the quote. Escaping only the quote - as a naive implementation does - leaves a trailing `\` in the input free to escape the literal's closing quote, letting a caller break out and append clauses:
 
 ```
 input:  x\' | project 1 //
@@ -428,7 +428,7 @@ Every list tool surfaces `truncated`, and every `summary` describes exactly the 
 
 - Read-only by design: no write tools, no feature flags, nothing to gate.
 - Service principal needs only `Security Reader` on the subscription. `Security Reader` also carries the Resource Graph read access the attack-path tools and the second assessment source need; a principal that somehow lacks it still gets attack paths as an error and assessments as an ARM-only list with `summary.note` saying so.
-- The subscription ID is **never** logged — it would land in stderr, transcripts, and CI logs.
+- The subscription ID is **never** logged - it would land in stderr, transcripts, and CI logs.
 - ARM tokens are cached in memory and refreshed 5 minutes before expiry; they are never written to disk.
 - KQL filter values are escaped (see `<query-safety>`); ARM path segments are URL-encoded; `resourceId` is validated to start with `/subscriptions/`.
 
@@ -513,7 +513,7 @@ Each template names the traps an agent would otherwise fall into (empty result �
 
 ## Testing
 
-`packages/azure-defender` has its own vitest harness (`vitest.config.ts`, `test: "vitest run"`, tsconfig excludes `src/**/__tests__/**`). 69 unit tests, no live API required — `axios` and `@azure/identity` are mocked at the module boundary.
+`packages/azure-defender` has its own vitest harness (`vitest.config.ts`, `test: "vitest run"`, tsconfig excludes `src/**/__tests__/**`). 69 unit tests, no live API required - `axios` and `@azure/identity` are mocked at the module boundary.
 
 Coverage is targeted at the behaviours that are easy to get wrong:
 - KQL escaping, including a backslash-based break-out attempt

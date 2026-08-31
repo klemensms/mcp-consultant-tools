@@ -62,11 +62,11 @@ auditLogger.log({
 
 The audit subsystem provides Phase A PII audit logging:
 
-- `AuditPipeline` — central runtime; each Dataverse tool call routes through `auditEmit(pipeline, opts, fn)`.
-- `auditEmit(pipeline, opts, fn)` — wrapper that captures success/error/duration, isolates audit failures (logs to stderr, never blocks tool execution).
-- `createAuditConfigFromEnv()` — reads MCP_AUDIT_* env vars, applies refuse-to-start matrix.
-- `captureOperator()` — derives operator identity from `MCP_AUDIT_OPERATOR` or `os-user@hostname`.
-- `AuditSessionStore` — in-memory engagement state, accessed via `pipeline.setEngagement(...)`.
+- `AuditPipeline` - central runtime; each Dataverse tool call routes through `auditEmit(pipeline, opts, fn)`.
+- `auditEmit(pipeline, opts, fn)` - wrapper that captures success/error/duration, isolates audit failures (logs to stderr, never blocks tool execution).
+- `createAuditConfigFromEnv()` - reads MCP_AUDIT_* env vars, applies refuse-to-start matrix.
+- `captureOperator()` - derives operator identity from `MCP_AUDIT_OPERATOR` or `os-user@hostname`.
+- `AuditSessionStore` - in-memory engagement state, accessed via `pipeline.setEngagement(...)`.
 
 See [`docs/technical/AUDIT_LOGGING_TECHNICAL.md`](../../docs/technical/AUDIT_LOGGING_TECHNICAL.md).
 
@@ -76,13 +76,13 @@ See [`docs/technical/AUDIT_LOGGING_TECHNICAL.md`](../../docs/technical/AUDIT_LOG
 confinement for tools that take a caller-supplied path (which prompt injection
 could steer into reading/writing outside the intended location):
 
-- `resolveSafePath(userPath, { root? })` — for WRITE destinations. Confines the
+- `resolveSafePath(userPath, { root? })` - for WRITE destinations. Confines the
   resolved path to a permitted root; rejects `..` traversal and absolute paths
   that escape the root.
-- `assertNoTraversal(userPath)` — for READ sources. Rejects `..` traversal but
+- `assertNoTraversal(userPath)` - for READ sources. Rejects `..` traversal but
   allows absolute paths (so "read a file from anywhere I point you" keeps
   working).
-- `safeBasename(name)` — collapses an untrusted filename component (e.g. a
+- `safeBasename(name)` - collapses an untrusted filename component (e.g. a
   downloaded attachment's own name) to its basename.
 
 **`MCP_FILE_ROOT`** env var sets the permitted root for `resolveSafePath`

@@ -74,7 +74,7 @@ if [ -n "$ENV_FILES" ]; then
 fi
 
 # Check for long strings that look like credentials (excluding allowlisted patterns and excluded files)
-# package-lock.json is excluded — it contains sha512 integrity hashes by design
+# package-lock.json is excluded - it contains sha512 integrity hashes by design
 # (npm-managed, not a credential vector).
 LONG_STRINGS=$(git diff --cached -- . ":(exclude).secret-scan-allowlist" ":(exclude).secret-scan-longstr-allowlist" ":(exclude)package-lock.json" ":(exclude)**/package-lock.json" | grep -oE '[a-zA-Z0-9+/~]{35,}' | grep -v "^-" | filter_allowlist "$LONGSTR_ALLOWLIST" || true)
 if [ -n "$LONG_STRINGS" ]; then

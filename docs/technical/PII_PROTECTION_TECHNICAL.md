@@ -11,14 +11,14 @@ A 4-layer defence-in-depth pipeline at `packages/core/src/pii/`. Each MCP server
 </overview>
 
 <files>
-- `types.ts` — `PiiConfig`, `LayerToggles`, `FieldRules`, `RegexConfig`, `NerConfig`, `LayerReport`, `PipelineReport`, `PipelineResult<T>`
-- `config.ts` — `loadPiiConfig()`, `PiiRefuseToStartError`, `LoadedPiiContext`, env-var parsing, defaults, refuse-to-start enforcement, salt generation
-- `pipeline.ts` — `PiiProtectionPipeline` class, `createPiiPipelineFromEnv()`, `combineReports()`, `formatSummaryFooter()`, `emptyReport()`
-- `field-redaction.ts` — Layer 2 (`applyLayer2`) + the shared `tokenize()` and `inferTokenType()` helpers
-- `regex-redaction.ts` — Layer 3 (`applyLayer3`) with built-in email/phone/DOB patterns plus custom-pattern support
-- `field-exclusion.ts` — Layer 1 (`applyLayer1`) for `$select` filtering
-- `ner-redaction.ts` — Layer 4 (`applyLayer4`) using compromise.js
-- `index.ts` — barrel re-exports
+- `types.ts` - `PiiConfig`, `LayerToggles`, `FieldRules`, `RegexConfig`, `NerConfig`, `LayerReport`, `PipelineReport`, `PipelineResult<T>`
+- `config.ts` - `loadPiiConfig()`, `PiiRefuseToStartError`, `LoadedPiiContext`, env-var parsing, defaults, refuse-to-start enforcement, salt generation
+- `pipeline.ts` - `PiiProtectionPipeline` class, `createPiiPipelineFromEnv()`, `combineReports()`, `formatSummaryFooter()`, `emptyReport()`
+- `field-redaction.ts` - Layer 2 (`applyLayer2`) + the shared `tokenize()` and `inferTokenType()` helpers
+- `regex-redaction.ts` - Layer 3 (`applyLayer3`) with built-in email/phone/DOB patterns plus custom-pattern support
+- `field-exclusion.ts` - Layer 1 (`applyLayer1`) for `$select` filtering
+- `ner-redaction.ts` - Layer 4 (`applyLayer4`) using compromise.js
+- `index.ts` - barrel re-exports
 </files>
 
 <token-format>
@@ -43,7 +43,7 @@ PII protection is **opt-in and off by default**. The pipeline is enabled only wh
 
 | `PII_PROTECTION` | Result |
 |------------------|--------|
-| unset / `false` | pipeline OFF — server starts; raw data flows to the LLM |
+| unset / `false` | pipeline OFF - server starts; raw data flows to the LLM |
 | `true` | pipeline ENABLED |
 
 Refuse-to-start fires only on an **opted-in misconfiguration**: `PII_SESSION_SALT` set but not exactly 64 hex characters, or `PII_CONFIG_PATH` set but the file fails to load OR fails schema validation. A server with no PII env vars starts normally with protection off.
@@ -54,11 +54,11 @@ There is **no enforced gate and no break-glass** in v32: leaving `PII_PROTECTION
 When the pipeline ends up disabled, `createPiiPipelineFromEnv` checks the `environmentIdentifier` passed by the calling package against a list of non-prod hints. If none match, a `[PII WARNING]` line is written to stderr as the pipeline is constructed, which for every package is at startup. The server still starts: this is a heuristic safety net, not a gate.
 
 Identifier source per package:
-- `powerplatform-data` — `POWERPLATFORM_URL` (full URL substring-matched)
-- `azure-devops` — `AZUREDEVOPS_ORGANIZATION` (org name only; the host `dev.azure.com` is intentionally excluded so it doesn't always match `dev`)
-- `azure-sql` — `AZURE_SQL_SERVER`, or first server's `server` field from `AZURE_SQL_SERVERS`
-- `rest-api` — `REST_BASE_URL` (full URL substring-matched)
-- `azure-b2c` — `AZURE_B2C_TENANT_ID` (tenant identifier — typically `<name>.onmicrosoft.com`, substring-matched)
+- `powerplatform-data` - `POWERPLATFORM_URL` (full URL substring-matched)
+- `azure-devops` - `AZUREDEVOPS_ORGANIZATION` (org name only; the host `dev.azure.com` is intentionally excluded so it doesn't always match `dev`)
+- `azure-sql` - `AZURE_SQL_SERVER`, or first server's `server` field from `AZURE_SQL_SERVERS`
+- `rest-api` - `REST_BASE_URL` (full URL substring-matched)
+- `azure-b2c` - `AZURE_B2C_TENANT_ID` (tenant identifier - typically `<name>.onmicrosoft.com`, substring-matched)
 
 Default hint list: `dev`, `uat`, `training`, `support`, `migration`, `sandbox`, `test`. Override via `PII_NONPROD_HINTS` (comma-separated, case-insensitive substrings). Failure mode this catches: consultant copies a dev `.mcp.json`, swaps the URL to a production environment, leaves `PII_PROTECTION=false` because that's what was already there. An environment label is consultant-asserted, but the URL is configuration-asserted and closer to ground truth.
 </url-heuristic-warning>
@@ -101,11 +101,11 @@ interface PiiConfig {
 Resolution order for `enabled` (file > env, no defaulting):
 1. `PII_CONFIG_PATH` JSON file's `enabled` field, if present
 2. `PII_PROTECTION` env (boolean)
-3. *No fallback* — if neither is set, `PiiRefuseToStartError` fires.
+3. *No fallback* - if neither is set, `PiiRefuseToStartError` fires.
 
 Other fields merge file > env > built-in defaults as usual.
 
-`PII_PROTECTION` accepts `true|1` (true) and `false|0` (false); unset/empty resolves to `undefined`, which falls through to `false` (pipeline off — no refuse-to-start).
+`PII_PROTECTION` accepts `true|1` (true) and `false|0` (false); unset/empty resolves to `undefined`, which falls through to `false` (pipeline off - no refuse-to-start).
 
 The loader returns a `LoadedPiiContext { config: PiiConfig; getSalt(): Buffer }`. The salt is exposed only via the getter; the buffer is captured in closure and not enumerable on the object.
 </config-loading>
@@ -115,11 +115,11 @@ The loader returns a `LoadedPiiContext { config: PiiConfig; getSalt(): Buffer }`
 | Variable | Required | Values | Effect |
 |----------|----------|--------|--------|
 | `MCP_ENVIRONMENT_TYPE` | no | `production` \| `uat` \| `dev` | **Inert.** Not a gate, not read for any startup decision, and not used by the "looks unprotected" warning. Setting it has no runtime effect. |
-| `PII_PROTECTION` | no (default `false`) | `true` \| `false` | Master switch. Off unless `true`. No environment-type gate — `false`/unset is permitted in any environment. |
+| `PII_PROTECTION` | no (default `false`) | `true` \| `false` | Master switch. Off unless `true`. No environment-type gate - `false`/unset is permitted in any environment. |
 | `PII_OBSERVE_MODE` | no (default `false`) | `true` \| `false` | Run pipeline but return original data; report what would have been redacted. |
 | `PII_CONFIG_PATH` | no | filesystem path | JSON config with per-layer toggles, per-entity field rules, regex patterns, NER scan-fields. See config-schema above. |
 | `PII_NONPROD_HINTS` | no (defaults: `dev,uat,training,support,migration,sandbox,test`) | comma-separated substrings | Override URL-heuristic non-prod hint list. |
-| `PII_SESSION_SALT` | no (default: random per-process) | 64-char hex string (32 bytes) | Cross-MCP-server token correlation — see below. **v31.0.0-beta.2+.** |
+| `PII_SESSION_SALT` | no (default: random per-process) | 64-char hex string (32 bytes) | Cross-MCP-server token correlation - see below. **v31.0.0-beta.2+.** |
 
 <session-salt>
 By default the loader generates a per-process random 32-byte salt at startup via `randomBytes(32)`. Tokens derived from this salt are unique to the process and cannot be correlated against tokens from a different MCP server.
@@ -131,9 +131,9 @@ Validation rules (any failure → `PiiRefuseToStartError`):
 - Must decode to exactly 32 bytes (i.e. exactly 64 hex characters).
 - Empty/whitespace value falls back to the default per-process random salt (no error).
 
-Generation: `openssl rand -hex 32` produces a suitable value. The hex string is the only sensitive material — it must not be persisted outside the consultant's `.mcp.json` (which itself should be gitignored).
+Generation: `openssl rand -hex 32` produces a suitable value. The hex string is the only sensitive material - it must not be persisted outside the consultant's `.mcp.json` (which itself should be gitignored).
 
-Tradeoff: a long-lived shared salt strengthens cross-server correlation but weakens cross-time forgetability. **Rotation recommendation: minimum once per engagement; per-day for sensitive work.** No automated rotation in v1 — operator discipline only.
+Tradeoff: a long-lived shared salt strengthens cross-server correlation but weakens cross-time forgetability. **Rotation recommendation: minimum once per engagement; per-day for sensitive work.** No automated rotation in v1 - operator discipline only.
 
 Loader hook: `loadSessionSalt()` in `packages/core/src/pii/config.ts`. Called inline from `loadPiiConfig()`. Returns a `Buffer` of length 32; the buffer is captured in closure inside `LoadedPiiContext.getSalt()`.
 </session-salt>
@@ -157,7 +157,7 @@ Called by `DataService.queryRecords` before constructing the URL.
 </api>
 
 <scope>
-Only filters caller-supplied selects. If the caller did not supply a select (i.e. asking for all fields), Layer 1 is a no-op in v1 — computing "all fields except PII" requires per-entity metadata. Layers 2-4 handle that case at the response boundary instead.
+Only filters caller-supplied selects. If the caller did not supply a select (i.e. asking for all fields), Layer 1 is a no-op in v1 - computing "all fields except PII" requires per-entity metadata. Layers 2-4 handle that case at the response boundary instead.
 </scope>
 
 <q5.1-decision>
@@ -202,14 +202,14 @@ Catch structured PII patterns (email, phone, ISO-format date) embedded in free-t
 
 <built-in-patterns>
 - `email`: `\b[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+\b`
-- `phone`: `\+\d{1,3}(?:[\s.-]?\(?\d{1,4}\)?){1,4}[\s.-]?\d{2,9}` (international format only — must start with `+` to avoid false positives on numeric strings in text)
+- `phone`: `\+\d{1,3}(?:[\s.-]?\(?\d{1,4}\)?){1,4}[\s.-]?\d{2,9}` (international format only - must start with `+` to avoid false positives on numeric strings in text)
 - `dob`: `\b(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\b` (strict ISO YYYY-MM-DD)
 
 Each can be individually toggled via `regex.email`, `regex.phone`, `regex.dateOfBirth`.
 </built-in-patterns>
 
 <custom-patterns>
-`regex.customPatterns: { name, pattern, tokenType }[]` — `pattern` is a JS regex source string compiled with the `g` flag. Invalid patterns are skipped silently.
+`regex.customPatterns: { name, pattern, tokenType }[]` - `pattern` is a JS regex source string compiled with the `g` flag. Invalid patterns are skipped silently.
 </custom-patterns>
 
 <token-skip>
@@ -217,7 +217,7 @@ Any substring that is itself already a token (matches `\[REDACTED:[a-z]+:[0-9a-f
 </token-skip>
 
 <scope>
-Walks every string value in the response, regardless of field name. Catches PII in unexpected places — e.g. `description` containing `john.smith@example.com`, lookup-display-annotation values containing dates, etc.
+Walks every string value in the response, regardless of field name. Catches PII in unexpected places - e.g. `description` containing `john.smith@example.com`, lookup-display-annotation values containing dates, etc.
 </scope>
 
 </layer>
@@ -225,7 +225,7 @@ Walks every string value in the response, regardless of field name. Catches PII 
 <layer id="4" name="NER (compromise.js)">
 
 <purpose>
-Detect PERSON entities in free-text fields that regex can't catch — names like "Maria Schmidt", "Klaus Müller", "John Smith".
+Detect PERSON entities in free-text fields that regex can't catch - names like "Maria Schmidt", "Klaus Müller", "John Smith".
 </purpose>
 
 <engine>
@@ -263,7 +263,7 @@ When `observeMode: true`:
 - All layers compute what they WOULD redact (counts + field paths)
 - The pipeline returns the ORIGINAL data unchanged
 - The report still contains all layer reports with `observeMode: true` flagged
-- The footer renders with `(observe-mode — values not changed)` annotation
+- The footer renders with `(observe-mode - values not changed)` annotation
 
 Use case: validate recall against real production responses before committing to actual redaction.
 </observe-mode>
@@ -284,9 +284,9 @@ interface LayerReport {
 `formatSummaryFooter(report)` renders the compact line shown to the agent:
 - `[PII protection: 2 emails + 4 names + 2 dobs + 1 phone redacted by L1/L2/L3/L4]`
 - `[PII protection: nothing redacted]` (when `totalRedactions === 0`)
-- `[PII protection: ... (observe-mode — values not changed)]` (in observe mode)
+- `[PII protection: ... (observe-mode - values not changed)]` (in observe mode)
 
-The structured report itself is mandatory output — the orchestrator emits it from day one — but the only consumer in v1 is the footer. The deferred `pii-explain-last-call` MCP tool and `--redaction-diff` CLI flag (v1.5) will consume the same report.
+The structured report itself is mandatory output - the orchestrator emits it from day one - but the only consumer in v1 is the footer. The deferred `pii-explain-last-call` MCP tool and `--redaction-diff` CLI flag (v1.5) will consume the same report.
 </reporting>
 
 </orchestration>
@@ -294,7 +294,7 @@ The structured report itself is mandatory output — the orchestrator emits it f
 <integration-points>
 
 <package id="powerplatform-core">
-**`DataService` (`src/services/DataService.ts`)** — The single leverage point for the PowerPlatform packages.
+**`DataService` (`src/services/DataService.ts`)** - The single leverage point for the PowerPlatform packages.
 
 Constructor: `new DataService(client, piiPipeline?)`.
 
@@ -310,23 +310,23 @@ Entity logical name derived from the plural via naive `replace(/s$/, '')`. For u
 </package>
 
 <package id="powerplatform-data">
-**`PowerPlatformService`** — facade. Constructor takes `(config, authProvider?, piiPipeline?)`, forwards pipeline to `DataService`.
+**`PowerPlatformService`** - facade. Constructor takes `(config, authProvider?, piiPipeline?)`, forwards pipeline to `DataService`.
 
-**`createServiceContext()`** in both `index.ts` and `context-factory.ts` — eagerly call `createPiiPipelineFromEnv()` at startup; any opted-in misconfiguration (invalid `PII_SESSION_SALT` / unloadable `PII_CONFIG_PATH`) refuses to start before any tool registration. With no PII env vars set, the pipeline is built disabled and the server starts normally.
+**`createServiceContext()`** in both `index.ts` and `context-factory.ts` - eagerly call `createPiiPipelineFromEnv()` at startup; any opted-in misconfiguration (invalid `PII_SESSION_SALT` / unloadable `PII_CONFIG_PATH`) refuses to start before any tool registration. With no PII env vars set, the pipeline is built disabled and the server starts normally.
 
-**`read-tools.ts` `query-records`** — strips `piiReport` from the JSON shown to the agent (it's metadata, not record data) and appends `formatSummaryFooter(piiReport)` to the response text.
+**`read-tools.ts` `query-records`** - strips `piiReport` from the JSON shown to the agent (it's metadata, not record data) and appends `formatSummaryFooter(piiReport)` to the response text.
 </package>
 
 <package id="azure-devops">
-**`WorkItemService`** — Constructor takes `(client, piiPipeline?)`. `getWorkItem()` and `queryWorkItems()` redact the shaped result via `pipeline.redactResponse('workitem', shaped)` and inline the `piiReport` on the returned object.
+**`WorkItemService`** - Constructor takes `(client, piiPipeline?)`. `getWorkItem()` and `queryWorkItems()` redact the shaped result via `pipeline.redactResponse('workitem', shaped)` and inline the `piiReport` on the returned object.
 
-ADO identity objects (`System.AssignedTo`, `System.CreatedBy`, etc.) flow through Layer 3 (catches `uniqueName` email format) and Layer 4 (catches `displayName` person names — `displayName` is in default scan-fields).
+ADO identity objects (`System.AssignedTo`, `System.CreatedBy`, etc.) flow through Layer 3 (catches `uniqueName` email format) and Layer 4 (catches `displayName` person names - `displayName` is in default scan-fields).
 
 **`createServiceContext()`** in `context-factory.ts` constructs the pipeline and passes it to every `WorkItemService` instance.
 </package>
 
 <package id="azure-sql">
-**`QueryService`** — Constructor takes `(connectionService, piiPipeline?)`. `executeQuery()` runs `limitedRows` through `pipeline.redactResponse('row', rows)`. SQL has no per-entity rules — Layer 2 is effectively a no-op for SQL — but Layers 3 and 4 do the heavy lifting (regex catches emails/phones in any column, NER catches names in any column).
+**`QueryService`** - Constructor takes `(connectionService, piiPipeline?)`. `executeQuery()` runs `limitedRows` through `pipeline.redactResponse('row', rows)`. SQL has no per-entity rules - Layer 2 is effectively a no-op for SQL - but Layers 3 and 4 do the heavy lifting (regex catches emails/phones in any column, NER catches names in any column).
 
 `SqlApiCollectionResponse<T>` adds optional `piiReport?: PipelineReport`.
 
@@ -334,11 +334,11 @@ Both `index.ts` and `context-factory.ts` eagerly construct the pipeline at serve
 </package>
 
 <package id="rest-api">
-**`RestApiService`** — Constructor takes `(config, piiPipeline?)`. `request()` redacts the response body via a private `redact()` helper before constructing the returned `RequestResult`.
+**`RestApiService`** - Constructor takes `(config, piiPipeline?)`. `request()` redacts the response body via a private `redact()` helper before constructing the returned `RequestResult`.
 
 The `redact()` helper branches on body shape:
 - **JSON-parsed object/array bodies** → `pipeline.redactResponse('rest-api', body)` walks the full tree (Layer 2 is a no-op since `rest-api` has no entity rules; Layers 3 and 4 scan every string leaf).
-- **String bodies** (plain text, XML, HTML — anything that fails `JSON.parse` in the request flow) → wrapped under `{ body: <string> }` before `pipeline.redactResponse('rest-api', ...)`, then unwrapped on return. The wrap is necessary so Layer 4 NER fires (`displayName`, `body`, etc. are in the default `scanFields` list; bare strings without a field-name context are skipped by L4).
+- **String bodies** (plain text, XML, HTML - anything that fails `JSON.parse` in the request flow) → wrapped under `{ body: <string> }` before `pipeline.redactResponse('rest-api', ...)`, then unwrapped on return. The wrap is necessary so Layer 4 NER fires (`displayName`, `body`, etc. are in the default `scanFields` list; bare strings without a field-name context are skipped by L4).
 - **`null`, `undefined`, primitives** → returned unchanged.
 
 Layer 1 does not apply (no schema-level `$select` against arbitrary REST endpoints).
@@ -349,14 +349,14 @@ Both `index.ts` and `context-factory.ts` eagerly construct the pipeline at serve
 </package>
 
 <package id="azure-b2c">
-**`UserService`** — Constructor takes `(client, piiPipeline?)`. A private `redact<T>(data: T): T` helper calls `pipeline.redactResponse('b2c-user', data).data` when the pipeline is enabled, otherwise returns the data unchanged.
+**`UserService`** - Constructor takes `(client, piiPipeline?)`. A private `redact<T>(data: T): T` helper calls `pipeline.redactResponse('b2c-user', data).data` when the pipeline is enabled, otherwise returns the data unchanged.
 
 Redaction is applied at every return path of the read methods:
-- `listUsers` — both branches (cache hit and Graph fetch); cache stores **unredacted** data so per-session salts apply correctly across cache hits.
-- `getUser` — both branches (`includeAllFields=true` returns raw response, redacted; `includeAllFields=false` returns mapped `B2CUser`, also redacted).
-- `searchUsers` — both branches.
-- `createUser` — the mapped `B2CUser` returned after a successful create is redacted before return.
-- `updateUser` — inherits redaction via its trailing `await this.getUser(userId)` call.
+- `listUsers` - both branches (cache hit and Graph fetch); cache stores **unredacted** data so per-session salts apply correctly across cache hits.
+- `getUser` - both branches (`includeAllFields=true` returns raw response, redacted; `includeAllFields=false` returns mapped `B2CUser`, also redacted).
+- `searchUsers` - both branches.
+- `createUser` - the mapped `B2CUser` returned after a successful create is redacted before return.
+- `updateUser` - inherits redaction via its trailing `await this.getUser(userId)` call.
 
 `deleteUser` returns `void`, no redaction needed. Group methods are not currently wired (group `displayName`/`description` aren't person PII; can be added later if a client carries names in group fields).
 
@@ -364,11 +364,11 @@ Default field rules for the `b2c-user` entity (in `packages/core/src/pii/config.
 - `redactInResponse`: `givenName`, `surname`, `displayName`, `mail`, `otherMails`, `mobilePhone`
 - `excludeFromSelect`: empty (Graph API doesn't support arbitrary `$select` from this MCP path; L1 inactive)
 
-Borderline fields **NOT in defaults** (`streetAddress`, `city`, `postalCode`, `country`, `jobTitle`) — opt-in via `PII_CONFIG_PATH` if a particular client treats those as PII.
+Borderline fields **NOT in defaults** (`streetAddress`, `city`, `postalCode`, `country`, `jobTitle`) - opt-in via `PII_CONFIG_PATH` if a particular client treats those as PII.
 
 Both `index.ts` and `context-factory.ts` eagerly construct the pipeline at server startup with `environmentIdentifier: process.env.AZURE_B2C_TENANT_ID`. The URL-heuristic warning fires at startup when `PII_PROTECTION=false` and the configured tenant identifier doesn't match any non-prod hint.
 
-Note: `userPrincipalName` and `mail` typically share the same email value, and Layer 3's email regex catches both — so even without an explicit field rule for `userPrincipalName`, it ends up redacted. The salted-HMAC produces the same token for the same email, so the agent can still correlate "userPrincipalName and mail are the same person."
+Note: `userPrincipalName` and `mail` typically share the same email value, and Layer 3's email regex catches both - so even without an explicit field rule for `userPrincipalName`, it ends up redacted. The salted-HMAC produces the same token for the same email, so the agent can still correlate "userPrincipalName and mail are the same person."
 </package>
 
 </integration-points>
@@ -386,7 +386,7 @@ Note: `userPrincipalName` and `mail` typically share the same email value, and L
 
 - **Salt confinement:** the session salt is held only on the `LoadedPiiContext` and the `PiiProtectionPipeline` instance via a `#context` private field. It is never logged, never serialized in any `PipelineReport`, never persisted to disk. Operational logging that names the missing-config piece on refuse-to-start does NOT include the salt.
 
-- **No enforced gate (v32):** there is no environment-type gate enforcing redaction. Operator forgetfulness (leaving `PII_PROTECTION` unset) is **not** caught at startup — the server runs with protection off, and the URL-heuristic stderr warning is the only signal. Enabling protection against production is the operator's explicit responsibility. (v31 betas enforced a production refuse-to-start gate; v32 relaxed it to opt-in.) Malicious operators who rebuild the binary are out of scope for v1; the audit log catches misuse post-hoc.
+- **No enforced gate (v32):** there is no environment-type gate enforcing redaction. Operator forgetfulness (leaving `PII_PROTECTION` unset) is **not** caught at startup - the server runs with protection off, and the URL-heuristic stderr warning is the only signal. Enabling protection against production is the operator's explicit responsibility. (v31 betas enforced a production refuse-to-start gate; v32 relaxed it to opt-in.) Malicious operators who rebuild the binary are out of scope for v1; the audit log catches misuse post-hoc.
 
 - **Token reversibility:** within one server lifetime, anyone with access to the server's process memory could brute-force the salt against a small set of candidate values to reverse a token. The threat model assumes the host machine is trusted; the threat is the LLM round-trip to US infrastructure.
 

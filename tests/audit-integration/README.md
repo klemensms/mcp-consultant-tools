@@ -18,17 +18,17 @@ Three real Phase A bugs were caught by this suite during its development:
 | Bug | Detection | Fix commit |
 |---|---|---|
 | Refuse-to-start matrix items D + E (unwritable path / corrupted chain state) only fired on first emit, not at startup | refuse-to-start scenario | `96d7728` |
-| **Refuse-to-execute on engagement-unset never enforced — silent audit leak** | refuse-to-execute scenario | `6531ded` |
+| **Refuse-to-execute on engagement-unset never enforced - silent audit leak** | refuse-to-execute scenario | `6531ded` |
 | Address fields not in default `redactInResponse` for contact/account/lead | pii-audit-matrix scenario | `7364a8d` |
 
-Two structural gaps remain (require design calls — separate from this test pass):
+Two structural gaps remain (require design calls - separate from this test pass):
 - **Gap 1 (filter-param leak):** `query-records({filter: "firstname eq 'Maria'"})` records `'Maria'` raw in `tool.params.filter` even at full PII protection.
 - **Gap 3 (lookup `@OData.Community.Display.V1.FormattedValue` annotation leak):** Custom lookups carry PII via formatted-value annotations that bypass field-name redaction.
 
 ## Prerequisites
 
 - `.mcp.json` at repo root contains a working `MCPTest-pp-data` server entry with `POWERPLATFORM_*` credentials. The harness reads creds from this file (gitignored). Without it, every scenario fails at spawn time.
-- `npm run build` has run at least once — the harness spawns `packages/powerplatform-data/build/index.js` directly, not via npx.
+- `npm run build` has run at least once - the harness spawns `packages/powerplatform-data/build/index.js` directly, not via npx.
 - Node ≥ 16 (matches package engines).
 
 ## Running scenarios
@@ -63,9 +63,9 @@ Available scenarios:
 
 Per scenario run, output lands in `output/<scenario>/<runId>/`:
 
-- `audit-out/` — the per-scenario audit base directory (passed as `MCP_AUDIT_PATH` to spawned pp-data instances). All JSONL files live under this.
-- `result.json` — pass/fail status + duration + error stack on failure
-- `log.txt` — runner + scenario log lines
+- `audit-out/` - the per-scenario audit base directory (passed as `MCP_AUDIT_PATH` to spawned pp-data instances). All JSONL files live under this.
+- `result.json` - pass/fail status + duration + error stack on failure
+- `log.txt` - runner + scenario log lines
 - For `pii-audit-matrix`: `matrix-report.md` + `matrix-report.json` with per-cell redaction reports
 - For `leakage-sweep`: `leakage-sweep-report.md` summarising leak counts per scenario
 
@@ -73,7 +73,7 @@ Per scenario run, output lands in `output/<scenario>/<runId>/`:
 
 ## MCPTest fixture cleanup
 
-Scenarios that create MCPTest contacts (`pii-audit-matrix`, `all-tools`) push their fixture IDs into `ctx.fixtureIds`. The runner's teardown phase deletes every fixture in that list — including on scenario failure. If a scenario crashes hard (process killed mid-run), orphan fixtures may remain. To clean up manually:
+Scenarios that create MCPTest contacts (`pii-audit-matrix`, `all-tools`) push their fixture IDs into `ctx.fixtureIds`. The runner's teardown phase deletes every fixture in that list - including on scenario failure. If a scenario crashes hard (process killed mid-run), orphan fixtures may remain. To clean up manually:
 
 ```js
 // query for AUDITTEST_ contacts

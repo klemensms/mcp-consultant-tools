@@ -13,8 +13,8 @@
  *   - ctx.log(level, ...args)
  *
  * Throw to mark the scenario as failed. Don't catch errors unless you know
- * what to do with them — the runner records the stack trace.
+ * what to do with them - the runner records the stack trace.
  */
 export default async function templateScenario(ctx) {
-  ctx.log('info', 'template scenario — replace this with real assertions');
+  ctx.log('info', 'template scenario - replace this with real assertions');
 }

@@ -331,7 +331,7 @@ Returns formatted activity breakdown plus a JSON block. The formatted section in
 **Activity time range:** Queries activities updated within the last 30 days through tomorrow, ordered by `ActivityRunStart ASC`.
 
 **`adf-cancel-pipeline-run`**
-Cancels a running pipeline. Requires `AZURE_DATA_FACTORY_ENABLE_WRITE=true`. Cancellation is asynchronous — the pipeline may take a moment to fully stop.
+Cancels a running pipeline. Requires `AZURE_DATA_FACTORY_ENABLE_WRITE=true`. Cancellation is asynchronous - the pipeline may take a moment to fully stop.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -344,32 +344,32 @@ Queries pipeline runs with optional filters. Returns JSON array of run summaries
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `lastDays` | number | 7 | Look-back window in days |
-| `pipelineName` | string | — | Filter by exact pipeline name |
-| `status` | enum | — | `Queued`, `InProgress`, `Succeeded`, `Failed`, `Canceling`, `Cancelled` |
-| `factoryId` | string | — | Factory ID |
+| `pipelineName` | string | - | Filter by exact pipeline name |
+| `status` | enum | - | `Queued`, `InProgress`, `Succeeded`, `Failed`, `Canceling`, `Cancelled` |
+| `factoryId` | string | - | Factory ID |
 
 **`adf-query-debug-pipeline-runs`**
-Queries **debug-mode** pipeline run history — runs launched via the ADF Studio "Debug" button, a distinct surface from triggered/published runs. Backed by the `queryDebugPipelineRuns` ARM action, which is **undocumented** by Microsoft (absent from the public Swagger/REST reference) but is a real, RBAC-registered control-plane action (`Microsoft.DataFactory/factories/querydebugpipelineruns/action`, `IsDataAction: false`) that works with **app-only** (service principal) auth given Data Factory Contributor-equivalent RBAC. Debug-run history is retained **server-side for ~15 days** regardless of the query window.
+Queries **debug-mode** pipeline run history - runs launched via the ADF Studio "Debug" button, a distinct surface from triggered/published runs. Backed by the `queryDebugPipelineRuns` ARM action, which is **undocumented** by Microsoft (absent from the public Swagger/REST reference) but is a real, RBAC-registered control-plane action (`Microsoft.DataFactory/factories/querydebugpipelineruns/action`, `IsDataAction: false`) that works with **app-only** (service principal) auth given Data Factory Contributor-equivalent RBAC. Debug-run history is retained **server-side for ~15 days** regardless of the query window.
 
-The response schema has **no total-count field**, so the tool pages through `continuationToken` up to `maxResults` and reports `"truncated": true` when the cap hid further runs — a capped count is never reported as the total. Caller-supplied `status` is normalized to the wire casing (e.g. British `Cancelling` → `Canceling`) so an exact-match filter does not silently return zero.
+The response schema has **no total-count field**, so the tool pages through `continuationToken` up to `maxResults` and reports `"truncated": true` when the cap hid further runs - a capped count is never reported as the total. Caller-supplied `status` is normalized to the wire casing (e.g. British `Cancelling` → `Canceling`) so an exact-match filter does not silently return zero.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `lastDays` | number | 7 | Look-back window in days (debug history kept ~15 days) |
-| `pipelineName` | string | — | Filter by exact pipeline name |
-| `status` | enum | — | `Queued`, `InProgress`, `Succeeded`, `Failed`, `Canceling`, `Cancelled` |
-| `maxResults` | number | 100 | Max runs to return before truncating (1–1000) |
-| `factoryId` | string | — | Factory ID |
+| `pipelineName` | string | - | Filter by exact pipeline name |
+| `status` | enum | - | `Queued`, `InProgress`, `Succeeded`, `Failed`, `Canceling`, `Cancelled` |
+| `maxResults` | number | 100 | Max runs to return before truncating (1-1000) |
+| `factoryId` | string | - | Factory ID |
 
 **`adf-rerun-pipeline`**
 Reruns a failed pipeline in recovery mode. Automatically fetches the original run to get the pipeline name and parameters. Creates a new run with `isRecovery=true` and `startFromFailure=true`. Requires `AZURE_DATA_FACTORY_ENABLE_WRITE=true`.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `failedRunId` | string | — | Run ID of the failed pipeline |
+| `failedRunId` | string | - | Run ID of the failed pipeline |
 | `startFromFailure` | boolean | `true` | Start from failed activities |
-| `startActivityName` | string | — | Optional: start from a specific activity instead |
-| `factoryId` | string | — | Factory ID |
+| `startActivityName` | string | - | Optional: start from a specific activity instead |
+| `factoryId` | string | - | Factory ID |
 
 </tool-group>
 
@@ -441,9 +441,9 @@ Queries trigger execution history, ordered by `TriggerRunTimestamp DESC`.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `lastDays` | number | 7 | Look-back window |
-| `triggerName` | string | — | Filter by trigger name |
-| `status` | enum | — | `Succeeded`, `Failed`, `Inprogress` (note: ADF API uses `Inprogress` not `InProgress`) |
-| `factoryId` | string | — | Factory ID |
+| `triggerName` | string | - | Filter by trigger name |
+| `status` | enum | - | `Succeeded`, `Failed`, `Inprogress` (note: ADF API uses `Inprogress` not `InProgress`) |
+| `factoryId` | string | - | Factory ID |
 
 </tool-group>
 
@@ -521,11 +521,11 @@ interface ActivityError {
 
 | Code Range | Category | Description |
 |------------|----------|-------------|
-| 2000–2099 | Copy Activity | Source/sink errors |
-| 2100–2199 | Mapping Data Flow | Transformation errors |
-| 2200–2299 | Storage | Blob/file not found, access denied |
-| 2300–2399 | Database | Connection, query errors |
-| 2400–2499 | Authentication | Token, credential errors |
+| 2000-2099 | Copy Activity | Source/sink errors |
+| 2100-2199 | Mapping Data Flow | Transformation errors |
+| 2200-2299 | Storage | Blob/file not found, access denied |
+| 2300-2399 | Database | Connection, query errors |
+| 2400-2499 | Authentication | Token, credential errors |
 
 ### Factory Config Interface
 
@@ -557,7 +557,7 @@ All tool catch blocks return `isError: true`. The service maps HTTP errors to de
 | ECONNABORTED / ETIMEDOUT | `Azure Data Factory request timed out. Try again or check if the factory is accessible.` |
 | ENOTFOUND / ECONNREFUSED | `Network error: Unable to connect to Azure Management API. Check your internet connection and firewall settings.` |
 
-**Rate limit handling:** The `Retry-After` header value from the 429 response is included in the error message. The service does not auto-retry — the user must retry manually after the indicated delay.
+**Rate limit handling:** The `Retry-After` header value from the 429 response is included in the error message. The service does not auto-retry - the user must retry manually after the indicated delay.
 
 **Troubleshooting common errors:**
 
@@ -598,7 +598,7 @@ Azure Management API has per-subscription rate limits. Exact limits vary by regi
 
 The `utils/formatters.ts` module produces markdown output for human-readable tools and JSON objects for structured queries.
 
-### `adf-get-activity-runs` — Example Output
+### `adf-get-activity-runs` - Example Output
 
 ```markdown
 ## Pipeline Run Failed
@@ -638,7 +638,7 @@ The `utils/formatters.ts` module produces markdown output for human-readable too
 | Copy_contact | Copy | Cancelled | - |
 ```
 
-### `adf-query-pipeline-runs` — JSON Output Format
+### `adf-query-pipeline-runs` - JSON Output Format
 
 ```json
 {
@@ -660,9 +660,9 @@ The `utils/formatters.ts` module produces markdown output for human-readable too
 }
 ```
 
-### `adf-query-debug-pipeline-runs` — JSON Output Format
+### `adf-query-debug-pipeline-runs` - JSON Output Format
 
-Adds `returned`/`truncated` and `byStatus`/`byPipeline` rollups on top of the run list. `returned` is the number of runs actually returned (capped by `maxResults`), and `truncated` is `true` when more runs existed beyond the cap — there is no server-side total count.
+Adds `returned`/`truncated` and `byStatus`/`byPipeline` rollups on top of the run list. `returned` is the number of runs actually returned (capped by `maxResults`), and `truncated` is `true` when more runs existed beyond the cap - there is no server-side total count.
 
 ```json
 {
@@ -822,7 +822,7 @@ mcp-adf-cli pipeline query-runs --last-days 14 --status Failed
 # All flags shown: -d look-back window, -n pipeline-name filter, -s status filter
 # (British "Cancelling" is normalized to wire "Canceling"), -m truncation cap
 # (default 100, max 1000), -f target factory. The response reports "truncated": true
-# when --max-results hid further runs — a capped count is never the total.
+# when --max-results hid further runs - a capped count is never the total.
 mcp-adf-cli pipeline query-debug-runs --last-days 14 --pipeline-name DataCopy_Pipeline --status Failed --max-results 500 --factory-id prod-adf
 
 # Rerun from failure point
@@ -891,12 +891,12 @@ node .claude/templates/mcp-test-runner.mjs
 ### Integration Test Sequence
 
 Test against a real ADF instance in this order:
-1. `adf-list-factories` — verify config loads
-2. `adf-list-pipelines` — verify read access
-3. `adf-run-pipeline` (requires ENABLE_WRITE) — trigger a simple/short pipeline
-4. `adf-get-pipeline-run` — poll until complete
-5. `adf-get-activity-runs` — verify activity data returned
-6. If run failed: `adf-rerun-pipeline` — verify recovery mode
+1. `adf-list-factories` - verify config loads
+2. `adf-list-pipelines` - verify read access
+3. `adf-run-pipeline` (requires ENABLE_WRITE) - trigger a simple/short pipeline
+4. `adf-get-pipeline-run` - poll until complete
+5. `adf-get-activity-runs` - verify activity data returned
+6. If run failed: `adf-rerun-pipeline` - verify recovery mode
 
 </testing>
 

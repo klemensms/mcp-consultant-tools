@@ -5,17 +5,17 @@
 
 **Package:** `@mcp-consultant-tools/azure-defender`
 
-MCP server for Microsoft Defender for Cloud: secure score, security assessments (recommendations), regulatory compliance, and Defender CSPM attack paths. **Every tool is read-only** — there are no write operations and no feature flags.
+MCP server for Microsoft Defender for Cloud: secure score, security assessments (recommendations), regulatory compliance, and Defender CSPM attack paths. **Every tool is read-only** - there are no write operations and no feature flags.
 
 ## Configuration
 
-Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both — only the wrapper key and the file differ.
+Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
 The four `AZURE_*` variables are the same service-principal credentials used by `azure-management`. One service principal can serve both servers.
 
-### VS Code — recommended (1Password)
+### VS Code - recommended (1Password)
 
-Credentials are resolved at runtime via biometric authentication — no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for the full setup guide.
+Credentials are resolved at runtime via biometric authentication - no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for the full setup guide.
 
 ```json
 {
@@ -34,7 +34,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-### Claude Desktop — local credentials
+### Claude Desktop - local credentials
 
 ```json
 {
@@ -86,13 +86,13 @@ Attack paths additionally require the **Defender CSPM plan** to be enabled on th
 
 **`truncated: true` means the counts are a lower bound.** The list tools accept `maxResults`; when more rows matched than were returned, the response sets `truncated: true` and every count in `summary` covers only the returned rows. Omit `maxResults` for subscription-wide totals.
 
-**Compliance percentage excludes skipped and unsupported controls.** `compliancePercentage` is `passed / (passed + failed)`, matching the Azure portal — so it will not equal `passedControls / totalControls`.
+**Compliance percentage excludes skipped and unsupported controls.** `compliancePercentage` is `passed / (passed + failed)`, matching the Azure portal - so it will not equal `passedControls / totalControls`.
 
 **`averageScorePercentage` is not the secure score.** `defender-list-score-controls` returns an *unweighted* mean across controls; controls carry a `weight`. Use `defender-get-secure-score` for the actual score.
 
 **`implementationEffort` and `userImpact` can come back unpopulated on every assessment definition, and `defender-diagnose-metadata-fields` finds out why.** On a real estate both were empty on all 1,302 definitions, which makes an effort/impact ranking uncomputable. Nothing in this package removes them - the catalogue is returned exactly as ARM sent it - so the cause is the request or the service. The diagnostic reads the catalogue at four combinations, subscription and tenant scope at each of two api-versions, and reports per combination how many definitions carry each field, how many carry it empty, how many omit it entirely, and one example value. Read `summary.verdict`, then `fanOut.failures`: a probe that could not be read is unknown, not empty.
 
-**Severity includes `Critical`.** This package pins the `2025-05-04` assessments API. The older `2020-01-01` version cannot express a Critical severity at all — its enum stops at High.
+**Severity includes `Critical`.** This package pins the `2025-05-04` assessments API. The older `2020-01-01` version cannot express a Critical severity at all - its enum stops at High.
 
 ## Reference
 

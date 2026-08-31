@@ -5,15 +5,15 @@
 
 **Package:** `@mcp-consultant-tools/fabric`
 
-MCP server for Microsoft Fabric — manage workspaces, capacities, items (lakehouses, warehouses, notebooks, etc.), OneLake shortcuts, governance domains, and read tenant-wide admin inventory. Read-only by default; write and delete require explicit feature flags.
+MCP server for Microsoft Fabric - manage workspaces, capacities, items (lakehouses, warehouses, notebooks, etc.), OneLake shortcuts, governance domains, and read tenant-wide admin inventory. Read-only by default; write and delete require explicit feature flags.
 
 ## Configuration
 
-Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both — only the wrapper key and the file differ.
+Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
-### VS Code — recommended (1Password)
+### VS Code - recommended (1Password)
 
-Credentials are resolved at runtime via biometric authentication — no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
+Credentials are resolved at runtime via biometric authentication - no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
 
 ```json
 {
@@ -33,7 +33,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-### VS Code — alternative (local credentials)
+### VS Code - alternative (local credentials)
 
 ```json
 {

@@ -123,17 +123,17 @@ Use `get-configuration` first when constructing URLs or when the project name is
 
 | Tool | Requires flag | Description |
 |------|--------------|-------------|
-| `get-wikis` | — | List all wikis in a project |
-| `search-wiki-pages` | — | Full-text search across wiki pages with highlighting |
-| `get-wiki-page` | — | Retrieve page content; auto-converts git paths to wiki paths |
-| `get-wiki-tree` | — | Page hierarchy (paths + ids, no content) under a path — full-wiki enumeration |
+| `get-wikis` | - | List all wikis in a project |
+| `search-wiki-pages` | - | Full-text search across wiki pages with highlighting |
+| `get-wiki-page` | - | Retrieve page content; auto-converts git paths to wiki paths |
+| `get-wiki-tree` | - | Page hierarchy (paths + ids, no content) under a path - full-wiki enumeration |
 | `create-wiki-page` | `ENABLE_WIKI_WRITE` | Create a new wiki page |
 | `update-wiki-page` | `ENABLE_WIKI_WRITE` | Update page; auto-fetches version if not provided |
 | `ado-str-replace-wiki` | `ENABLE_WIKI_WRITE` | Replace specific string without rewriting entire page |
 | `delete-wiki-page` | `ENABLE_WIKI_DELETE` | Permanently delete a page and all sub-pages |
-| `download-wiki-attachment` | — | Download a single wiki attachment to disk |
-| `download-wiki-page-attachments` | — | Download all attachments referenced in a page |
-| `save-wiki-page-to-file` | — | Download a wiki page (by `pagePath` OR numeric `pageId`) to a local `.md` file with frontmatter for offline editing |
+| `download-wiki-attachment` | - | Download a single wiki attachment to disk |
+| `download-wiki-page-attachments` | - | Download all attachments referenced in a page |
+| `save-wiki-page-to-file` | - | Download a wiki page (by `pagePath` OR numeric `pageId`) to a local `.md` file with frontmatter for offline editing |
 | `upload-wiki-page-from-file` | `ENABLE_WIKI_WRITE` | Push a locally edited wiki file back to ADO (reads target + etag from its frontmatter) |
 
 #### Wiki Path Conversion
@@ -151,9 +151,9 @@ The service automatically handles conversion:
 
 #### Sub-page Enumeration (`recursionLevel` / `get-wiki-tree`)
 
-The ADO Pages API only populates child pages when `recursionLevel` is requested (its default is `none`). `get-wiki-page` accepts an optional `recursionLevel` parameter (`none` | `oneLevel` | `full`) passed through to the REST call; `subPages` is included in the response only when `oneLevel`/`full` is requested. When it isn't, the response carries a `subPagesNote` explaining how to populate it — a bare empty `subPages: []` no longer masquerades as "no children".
+The ADO Pages API only populates child pages when `recursionLevel` is requested (its default is `none`). `get-wiki-page` accepts an optional `recursionLevel` parameter (`none` | `oneLevel` | `full`) passed through to the REST call; `subPages` is included in the response only when `oneLevel`/`full` is requested. When it isn't, the response carries a `subPagesNote` explaining how to populate it - a bare empty `subPages: []` no longer masquerades as "no children".
 
-For enumerating a wiki's structure, prefer `get-wiki-tree` (CLI: `wiki tree`): it wraps `pages?recursionLevel=full&includeContent=false` and returns a slim recursive tree (`id`, `path`, `gitItemPath`, `url`, `subPages`) plus a `pageCount` — the whole hierarchy without pulling any page bodies. Optional `pagePath` scopes the enumeration to a subtree; `depth: 'oneLevel'` limits it to direct children.
+For enumerating a wiki's structure, prefer `get-wiki-tree` (CLI: `wiki tree`): it wraps `pages?recursionLevel=full&includeContent=false` and returns a slim recursive tree (`id`, `path`, `gitItemPath`, `url`, `subPages`) plus a `pageCount` - the whole hierarchy without pulling any page bodies. Optional `pagePath` scopes the enumeration to a subtree; `depth: 'oneLevel'` limits it to direct children.
 
 ```typescript
 private convertGitPathToWikiPath(gitPath: string): string {
@@ -178,7 +178,7 @@ Enables efficient wiki updates by replacing specific strings without rewriting t
 7. Return unified diff output
 
 **Key behaviors:**
-- `replace_all=false` (default): `old_str` must appear exactly once — prevents accidental bulk replacements
+- `replace_all=false` (default): `old_str` must appear exactly once - prevents accidental bulk replacements
 - `replace_all=true`: Replaces all occurrences
 - Version conflicts are automatically retried with fresh page content
 - Output includes unified diff showing exactly what changed
@@ -202,8 +202,8 @@ await ado-str-replace-wiki({ ..., replace_all: true, old_str: 'TODO', new_str: '
 ```
 
 **Error messages:**
-- `String not found: "..."` — shows page excerpt to help locate the issue
-- `String appears N times. Use replace_all=true or make old_str unique.` — lists matching line numbers
+- `String not found: "..."` - shows page excerpt to help locate the issue
+- `String appears N times. Use replace_all=true or make old_str unique.` - lists matching line numbers
 
 </tool-group>
 
@@ -213,11 +213,11 @@ await ado-str-replace-wiki({ ..., replace_all: true, old_str: 'TODO', new_str: '
 
 | Tool | Requires flag | Description |
 |------|--------------|-------------|
-| `get-work-item` | — | Get a work item by ID with full details |
-| `query-work-items` | — | Query using WIQL (Work Item Query Language) |
-| `run-saved-query` | — | Execute a saved query by GUID |
-| `get-saved-query` | — | Get saved query metadata and WIQL text without executing |
-| `get-work-item-comments` | — | Get discussion/comments for a work item |
+| `get-work-item` | - | Get a work item by ID with full details |
+| `query-work-items` | - | Query using WIQL (Work Item Query Language) |
+| `run-saved-query` | - | Execute a saved query by GUID |
+| `get-saved-query` | - | Get saved query metadata and WIQL text without executing |
+| `get-work-item-comments` | - | Get discussion/comments for a work item |
 | `add-work-item-comment` | `ENABLE_WORK_ITEM_WRITE` | Add a comment |
 | `update-work-item-comment` | `ENABLE_WORK_ITEM_WRITE` | Update an existing comment |
 | `update-work-item` | `ENABLE_WORK_ITEM_WRITE` | Update fields using JSON Patch operations |
@@ -254,7 +254,7 @@ The tool automatically injects markdown format operations for large text fields 
 
 Two approaches for setting parent during creation:
 
-**Simple (recommended):** Use `parentId` parameter — creates `System.LinkTypes.Hierarchy-Reverse` relation in a single API call.
+**Simple (recommended):** Use `parentId` parameter - creates `System.LinkTypes.Hierarchy-Reverse` relation in a single API call.
 
 **Advanced:** Use `relations` array for multiple or non-parent relationships:
 
@@ -380,13 +380,13 @@ By default, comments are sent as Markdown. Set `AZUREDEVOPS_COMMENT_FORMAT=html`
 
 Azure DevOps emits `issue.type` as the lowercase `error` or `warning` only. Each
 timeline record also carries `errorCount`/`warningCount`, which are **independent
-of `issues[]`** — a record can report a count with no message attached.
+of `issues[]`** - a record can report a count with no message attached.
 
 | Field | Meaning |
 |-------|---------|
 | `totalErrors` / `totalWarnings` | Issues actually listed, with messages. Always cover the whole build, even when `severity` narrows the listing |
 | `timelineCounters` | The server's own tally, summed across every record |
-| `countersExceedListedIssues` | `true` when the server counted problems it attached no message to — the listed detail is then a subset |
+| `countersExceedListedIssues` | `true` when the server counted problems it attached no message to - the listed detail is then a subset |
 
 `recordType` is passed through verbatim: Microsoft documents the timeline record
 `type` as an untyped string with no published enum, so this tool never filters on it.
@@ -432,14 +432,14 @@ Azure DevOps returns a secret as `{ "isSecret": true, "value": null }` and **omi
 - Diffing the masked output would be wrong in the other direction too: two
   *different* secrets both render as `***SECRET***` and would compare equal.
 - `secretPresenceDifferences` reports a variable that is a secret on one side and
-  plaintext on the other — a real drift finding that leaks nothing.
+  plaintext on the other - a real drift finding that leaks nothing.
 
 #### `compare-environments` and the empty-result trap
 
 Environment detection matches the **longest** suffix from `environmentSuffixes`
 (default: `-dev -development -qa -uat -staging -stage -test -prod -production`),
 so `-production` is never mistaken for `-prod`. A team using `-prd` or `_dev`
-would otherwise match nothing, forever, with no error — so the tool returns:
+would otherwise match nothing, forever, with no error - so the tool returns:
 
 | Field | Meaning |
 |-------|---------|
@@ -464,12 +464,12 @@ date**; `$top` caps at 1000 and further pages arrive via the
 `x-ms-continuationtoken` **response header**.
 
 `list-branches` follows that header until `maxResults` is met and sets
-`truncated: true` when the server still had more — a partial list is never
+`truncated: true` when the server still had more - a partial list is never
 reported as complete.
 
 #### What "latest" means
 
-`latest-release-branch` sorts by **version name**, digit-aware, descending — so
+`latest-release-branch` sorts by **version name**, digit-aware, descending - so
 `release/10` beats `release/9` (a plain lexical sort gets this backwards). Because
 the refs API exposes no commit date, this does **not** mean "most recently
 committed".
@@ -485,7 +485,7 @@ dropped. When every candidate is unrankable, `branchName` is `null`.
 
 ### Visualization Tools (2 tools)
 
-Generative-UI pattern (MCP Apps). `visualize-data` fetches the work items and returns them plus a design-system prompt; the host LLM writes the HTML on its own subscription (no API key, no extra cost) and hands it to `render-visualization`, which sanitizes the HTML and renders it in an iframe. Use these only when the user explicitly asks for a chart/dashboard/visual — plain queries should use `query-work-items` / `run-saved-query`.
+Generative-UI pattern (MCP Apps). `visualize-data` fetches the work items and returns them plus a design-system prompt; the host LLM writes the HTML on its own subscription (no API key, no extra cost) and hands it to `render-visualization`, which sanitizes the HTML and renders it in an iframe. Use these only when the user explicitly asks for a chart/dashboard/visual - plain queries should use `query-work-items` / `run-saved-query`.
 
 | Tool | Description |
 |------|-------------|
@@ -496,10 +496,10 @@ Generative-UI pattern (MCP Apps). `visualize-data` fetches the work items and re
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `project` | string | Yes | — | ADO project name |
-| `wiql` | string | One of `wiql`/`queryId` | — | WIQL query (mutually exclusive with `queryId`) |
-| `queryId` | string | One of `wiql`/`queryId` | — | Saved query GUID (mutually exclusive with `wiql`) |
-| `intent` | string | Yes | — | What to visualize (e.g. 'sprint status dashboard', 'burndown chart') |
+| `project` | string | Yes | - | ADO project name |
+| `wiql` | string | One of `wiql`/`queryId` | - | WIQL query (mutually exclusive with `queryId`) |
+| `queryId` | string | One of `wiql`/`queryId` | - | Saved query GUID (mutually exclusive with `wiql`) |
+| `intent` | string | Yes | - | What to visualize (e.g. 'sprint status dashboard', 'burndown chart') |
 | `theme` | `light` \| `dark` | No | `light` | Colour theme |
 | `maxResults` | number | No | `20` | Maximum work items to fetch |
 
@@ -520,13 +520,13 @@ Token-efficient local editing by syncing ADO work items to/from markdown files. 
 
 | Tool | Requires flag | Description |
 |------|--------------|-------------|
-| `sync-work-item-to-file` | — | Download work item(s) to local markdown (read-only — converts HTML→Markdown in the local file; ADO is not modified) |
+| `sync-work-item-to-file` | - | Download work item(s) to local markdown (read-only - converts HTML→Markdown in the local file; ADO is not modified) |
 | `sync-work-item-from-file` | `ENABLE_WORK_ITEM_WRITE` | Upload local changes to ADO; auto-detects `new_*.md` files |
-| `create-work-item-file` | — | Create a template file for any work item type (parent optional) |
-| `create-user-story-file` | — | Alias for `create-work-item-file` with type='User Story' (requires parentId) |
-| `check-work-item-markdown` | — | Check if work item fields are markdown or HTML format |
-| `list-synced-work-items` | — | List files in the sync folder |
-| `sync-tasks-to-file` | — | Download tasks under parent User Story(s) to tasks file |
+| `create-work-item-file` | - | Create a template file for any work item type (parent optional) |
+| `create-user-story-file` | - | Alias for `create-work-item-file` with type='User Story' (requires parentId) |
+| `check-work-item-markdown` | - | Check if work item fields are markdown or HTML format |
+| `list-synced-work-items` | - | List files in the sync folder |
+| `sync-tasks-to-file` | - | Download tasks under parent User Story(s) to tasks file |
 | `sync-tasks-from-file` | `ENABLE_WORK_ITEM_WRITE` | Push task changes with upsert semantics |
 
 See the [Work Item Sync Workflow Guide](#work-item-sync-workflow-guide) section below for detailed usage patterns, file formats, and field references.
@@ -573,7 +573,7 @@ Tools for the `mohitbagra/workitem-checklist` Azure DevOps extension. Checklists
 
 ### Test Management Tools (7 tools)
 
-Tools for ADO Test Management API (`_apis/test/`). Uses the Basic license endpoint — does NOT require the Azure Test Plans extension (`_apis/testplan/`).
+Tools for ADO Test Management API (`_apis/test/`). Uses the Basic license endpoint - does NOT require the Azure Test Plans extension (`_apis/testplan/`).
 
 **Key design:** All runs set `isAutomated: true` to bypass the Test Plan requirement. Test run links use Hyperlinks (ADO has no artifact link support for test runs).
 
@@ -602,10 +602,10 @@ Tools for ADO Test Management API (`_apis/test/`). Uses the Basic license endpoi
 **API endpoints used:** `_apis/test/runs` (POST, PATCH, GET), `_apis/test/runs/{id}/results` (POST, GET), `_apis/wit/workitems/{id}` (PATCH for relations)
 
 **Gotchas:**
-- `isAutomated: true` is required for runs without a Test Plan — the tool sets this automatically
-- `_apis/testplan/` requires Azure Test Plans license (extra cost) — these tools avoid it entirely
-- `vstfs:///TestManagement/TcmTestRun/{id}` is NOT a valid artifact URI — use Hyperlinks instead
-- `testCase.id` on results doesn't create visible backlinks on the work item — use `link-test-case` explicitly
+- `isAutomated: true` is required for runs without a Test Plan - the tool sets this automatically
+- `_apis/testplan/` requires Azure Test Plans license (extra cost) - these tools avoid it entirely
+- `vstfs:///TestManagement/TcmTestRun/{id}` is NOT a valid artifact URI - use Hyperlinks instead
+- `testCase.id` on results doesn't create visible backlinks on the work item - use `link-test-case` explicitly
 - Test Case work items use `Microsoft.VSTS.TCM.Steps` for structured test steps (XML format)
 - Test Case states follow their own workflow (Design → Ready → Closed)
 
@@ -660,24 +660,24 @@ This section documents the complete agentic workflow for syncing ADO work items 
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `project` | string | Yes | — | ADO project name |
+| `project` | string | Yes | - | ADO project name |
 | `workItemIds` | number[] | No | `[]` | Specific work item IDs to pull |
-| `parentId` | number | No | — | Pull all children of this parent |
+| `parentId` | number | No | - | Pull all children of this parent |
 | `childType` | string | No | `"User Story"` | Filter child type when using `parentId` |
 | `folder` | string | No | sync folder | Override sync folder path |
 | `includeComments` | boolean | No | `false` | Save comments to `{id}-comments.md` |
 | `skipAutoConvert` | boolean | No | `false` | Skip HTML-to-markdown conversion |
 
 **Pull behavior:**
-1. **Read-only against ADO** — downloads the item; never writes to or modifies it, never bumps its revision.
-2. HTML fields convert to Markdown **in the local file only** (the ADO item keeps its HTML). HTML tables become Markdown pipe tables; complex tables (merged/styled cells) may lose structure and raise a `⚠️ TABLE CONVERSION` warning (`conversionWarnings` in the result) — re-read with `get-work-item` to verify before editing.
+1. **Read-only against ADO** - downloads the item; never writes to or modifies it, never bumps its revision.
+2. HTML fields convert to Markdown **in the local file only** (the ADO item keeps its HTML). HTML tables become Markdown pipe tables; complex tables (merged/styled cells) may lose structure and raise a `⚠️ TABLE CONVERSION` warning (`conversionWarnings` in the result) - re-read with `get-work-item` to verify before editing.
 3. `skipAutoConvert: true`: items whose body fields are still HTML are reported under `skipped` rather than written with blank fields.
 
 #### `sync-work-item-from-file`
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `project` | string | Yes | — | ADO project name |
+| `project` | string | Yes | - | ADO project name |
 | `workItemIds` | number[] | No | `[]` | Specific IDs to push (new_*.md auto-detected) |
 | `folder` | string | No | sync folder | Override sync folder path |
 | `skipAutoConvert` | boolean | No | `false` | Skip HTML-to-markdown conversion |
@@ -691,8 +691,8 @@ This section documents the complete agentic workflow for syncing ADO work items 
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `project` | string | Yes | — | ADO project name |
-| `parentId` | number | No | — | Parent work item ID. Omit for standalone items (Features, Epics) |
+| `project` | string | Yes | - | ADO project name |
+| `parentId` | number | No | - | Parent work item ID. Omit for standalone items (Features, Epics) |
 | `workItemType` | string | No | `"User Story"` | Work item type: User Story, Bug, Feature, Epic, Task, etc. |
 | `folder` | string | No | sync folder | Override sync folder path |
 
@@ -704,8 +704,8 @@ This section documents the complete agentic workflow for syncing ADO work items 
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `project` | string | Yes | — | ADO project name |
-| `parentIds` | number[] | Yes | — | Parent User Story IDs |
+| `project` | string | Yes | - | ADO project name |
+| `parentIds` | number[] | Yes | - | Parent User Story IDs |
 | `folder` | string | No | sync folder | Override sync folder path |
 | `skipAutoConvert` | boolean | No | `false` | Skip HTML-to-markdown conversion |
 
@@ -715,8 +715,8 @@ Creates `{parentId}-tasks.md` per parent.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `project` | string | Yes | — | ADO project name |
-| `parentIds` | number[] | Yes | — | Parent User Story IDs |
+| `project` | string | Yes | - | ADO project name |
+| `parentIds` | number[] | Yes | - | Parent User Story IDs |
 | `folder` | string | No | sync folder | Override sync folder path |
 | `skipAutoConvert` | boolean | No | `false` | Skip HTML-to-markdown conversion |
 
@@ -728,7 +728,7 @@ Creates `{parentId}-tasks.md` per parent.
 
 <sync-file-formats>
 
-### File Formats (v30.0.0-beta.18+ — annotation-driven)
+### File Formats (v30.0.0-beta.18+ - annotation-driven)
 
 Sync is generic: the markdown file declares which ADO fields its content
 maps to, and the sync engine pushes/pulls whatever is declared. Two
@@ -738,9 +738,9 @@ channels:
    common ones (see Alias Table below).
 2. **Body `##` sections** are tagged with `<!-- ado-field: REFNAME -->` on
    the line immediately after the heading. Sections without that comment
-   are local-only — preserved in the file but not pushed.
+   are local-only - preserved in the file but not pushed.
 
-Adding a new ADO field to sync requires **zero code change** — just add
+Adding a new ADO field to sync requires **zero code change** - just add
 it to the template (or inline it in the file).
 
 #### Work Item File (`{id}.md`)
@@ -832,7 +832,7 @@ mention:
   annotated body section using a heading derived from the refname
   (`Custom.Howtotest` → `## Howtotest`).
 
-This makes custom fields added in ADO visible in the next pulled file —
+This makes custom fields added in ADO visible in the next pulled file -
 then the user can edit the template to control where future pulls place
 them.
 
@@ -910,7 +910,7 @@ annotations are present:
 | Legacy heading | Refname |
 |----------------|---------|
 | `# Description` (non-Bug) | `System.Description` |
-| `# Description` (Bug type) | `Microsoft.VSTS.TCM.ReproSteps` — fixes long-standing wrong-field bug |
+| `# Description` (Bug type) | `Microsoft.VSTS.TCM.ReproSteps` - fixes long-standing wrong-field bug |
 | `# Repro Steps` | `Microsoft.VSTS.TCM.ReproSteps` |
 | `# Acceptance Criteria` | `Microsoft.VSTS.Common.AcceptanceCriteria` |
 | `# How to Test` | `Custom.Howtotest` (env-overridable) |
@@ -1005,7 +1005,7 @@ New task description...
 
 Section-to-field mapping is now **declared inline** with
 `<!-- ado-field: REFNAME -->` on the line under each `##` heading. The
-engine doesn't have a fixed section table — any refname the ADO project
+engine doesn't have a fixed section table - any refname the ADO project
 knows about is syncable.
 
 For reference, the built-in templates map these headings to these refnames
@@ -1021,7 +1021,7 @@ by default:
 
 Agents can add any additional `##` section with its own annotation
 (e.g. `<!-- ado-field: Custom.ConsultancyProcess -->`) and the content
-will round-trip — no code or template change required.
+will round-trip - no code or template change required.
 
 </sync-field-reference>
 
@@ -1029,7 +1029,7 @@ will round-trip — no code or template change required.
 
 ### HTML Detection and Auto-Conversion
 
-On **pull**, HTML fields are converted to Markdown **in the local file only** — the pull is read-only and never modifies the ADO item or bumps its revision. On **push**, the fields you edited are written back to ADO as Markdown (the point at which a field's ADO format actually changes). `skipAutoConvert: true` disables conversion. HTML tables are converted to Markdown pipe tables (via `turndown-plugin-gfm`); complex tables (merged/styled cells) may lose structure and raise a lossy-conversion warning (`conversionWarnings` in the pull result), with the ADO original always preserved.
+On **pull**, HTML fields are converted to Markdown **in the local file only** - the pull is read-only and never modifies the ADO item or bumps its revision. On **push**, the fields you edited are written back to ADO as Markdown (the point at which a field's ADO format actually changes). `skipAutoConvert: true` disables conversion. HTML tables are converted to Markdown pipe tables (via `turndown-plugin-gfm`); complex tables (merged/styled cells) may lose structure and raise a lossy-conversion warning (`conversionWarnings` in the pull result), with the ADO original always preserved.
 
 **Detection algorithm:**
 1. Check for markdown patterns (headings, bold, lists, links)
@@ -1041,7 +1041,7 @@ On **pull**, HTML fields are converted to Markdown **in the local file only** �
 
 **Markdown indicators (field is markdown):** `# Heading`, `**bold**`, `- list item`, `1. numbered`, `` `code` ``, `[link](url)`
 
-`check-work-item-markdown` is now informational only — it no longer blocks syncing.
+`check-work-item-markdown` is now informational only - it no longer blocks syncing.
 
 </sync-html-detection>
 
@@ -1398,7 +1398,7 @@ mcp-ado-cli variable-group compare-environments MyProject --name-contains billin
 mcp-ado-cli vg summary MyProject --name-contains billing --max-results 100   # 'vg' alias
 
 # Test management
-mcp-ado-cli test create-run MyProject "Plugin Test — #1928"
+mcp-ado-cli test create-run MyProject "Plugin Test - #1928"
 mcp-ado-cli test add-results MyProject 175 '[{"title":"Validate fields","outcome":"Passed"}]'
 mcp-ado-cli test complete-run MyProject 175
 mcp-ado-cli test list-runs MyProject --state Completed
@@ -1417,9 +1417,9 @@ mcp-ado-cli --json wiki list MyProject
 ## Security Considerations
 
 1. **Secrets masking:** Variable values marked `isSecret` are never returned in API responses
-2. **Write isolation:** Each write domain has its own feature flag — enable only what is needed for the task
+2. **Write isolation:** Each write domain has its own feature flag - enable only what is needed for the task
 3. **PAT scope minimum:** Request only the PAT scopes required for your operations
-4. **No test environment:** Always confirm the target project with the user before write operations — there is no pre-configured safe test environment
+4. **No test environment:** Always confirm the target project with the user before write operations - there is no pre-configured safe test environment
 5. **Sync folder:** The sync folder writes to the local filesystem; ensure it is within the project working directory and not accidentally committed with sensitive data
 
 </security>

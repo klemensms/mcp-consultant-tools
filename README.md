@@ -9,9 +9,9 @@
 
 MCP Consultant Tools is a **modular monorepo** with **22 independently published npm packages** under the `@mcp-consultant-tools` organization. Install individual packages for specific integrations or the complete meta-package for everything.
 
-> **PII protection (v32):** A 4-layer redaction pipeline is built into `powerplatform-data`, `azure-devops`, `azure-sql`, `rest-api`, and `azure-b2c` to keep personal data from reaching the US-hosted LLM during MCP tool calls against client production environments. It is **opt-in** — off by default; enable it per server with `PII_PROTECTION=true`. See [docs/documentation/pii-protection.md](docs/documentation/pii-protection.md).
+> **PII protection (v32):** A 4-layer redaction pipeline is built into `powerplatform-data`, `azure-devops`, `azure-sql`, `rest-api`, and `azure-b2c` to keep personal data from reaching the US-hosted LLM during MCP tool calls against client production environments. It is **opt-in** - off by default; enable it per server with `PII_PROTECTION=true`. See [docs/documentation/pii-protection.md](docs/documentation/pii-protection.md).
 
-- **PII audit logging (opt-in):** when enabled with `MCP_AUDIT_LEVEL=lean|full`, every Dataverse MCP tool call produces a tamper-evident audit record (Phase A — local file; Phase B — central sync follows).
+- **PII audit logging (opt-in):** when enabled with `MCP_AUDIT_LEVEL=lean|full`, every Dataverse MCP tool call produces a tamper-evident audit record (Phase A - local file; Phase B - central sync follows).
 
 ## Package Architecture
 
@@ -23,7 +23,7 @@ MCP Consultant Tools is a **modular monorepo** with **22 independently published
 ### Service Packages
 | Package | Integration | Tools | CLI Binary | Documentation |
 |---------|-------------|-------|-----------|---------------|
-| **powerplatform-core** | Shared PowerPlatform services (internal) | N/A | N/A | — |
+| **powerplatform-core** | Shared PowerPlatform services (internal) | N/A | N/A | - |
 | **powerplatform** | PowerPlatform/Dataverse (Read-Only) | 52 | `mcp-pp-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM.md) |
 | **powerplatform-customization** | PowerPlatform Schema Changes | 85 | `mcp-pp-custom-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_CUSTOMIZATION.md) |
 | **powerplatform-data** | PowerPlatform Data CRUD | 14 | `mcp-pp-data-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_DATA.md) |
@@ -66,7 +66,7 @@ Then restart your MCP client. See [Azure DevOps Troubleshooting](docs/documentat
 
 ## Troubleshooting: `npm error code E401` (Unable to authenticate)
 
-**Symptom** — an MCP server fails to start and the stderr tail shows:
+**Symptom** - an MCP server fails to start and the stderr tail shows:
 
 ```
 npm warn Unknown project config "always-auth". This will stop working in the next major version of npm.
@@ -75,11 +75,11 @@ npm error Unable to authenticate, your authentication token seems to be invalid.
 npm error To correct this please try logging in again with: npm login
 ```
 
-**This is npm failing to authenticate to a package registry — not the MCP server crashing.** It happens on machines (common at consulting shops / corporate setups) where npm's **default registry is a private feed** — Azure DevOps Artifacts, GitHub Packages, or an internal Verdaccio/Nexus proxy — usually with `always-auth=true` and a **PAT that has expired**. With `always-auth` on, npm tries to authenticate even when fetching the public `@mcp-consultant-tools/*` packages, and the dead token makes it bomb out before `npx` ever runs. The `always-auth` warning is the giveaway.
+**This is npm failing to authenticate to a package registry - not the MCP server crashing.** It happens on machines (common at consulting shops / corporate setups) where npm's **default registry is a private feed** - Azure DevOps Artifacts, GitHub Packages, or an internal Verdaccio/Nexus proxy - usually with `always-auth=true` and a **PAT that has expired**. With `always-auth` on, npm tries to authenticate even when fetching the public `@mcp-consultant-tools/*` packages, and the dead token makes it bomb out before `npx` ever runs. The `always-auth` warning is the giveaway.
 
 ### Fix (recommended): pin the scope to the public npm registry
 
-Tell npm that the `@mcp-consultant-tools` scope always comes from public npm, regardless of the default registry. This is non-destructive — it leaves the private feed working for everything else.
+Tell npm that the `@mcp-consultant-tools` scope always comes from public npm, regardless of the default registry. This is non-destructive - it leaves the private feed working for everything else.
 
 1. Open (or create) your **user-level** `.npmrc`:
    - Windows: `C:\Users\<your-username>\.npmrc`
@@ -100,16 +100,16 @@ Tell npm that the `@mcp-consultant-tools` scope always comes from public npm, re
 
 ### Diagnosing / alternative fixes
 
-- **Confirm the diagnosis** — force the public registry for one call:
+- **Confirm the diagnosis** - force the public registry for one call:
   ```bash
   npx --registry=https://registry.npmjs.org -y --package=@mcp-consultant-tools/PACKAGE BINARY --help
   ```
   If that works, it's 100% an `.npmrc` / registry-config issue.
-- **Inspect the offending config** — `cat ~/.npmrc` (and any project-level `.npmrc` in the working directory). Look for: `always-auth=true`, a `registry=https://...` pointing at a private feed, `//pkgs.dev.azure.com/...:_authToken=...` (expired PAT), or a stray `@mcp-consultant-tools:registry=` pointing somewhere other than public npm.
-- **Check the active default registry** — `npm config get registry` must return `https://registry.npmjs.org/`. If it returns a private feed and the scope pin above isn't an option, that's the root cause.
-- **Stored / env-var tokens** — `npm logout` to clear stored tokens, then retry. Also check `env | grep -i npm` — `NPM_CONFIG_REGISTRY`, `NPM_TOKEN`, `NODE_AUTH_TOKEN` override `.npmrc`.
+- **Inspect the offending config** - `cat ~/.npmrc` (and any project-level `.npmrc` in the working directory). Look for: `always-auth=true`, a `registry=https://...` pointing at a private feed, `//pkgs.dev.azure.com/...:_authToken=...` (expired PAT), or a stray `@mcp-consultant-tools:registry=` pointing somewhere other than public npm.
+- **Check the active default registry** - `npm config get registry` must return `https://registry.npmjs.org/`. If it returns a private feed and the scope pin above isn't an option, that's the root cause.
+- **Stored / env-var tokens** - `npm logout` to clear stored tokens, then retry. Also check `env | grep -i npm` - `NPM_CONFIG_REGISTRY`, `NPM_TOKEN`, `NODE_AUTH_TOKEN` override `.npmrc`.
 
-> `npx clear-npx-cache` does **not** help here — the cache isn't the problem, the registry config is.
+> `npx clear-npx-cache` does **not** help here - the cache isn't the problem, the registry config is.
 
 ---
 

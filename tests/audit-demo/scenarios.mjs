@@ -182,10 +182,10 @@ export const scenarios = [
     description:
       'Two engagements in one session. set-audit-engagement records must carry contextChange.from/to; subsequent records anchor to the active engagement.',
     steps: [
-      { id: '5.1', toolCall: { tool: 'set-audit-engagement', args: { workItemIds: ['MCPTEST-001'], reason: 'context switch — engagement A' } } },
+      { id: '5.1', toolCall: { tool: 'set-audit-engagement', args: { workItemIds: ['MCPTEST-001'], reason: 'context switch - engagement A' } } },
       { id: '5.2', toolCall: { tool: 'query-records', args: { entityNamePlural: 'contacts', topCount: 1 } } },
       { id: '5.3', toolCall: { tool: 'count-records', args: { entityNamePlural: 'accounts' } } },
-      { id: '5.4', toolCall: { tool: 'set-audit-engagement', args: { workItemIds: ['MCPTEST-002'], reason: 'context switch — engagement B' } } },
+      { id: '5.4', toolCall: { tool: 'set-audit-engagement', args: { workItemIds: ['MCPTEST-002'], reason: 'context switch - engagement B' } } },
       { id: '5.5', toolCall: { tool: 'query-records', args: { entityNamePlural: 'accounts', topCount: 1 } } },
       { id: '5.6', toolCall: { tool: 'count-records', args: { entityNamePlural: 'contacts' } } },
     ],
@@ -218,7 +218,7 @@ export const scenarios = [
       {
         id: '6.3',
         action:
-          'mcp-audit-cli quarantine ./audit-out/MCPTest/$(date +%Y-%m).jsonl --reason "demo corruption — synthetic byte flip on line 3"',
+          'mcp-audit-cli quarantine ./audit-out/MCPTest/$(date +%Y-%m).jsonl --reason "demo corruption - synthetic byte flip on line 3"',
         expect:
           'stdout reports the original file renamed to <name>.broken-<ts> and a fresh chain started with seq=1 sentinel.',
       },

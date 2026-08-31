@@ -32,25 +32,25 @@ Attack paths additionally need the **Defender CSPM plan** enabled (plus agentles
 ## Tools
 
 **Secure score**
-- `defender-get-secure-score` — the score (defaults to the `ascScore` initiative)
-- `defender-list-secure-scores` — one row per initiative
-- `defender-list-score-controls` — controls with healthy/unhealthy resource counts
+- `defender-get-secure-score` - the score (defaults to the `ascScore` initiative)
+- `defender-list-secure-scores` - one row per initiative
+- `defender-list-score-controls` - controls with healthy/unhealthy resource counts
 
 **Assessments**
-- `defender-list-assessments` — recommendations against resources, filterable by status
-- `defender-get-assessment` — one assessment for one ARM resource
-- `defender-list-assessment-metadata` — the definition catalogue: severity, categories, remediation
+- `defender-list-assessments` - recommendations against resources, filterable by status
+- `defender-get-assessment` - one assessment for one ARM resource
+- `defender-list-assessment-metadata` - the definition catalogue: severity, categories, remediation
 - `defender-diagnose-metadata-fields` - diagnostic: which scope and api-version, if any, populates `implementationEffort` / `userImpact`
 
 **Compliance**
-- `defender-list-compliance-standards` — standards enabled on the subscription
-- `defender-list-compliance-controls` — controls within a standard
-- `defender-list-compliance-assessments` — assessments behind a control
-- `defender-get-compliance-summary` — per-standard roll-up
+- `defender-list-compliance-standards` - standards enabled on the subscription
+- `defender-list-compliance-controls` - controls within a standard
+- `defender-list-compliance-assessments` - assessments behind a control
+- `defender-get-compliance-summary` - per-standard roll-up
 
 **Attack paths**
-- `defender-list-attack-paths` — CSPM attack paths via Azure Resource Graph
-- `defender-get-attack-path` — one path in full, with its graph components
+- `defender-list-attack-paths` - CSPM attack paths via Azure Resource Graph
+- `defender-get-attack-path` - one path in full, with its graph components
 
 ### Security alerts
 - `defender-list-alerts` - active threat detections across the subscription, with status/severity breakdowns and the entities carrying more than one
@@ -66,7 +66,7 @@ be silently dropping payload. The rule, and what to do instead, is in
 `.claude/refs/adding-features-checklist.md` under "Writing a response mapper". Read it before
 writing or widening any mapper here.
 
-**An attack path arrives in one of TWO shapes, and reading only the documented one hides its entire risk payload.** Microsoft's published field table (`learn.microsoft.com/azure/defender-for-cloud/attack-path-api`, unchanged as of 2026-08-19) lists only the legacy Defender CSPM names: `potentialImpact`, `riskCategories`, `entryPointEntityInternalID`, `targetEntityInternalID`. Live rows on a tenant whose attack paths come from Microsoft Security Exposure Management instead carry `riskLevel`, `riskFactors`, `entryPoint`, `target`, `attackPathSteps`, `mITRETacticsAndTechniques`, `attackStory` and `isPartialAttackPath`. Mapping only the documented set printed a `riskLevel: High` path as impact `Unknown` with no risk categories, on every path of a real estate. **Never key a filter, a count or a display line on one spelling** — use `effectiveRiskLevel` / `effectiveRiskFactors` in `services/attack-path-service.ts`, and note each risk filter emits an `or` across both names. Anything neither shape names lands in `properties.unmappedProperties` rather than being dropped. `riskLevel` and `riskFactors` also exist, separately, on the `risk` object of `Microsoft.Security/assessments@2025-05-04`: same names, different fields. `graphComponent` holds `insights`/`entities`/`connections`, not `nodes`/`edges`.
+**An attack path arrives in one of TWO shapes, and reading only the documented one hides its entire risk payload.** Microsoft's published field table (`learn.microsoft.com/azure/defender-for-cloud/attack-path-api`, unchanged as of 2026-08-19) lists only the legacy Defender CSPM names: `potentialImpact`, `riskCategories`, `entryPointEntityInternalID`, `targetEntityInternalID`. Live rows on a tenant whose attack paths come from Microsoft Security Exposure Management instead carry `riskLevel`, `riskFactors`, `entryPoint`, `target`, `attackPathSteps`, `mITRETacticsAndTechniques`, `attackStory` and `isPartialAttackPath`. Mapping only the documented set printed a `riskLevel: High` path as impact `Unknown` with no risk categories, on every path of a real estate. **Never key a filter, a count or a display line on one spelling** - use `effectiveRiskLevel` / `effectiveRiskFactors` in `services/attack-path-service.ts`, and note each risk filter emits an `or` across both names. Anything neither shape names lands in `properties.unmappedProperties` rather than being dropped. `riskLevel` and `riskFactors` also exist, separately, on the `risk` object of `Microsoft.Security/assessments@2025-05-04`: same names, different fields. `graphComponent` holds `insights`/`entities`/`connections`, not `nodes`/`edges`.
 
 **A missing risk level is a gap in the payload, not a finding of no risk.** `summary.riskLevelNotReported` counts paths naming no level under either spelling, they bucket under `NotReported` rather than `Unknown`, `summary.note` appears, and the CLI prints "not reported by the API". Never let an absent field render as a value the API returned.
 
@@ -78,7 +78,7 @@ writing or widening any mapper here.
 
 **`defender-list-assessments` reads TWO sources, and each covers the other's blind spot.** The ARM list at subscription scope only returns assessments on resources *inside* the subscription, so everything scoped to the subscription itself or to an identity object is invisible to it: that is the whole RBAC set (disabled accounts with owner permissions, guest accounts with write permissions, overprovisioned identities), which is the highest-value content a Defender report carries. Those come from Resource Graph's `securityresources` instead. Resource Graph has the reverse blind spot: it returns nothing on a subscription with no paid Defender plan, where ARM still returns data. The two are unioned on the **lower-cased** id, because Resource Graph lower-cases every id it returns and ARM does not. `summary.sources` reports what each contributed; `summary.note` appears whenever the list is known to be incomplete. Never report `summary.total` without reading `note`.
 
-**The assessment Resource Graph mapper names seven `properties` keys, and that list came from documentation rather than a captured row.** `displayName`, `status`, `resourceDetails`, `risk`, `additionalData`, `metadata`, `links` — anything else arrives in `properties.unmappedProperties`, and the distinct names are aggregated into `summary.unmappedPropertyKeys` plus a sentence in `summary.note`. The aggregate is collected before the union drops duplicates and before `maxResults` trims, so one row out of thousands cannot hide the field. This is the same defect class as the attack-path mapper above, found by looking rather than by breaking: **check `unmappedPropertyKeys` before reporting that no assessment carries risk data.** A real estate measured zero `properties.risk` objects across 4,886 unhealthy assessments and zero `Critical` severities, and until a live call reports this field there is no way to tell an API that returns neither from a mapper that discards both.
+**The assessment Resource Graph mapper names seven `properties` keys, and that list came from documentation rather than a captured row.** `displayName`, `status`, `resourceDetails`, `risk`, `additionalData`, `metadata`, `links` - anything else arrives in `properties.unmappedProperties`, and the distinct names are aggregated into `summary.unmappedPropertyKeys` plus a sentence in `summary.note`. The aggregate is collected before the union drops duplicates and before `maxResults` trims, so one row out of thousands cannot hide the field. This is the same defect class as the attack-path mapper above, found by looking rather than by breaking: **check `unmappedPropertyKeys` before reporting that no assessment carries risk data.** A real estate measured zero `properties.risk` objects across 4,886 unhealthy assessments and zero `Critical` severities, and until a live call reports this field there is no way to tell an API that returns neither from a mapper that discards both.
 
 **`statusFilter` on `defender-list-assessments` makes it slower, not faster,** and `maxResults` no longer makes it cheaper. Neither source filters on status server-side, so both are scanned in full and trimmed afterwards. Handing `maxResults` to the ARM list would decide the answer before the second source was read: the cut falls on ARM's rows, so the identity- and subscription-scoped assessments would be exactly what is lost.
 
@@ -97,7 +97,7 @@ writing or widening any mapper here.
 **`compliancePercentage` excludes skipped and unsupported controls** from the denominator (matching the portal), so it will not equal `passedControls / totalControls`.
 
 **API versions are pinned deliberately, with reasons, in `src/utils/defender-api-versions.ts`.** Two are counter-intuitive:
-- `assessments` / `assessmentMetadata` are on `2025-05-04`, not `2020-01-01`. The old version's severity enum stops at `High` — it cannot express `Critical` at all.
+- `assessments` / `assessmentMetadata` are on `2025-05-04`, not `2020-01-01`. The old version's severity enum stops at `High` - it cannot express `Critical` at all.
 - `regulatoryCompliance*` is on `2019-01-01-preview` and **must stay there**. That is the only version this surface has ever had; no GA exists. It is not a stale pin.
 
 A stale api-version does not fail loudly. It 400s, or silently returns an older schema.

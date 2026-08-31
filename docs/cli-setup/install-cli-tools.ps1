@@ -1,7 +1,7 @@
 # =============================================================================
-# MCP Consultant Tools — CLI Install/Update Script (Windows PowerShell)
+# MCP Consultant Tools - CLI Install/Update Script (Windows PowerShell)
 # Installs or updates all CLI tools globally via npm.
-# Safe to re-run at any time — idempotent.
+# Safe to re-run at any time - idempotent.
 #
 # Usage:
 #   .\install-cli-tools.ps1              # Install/update all tools (@beta)

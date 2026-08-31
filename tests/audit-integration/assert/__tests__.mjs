@@ -21,7 +21,7 @@ function test(name, fn) {
       pass++;
     })
     .catch((err) => {
-      console.error('  ✗', name, '—', err.message);
+      console.error('  ✗', name, '-', err.message);
       fail++;
     });
 }

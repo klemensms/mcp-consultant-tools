@@ -9,11 +9,11 @@ MCP server providing read-only access to Azure SQL Database and SQL Server for s
 
 ## Configuration
 
-Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both — only the wrapper key and the file differ.
+Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
-### VS Code — recommended (1Password)
+### VS Code - recommended (1Password)
 
-Credentials are resolved at runtime via biometric authentication — no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
+Credentials are resolved at runtime via biometric authentication - no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
 
 > **PII protection (opt-in):** redaction is off by default. Set `PII_PROTECTION=true` to enable it. See [PII Protection](#pii-protection-v31) below.
 
@@ -52,7 +52,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-### VS Code — alternative (local credentials)
+### VS Code - alternative (local credentials)
 
 > **PII protection (opt-in):** redaction is off by default. Set `PII_PROTECTION=true` to enable it.
 
@@ -91,9 +91,9 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-**Connection options:** provide either `AZURE_SQL_SERVERS` (a JSON array — recommended, multi-server) **or** the single-server quartet `AZURE_SQL_SERVER` / `AZURE_SQL_DATABASE` / `AZURE_SQL_USERNAME` / `AZURE_SQL_PASSWORD`. `AZURE_SQL_PORT` (default `1433`) applies to the single-server form.
+**Connection options:** provide either `AZURE_SQL_SERVERS` (a JSON array - recommended, multi-server) **or** the single-server quartet `AZURE_SQL_SERVER` / `AZURE_SQL_DATABASE` / `AZURE_SQL_USERNAME` / `AZURE_SQL_PASSWORD`. `AZURE_SQL_PORT` (default `1433`) applies to the single-server form.
 
-**Azure AD authentication** is configured **per server, inside the `AZURE_SQL_SERVERS` JSON array** — not via top-level env vars. Add `useAzureAd` plus the three `azureAd*` fields to a server entry:
+**Azure AD authentication** is configured **per server, inside the `AZURE_SQL_SERVERS` JSON array** - not via top-level env vars. Add `useAzureAd` plus the three `azureAd*` fields to a server entry:
 
 ```json
 "AZURE_SQL_SERVERS": "[{\"id\":\"prod\",\"name\":\"Production\",\"server\":\"prod.database.windows.net\",\"port\":1433,\"active\":true,\"databases\":[{\"name\":\"AppDB\",\"active\":true}],\"useAzureAd\":true,\"azureAdClientId\":\"<client-id>\",\"azureAdClientSecret\":\"<client-secret>\",\"azureAdTenantId\":\"<tenant-id>\"}]"
@@ -123,31 +123,31 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 - **`sql-execute-query` is read-only.** Only SELECT statements are accepted; write keywords are blocked at validation time.
 - **DELETE requires a WHERE clause.** `sql-delete-records` will reject any DELETE statement without a WHERE clause to prevent accidental full-table deletion.
 - **Each write tool is independently gated.** Enabling `SQL_ENABLE_INSERT` does not enable `SQL_ENABLE_DELETE`; each flag controls its own tool.
-- **`sql-execute-unrestricted` is conditionally registered.** Unlike other write tools (which are always visible but throw when called with the flag off), this tool does not appear in the MCP tool list at all unless `SQL_ENABLE_UNRESTRICTED=true`. Use it as a break-glass for incident response or environment resets — it accepts any T-SQL including DDL, multi-statement batches, and `GO` separators.
-- **The six Query Store tools require Query Store to be enabled.** `sql-get-top-waits`, `sql-find-query-in-store`, `sql-get-query-wait-stats`, `sql-get-cpu-intensive-queries`, `sql-get-failed-queries` and `sql-get-query-plan` all read the `sys.query_store_*` views. They are read-only and need no feature flag, but the login needs `VIEW DATABASE STATE` in addition to `db_datareader`. Query Store is on by default for Azure SQL Database and off by default for on-premises SQL Server — enable it with `ALTER DATABASE [YourDatabase] SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = AUTO)`. When it is off, these tools **fail with an explicit message** rather than returning an empty result, because the underlying views return zero rows when disabled and "no waits found" would otherwise read as "the database is healthy".
+- **`sql-execute-unrestricted` is conditionally registered.** Unlike other write tools (which are always visible but throw when called with the flag off), this tool does not appear in the MCP tool list at all unless `SQL_ENABLE_UNRESTRICTED=true`. Use it as a break-glass for incident response or environment resets - it accepts any T-SQL including DDL, multi-statement batches, and `GO` separators.
+- **The six Query Store tools require Query Store to be enabled.** `sql-get-top-waits`, `sql-find-query-in-store`, `sql-get-query-wait-stats`, `sql-get-cpu-intensive-queries`, `sql-get-failed-queries` and `sql-get-query-plan` all read the `sys.query_store_*` views. They are read-only and need no feature flag, but the login needs `VIEW DATABASE STATE` in addition to `db_datareader`. Query Store is on by default for Azure SQL Database and off by default for on-premises SQL Server - enable it with `ALTER DATABASE [YourDatabase] SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = AUTO)`. When it is off, these tools **fail with an explicit message** rather than returning an empty result, because the underlying views return zero rows when disabled and "no waits found" would otherwise read as "the database is healthy".
 - **Start Query Store investigations with `sql-find-query-in-store`.** It returns the `queryId` values that `sql-get-query-wait-stats` and `sql-get-query-plan` require. `sql-get-query-plan` and `sql-get-failed-queries --include-plan` can each produce multi-megabyte XML and are subject to `AZURE_SQL_MAX_RESPONSE_SIZE_MB`.
-- **The eight session/space tools read DMVs, not Query Store.** `sql-get-blocking-chains`, `sql-get-executing-requests`, `sql-get-deadlock-graphs`, `sql-get-long-running-transactions`, `sql-get-database-space`, `sql-get-table-space`, `sql-get-tempdb-space` and `sql-get-tempdb-session-usage` are read-only and need no feature flag. They require `VIEW SERVER STATE` on SQL Server — which on Azure SQL Database is the different permission `VIEW DATABASE STATE`. Unlike the Query Store tools they need **no** proactive gate: insufficient permission raises a SQL error rather than silently returning zero rows, so an empty result genuinely means "nothing is blocking / running / long-lived".
-- **`sql-get-deadlock-graphs` is not supported on Azure SQL Database.** It reads the `system_health` Extended Events ring buffer, which Azure SQL Database does not run (and its server-scoped `sys.dm_xe_sessions` views do not exist there). The tool detects the engine edition first and **fails with instructions** — including the `CREATE EVENT SESSION … ADD EVENT sqlserver.database_xml_deadlock_report` you'd need to start capturing deadlocks — rather than emitting a bare "Invalid object name". It works on SQL Server and Azure SQL Managed Instance.
+- **The eight session/space tools read DMVs, not Query Store.** `sql-get-blocking-chains`, `sql-get-executing-requests`, `sql-get-deadlock-graphs`, `sql-get-long-running-transactions`, `sql-get-database-space`, `sql-get-table-space`, `sql-get-tempdb-space` and `sql-get-tempdb-session-usage` are read-only and need no feature flag. They require `VIEW SERVER STATE` on SQL Server - which on Azure SQL Database is the different permission `VIEW DATABASE STATE`. Unlike the Query Store tools they need **no** proactive gate: insufficient permission raises a SQL error rather than silently returning zero rows, so an empty result genuinely means "nothing is blocking / running / long-lived".
+- **`sql-get-deadlock-graphs` is not supported on Azure SQL Database.** It reads the `system_health` Extended Events ring buffer, which Azure SQL Database does not run (and its server-scoped `sys.dm_xe_sessions` views do not exist there). The tool detects the engine edition first and **fails with instructions** - including the `CREATE EVENT SESSION … ADD EVENT sqlserver.database_xml_deadlock_report` you'd need to start capturing deadlocks - rather than emitting a bare "Invalid object name". It works on SQL Server and Azure SQL Managed Instance.
 - **The two TempDB tools target the connection, not the named database.** `sql-get-tempdb-space` and `sql-get-tempdb-session-usage` always describe the TempDB of whichever connection `serverId`/`database` resolve to. TempDB is reached by three-part name (`tempdb.sys.*`), the one documented exception to Azure SQL Database's ban on cross-database references, so the same query works on both platforms.
 - **On Azure SQL Database, the session tools are scoped to the connected database,** and Basic/S0/S1 tiers plus elastic pools need a server admin, a Microsoft Entra admin, or `##MS_ServerStateReader##` membership rather than a plain `VIEW DATABASE STATE` grant. `sql-get-executing-requests` with `includePlan=true` additionally needs a Premium tier or admin login to read `sys.dm_exec_query_statistics_xml`.
-- **`sql-get-index-usage-stats` reports the counter window, and you must read it.** `sys.dm_db_index_usage_stats` resets whenever the database engine restarts, and whenever the database is detached, taken offline or AUTO_CLOSEd. `summary.statsWindowHours` says how long the counters have been accumulating — after a restart an hour ago, *every* index looks dormant. Two further traps the tool's output makes visible: an index that has never been used has **no row** in the DMV rather than a row of zeros, so `hasUsageData: false` means "no evidence either way", not "unused"; and the DMV covers neither memory-optimized nor spatial indexes, which are therefore excluded rather than reported as unused. Only `isUnused: true` — the engine maintains the index on every write and nothing has read it — is a genuine drop candidate, and even then, weigh it against the window.
+- **`sql-get-index-usage-stats` reports the counter window, and you must read it.** `sys.dm_db_index_usage_stats` resets whenever the database engine restarts, and whenever the database is detached, taken offline or AUTO_CLOSEd. `summary.statsWindowHours` says how long the counters have been accumulating - after a restart an hour ago, *every* index looks dormant. Two further traps the tool's output makes visible: an index that has never been used has **no row** in the DMV rather than a row of zeros, so `hasUsageData: false` means "no evidence either way", not "unused"; and the DMV covers neither memory-optimized nor spatial indexes, which are therefore excluded rather than reported as unused. Only `isUnused: true` - the engine maintains the index on every write and nothing has read it - is a genuine drop candidate, and even then, weigh it against the window.
 - **`sql-get-disabled-indexes` returns rebuild DDL as text and never runs it.** The `rebuildStatement` field is a ready-to-run `ALTER INDEX … REBUILD`. Rebuilding takes a schema lock and can run for a long time on a large table, so executing it is your decision and your maintenance window.
-- **`sql-create-fk-indexes` is the only write in the diagnostics suite.** It creates an `IX_<table>_<column>` nonclustered index on every foreign-key column lacking a leading-key index, and needs `SQL_ENABLE_INDEX_CREATE=true`. Run `sql-get-missing-fk-indexes` first — it is the dry run and lists exactly what would be created. Each `CREATE INDEX` takes a schema lock on its table. The result reports one row per attempt (`created` / `skipped` / `failed` with its SQL error), so a partial run tells you precisely what landed.
+- **`sql-create-fk-indexes` is the only write in the diagnostics suite.** It creates an `IX_<table>_<column>` nonclustered index on every foreign-key column lacking a leading-key index, and needs `SQL_ENABLE_INDEX_CREATE=true`. Run `sql-get-missing-fk-indexes` first - it is the dry run and lists exactly what would be created. Each `CREATE INDEX` takes a schema lock on its table. The result reports one row per attempt (`created` / `skipped` / `failed` with its SQL error), so a partial run tells you precisely what landed.
 - **"Missing" FK index means missing a *leading* key.** `sql-get-missing-fk-indexes` evaluates each foreign-key column separately, so a composite foreign key reports its columns one at a time. A column sitting at position 2 of a composite index counts as missing, because it cannot serve the foreign-key lookup.
 - **XML output is redacted when `PII_PROTECTION=true`.** Deadlock graphs and execution plans embed literal parameter values, so the redaction pipeline can alter `deadlockXml` and `queryPlan` content. This is deliberate, but means the XML may not parse identically to what the server emitted. The same applies to generated DDL: the schema, table and column names inside `rebuildStatement` pass through the pipeline and can be rewritten, so take DDL from an unredacted run before executing it.
-- **PII protection is opt-in:** off by default; set `PII_PROTECTION=true` to redact. There is no environment-type gate — the server starts without it. When protection is off, a stderr warning fires if the configured `AZURE_SQL_SERVER` doesn't look like a non-prod environment.
+- **PII protection is opt-in:** off by default; set `PII_PROTECTION=true` to redact. There is no environment-type gate - the server starts without it. When protection is off, a stderr warning fires if the configured `AZURE_SQL_SERVER` doesn't look like a non-prod environment.
 
 ## PII Protection (v31+)
 
-A 4-layer redaction pipeline runs on every `sql-execute-query` result row (via `QueryService.executeQuery`). This is one of three packages that performs redaction — the others are `powerplatform-data` (Dataverse query responses) and `azure-devops` (work item fields and identity objects). See [pii-protection.md](pii-protection.md) for the full surface and layer-by-layer reference.
+A 4-layer redaction pipeline runs on every `sql-execute-query` result row (via `QueryService.executeQuery`). This is one of three packages that performs redaction - the others are `powerplatform-data` (Dataverse query responses) and `azure-devops` (work item fields and identity objects). See [pii-protection.md](pii-protection.md) for the full surface and layer-by-layer reference.
 
-SQL has no per-column rules — Layers 3 (regex) and 4 (NER) do the work on every row's string values, catching emails, phones, ISO-format dates, and person names regardless of column name.
+SQL has no per-column rules - Layers 3 (regex) and 4 (NER) do the work on every row's string values, catching emails, phones, ISO-format dates, and person names regardless of column name.
 
-**PII protection is opt-in and off by default. Set `PII_PROTECTION=true` to enable redaction — there is no environment-type gate, and the server starts normally without it.**
+**PII protection is opt-in and off by default. Set `PII_PROTECTION=true` to enable redaction - there is no environment-type gate, and the server starts normally without it.**
 
 | `PII_PROTECTION` | Behaviour |
 |---|---|
-| unset / `false` | pipeline off — raw data flows to the LLM (server starts normally) |
+| unset / `false` | pipeline off - raw data flows to the LLM (server starts normally) |
 | `true` | redaction active on every response |
 
 `MCP_ENVIRONMENT_TYPE` is inert: it does not gate startup and nothing reads it, including the "looks unprotected" warning below, which works off the environment identifier instead. (Earlier v31 betas made both flags mandatory with a refuse-to-start gate; v32 relaxed that to pure opt-in.)
@@ -156,7 +156,7 @@ SQL has no per-column rules — Layers 3 (regex) and 4 (NER) do the work on ever
 |-----|--------|-----------|
 | `MCP_ENVIRONMENT_TYPE` | `production` \| `uat` \| `dev` | Optional. **Inert**: not a gate, and not used by the "looks unprotected" warning. Setting it has no runtime effect. |
 | `PII_PROTECTION` | `true` \| `false` | Off by default. Set `true` to enable redaction; `false`/unset is permitted in any environment. |
-| `PII_OBSERVE_MODE` | `true` \| `false` (default `false`) | When `true`, pipeline computes what it would redact but returns original data unchanged. Footer reports `(observe-mode — values not changed)`. |
+| `PII_OBSERVE_MODE` | `true` \| `false` (default `false`) | When `true`, pipeline computes what it would redact but returns original data unchanged. Footer reports `(observe-mode - values not changed)`. |
 | `PII_CONFIG_PATH` | path to JSON file (optional) | Per-layer toggles, per-entity field rules, regex patterns, NER scan-fields. See [pii-protection.md](pii-protection.md) for the schema. |
 | `PII_NONPROD_HINTS` | comma-separated substrings (optional) | Override the URL-heuristic non-prod hint list (defaults: `dev,uat,training,support,migration,sandbox,test`). Identifier checked is `AZURE_SQL_SERVER` (or first server in `AZURE_SQL_SERVERS`). |
 
@@ -166,7 +166,7 @@ See [pii-protection.md](pii-protection.md) for config schema and [PII_PROTECTION
 
 ## Coming later (not yet active)
 
-These connection-pool and timeout knobs are documented in earlier config examples but are **not read from the environment** — the server currently uses fixed built-in values. They are listed here so the intended configuration surface isn't lost:
+These connection-pool and timeout knobs are documented in earlier config examples but are **not read from the environment** - the server currently uses fixed built-in values. They are listed here so the intended configuration surface isn't lost:
 
 | Variable | Purpose (planned) | Current fixed behaviour |
 |----------|-------------------|-------------------------|

@@ -44,7 +44,7 @@ export default async function refuseToExecute(ctx) {
   if (records1.length > 0) {
     ctx.log(
       'warn',
-      `note: ${records1.length} record(s) emitted before engagement set (tool names: ${records1.map((r) => r.tool?.name).join(', ')}) — review acceptability`,
+      `note: ${records1.length} record(s) emitted before engagement set (tool names: ${records1.map((r) => r.tool?.name).join(', ')}) - review acceptability`,
     );
   } else {
     ctx.log('info', '✓ no audit records emitted before engagement set');

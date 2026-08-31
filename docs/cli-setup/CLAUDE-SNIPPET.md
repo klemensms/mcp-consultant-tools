@@ -1,4 +1,4 @@
-# CLAUDE.md Snippet — MCP Consultant Tools CLI
+# CLAUDE.md Snippet - MCP Consultant Tools CLI
 
 > **Instructions:** Copy the section below into your project's `CLAUDE.md` file.
 > Adjust the authentication section to match how credentials are stored in your project
@@ -63,7 +63,7 @@ Look for `.env` or `.mcp.json` files in the project root or client environment f
 
 ### Output
 
-All tools print a summary to stdout and cache full JSON to `.context/.mcp-*-cache/`. Use `--json` for raw JSON output. When large responses are expected, prefer CLI over MCP tools — CLI caches to disk and keeps context clean.
+All tools print a summary to stdout and cache full JSON to `.context/.mcp-*-cache/`. Use `--json` for raw JSON output. When large responses are expected, prefer CLI over MCP tools - CLI caches to disk and keeps context clean.
 
 ### Installation / Update
 

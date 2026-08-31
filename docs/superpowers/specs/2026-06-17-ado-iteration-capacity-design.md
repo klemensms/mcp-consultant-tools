@@ -1,13 +1,13 @@
-# Design — Team Iteration Capacity tools (`azure-devops-admin`)
+# Design - Team Iteration Capacity tools (`azure-devops-admin`)
 
 **Date:** 2026-06-17
 **Package:** `@mcp-consultant-tools/azure-devops-admin` (`mcp-ado-admin` / `mcp-ado-admin-cli`)
-**Status:** Approved — implementing in the v35 beta line.
+**Status:** Approved - implementing in the v35 beta line.
 
 ## Problem
 
 The team tracks each resource's sprint availability via **Days off** + **Capacity per day** on the
-ADO team Capacity page (Boards → Sprints → Capacity). No MCP tool or CLI command exists for capacity —
+ADO team Capacity page (Boards → Sprints → Capacity). No MCP tool or CLI command exists for capacity -
 only iteration/area CRUD (the `classification` domain). Setting days-off programmatically (e.g. an agent
 reflecting resource bookings from a CRM into ADO capacity) requires hand-rolled REST calls.
 
@@ -29,7 +29,7 @@ Five tools + an internal identity resolver.
 
 **Single gating flag** for all three writes: `AZUREDEVOPS_ENABLE_ITERATION_CAPACITY_UPSERT=true`
 (matches the existing `enable…Upsert` convention; default `false`). Capacity has no separate "delete"
-tier — clearing is a set-to-empty.
+tier - clearing is a set-to-empty.
 
 Name/email→GUID resolution is **internal** to the set tools (via the team-members API), not a standalone
 tool. `get-iteration-capacities` already surfaces displayName + email + GUID.
@@ -50,9 +50,9 @@ Team segment is `encodeURIComponent(team)`; project raw (mirrors `addIterationTo
 PATCH calls pass content-type `application/json` explicitly (the client defaults PATCH to json-patch).
 
 - **Capacities GET** `…/capacities` → `{ teamMembers: [{ teamMember:{id,displayName,uniqueName}, activities:[{capacityPerDay,name}], daysOff:[{start,end}] }], totalCapacityPerDay, totalDaysOff }`. (Tolerates a `value` root too.)
-- **Capacity PATCH (one member)** `…/capacities/{teamMemberId}` body `{ activities:[{capacityPerDay,name}], daysOff:[{start,end}] }` — **full replace** of that member's activities + days-off. Returns updated object.
+- **Capacity PATCH (one member)** `…/capacities/{teamMemberId}` body `{ activities:[{capacityPerDay,name}], daysOff:[{start,end}] }` - **full replace** of that member's activities + days-off. Returns updated object.
 - **Team days-off GET** `…/teamdaysoff` → `{ daysOff:[{start,end}] }`.
-- **Team days-off PATCH** `…/teamdaysoff` body `{ daysOff:[{start,end}] }` — **full replace**.
+- **Team days-off PATCH** `…/teamdaysoff` body `{ daysOff:[{start,end}] }` - **full replace**.
 - **Team members** (resolution) `_apis/projects/{project}/teams/{team}/members` → `{ value:[{ identity:{id,displayName,uniqueName} }] }`.
 
 ### Key semantics
@@ -62,7 +62,7 @@ PATCH calls pass content-type `application/json` explicitly (the client defaults
   Dates accept `YYYY-MM-DD` or full ISO and are normalized via `client.formatDateForAdo()`.
 - **Batch = N sequential PATCH calls** (one per named member), NOT ADO's `PUT …/capacities` replace-all.
   PUT would silently zero out any member not in the payload; the loop only touches the people you name.
-  Ceiling: sequential calls — fine for team-sized rosters; parallelize if throughput ever matters.
+  Ceiling: sequential calls - fine for team-sized rosters; parallelize if throughput ever matters.
 - Identity resolution: GUID passed through as-is; otherwise match team members by email (exact, case-insensitive)
   then displayName (case-insensitive). Zero/ambiguous matches → error listing candidates. Members fetched once per call.
 
@@ -77,7 +77,7 @@ PAT scope `vso.work_write` (Work items read & write) for the write tools; reads 
 
 ## Verification
 
-Package has no unit-test infra (pattern-first repo) — followed.
+Package has no unit-test infra (pattern-first repo) - followed.
 
 - **Agent-verifiable:** `npm run build --workspace=packages/azure-devops-admin` clean; tools register
   (server logs the new count); read tools return the expected shape; write tools only appear when the flag is set;

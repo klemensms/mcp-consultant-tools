@@ -5,15 +5,15 @@
 
 **Package:** `@mcp-consultant-tools/powerplatform-customization`
 
-MCP server for Dynamics 365 / Dataverse schema modifications: create and manage entities, attributes, relationships, option sets, forms, views, web resources, plugins, flows, and solutions. Not production-safe — use in development and configuration environments only.
+MCP server for Dynamics 365 / Dataverse schema modifications: create and manage entities, attributes, relationships, option sets, forms, views, web resources, plugins, flows, and solutions. Not production-safe - use in development and configuration environments only.
 
 ## Configuration
 
-Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both — only the wrapper key and the file differ.
+Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
-### VS Code — recommended (1Password)
+### VS Code - recommended (1Password)
 
-Credentials are resolved at runtime via biometric authentication — no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
+Credentials are resolved at runtime via biometric authentication - no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
 
 ```json
 {
@@ -34,7 +34,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-### VS Code — alternative (local credentials)
+### VS Code - alternative (local credentials)
 
 ```json
 {
@@ -67,12 +67,12 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 
 ## Notable Behavior
 
-- **`PUBLISHER_PREFIX` is validated at startup:** If missing, the server fails to start. Provide with or without trailing underscore — it is normalized automatically (e.g., `"contoso"` becomes `"contoso_"`). This prefix is used by naming validation and icon management throughout the package.
+- **`PUBLISHER_PREFIX` is validated at startup:** If missing, the server fails to start. Provide with or without trailing underscore - it is normalized automatically (e.g., `"contoso"` becomes `"contoso_"`). This prefix is used by naming validation and icon management throughout the package.
 - **Most schema changes require publishing:** After `create-entity`, `update-entity`, `create-attribute`, etc., call `publish-customizations` or `publish-entity` to make changes live.
-- **`deploy-plugin-complete` is an orchestration tool:** Handles the full plugin deployment workflow in one call — upload DLL, register steps, register images. Use individual tools (`create-plugin-assembly`, `register-plugin-step`, `register-plugin-image`) for incremental updates.
+- **`deploy-plugin-complete` is an orchestration tool:** Handles the full plugin deployment workflow in one call - upload DLL, register steps, register images. Use individual tools (`create-plugin-assembly`, `register-plugin-step`, `register-plugin-image`) for incremental updates.
 - **`register-webhook` is an orchestration tool:** Creates the service endpoint and SDK message processing step in a single call.
 - **`update-entity-icon` auto-publishes:** Uses Fluent UI System Icons from Microsoft's icon library. Icon is published immediately without needing a separate publish step.
-- **`document-automation` analyzes and documents flows:** Parses a Power Automate flow's definition, extracts structured metadata (trigger type, tables modified, trigger fields, custom APIs called, action count), and writes it as a YAML frontmatter block into the flow's description. Safe to re-run — existing manual notes below the YAML block are preserved. Also supports classic workflows with automatic deactivate/reactivate via `document-workflow-safe`.
+- **`document-automation` analyzes and documents flows:** Parses a Power Automate flow's definition, extracts structured metadata (trigger type, tables modified, trigger fields, custom APIs called, action count), and writes it as a YAML frontmatter block into the flow's description. Safe to re-run - existing manual notes below the YAML block are preserved. Also supports classic workflows with automatic deactivate/reactivate via `document-workflow-safe`.
 
 ## Related Packages
 

@@ -114,11 +114,11 @@ Minimum permissions:
 - `Microsoft.DataFactory/factories/triggers/stop/action`
 - `Microsoft.DataFactory/factories/integrationruntimes/read`
 
-## Important: Debug Mode — Execute vs Query
+## Important: Debug Mode - Execute vs Query
 
 The ADF REST API does NOT support *executing* true "debug mode" runs (running unpublished pipelines). All pipeline runs *created* via this API execute the **published** version of the pipeline.
 
-*Querying* debug-run history is a different matter. Runs launched via the ADF Studio "Debug" button are retrievable through the `queryDebugPipelineRuns` ARM action (surfaced by `adf-query-debug-pipeline-runs`). That operation is **undocumented** by Microsoft — absent from the public Swagger/REST reference — but is a real, RBAC-registered control-plane action (`Microsoft.DataFactory/factories/querydebugpipelineruns/action`, `IsDataAction: false`) that works with app-only auth given Data Factory Contributor-equivalent RBAC. Debug-run history is retained server-side for only ~15 days, and the response has no total-count field (the tool reports `truncated` when `maxResults` capped the result). Treat the endpoint as unsupported — Microsoft may change or remove external access without notice.
+*Querying* debug-run history is a different matter. Runs launched via the ADF Studio "Debug" button are retrievable through the `queryDebugPipelineRuns` ARM action (surfaced by `adf-query-debug-pipeline-runs`). That operation is **undocumented** by Microsoft - absent from the public Swagger/REST reference - but is a real, RBAC-registered control-plane action (`Microsoft.DataFactory/factories/querydebugpipelineruns/action`, `IsDataAction: false`) that works with app-only auth given Data Factory Contributor-equivalent RBAC. Debug-run history is retained server-side for only ~15 days, and the response has no total-count field (the tool reports `truncated` when `maxResults` capped the result). Treat the endpoint as unsupported - Microsoft may change or remove external access without notice.
 
 For *executing* pipelines, the API provides full execution and monitoring capabilities:
 1. Trigger pipeline runs with parameters
@@ -171,6 +171,6 @@ mcp-adf-cli pipeline list --factory-id prod-adf
 # Get a pipeline run's status
 mcp-adf-cli pipeline get-run abc123-def456
 
-# Query DEBUG-mode run history — all flags: window, pipeline, status, truncation cap, factory
+# Query DEBUG-mode run history - all flags: window, pipeline, status, truncation cap, factory
 mcp-adf-cli pipeline query-debug-runs --last-days 14 --pipeline-name DataCopy_Pipeline --status Failed --max-results 500 --factory-id prod-adf
 ```

@@ -21,7 +21,7 @@ export async function readMcpTestCreds() {
     raw = await readFile(MCP_JSON_PATH, 'utf8');
   } catch (err) {
     throw new Error(
-      `audit-integration: cannot read ${MCP_JSON_PATH} — required for live MCPTest creds. ` +
+      `audit-integration: cannot read ${MCP_JSON_PATH} - required for live MCPTest creds. ` +
         `Original error: ${err.message}`,
     );
   }
@@ -29,7 +29,7 @@ export async function readMcpTestCreds() {
   const entry = parsed?.mcpServers?.[MCPTEST_SERVER_KEY];
   if (!entry) {
     throw new Error(
-      `audit-integration: ${MCP_JSON_PATH} has no '${MCPTEST_SERVER_KEY}' entry — ` +
+      `audit-integration: ${MCP_JSON_PATH} has no '${MCPTEST_SERVER_KEY}' entry - ` +
         `expected an MCPTest pp-data server registration.`,
     );
   }

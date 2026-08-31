@@ -61,8 +61,8 @@ sync-work-item-to-file(project: "MyProject", workItemIds: [1044], includeComment
 ```
 
 **Behavior:**
-1. **Read-only against ADO** — downloads the item; never writes to or modifies it, never bumps its revision.
-2. HTML fields are converted to Markdown **in the local file only** (the ADO item keeps its HTML). HTML tables become Markdown pipe tables; complex tables (merged/styled cells) may lose structure and raise a `⚠️ TABLE CONVERSION` warning in the result — re-read with `get-work-item` to verify before editing.
+1. **Read-only against ADO** - downloads the item; never writes to or modifies it, never bumps its revision.
+2. HTML fields are converted to Markdown **in the local file only** (the ADO item keeps its HTML). HTML tables become Markdown pipe tables; complex tables (merged/styled cells) may lose structure and raise a `⚠️ TABLE CONVERSION` warning in the result - re-read with `get-work-item` to verify before editing.
 3. `skipAutoConvert: true` skips conversion; items whose body fields are still HTML are then reported under `skipped` rather than written with blank fields.
 
 ---
@@ -186,7 +186,7 @@ sync-tasks-from-file(project: "MyProject", parentIds: [1044])
 check-work-item-markdown(project: "MyProject", workItemIds: [1044, 1045])
 ```
 
-**Note:** HTML fields auto-convert to Markdown in the local file on pull (read-only — ADO is not modified), so this tool no longer gates syncing. It stays useful for inspection — e.g. spotting which items hold HTML tables before you pull and edit them.
+**Note:** HTML fields auto-convert to Markdown in the local file on pull (read-only - ADO is not modified), so this tool no longer gates syncing. It stays useful for inspection - e.g. spotting which items hold HTML tables before you pull and edit them.
 
 ---
 
@@ -548,7 +548,7 @@ New task description...
 
 ## Important Notes
 
-1. **HTML → Markdown conversion:** On **pull**, HTML fields convert to Markdown **in the local file only** — the pull is read-only and never modifies the ADO item. On **push**, edited fields are written back as Markdown (the point at which a field's ADO format changes). `skipAutoConvert: true` disables conversion on either side. HTML tables become Markdown pipe tables; complex tables (merged/styled cells) may lose structure and raise a lossy-conversion warning, with the ADO original preserved.
+1. **HTML → Markdown conversion:** On **pull**, HTML fields convert to Markdown **in the local file only** - the pull is read-only and never modifies the ADO item. On **push**, edited fields are written back as Markdown (the point at which a field's ADO format changes). `skipAutoConvert: true` disables conversion on either side. HTML tables become Markdown pipe tables; complex tables (merged/styled cells) may lose structure and raise a lossy-conversion warning, with the ADO original preserved.
 
 2. **Comments:** Comments files (`{id}-comments.md`) are read-only. Pull with `includeComments: true` but cannot push.
 

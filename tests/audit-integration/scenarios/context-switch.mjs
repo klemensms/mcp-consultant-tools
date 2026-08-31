@@ -1,5 +1,5 @@
 /**
- * Task 43 — context switch (engagement A → B with metadata).
+ * Task 43 - context switch (engagement A → B with metadata).
  *
  * Verifies:
  *   - 2 set-engagement calls + 4 query-records = 6 records
@@ -32,19 +32,19 @@ export default async function contextSwitch(ctx) {
   const A_IDS = ['MCPTEST-AUDIT-A1', 'MCPTEST-AUDIT-A2'];
   const B_IDS = ['MCPTEST-AUDIT-B1'];
 
-  // PHASE A — engagement A
+  // PHASE A - engagement A
   await setEngagement(session.client, A_IDS, 'context A');
   await queryRecords(session.client, { entityNamePlural: 'contacts', filter: 'firstname ne null', maxRecords: 1 });
   await queryRecords(session.client, { entityNamePlural: 'contacts', filter: 'firstname ne null', maxRecords: 1 });
 
-  // PHASE B — switch to engagement B
+  // PHASE B - switch to engagement B
   await setEngagement(session.client, B_IDS, 'context B');
   await queryRecords(session.client, { entityNamePlural: 'contacts', filter: 'firstname ne null', maxRecords: 1 });
   await queryRecords(session.client, { entityNamePlural: 'contacts', filter: 'firstname ne null', maxRecords: 1 });
 
   await session.close();
 
-  // PHASE C — read JSONL, validate per-record
+  // PHASE C - read JSONL, validate per-record
   const records = await readAuditDir(path.join(ctx.auditPath, 'ContextSwitch'));
   ctx.log('info', `total records: ${records.length} (expected 6)`);
   if (records.length !== 6) throw new Error(`expected 6 records, got ${records.length}`);
@@ -105,7 +105,7 @@ export default async function contextSwitch(ctx) {
   }
   ctx.log('info', '✓ records 5-6: 2 query-records under engagement B');
 
-  // PHASE D — chain integrity across the switch
+  // PHASE D - chain integrity across the switch
   const chain = walkChain(records);
   if (!chain.ok) throw new Error(`chain broken: ${JSON.stringify(chain)}`);
   ctx.log('info', `✓ chain integrity preserved across ${records.length} records spanning context switch`);

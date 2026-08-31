@@ -29,17 +29,17 @@ Responsibilities:
 **ServiceContext** (`types.ts`): Single getter `appInsights: ApplicationInsightsService`.
 
 **Tool files:**
-- `tools/query-tools.ts` — `ai-list-resources`, `ai-get-metadata`, `ai-execute-query`
-- `tools/telemetry-tools.ts` — `ai-get-exceptions`, `ai-get-slow-requests`, `ai-get-op-perf`, `ai-get-failed-deps`, `ai-get-traces`, `ai-get-availability`, `ai-get-custom-events`
+- `tools/query-tools.ts` - `ai-list-resources`, `ai-get-metadata`, `ai-execute-query`
+- `tools/telemetry-tools.ts` - `ai-get-exceptions`, `ai-get-slow-requests`, `ai-get-op-perf`, `ai-get-failed-deps`, `ai-get-traces`, `ai-get-availability`, `ai-get-custom-events`
 
 **Prompt file:**
-- `prompts/templates.ts` — all 5 prompts registered via `registerAppInsightsPrompts()`
+- `prompts/templates.ts` - all 5 prompts registered via `registerAppInsightsPrompts()`
 
 **Formatting utilities** (`utils/appinsights-formatters.ts`):
-- `formatTableAsMarkdown(table)` — converts query result tables to markdown
-- `analyzeExceptions(table)` — extracts exception frequency insights
-- `analyzePerformance(table)` — extracts performance bottleneck insights
-- `analyzeDependencies(table)` — extracts dependency health insights
+- `formatTableAsMarkdown(table)` - converts query result tables to markdown
+- `analyzeExceptions(table)` - extracts exception frequency insights
+- `analyzePerformance(table)` - extracts performance bottleneck insights
+- `analyzeDependencies(table)` - extracts dependency health insights
 
 </service-layer>
 
@@ -49,7 +49,7 @@ Two auth methods controlled by `APPINSIGHTS_AUTH_METHOD` env var.
 
 <auth-method name="entra-id" priority="high">
 
-**Microsoft Entra ID (OAuth 2.0) — Recommended**
+**Microsoft Entra ID (OAuth 2.0) - Recommended**
 
 - Rate limit: 60 requests/minute
 - No daily cap
@@ -68,7 +68,7 @@ Two auth methods controlled by `APPINSIGHTS_AUTH_METHOD` env var.
 
 <auth-method name="api-key">
 
-**API Key Authentication — Simpler, limited**
+**API Key Authentication - Simpler, limited**
 
 - Rate limit: 15 requests/minute per key
 - Daily cap: 1,500 requests per key
@@ -132,12 +132,12 @@ When using single-resource mode, the service creates a synthetic resource with `
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `APPINSIGHTS_AUTH_METHOD` | No | `entra-id` | Auth method: `entra-id` or `api-key` |
-| `APPINSIGHTS_RESOURCES` | Yes* | — | JSON array of resource configs |
-| `APPINSIGHTS_APP_ID` | Yes* | — | Single-resource Application ID fallback |
-| `APPINSIGHTS_TENANT_ID` | Entra ID only | — | Azure tenant ID |
-| `APPINSIGHTS_CLIENT_ID` | Entra ID only | — | Service principal client ID |
-| `APPINSIGHTS_CLIENT_SECRET` | Entra ID only | — | Service principal client secret |
-| `APPINSIGHTS_API_KEY` | API key only | — | API key for single-resource mode |
+| `APPINSIGHTS_RESOURCES` | Yes* | - | JSON array of resource configs |
+| `APPINSIGHTS_APP_ID` | Yes* | - | Single-resource Application ID fallback |
+| `APPINSIGHTS_TENANT_ID` | Entra ID only | - | Azure tenant ID |
+| `APPINSIGHTS_CLIENT_ID` | Entra ID only | - | Service principal client ID |
+| `APPINSIGHTS_CLIENT_SECRET` | Entra ID only | - | Service principal client secret |
+| `APPINSIGHTS_API_KEY` | API key only | - | API key for single-resource mode |
 
 *Either `APPINSIGHTS_RESOURCES` or `APPINSIGHTS_APP_ID` must be set.
 
@@ -157,7 +157,7 @@ When using single-resource mode, the service creates a synthetic resource with `
 
 **Parameters:** None
 
-**Returns:** Array of resource objects from `getAllResources()` — includes both active and inactive resources.
+**Returns:** Array of resource objects from `getAllResources()` - includes both active and inactive resources.
 
 **Resource object shape:**
 ```typescript
@@ -180,7 +180,7 @@ When using single-resource mode, the service creates a synthetic resource with `
 **Description:** Get schema metadata (available tables and their columns) for an Application Insights resource.
 
 **Parameters:**
-- `resourceId` (required) — Resource ID from `ai-list-resources`
+- `resourceId` (required) - Resource ID from `ai-list-resources`
 
 **Returns:** Table/column schema from `https://api.applicationinsights.io/v1/apps/{appId}/metadata`.
 
@@ -193,9 +193,9 @@ When using single-resource mode, the service creates a synthetic resource with `
 **Description:** Execute a custom KQL (Kusto Query Language) query against Application Insights.
 
 **Parameters:**
-- `resourceId` (required) — Resource ID
-- `query` (required) — KQL query string
-- `timespan` (optional) — ISO 8601 duration (e.g., `PT1H`, `P1D`). Applies as API-level filter in addition to any `ago()` in the query.
+- `resourceId` (required) - Resource ID
+- `query` (required) - KQL query string
+- `timespan` (optional) - ISO 8601 duration (e.g., `PT1H`, `P1D`). Applies as API-level filter in addition to any `ago()` in the query.
 
 **Timeout:** 30 seconds
 
@@ -224,8 +224,8 @@ requests | where duration > 5000 | project timestamp, name, duration
 
 **Parameters:**
 - `resourceId` (required)
-- `timespan` (optional, default: `PT1H`) — ISO 8601 duration
-- `limit` (optional, default: `50`) — max rows
+- `timespan` (optional, default: `PT1H`) - ISO 8601 duration
+- `limit` (optional, default: `50`) - max rows
 
 **Underlying KQL:**
 ```kusto
@@ -244,7 +244,7 @@ exceptions
 
 **Parameters:**
 - `resourceId` (required)
-- `durationThresholdMs` (optional, default: `5000`) — threshold in milliseconds
+- `durationThresholdMs` (optional, default: `5000`) - threshold in milliseconds
 - `timespan` (optional, default: `PT1H`)
 - `limit` (optional, default: `50`)
 
@@ -262,7 +262,7 @@ requests
 
 <tool name="ai-get-op-perf">
 
-**Description:** Get performance summary by operation — request count, average duration, P50/P95/P99 percentiles, failure count.
+**Description:** Get performance summary by operation - request count, average duration, P50/P95/P99 percentiles, failure count.
 
 **Parameters:**
 - `resourceId` (required)
@@ -312,7 +312,7 @@ dependencies
 
 **Parameters:**
 - `resourceId` (required)
-- `severityLevel` (optional, default: `2`) — minimum level: 0=Verbose, 1=Info, 2=Warning, 3=Error, 4=Critical
+- `severityLevel` (optional, default: `2`) - minimum level: 0=Verbose, 1=Info, 2=Warning, 3=Error, 4=Critical
 - `timespan` (optional, default: `PT1H`)
 - `limit` (optional, default: `100`)
 
@@ -358,7 +358,7 @@ availabilityResults
 
 **Parameters:**
 - `resourceId` (required)
-- `eventName` (optional) — filter to a specific event name
+- `eventName` (optional) - filter to a specific event name
 - `timespan` (optional, default: `PT1H`)
 - `limit` (optional, default: `100`)
 
@@ -385,7 +385,7 @@ All prompts accept `resourceId` (required) and `timespan` (optional). Prompts ex
 **Default timespan:** `PT1H`
 
 **Queries executed:**
-1. `getRecentExceptions(resourceId, timespan, 50)` — recent exceptions
+1. `getRecentExceptions(resourceId, timespan, 50)` - recent exceptions
 2. Custom KQL: exception type frequency (`summarize Count=count() by type`)
 
 **Report sections:** Key Insights, Recent Exceptions (table), Exception Types by Frequency (table), Recommendations
@@ -403,8 +403,8 @@ All prompts accept `resourceId` (required) and `timespan` (optional). Prompts ex
 **Default timespan:** `PT1H`
 
 **Queries executed:**
-1. `getOperationPerformance(resourceId, timespan)` — P50/P95/P99 by operation
-2. `getSlowRequests(resourceId, 5000, timespan, 20)` — requests over 5s
+1. `getOperationPerformance(resourceId, timespan)` - P50/P95/P99 by operation
+2. `getSlowRequests(resourceId, 5000, timespan, 20)` - requests over 5s
 
 **Report sections:** Key Insights, Operation Performance Summary (table), Slowest Requests >5s (table), Performance Recommendations
 
@@ -421,7 +421,7 @@ All prompts accept `resourceId` (required) and `timespan` (optional). Prompts ex
 **Default timespan:** `PT1H`
 
 **Queries executed:**
-1. `getFailedDependencies(resourceId, timespan, 50)` — failed dependency calls
+1. `getFailedDependencies(resourceId, timespan, 50)` - failed dependency calls
 2. Custom KQL: success rates per target (`summarize Total, Failed, AvgDuration by target, type; extend SuccessRate`)
 
 **Report sections:** Key Insights, Failed Dependencies (table), Dependency Success Rates (table), Recommendations
@@ -439,7 +439,7 @@ All prompts accept `resourceId` (required) and `timespan` (optional). Prompts ex
 **Default timespan:** `PT24H`
 
 **Queries executed:**
-1. `getAvailabilityResults(resourceId, timespan)` — uptime per test name
+1. `getAvailabilityResults(resourceId, timespan)` - uptime per test name
 
 **Report sections:** Availability Test Results (table), Recommendations
 
@@ -459,7 +459,7 @@ All prompts accept `resourceId` (required) and `timespan` (optional). Prompts ex
 1. `getRecentExceptions(resourceId, timespan, 20)`
 2. `getSlowRequests(resourceId, 5000, timespan, 20)`
 3. `getFailedDependencies(resourceId, timespan, 20)`
-4. `getTracesBySeverity(resourceId, 3, timespan, 30)` — Error level only
+4. `getTracesBySeverity(resourceId, 3, timespan, 30)` - Error level only
 
 **Report sections:**
 1. Recent Errors and Exceptions
@@ -532,7 +532,7 @@ The `timespan` parameter is also passed to the API as a query parameter, which a
 **HTTP 401**
 Message: `"Application Insights authentication failed. Check credentials and permissions."`
 
-Causes: Invalid tenant ID, client ID, or client secret. Expired token (rare — tokens auto-refresh).
+Causes: Invalid tenant ID, client ID, or client secret. Expired token (rare - tokens auto-refresh).
 
 </error-case>
 
@@ -667,8 +667,8 @@ packages/application-insights/src/
 
 | CLI Command | MCP Tool | Required Args | Options |
 |-------------|----------|---------------|---------|
-| `list-resources` | `ai-list-resources` | — | — |
-| `get-metadata <resourceId>` | `ai-get-metadata` | resourceId | — |
+| `list-resources` | `ai-list-resources` | - | - |
+| `get-metadata <resourceId>` | `ai-get-metadata` | resourceId | - |
 | `query <resourceId> <query>` | `ai-execute-query` | resourceId, query | `--timespan` |
 | `exceptions <resourceId>` | `ai-get-exceptions` | resourceId | `--timespan`, `--limit` |
 | `slow-requests <resourceId>` | `ai-get-slow-requests` | resourceId | `--duration`, `--timespan`, `--limit` |
@@ -679,9 +679,9 @@ packages/application-insights/src/
 | `custom-events <resourceId>` | `ai-get-custom-events` | resourceId | `--event-name`, `--timespan`, `--limit` |
 
 **Global flags** (all commands):
-- `--json` — output raw JSON instead of summary
-- `--no-cache` — skip writing to cache directory
-- `--env-file <path>` — load custom `.env` file
+- `--json` - output raw JSON instead of summary
+- `--no-cache` - skip writing to cache directory
+- `--env-file <path>` - load custom `.env` file
 
 **Usage examples:**
 ```bash

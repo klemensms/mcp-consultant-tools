@@ -4,12 +4,12 @@ MCP server for Microsoft Fabric. Manage workspaces, capacities, items, OneLake s
 
 ## Features
 
-- **Workspaces** — list, get, create, update, delete; manage role assignments
-- **Capacities** — list, get; assign/unassign workspaces to a capacity
-- **Items** — list, get, create, update, delete; type-specific create for lakehouses, warehouses, notebooks
-- **Shortcuts** — list, create, delete OneLake shortcuts (zero-copy references into ADLS Gen2, S3, Dataverse, OneLake)
-- **Domains** — list, get; assign/unassign workspaces to a governance domain
-- **Admin** — tenant-wide item inventory, admin workspace list, tenant settings (read-only)
+- **Workspaces** - list, get, create, update, delete; manage role assignments
+- **Capacities** - list, get; assign/unassign workspaces to a capacity
+- **Items** - list, get, create, update, delete; type-specific create for lakehouses, warehouses, notebooks
+- **Shortcuts** - list, create, delete OneLake shortcuts (zero-copy references into ADLS Gen2, S3, Dataverse, OneLake)
+- **Domains** - list, get; assign/unassign workspaces to a governance domain
+- **Admin** - tenant-wide item inventory, admin workspace list, tenant settings (read-only)
 - Service-principal authentication with token caching and automatic refresh
 - Write/delete operations gated behind explicit feature flags
 - Companion CLI (`mcp-fabric-cli`) with 1:1 parity to every MCP tool
@@ -118,11 +118,11 @@ mcp-fabric-cli --json workspace list
 
 ### Global Flags
 
-- `--json` — print raw JSON to stdout instead of a summary
-- `--no-cache` — skip writing the full JSON cache file
-- `--env-file <path>` — load environment variables from a `.env` file
-- `--mcp-config <path>` — load environment from an MCP config file (defaults to `./.mcp.json`)
-- `--mcp-server <name>` — server name in the MCP config to read the `env` block from
+- `--json` - print raw JSON to stdout instead of a summary
+- `--no-cache` - skip writing the full JSON cache file
+- `--env-file <path>` - load environment variables from a `.env` file
+- `--mcp-config <path>` - load environment from an MCP config file (defaults to `./.mcp.json`)
+- `--mcp-server <name>` - server name in the MCP config to read the `env` block from
 
 Each command prints a human-readable summary to stdout and writes the full JSON
 response to `.context/.mcp-fabric-cache/`.

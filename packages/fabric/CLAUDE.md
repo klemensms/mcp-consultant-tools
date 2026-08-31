@@ -5,7 +5,7 @@
 Microsoft Fabric integration for workspaces, capacities, items, OneLake shortcuts, domains, and tenant-wide admin inventory.
 
 - **Tools:** 27 tools, 2 prompts
-- **Authentication:** Azure AD (Entra) service principal — client credentials flow
+- **Authentication:** Azure AD (Entra) service principal - client credentials flow
 - **Token scope:** `https://api.fabric.microsoft.com/.default` (covers core + admin APIs)
 
 ## Environment Configuration
@@ -58,19 +58,19 @@ is passed. `domain` and `admin` tools always use the admin API.
 - `fabric-create-shortcut` *(write)*
 - `fabric-delete-shortcut` *(delete)*
 
-### Domains (4 tools — admin API)
+### Domains (4 tools - admin API)
 - `fabric-list-domains`, `fabric-get-domain`
 - `fabric-assign-domain-workspaces`, `fabric-unassign-domain-workspaces` *(write)*
 
-### Admin (3 tools — admin API, read-only)
+### Admin (3 tools - admin API, read-only)
 - `fabric-admin-list-workspaces`, `fabric-admin-list-items`, `fabric-admin-get-tenant-settings`
 
 ## Write Protection
 
 Mutations are **disabled by default** and gated by two feature flags:
 
-- **FABRIC_ENABLE_WRITE=true** — create/update workspaces, items, shortcuts; assign capacities, domains, and workspace roles
-- **FABRIC_ENABLE_DELETE=true** — delete workspaces, items, and shortcuts (separate flag for extra safety)
+- **FABRIC_ENABLE_WRITE=true** - create/update workspaces, items, shortcuts; assign capacities, domains, and workspace roles
+- **FABRIC_ENABLE_DELETE=true** - delete workspaces, items, and shortcuts (separate flag for extra safety)
 
 Gating is enforced in `FabricClient.checkWriteEnabled()` / `checkDeleteEnabled()`,
 called by the services before any mutating request.

@@ -68,11 +68,11 @@ packages/azure-b2c/src/
     group-service.ts          # listGroups, getUserGroups, getGroupMembers, getTenantSummary
     index.ts                  # Barrel export
   tools/
-    user-tools.ts             # registerUserTools() — 8 tools
-    group-tools.ts            # registerGroupTools() — 3 tools
+    user-tools.ts             # registerUserTools() - 8 tools
+    group-tools.ts            # registerGroupTools() - 3 tools
     index.ts                  # registerAllTools() aggregator
   prompts/
-    templates.ts              # registerB2CPrompts() — 2 prompts
+    templates.ts              # registerB2CPrompts() - 2 prompts
     index.ts                  # registerAllPrompts() aggregator
   utils/
     formatters.ts             # formatUser(), formatUserList(), formatTenantSummary(), etc.
@@ -111,18 +111,18 @@ const graphClient = Client.initWithMiddleware({ authProvider });
 <app-registration-setup>
 
 1. Go to **Azure Portal** > **Azure AD B2C** > **App registrations** > **New registration**
-2. Name: `MCP B2C Management` — Supported account types: **Accounts in this organizational directory only** — No redirect URI
+2. Name: `MCP B2C Management` - Supported account types: **Accounts in this organizational directory only** - No redirect URI
 3. **API permissions** > Add **Microsoft Graph** > **Application permissions**:
-   - `User.ReadWrite.All` — required for all user operations (use `User.Read.All` for read-only)
-   - `Directory.ReadWrite.All` — required for group operations
+   - `User.ReadWrite.All` - required for all user operations (use `User.Read.All` for read-only)
+   - `Directory.ReadWrite.All` - required for group operations
    - Click **Grant admin consent**
-4. **Certificates & secrets** > **New client secret** — copy the value immediately (shown once)
+4. **Certificates & secrets** > **New client secret** - copy the value immediately (shown once)
 5. **Assign directory role:** Azure AD B2C > Roles and administrators > **User Administrator** > Add assignments > select the app registration
 
 Required configuration values:
-- **Tenant ID** — Overview > Directory (tenant) ID
-- **Client ID** — App registration > Overview > Application (client) ID
-- **Client Secret** — value from step 4
+- **Tenant ID** - Overview > Directory (tenant) ID
+- **Client ID** - App registration > Overview > Application (client) ID
+- **Client Secret** - value from step 4
 
 </app-registration-setup>
 
@@ -134,9 +134,9 @@ Required configuration values:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `AZURE_B2C_TENANT_ID` | Yes | — | Tenant ID (GUID or `contoso.onmicrosoft.com`) |
-| `AZURE_B2C_CLIENT_ID` | Yes | — | App registration client ID |
-| `AZURE_B2C_CLIENT_SECRET` | Yes | — | App registration client secret |
+| `AZURE_B2C_TENANT_ID` | Yes | - | Tenant ID (GUID or `contoso.onmicrosoft.com`) |
+| `AZURE_B2C_CLIENT_ID` | Yes | - | App registration client ID |
+| `AZURE_B2C_CLIENT_SECRET` | Yes | - | App registration client secret |
 | `AZURE_B2C_ENABLE_PASSWORD_RESET` | No | `false` | Enable `b2c-reset-user-password` and `b2c-force-pwd-change` |
 | `AZURE_B2C_ENABLE_USER_CREATE` | No | `false` | Enable `b2c-create-user` |
 | `AZURE_B2C_ENABLE_USER_UPDATE` | No | `false` | Enable `b2c-update-user` |
@@ -192,7 +192,7 @@ export interface AzureB2CConfig {
 
 <tool-reference>
 
-<tool-group name="user-read" description="Read-only user tools — always enabled">
+<tool-group name="user-read" description="Read-only user tools - always enabled">
 
 <tool name="b2c-list-users">
 
@@ -201,13 +201,13 @@ List Azure AD B2C users with optional OData filtering.
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `top` | number | No | 50 | Max users to return (capped at `AZURE_B2C_MAX_RESULTS`) |
-| `filter` | string | No | — | OData filter expression |
+| `filter` | string | No | - | OData filter expression |
 | `includeAllFields` | boolean | No | false | Return all Graph API fields, including `extension_*` custom attributes |
 
 **OData filter examples:**
-- `"accountEnabled eq true"` — active users only
-- `"startswith(displayName,'John')"` — name prefix match
-- `"mail eq 'user@example.com'"` — exact email match
+- `"accountEnabled eq true"` - active users only
+- `"startswith(displayName,'John')"` - name prefix match
+- `"mail eq 'user@example.com'"` - exact email match
 
 When `filter` is provided, result is not cached. When `filter` is omitted, result is cached for `cacheUsersTTL` seconds.
 
@@ -230,7 +230,7 @@ Search users using OData `startswith` filter across one or more fields.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `searchTerm` | string | Yes | — | Prefix to match |
+| `searchTerm` | string | Yes | - | Prefix to match |
 | `searchFields` | enum[] | No | `["displayName","mail"]` | Fields: `displayName`, `mail`, `userPrincipalName`, `givenName`, `surname` |
 | `top` | number | No | 25 | Max results (capped at `AZURE_B2C_MAX_RESULTS`) |
 | `includeAllFields` | boolean | No | false | Return all Graph API fields |
@@ -241,7 +241,7 @@ Single quotes in `searchTerm` are automatically escaped.
 
 </tool-group>
 
-<tool-group name="group-read" description="Read-only group tools — always enabled">
+<tool-group name="group-read" description="Read-only group tools - always enabled">
 
 <tool name="b2c-list-groups">
 
@@ -257,7 +257,7 @@ Result is cached for `cacheUsersTTL` seconds (same TTL as users, stored in `Grou
 
 <tool name="b2c-get-user-groups">
 
-Get all groups a user belongs to. Filters to `@odata.type === '#microsoft.graph.group'` — directory roles that also appear in `memberOf` are excluded.
+Get all groups a user belongs to. Filters to `@odata.type === '#microsoft.graph.group'` - directory roles that also appear in `memberOf` are excluded.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -267,11 +267,11 @@ Get all groups a user belongs to. Filters to `@odata.type === '#microsoft.graph.
 
 <tool name="b2c-get-group-members">
 
-Get all members of a specific group. Filters to `@odata.type === '#microsoft.graph.user'` — non-user members (nested groups, service principals) are excluded.
+Get all members of a specific group. Filters to `@odata.type === '#microsoft.graph.user'` - non-user members (nested groups, service principals) are excluded.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `groupId` | string | Yes | — | Group GUID |
+| `groupId` | string | Yes | - | Group GUID |
 | `top` | number | No | 50 | Max members to return |
 | `includeAllFields` | boolean | No | false | Return all Graph API fields including `extension_*` |
 
@@ -279,7 +279,7 @@ Get all members of a specific group. Filters to `@odata.type === '#microsoft.gra
 
 </tool-group>
 
-<tool-group name="password" description="Password tools — require AZURE_B2C_ENABLE_PASSWORD_RESET=true">
+<tool-group name="password" description="Password tools - require AZURE_B2C_ENABLE_PASSWORD_RESET=true">
 
 <tool name="b2c-reset-user-password">
 
@@ -287,12 +287,12 @@ Reset a user's password using the Graph API `passwordProfile` update. Only works
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `userId` | string | Yes | — | User GUID or email |
-| `newPassword` | string | Yes | — | New password (must meet B2C complexity requirements) |
+| `userId` | string | Yes | - | User GUID or email |
+| `newPassword` | string | Yes | - | New password (must meet B2C complexity requirements) |
 | `forceChangeOnNextLogin` | boolean | No | false | Set `forceChangePasswordNextSignIn: true` |
 
 **Password complexity requirements (Azure AD B2C default policy):**
-- 8–256 characters
+- 8-256 characters
 - Must contain at least 3 of: lowercase letter, uppercase letter, digit, symbol
 
 </tool>
@@ -309,27 +309,27 @@ Force a user to change their password on next login by setting `forceChangePassw
 
 </tool-group>
 
-<tool-group name="user-write" description="User write tools — each requires its own feature flag">
+<tool-group name="user-write" description="User write tools - each requires its own feature flag">
 
 <tool name="b2c-create-user">
 
 Create a new local account user in Azure AD B2C. Requires `AZURE_B2C_ENABLE_USER_CREATE=true`.
 
-The tool automatically constructs the `identities` array with `signInType: 'emailAddress'`. The issuer is derived from `AZURE_B2C_TENANT_ID` — if it contains a `.`, it is used as-is; otherwise `.onmicrosoft.com` is appended.
+The tool automatically constructs the `identities` array with `signInType: 'emailAddress'`. The issuer is derived from `AZURE_B2C_TENANT_ID` - if it contains a `.`, it is used as-is; otherwise `.onmicrosoft.com` is appended.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `displayName` | string | Yes | — | Display name |
-| `email` | string | Yes | — | Email address used for sign-in (`issuerAssignedId`) |
-| `password` | string | Yes | — | Initial password |
+| `displayName` | string | Yes | - | Display name |
+| `email` | string | Yes | - | Email address used for sign-in (`issuerAssignedId`) |
+| `password` | string | Yes | - | Initial password |
 | `forceChangePasswordNextSignIn` | boolean | No | true | Require password change on first login |
-| `givenName` | string | No | — | First name |
-| `surname` | string | No | — | Last name |
-| `jobTitle` | string | No | — | Job title |
-| `department` | string | No | — | Department |
-| `mobilePhone` | string | No | — | Mobile phone |
-| `city` | string | No | — | City |
-| `country` | string | No | — | Country |
+| `givenName` | string | No | - | First name |
+| `surname` | string | No | - | Last name |
+| `jobTitle` | string | No | - | Job title |
+| `department` | string | No | - | Department |
+| `mobilePhone` | string | No | - | Mobile phone |
+| `city` | string | No | - | City |
+| `country` | string | No | - | Country |
 
 After creation, the user cache is invalidated.
 
@@ -339,7 +339,7 @@ After creation, the user cache is invalidated.
 
 Update a user's profile fields (not password). Requires `AZURE_B2C_ENABLE_USER_UPDATE=true`. The `accountEnabled` field can be used to enable or disable an account.
 
-Requires at least one field to be specified — returns `isError: true` if no updates are provided.
+Requires at least one field to be specified - returns `isError: true` if no updates are provided.
 
 After update, fetches the updated user record and invalidates the user cache.
 
@@ -364,11 +364,11 @@ Permanently delete a user from Azure AD B2C. **IRREVERSIBLE.** Requires `AZURE_B
 
 The tool enforces a two-gate safety check:
 1. Feature flag `AZURE_B2C_ENABLE_USER_DELETE=true` must be set in the environment
-2. `confirmDeletion: true` must be passed in the tool call — if false, returns `isError: true` without calling the API
+2. `confirmDeletion: true` must be passed in the tool call - if false, returns `isError: true` without calling the API
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `userId` | string | Yes | User GUID (not email — use GUID for delete) |
+| `userId` | string | Yes | User GUID (not email - use GUID for delete) |
 | `confirmDeletion` | boolean | Yes | Must be `true` to proceed |
 
 </tool>
@@ -383,13 +383,13 @@ The tool enforces a two-gate safety check:
 
 Fetches user profile and group memberships in parallel, formats the combined result as structured markdown via `formatUserWithGroups()`.
 
-**Parameter:** `userId` (string) — User GUID or email address
+**Parameter:** `userId` (string) - User GUID or email address
 
 **Output sections:**
 - Basic Information (ID, name, account status)
 - Contact Information (UPN, email, other emails, mobile phone)
-- Work Information (job title, department) — only if present
-- Location (city, country) — only if present
+- Work Information (job title, department) - only if present
+- Location (city, country) - only if present
 - Identities (local type and issuerAssignedId, or federated provider)
 - Account Details (createdDateTime)
 - Group Memberships (list of group names and descriptions)
@@ -418,13 +418,13 @@ Fetches all users (up to 1000) and all groups (up to 1000) in parallel, computes
 
 <service name="B2CClient" file="b2c-client.ts">
 
-Handles authentication, Graph client initialization, response mapping, and error enhancement. Services depend on `B2CClient` — they do not hold Graph client references directly.
+Handles authentication, Graph client initialization, response mapping, and error enhancement. Services depend on `B2CClient` - they do not hold Graph client references directly.
 
 **Responsibilities:**
 - Lazy Graph client initialization (created on first `getClient()` call)
 - Response mapping: `mapUserResponse()`, `mapUsersResponse()`, `mapGroupResponse()`, `mapGroupsResponse()`
 - Permission checking: `checkPermission(operation, enabled)`
-- Error enhancement: `enhanceError(error, operation)` — translates HTTP status codes and error messages into actionable user-facing messages
+- Error enhancement: `enhanceError(error, operation)` - translates HTTP status codes and error messages into actionable user-facing messages
 
 </service>
 
@@ -433,16 +433,16 @@ Handles authentication, Graph client initialization, response mapping, and error
 Handles all user operations. Holds an in-memory cache for user lists.
 
 **Methods:**
-- `listUsers(top, filter?, skipCache?, includeAllFields?)` — list with optional OData filter and caching
-- `getUser(userIdOrEmail, includeAllFields?)` — fetch single user
-- `searchUsers(searchTerm, searchFields?, top?, includeAllFields?)` — prefix search using OData `startswith`
-- `resetUserPassword(userId, newPassword, forceChangeOnNextLogin?)` — requires `enablePasswordReset`
-- `forcePasswordChange(userId)` — requires `enablePasswordReset`
-- `createUser(request: CreateUserRequest)` — requires `enableUserCreate`; invalidates cache
-- `updateUser(userId, updates: UpdateUserRequest)` — requires `enableUserUpdate`; invalidates cache
-- `deleteUser(userId)` — requires `enableUserDelete`; invalidates cache
-- `invalidateCache()` — explicitly clears `usersCache`
-- `getConfigStatus()` — returns current tenant ID and flag values (used by CLI and `b2c-create-user` to derive issuer)
+- `listUsers(top, filter?, skipCache?, includeAllFields?)` - list with optional OData filter and caching
+- `getUser(userIdOrEmail, includeAllFields?)` - fetch single user
+- `searchUsers(searchTerm, searchFields?, top?, includeAllFields?)` - prefix search using OData `startswith`
+- `resetUserPassword(userId, newPassword, forceChangeOnNextLogin?)` - requires `enablePasswordReset`
+- `forcePasswordChange(userId)` - requires `enablePasswordReset`
+- `createUser(request: CreateUserRequest)` - requires `enableUserCreate`; invalidates cache
+- `updateUser(userId, updates: UpdateUserRequest)` - requires `enableUserUpdate`; invalidates cache
+- `deleteUser(userId)` - requires `enableUserDelete`; invalidates cache
+- `invalidateCache()` - explicitly clears `usersCache`
+- `getConfigStatus()` - returns current tenant ID and flag values (used by CLI and `b2c-create-user` to derive issuer)
 
 **Caching behavior:**
 - `usersCache` stores `{ data: B2CUser[]; expires: number }`
@@ -457,12 +457,12 @@ Handles all user operations. Holds an in-memory cache for user lists.
 Handles group operations, tenant summary, and connection testing. Takes both `B2CClient` and `UserService` in its constructor (needed for `getTenantSummary`).
 
 **Methods:**
-- `listGroups(top?)` — list with caching (same TTL as user cache via `cacheUsersTTL`)
-- `getUserGroups(userId)` — get user's group memberships via `/users/{id}/memberOf`; filters to groups only
-- `getGroupMembers(groupId, top?, includeAllFields?)` — get members via `/groups/{id}/members`; filters to users only
-- `getTenantSummary()` — fetches up to 1000 users and 1000 groups in parallel, computes account type counts
-- `testConnection()` — attempts to read 1 user and 1 group; returns `{ connected, canReadUsers, canReadGroups }`
-- `clearCache()` — clears `groupsCache`
+- `listGroups(top?)` - list with caching (same TTL as user cache via `cacheUsersTTL`)
+- `getUserGroups(userId)` - get user's group memberships via `/users/{id}/memberOf`; filters to groups only
+- `getGroupMembers(groupId, top?, includeAllFields?)` - get members via `/groups/{id}/members`; filters to users only
+- `getTenantSummary()` - fetches up to 1000 users and 1000 groups in parallel, computes account type counts
+- `testConnection()` - attempts to read 1 user and 1 group; returns `{ connected, canReadUsers, canReadGroups }`
+- `clearCache()` - clears `groupsCache`
 
 </service>
 
@@ -650,7 +650,7 @@ export interface TenantSummary {
 | `statusCode === 401` or `Unauthorized` | Verify app has `User.ReadWrite.All` permission and `User Administrator` role |
 | `statusCode === 403` or `Forbidden` | App lacks required permissions or role assignments |
 | `statusCode === 404` or `Request_ResourceNotFound` | Verify user/group ID is correct |
-| `Invalid password` in message | Password must be 8–256 chars, 3 of: lowercase, uppercase, digit, symbol |
+| `Invalid password` in message | Password must be 8-256 chars, 3 of: lowercase, uppercase, digit, symbol |
 | All others | `Failed to {operation}: {original message}` |
 
 All tool catch blocks return `{ isError: true }` with the enhanced error message as `text` content.
@@ -662,7 +662,7 @@ All service methods use `auditLogger` from `@mcp-consultant-tools/core` to log b
 <cli-architecture>
 
 <overview>
-The CLI reuses the same `ServiceContext` as the MCP server via `context-factory.ts`. Both `index.ts` and `context-factory.ts` define `createServiceContext()` identically — this deliberate duplication ensures zero risk to the MCP entry point.
+The CLI reuses the same `ServiceContext` as the MCP server via `context-factory.ts`. Both `index.ts` and `context-factory.ts` define `createServiceContext()` identically - this deliberate duplication ensures zero risk to the MCP entry point.
 </overview>
 
 <command-groups>
@@ -762,18 +762,18 @@ mcp-azure-b2c-cli --json user list
 <principles>
 - All write operations are disabled by default. Enable only what is needed for the use case.
 - `b2c-delete-user` has a two-gate safety check: environment flag AND `confirmDeletion: true` parameter.
-- Password operations only work for local accounts — they do not affect social (Google, Facebook, Microsoft, Apple) or federated accounts.
+- Password operations only work for local accounts - they do not affect social (Google, Facebook, Microsoft, Apple) or federated accounts.
 - The client secret must be rotated periodically. The secret is only shown once at creation time in the Azure Portal.
 - All operations are audit-logged via `@mcp-consultant-tools/core` `auditLogger`.
 </principles>
 
 <mcp-protocol>
 
-MCP uses stdio transport — any non-JSON written to stdout corrupts the protocol.
+MCP uses stdio transport - any non-JSON written to stdout corrupts the protocol.
 
 ```typescript
-console.error("Service initialized");  // OK — writes to stderr
-console.log("Debug info");             // FORBIDDEN — breaks MCP protocol
+console.error("Service initialized");  // OK - writes to stderr
+console.log("Debug info");             // FORBIDDEN - breaks MCP protocol
 ```
 
 </mcp-protocol>
@@ -791,7 +791,7 @@ console.log("Debug info");             // FORBIDDEN — breaks MCP protocol
 | `user creation is not enabled` | `AZURE_B2C_ENABLE_USER_CREATE` not set | Set `AZURE_B2C_ENABLE_USER_CREATE=true` |
 | `user update is not enabled` | `AZURE_B2C_ENABLE_USER_UPDATE` not set | Set `AZURE_B2C_ENABLE_USER_UPDATE=true` |
 | `user deletion is not enabled` | `AZURE_B2C_ENABLE_USER_DELETE` not set | Set `AZURE_B2C_ENABLE_USER_DELETE=true` |
-| `Invalid password format` | Password does not meet B2C policy | Use 8–256 chars with at least 3 of: lowercase, uppercase, digit, symbol |
+| `Invalid password format` | Password does not meet B2C policy | Use 8-256 chars with at least 3 of: lowercase, uppercase, digit, symbol |
 | `Missing Azure B2C configuration` | Required env vars not set | Set `AZURE_B2C_TENANT_ID`, `AZURE_B2C_CLIENT_ID`, `AZURE_B2C_CLIENT_SECRET` |
 
 **Debugging tips:**

@@ -143,7 +143,7 @@ Both must be set. The key value is sent as-is in the specified header.
 | `REST_RESPONSE_SIZE_LIMIT` | `10000` | Max response body size in bytes before truncation |
 | `REST_ENABLE_SSL_VERIFY` | `true` | Set to `false` to disable SSL certificate verification (dev only) |
 | `REST_TIMEOUT` | `30000` | Request timeout in milliseconds |
-| `REST_OPENAPI_URL` | — | URL to fetch OpenAPI/Swagger spec for endpoint discovery |
+| `REST_OPENAPI_URL` | - | URL to fetch OpenAPI/Swagger spec for endpoint discovery |
 
 </optional-variables>
 
@@ -174,9 +174,9 @@ Parsing is case-insensitive for the prefix (`HEADER_` or `header_` both work). T
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `method` | enum | Yes | `GET`, `POST`, `PUT`, `DELETE`, `PATCH` |
-| `endpoint` | string | Yes | Path only — do not include the full URL (e.g., `/api/users`). Full URLs are rejected with an error. |
+| `endpoint` | string | Yes | Path only - do not include the full URL (e.g., `/api/users`). Full URLs are rejected with an error. |
 | `body` | any | No | Request body for POST/PUT/PATCH. Objects are JSON-serialized. `Content-Type: application/json` is set automatically if not provided. |
-| `headers` | object | No | Per-request headers. Merged on top of custom headers from env. Do not use for auth — configure auth via env vars. |
+| `headers` | object | No | Per-request headers. Merged on top of custom headers from env. Do not use for auth - configure auth via env vars. |
 | `host` | string | No | Override base URL for this request only. Trailing slashes are stripped. |
 
 **Validation:** If `endpoint` matches `/^(https?:\/\/|www\.)/i`, the tool returns an error immediately without making a request.
@@ -205,13 +205,13 @@ Parsing is case-insensitive for the prefix (`HEADER_` or `header_` both work). T
 }
 ```
 
-`validation.isError` is `true` when `statusCode >= 400`. HTTP errors are not thrown — they are returned in the response with `isError: true`.
+`validation.isError` is `true` when `statusCode >= 400`. HTTP errors are not thrown - they are returned in the response with `isError: true`.
 
 </tool>
 
 <tool name="rest-config">
 
-**Description:** Get the current service configuration summary. Safe to display — no secrets are included.
+**Description:** Get the current service configuration summary. Safe to display - no secrets are included.
 
 **Parameters:** None
 
@@ -317,7 +317,7 @@ Parsing is case-insensitive for the prefix (`HEADER_` or `header_` both work). T
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `entity` | string | Yes | Entity name — singular or plural, case-insensitive |
+| `entity` | string | Yes | Entity name - singular or plural, case-insensitive |
 
 **Entity matching:** Checks `key`, `entityName`, and `pluralName` fields in the parsed schema (all lowercased for comparison).
 
@@ -443,7 +443,7 @@ The OpenAPI spec is fetched from `REST_OPENAPI_URL` and cached with a 5-minute T
 | Configuration error | Thrown at service init time (e.g., missing `REST_BASE_URL`) |
 | Authentication error | Tool returns `isError: true` with OAuth2 error detail |
 | Network error / timeout | Tool returns `isError: true` with timeout/connection message |
-| HTTP 4xx/5xx | Returned in response with `validation.isError: true` — not thrown |
+| HTTP 4xx/5xx | Returned in response with `validation.isError: true` - not thrown |
 | OpenAPI fetch error | Tool returns `isError: true` with fetch error detail |
 
 </error-categories>
@@ -554,11 +554,11 @@ mcp-rest-api-cli --json request GET /api/users
 
 <security>
 
-- OAuth2 tokens are cached in memory only — never written to disk. Server restart clears all cached tokens.
+- OAuth2 tokens are cached in memory only - never written to disk. Server restart clears all cached tokens.
 - Authorization headers and API key headers are replaced with `[REDACTED]` in all tool responses.
-- Do not store secrets in `HEADER_*` variables — use the dedicated auth env vars instead.
+- Do not store secrets in `HEADER_*` variables - use the dedicated auth env vars instead.
 - `REST_ENABLE_SSL_VERIFY=false` disables certificate verification for all requests. Use only in development with self-signed certificates.
-- Response bodies may contain sensitive data. Consider `REST_RESPONSE_SIZE_LIMIT` carefully — increasing the limit returns more data to the agent context.
+- Response bodies may contain sensitive data. Consider `REST_RESPONSE_SIZE_LIMIT` carefully - increasing the limit returns more data to the agent context.
 
 </security>
 

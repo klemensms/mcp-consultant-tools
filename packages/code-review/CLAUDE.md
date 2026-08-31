@@ -51,18 +51,18 @@ no credential.
 Tool names are prefixed `cr-` so they do not collide with any other package's bare names in the meta
 aggregator (`tree`, `review`, `complexity`, `packages` are common words).
 
-- `cr-list-repos` — repositories in a project/org (`truncated`, `filtered` reported)
-- `cr-tree` — clone and list the file tree
-- `cr-check-dotnet` — target frameworks + EOL flags + CRM SDK / ILMerge detection
-- `cr-check-nuget` — NuGet audit (latest stable + vulnerabilities for the referenced version)
-- `cr-nuget-info` — one package's versions/vulnerabilities
-- `cr-complexity` — cyclomatic-complexity ESTIMATE + hotspots
-- `cr-review` — consolidated single-clone review with a health verdict
-- `cr-packages` / `cr-package-versions` / `cr-latest-package-version` — GitHub Packages (GHE provider only)
+- `cr-list-repos` - repositories in a project/org (`truncated`, `filtered` reported)
+- `cr-tree` - clone and list the file tree
+- `cr-check-dotnet` - target frameworks + EOL flags + CRM SDK / ILMerge detection
+- `cr-check-nuget` - NuGet audit (latest stable + vulnerabilities for the referenced version)
+- `cr-nuget-info` - one package's versions/vulnerabilities
+- `cr-complexity` - cyclomatic-complexity ESTIMATE + hotspots
+- `cr-review` - consolidated single-clone review with a health verdict
+- `cr-packages` / `cr-package-versions` / `cr-latest-package-version` - GitHub Packages (GHE provider only)
 
 ## Things that will bite you
 
-**This package was ported with seven-plus defect fixes — do not regress them.** The ported source
+**This package was ported with seven-plus defect fixes - do not regress them.** The ported source
 (`si-smartassurance/packages/code-review`) carried the "wrong answer with a 200" class of bug that
 every hop in this chain has found. The fixes, each covered by a test:
 
@@ -72,7 +72,7 @@ every hop in this chain has found. The fixes, each covered by a test:
   popular package) returns pages with no inline `items`; the source fell back to the page `upper`
   bound with no prerelease check and fetched no vulnerability data. `leavesOf()` follows the page.
 - **Vulnerabilities are matched to the referenced version**, read from that version's
-  `catalogEntry.vulnerabilities` — not accumulated across every version. The registration schema
+  `catalogEntry.vulnerabilities` - not accumulated across every version. The registration schema
   carries only `advisoryUrl` + `severity`; there is no version `range` field (the source read a
   phantom one that was always empty).
 - **.NET EOL is computed from dates at runtime**, never a baked `isEol` boolean. The source's table
@@ -91,34 +91,34 @@ every hop in this chain has found. The fixes, each covered by a test:
 
 **A PAT goes in the clone URL's PASSWORD position, never its username.** `buildAzdoCloneUrl` shipped
 as `https://<pat>@dev.azure.com/...` from the package's first release, which leaves git with a
-username and *no password* — it prompts, then dies with `could not read Password` before ever
+username and *no password* - it prompts, then dies with `could not read Password` before ever
 reaching Azure DevOps, valid PAT or not. It is now `https://:<pat>@...`, matching the empty-username
 basic auth the REST path already builds. `buildGheCloneUrl` still carries the original shape
 (`https://<token>@host`); that is the widely-used GitHub idiom and has not been disproven, but it
-has also never been run against a real GHE host — check it before trusting it.
+has also never been run against a real GHE host - check it before trusting it.
 
-**The clone URL embeds a credential — never let it leak.** `clone-manager.ts` builds
+**The clone URL embeds a credential - never let it leak.** `clone-manager.ts` builds
 `https://<token>@host/...`. A failed `git clone` throws an Error echoing the whole command line;
 `redactCloneSecret` strips the credential from that message. The temp dir is removed in a `finally`.
-There is a test that plants a secret in a clone URL and asserts it appears in no error output —
+There is a test that plants a secret in a clone URL and asserts it appears in no error output -
 keep it green.
 
 **Services take injected clients/fetchers.** `NugetPackageService(fetchJson)`,
-`PackageService(client)`, `RepositoryService(client)`. Tests use plain stubs — **zero `vi.mock`**.
+`PackageService(client)`, `RepositoryService(client)`. Tests use plain stubs - **zero `vi.mock`**.
 
 ## Not verified against live systems
 
 No Azure DevOps org, GitHub Enterprise instance, or authenticated NuGet feed was available. Every
 REST path, API version, NuGet registration shape, GitHub App JWT flow, and clone-URL construction is
-verified against the vendors' published docs and unit-tested against stubs — but **almost no call in
+verified against the vendors' published docs and unit-tested against stubs - but **almost no call in
 `CodeReviewClient`, `GheAppAuth`, or the NuGet fetcher has run against a real endpoint**, and the
 `git clone` path has not run against a real repository. Recorded in `<known-limitations>` of the
 technical doc.
 
 Exceptions, from probes and one live tenant run (2026-08-13):
-- `login.microsoftonline.com` token endpoint — reached live; a placeholder tenant returns AADSTS90002
+- `login.microsoftonline.com` token endpoint - reached live; a placeholder tenant returns AADSTS90002
   through `describeTokenError()`. The client-credentials request shape is confirmed.
-- `dev.azure.com` REST — reached live with a rejected credential; confirmed it answers **302 to
+- `dev.azure.com` REST - reached live with a rejected credential; confirmed it answers **302 to
   sign-in**, which is what `maxRedirects: 0` exists to catch.
 - **Live tenant run of beta.2** confirmed the `entra-id` path end to end up to the identity check:
   the token is issued, sent and *accepted*, and Azure DevOps rejects the identity with `TF401444`.
@@ -128,8 +128,8 @@ Exceptions, from probes and one live tenant run (2026-08-13):
 - The corrected `https://:<pat>@` clone URL reaches Azure DevOps and gets a genuine
   `Authentication failed` (credential sent and rejected) rather than a local password prompt.
 
-Still unverified: an *accepted* Azure DevOps identity — no service principal is a member of an
-organisation yet — so no clone has ever succeeded, `cr-review` has never run end to end, and the
+Still unverified: an *accepted* Azure DevOps identity - no service principal is a member of an
+organisation yet - so no clone has ever succeeded, `cr-review` has never run end to end, and the
 "unreadable repository fails loudly rather than returning an empty result" criterion is untestable
 until there is a readable repository to contrast against.
 
@@ -140,11 +140,11 @@ against the Azure DevOps first-party resource (`499b84ac-.../.default`). Absent,
 defaults to `pat`, so every pre-existing configuration keeps working untouched.
 
 **The token has to reach `git clone`, not just REST.** Eight of the ten tools clone. Under
-`entra-id` the clone URL carries no credential at all — the token goes in
+`entra-id` the clone URL carries no credential at all - the token goes in
 `git -c http.extraHeader=Authorization: Bearer …` (the form Microsoft documents for Azure DevOps).
 That header is part of git's argv, and git echoes argv back in a failed-clone message, so
 `CloneManager` redacts the bearer token as well as the URL userinfo. There is a test that plants a
-token and asserts it survives into no error output — keep it green.
+token and asserts it survives into no error output - keep it green.
 
 **Membership is a prerequisite, and it is not a code problem.** A valid token for a principal that
 is not a member of the organisation gets `401 TF401444`. `describeUnprovisionedPrincipal()` maps
@@ -152,15 +152,15 @@ that to a named error carrying the principal's object id, because a bare 401 rea
 secret" and sends the reader to the wrong fix. An org administrator must add the principal under
 Organization settings > Users.
 
-**The TF401444 identity is `tenant\tenant\principal` — take the LAST segment.** All three segments
+**The TF401444 identity is `tenant\tenant\principal` - take the LAST segment.** All three segments
 are GUIDs on a real response. Reading the first one hands an administrator the *tenant* id labelled
 as the object id, and a Users search for it finds nothing: confident, well-formed and wrong. This
 shipped in beta.2 and was caught only by a live run, because the unit fixture used the literal word
-`tenant` for the first two segments — so "first GUID in the message" accidentally matched. The
+`tenant` for the first two segments - so "first GUID in the message" accidentally matched. The
 fixture now mirrors the measured shape. **When a fixture stands in for a vendor response, copy the
 real shape, not a readable approximation of it.**
 
-**A clone failure gets no TF401444 body — only `fatal: Authentication failed`.** Git cannot report
+**A clone failure gets no TF401444 body - only `fatal: Authentication failed`.** Git cannot report
 why, so `describeCloneAuthFailure()` attaches the membership explanation under `entra-id` (and a
 scope/expiry hint under `pat`). Without it, anyone whose first command happens to clone gets a raw
 git error with no route to the fix. It returns null for non-auth clone failures, so a genuine
@@ -170,18 +170,18 @@ git error with no route to the fix. It returns null for non-auth clone failures,
 answers a rejected credential by falling back to an interactive prompt; on a machine with a
 controlling terminal it then blocks until the 120s timeout kills it, and a killed git has printed
 only `Cloning into '<dir>'...`. The authentication text is never emitted, so
-`describeCloneAuthFailure()` matches nothing and the membership hint vanishes — which is exactly how
+`describeCloneAuthFailure()` matches nothing and the membership hint vanishes - which is exactly how
 it was reported from the live tenant: "the hint never shows and the error says less than it used
 to". `NON_INTERACTIVE_GIT_ENV` (`GIT_TERMINAL_PROMPT=0` plus both askpass escapes) and
 `-c credential.helper=` keep the failure fast and identical every time. **Do not remove either**, and
 do not trust a passing test as proof: a test runner's worker has no controlling terminal, so git
-declines to prompt there whether the fix is present or not — verified by inversion, not assumed. The
+declines to prompt there whether the fix is present or not - verified by inversion, not assumed. The
 assertions that actually invert are the ones on `NON_INTERACTIVE_GIT_ENV` and `buildCloneArgs`; the
 live-git test covers only the join between git's wording and the matcher.
 
 **Hints must name the provider in use.** A 404 under `azure-devops` used to answer with GitHub SAML
 SSO guidance, pointing at a "Settings > Developer settings" page that does not exist for that
-reader — reported from a live run where the real cause was a stale project name. `notFoundHint()`
+reader - reported from a live run where the real cause was a stale project name. `notFoundHint()`
 and `forbiddenHint()` branch on provider. A confidently wrong hint costs more than no hint, because
 it sends someone into the wrong product before they think to doubt it.
 
@@ -197,14 +197,14 @@ there, which is why the 404 hint now says so.
 
 - Auth is provider-selected in `context-factory.ts` (the single `createServiceContext()` used by both
   `index.ts` and `cli.ts`). The GitHub App auth and the Azure DevOps Entra auth are NOT hoisted to
-  `core` — following the per-package precedent (entra-id, azure-defender, message-center each keep
+  `core` - following the per-package precedent (entra-id, azure-defender, message-center each keep
   their own).
 - **Azure DevOps redirects rather than 401s.** An unauthenticated REST call gets a 302 to a sign-in
-  page; followed, it yields HTML with no `value` array and the caller dies on `undefined.map` — an
+  page; followed, it yields HTML with no `value` array and the caller dies on `undefined.map` - an
   auth failure disguised as a parse crash. The Azure DevOps axios instance sets `maxRedirects: 0`
   and `raiseGitError` maps 302/203 to an authentication error. Do not re-enable redirects.
 - NuGet is decoupled from the provider: a plain `fetchJson` (axios) against public nuget.org.
-- Prompts are STATIC guidance templates (like message-center), not executable — a deliberate
+- Prompts are STATIC guidance templates (like message-center), not executable - a deliberate
   divergence from the source, which ran analysis inside the prompt.
 
 ## Testing

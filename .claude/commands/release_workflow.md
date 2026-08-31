@@ -4,7 +4,7 @@ Promotes a beta version on `release/X.Y` to the `latest` npm tag, finalizes the 
 
 ## 0. PRE-FLIGHT CHECKS
 
-### 🔐 SECRET SCANNING (CRITICAL — DO THIS FIRST)
+### 🔐 SECRET SCANNING (CRITICAL - DO THIS FIRST)
 
 ```bash
 # Check for common secret patterns in staged files
@@ -37,7 +37,7 @@ git diff --cached -- .claude/ | grep -iE '(secret|password|key|token)' | head -1
 
 ## 1. FINALIZE RELEASE NOTES
 
-The master release-notes file at `docs/release-notes/v{MAJOR}.0.0.md` already contains the full content for this release — every beta has been updating it. Production release does NOT regenerate the master, it just stamps a release date and updates URLs.
+The master release-notes file at `docs/release-notes/v{MAJOR}.0.0.md` already contains the full content for this release - every beta has been updating it. Production release does NOT regenerate the master, it just stamps a release date and updates URLs.
 
 Run:
 
@@ -47,11 +47,11 @@ Run:
 
 That command will:
 - Detect the current branch + version.
-- Update the master file's status banner: `In beta...` → `Released — v{X.Y.Z} on the `latest` npm tag (date: YYYY-MM-DD)`.
+- Update the master file's status banner: `In beta...` → `Released - v{X.Y.Z} on the `latest` npm tag (date: YYYY-MM-DD)`.
 - Set the production release date.
 - Update GitHub URLs in the agent-block from `release/{X.Y}` → `main` (since after merge, the file lives on main).
 - Leave per-iteration `vX.Y.Z-beta.N.md` files untouched (they're historical record).
-- Print a Teams-ready production announcement message — **save this output**, you'll use it in step 7.
+- Print a Teams-ready production announcement message - **save this output**, you'll use it in step 7.
 
 If breaking changes were introduced during this release cycle, the master already contains the `⚠️` warning paragraph and `⚡ Quick upgrade` block from the beta phase. Production-mode finalization just adjusts URLs.
 
@@ -66,7 +66,7 @@ If breaking changes were introduced during this release cycle, the master alread
 
 ### 3a. MANDATORY clean build (never an incremental build)
 
-A stale `tsconfig.tsbuildinfo` can make `tsc` skip declaration emit entirely — `powerplatform@33.0.0` shipped to npm with zero `.d.ts` files this way, and stale `build/` output has masked missing project references that only failed in clean CI. **Always build from clean before any pack or publish. Never substitute plain `npm run build`, never skip.**
+A stale `tsconfig.tsbuildinfo` can make `tsc` skip declaration emit entirely - `powerplatform@33.0.0` shipped to npm with zero `.d.ts` files this way, and stale `build/` output has masked missing project references that only failed in clean CI. **Always build from clean before any pack or publish. Never substitute plain `npm run build`, never skip.**
 
 ```bash
 npm run build:release   # = npm run clean && npm run build (purges build/ + *.tsbuildinfo first)
@@ -99,19 +99,19 @@ git push origin release/X.Y
 
 ### 6a. MANDATORY tarball scan (before any publish)
 
-For EVERY package being published, scan the actual tarball contents (this is what catches internal identifiers compiled into `build/` output — pre-commit only sees source). The scan also FAILS if the tarball contains zero `.d.ts` files (every published package ships types; zero means a stale incremental build):
+For EVERY package being published, scan the actual tarball contents (this is what catches internal identifiers compiled into `build/` output - pre-commit only sees source). The scan also FAILS if the tarball contains zero `.d.ts` files (every published package ships types; zero means a stale incremental build):
 
 ```bash
 ./scripts/scan-tarball.sh packages/PACKAGE_NAME
 ```
 
-Any hit ABORTS the release — fix the source, rebuild clean (`npm run build:release`), re-scan. Never skip, never bypass, never publish a package whose scan failed.
+Any hit ABORTS the release - fix the source, rebuild clean (`npm run build:release`), re-scan. Never skip, never bypass, never publish a package whose scan failed.
 
 ### 6b. Authenticate without 2FA prompts (1Password automation token)
 
-npm requires a one-time password per publish (`npm publish` fails with `EOTP`). To publish non-interactively, use the npm **automation token** (it bypasses 2FA), stored in 1Password. **Never write the token into the repo** — fetch it at runtime, stage it in a temp `.npmrc` under `$HOME` (outside any git tree), pass it via `--userconfig`, and delete it afterward.
+npm requires a one-time password per publish (`npm publish` fails with `EOTP`). To publish non-interactively, use the npm **automation token** (it bypasses 2FA), stored in 1Password. **Never write the token into the repo** - fetch it at runtime, stage it in a temp `.npmrc` under `$HOME` (outside any git tree), pass it via `--userconfig`, and delete it afterward.
 
-The exact 1Password item / vault / account and the token-fetch snippet live in the untracked **`.claude/publish-auth.local.md`** (recreate from 1Password if missing). This is a **standing rule** (also in the root `CLAUDE.md` → Publishing → npm Authentication): use the token automatically, do NOT prompt for an OTP and do NOT ask the user. If `op read` errors with a sign-in prompt, run `op signin`. If the token 401s, it has been rotated — ask the user to refresh the 1Password item.
+The exact 1Password item / vault / account and the token-fetch snippet live in the untracked **`.claude/publish-auth.local.md`** (recreate from 1Password if missing). This is a **standing rule** (also in the root `CLAUDE.md` → Publishing → npm Authentication): use the token automatically, do NOT prompt for an OTP and do NOT ask the user. If `op read` errors with a sign-in prompt, run `op signin`. If the token 401s, it has been rotated - ask the user to refresh the 1Password item.
 
 ### 6c. Publish in dependency order: `core` → `powerplatform-core` → service packages → `meta`
 
@@ -129,7 +129,7 @@ done
 rm -f "$TMPNPMRC"   # never leave the token on disk
 ```
 
-> `@mcp-consultant-tools/audit-cli` is on its own `0.1.x` track — only publish it when its own code changes (npm rejects re-publishing an unchanged `0.1.0`). `meta` publishes under the unscoped name `mcp-consultant-tools`.
+> `@mcp-consultant-tools/audit-cli` is on its own `0.1.x` track - only publish it when its own code changes (npm rejects re-publishing an unchanged `0.1.0`). `meta` publishes under the unscoped name `mcp-consultant-tools`.
 
 Verify each publication:
 
@@ -151,7 +151,7 @@ Post to Teams (the internal release channel).
 ### 7b. Beta dist-tags (DO NOT REMOVE)
 
 - Do NOT deprecate or remove `beta` dist-tags.
-- MCP server configs reference `@beta` — removing/deprecating would break them or cause warnings.
+- MCP server configs reference `@beta` - removing/deprecating would break them or cause warnings.
 - The `beta` tag stays pointing at the last beta version (same code as production).
 - When the next release cycle starts and a new beta is published (`--tag beta`), the tag will automatically move to the new beta version.
 
@@ -186,7 +186,7 @@ git push origin vX.Y.Z
 git checkout -b release/(X+1).0
 ```
 
-The next release's master file (`docs/release-notes/v(X+1).0.0.md`) is created lazily on the first `/product-releasenotes beta` call from this branch — no manual scaffolding needed.
+The next release's master file (`docs/release-notes/v(X+1).0.0.md`) is created lazily on the first `/product-releasenotes beta` call from this branch - no manual scaffolding needed.
 
 ```bash
 git push -u origin release/(X+1).0
@@ -238,8 +238,8 @@ git tag vX.Y.Z && git push origin vX.Y.Z
 ## NOTES
 
 - The `publish-all.sh` script has interactive prompts for uncommitted changes and non-main branch.
-- When using `cd` in bash commands, subsequent commands run from the new directory — use absolute paths.
+- When using `cd` in bash commands, subsequent commands run from the new directory - use absolute paths.
 - Only packages with changed versions need to be published.
 - Commit version changes BEFORE publishing (npm reads from committed `package.json`).
 - Always verify publications with `npm dist-tag ls` after publishing.
-- The master release notes file is canonical from the first beta. Production promotion does NOT copy beta-iteration files to a new master — the master already exists. `/product-releasenotes production` only stamps the release date and updates URLs.
+- The master release notes file is canonical from the first beta. Production promotion does NOT copy beta-iteration files to a new master - the master already exists. `/product-releasenotes production` only stamps the release date and updates URLs.

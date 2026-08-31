@@ -5,15 +5,15 @@
 
 **Package:** `@mcp-consultant-tools/sharepoint`
 
-MCP server for SharePoint Online — browse sites, document libraries, files, and folders via Microsoft Graph API. Read-only by default; write and delete require explicit feature flags.
+MCP server for SharePoint Online - browse sites, document libraries, files, and folders via Microsoft Graph API. Read-only by default; write and delete require explicit feature flags.
 
 ## Configuration
 
-Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both — only the wrapper key and the file differ.
+Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
-### VS Code — recommended (1Password)
+### VS Code - recommended (1Password)
 
-Credentials are resolved at runtime via biometric authentication — no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
+Credentials are resolved at runtime via biometric authentication - no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
 
 ```json
 {
@@ -37,7 +37,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-### VS Code — alternative (local credentials)
+### VS Code - alternative (local credentials)
 
 ```json
 {
@@ -61,7 +61,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-**Site options:** set a single `SHAREPOINT_SITE_URL`, or supply `SHAREPOINT_SITES` — a JSON array of `{id, name, siteUrl, active}` objects — for multiple sites. Provide one or the other.
+**Site options:** set a single `SHAREPOINT_SITE_URL`, or supply `SHAREPOINT_SITES` - a JSON array of `{id, name, siteUrl, active}` objects - for multiple sites. Provide one or the other.
 
 ### Claude Desktop
 
@@ -95,7 +95,7 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 
 ## Coming later (not yet active)
 
-These tuning variables are documented in older config examples but **not yet wired up** — the server never reads them from the environment, so setting them currently has no effect and fixed built-in values are used. They are documented here so the intended configuration surface isn't lost:
+These tuning variables are documented in older config examples but **not yet wired up** - the server never reads them from the environment, so setting them currently has no effect and fixed built-in values are used. They are documented here so the intended configuration surface isn't lost:
 
 | Variable | Purpose (planned) |
 |----------|-------------------|

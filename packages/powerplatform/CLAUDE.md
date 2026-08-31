@@ -256,4 +256,4 @@ mcp-pp-cli integration audit
 ```
 
 > Entity keys use the singular logical name (`contact`, `account`, `lead`).
-> Plural is accepted as a synonym; see audit-logging.md "Entity key — singular vs plural".
+> Plural is accepted as a synonym; see audit-logging.md "Entity key - singular vs plural".

@@ -23,7 +23,7 @@ async function main() {
     await deletePiiFixture(session.client, fixture);
     console.error('[fixture-smoke] deleted OK');
   } catch (err) {
-    console.error('[fixture-smoke] DELETE FAILED — orphan left at', fixture.id);
+    console.error('[fixture-smoke] DELETE FAILED - orphan left at', fixture.id);
     await session.close();
     throw err;
   }

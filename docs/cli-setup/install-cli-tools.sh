@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
-# MCP Consultant Tools — CLI Install/Update Script
+# MCP Consultant Tools - CLI Install/Update Script
 # Installs or updates all CLI tools globally via npm.
-# Safe to re-run at any time — idempotent.
+# Safe to re-run at any time - idempotent.
 #
 # Compatible with Bash 3.2+ (macOS default) and Bash 4+/5+.
 #
@@ -29,7 +29,7 @@ else
   fi
 fi
 
-# All packages and their CLI binary names (Bash 3.2-compatible — no associative arrays)
+# All packages and their CLI binary names (Bash 3.2-compatible - no associative arrays)
 # Format: "package-name:binary-name"
 PACKAGES="
 1password:mcp-op-cli
@@ -89,7 +89,7 @@ if $CHECK_ONLY; then
   echo ""
   echo "Installed: $INSTALLED / $((INSTALLED + MISSING))"
   if [[ $MISSING -gt 0 ]]; then
-    echo "Missing: $MISSING — run this script without --check to install"
+    echo "Missing: $MISSING - run this script without --check to install"
   fi
   exit 0
 fi

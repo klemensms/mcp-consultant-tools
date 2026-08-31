@@ -9,11 +9,11 @@ MCP server providing KQL-based access to Azure Log Analytics workspaces, with sp
 
 ## Configuration
 
-Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both — only the wrapper key and the file differ.
+Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
-### VS Code — recommended (1Password)
+### VS Code - recommended (1Password)
 
-Credentials are resolved at runtime via biometric authentication — no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
+Credentials are resolved at runtime via biometric authentication - no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
 
 ```json
 {
@@ -33,7 +33,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-### VS Code — alternative (local credentials)
+### VS Code - alternative (local credentials)
 
 ```json
 {
@@ -53,7 +53,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-**Workspace options:** set a single `LOGANALYTICS_WORKSPACE_ID`, or supply `LOGANALYTICS_RESOURCES` — a JSON array of `{id, name, workspaceId, active}` objects — for multiple workspaces.
+**Workspace options:** set a single `LOGANALYTICS_WORKSPACE_ID`, or supply `LOGANALYTICS_RESOURCES` - a JSON array of `{id, name, workspaceId, active}` objects - for multiple workspaces.
 
 **Shared credentials:** If Application Insights is already configured, `LOGANALYTICS_TENANT_ID/CLIENT_ID/CLIENT_SECRET` automatically fall back to `APPINSIGHTS_TENANT_ID/CLIENT_ID/CLIENT_SECRET`. A single Azure AD app registration covers both integrations.
 

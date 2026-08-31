@@ -5,17 +5,17 @@
 
 **Package:** `@mcp-consultant-tools/message-center`
 
-MCP server for Microsoft 365 **Service Health** and **Message Center**: the current health of every service, service-health issues (incidents and advisories), post-incident review documents, and Message Center posts (planned changes, required actions, advisories). **Every tool is read-only** — there are no write operations and no feature flags.
+MCP server for Microsoft 365 **Service Health** and **Message Center**: the current health of every service, service-health issues (incidents and advisories), post-incident review documents, and Message Center posts (planned changes, required actions, advisories). **Every tool is read-only** - there are no write operations and no feature flags.
 
 ## Configuration
 
-Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both — only the wrapper key and the file differ.
+Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
 The `MESSAGE_CENTER_*` variables are deliberately distinct from the shared `AZURE_*` service-principal block used by `azure-management` and `azure-defender`. Those need subscription RBAC roles; this server needs **Microsoft Graph directory permissions** instead, so the app registration behind it is usually a different one. There is no subscription ID here.
 
-### VS Code — recommended (1Password)
+### VS Code - recommended (1Password)
 
-Credentials are resolved at runtime via biometric authentication — no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for the full setup guide.
+Credentials are resolved at runtime via biometric authentication - no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for the full setup guide.
 
 ```json
 {
@@ -33,7 +33,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-### Claude Desktop — local credentials
+### Claude Desktop - local credentials
 
 ```json
 {
@@ -60,7 +60,7 @@ All three variables are required.
 | `ServiceHealth.Read.All` | Application | Health overviews, service-health issues, incident reports |
 | `ServiceMessage.Read.All` | Application | Message Center posts |
 
-Grant both as **application** permissions with admin consent — this server authenticates with client credentials and has no signed-in user.
+Grant both as **application** permissions with admin consent - this server authenticates with client credentials and has no signed-in user.
 
 ## Prompts
 
@@ -71,9 +71,9 @@ Grant both as **application** permissions with admin consent — this server aut
 
 ## Notable behavior
 
-**Filters run client-side, so a truncated result under-reports.** Microsoft Graph does not filter the service-health-issues or messages collections server-side (the query options are undocumented and can fail silently), so this server fetches the collection and filters it in-process. When `truncated` is `true`, `maxResults` cut the list and the counts are a lower bound — omit `maxResults` for a full picture.
+**Filters run client-side, so a truncated result under-reports.** Microsoft Graph does not filter the service-health-issues or messages collections server-side (the query options are undocumented and can fail silently), so this server fetches the collection and filters it in-process. When `truncated` is `true`, `maxResults` cut the list and the counts are a lower bound - omit `maxResults` for a full picture.
 
-**Filters are case-insensitive on purpose.** Microsoft's own documentation is inconsistent about enum casing (the schema says `advisory`/`stayInformed`/`normal`; live payloads return `Advisory`/`StayInformed`/`Normal`). Pass the documented camelCase values — matching is case-insensitive either way, so a filter never silently matches zero rows because of casing.
+**Filters are case-insensitive on purpose.** Microsoft's own documentation is inconsistent about enum casing (the schema says `advisory`/`stayInformed`/`normal`; live payloads return `Advisory`/`StayInformed`/`Normal`). Pass the documented camelCase values - matching is case-insensitive either way, so a filter never silently matches zero rows because of casing.
 
 **"Resolved" comes from the issue's `isResolved` flag, not its status text.** `m365-list-health-issues --is-resolved false` returns still-active issues; the `status` field is descriptive only.
 

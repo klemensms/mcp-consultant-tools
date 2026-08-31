@@ -1,5 +1,5 @@
 /**
- * Task 38 — aggregate raw-PII leakage sweep across ALL prior scenario outputs.
+ * Task 38 - aggregate raw-PII leakage sweep across ALL prior scenario outputs.
  *
  * Walks every audit JSONL file under tests/audit-integration/output/ from
  * earlier scenarios in this run and greps for the known-PII fixture strings.
@@ -7,7 +7,7 @@
  *
  * Important: this scenario is meant to be run AFTER pii-audit-matrix has
  * produced its corpus (and ideally other PII-touching scenarios). If no
- * matching corpus exists, the sweep is trivially clean — scenario reports a
+ * matching corpus exists, the sweep is trivially clean - scenario reports a
  * warning and passes.
  */
 import { readAuditDir, listAuditFiles } from '../assert/jsonl.mjs';
@@ -47,7 +47,7 @@ export default async function leakageSweep(ctx) {
   const files = await findJsonlFiles(OUTPUT_ROOT);
   ctx.log('info', `found ${files.length} JSONL files under ${OUTPUT_ROOT}`);
   if (files.length === 0) {
-    ctx.log('warn', 'no JSONL files found — sweep trivially clean. Run pii-audit-matrix first to generate corpus.');
+    ctx.log('warn', 'no JSONL files found - sweep trivially clean. Run pii-audit-matrix first to generate corpus.');
     return;
   }
 
@@ -92,7 +92,7 @@ export default async function leakageSweep(ctx) {
 
   // Write report
   const md = [
-    '# Audit Integration — Aggregate PII Leakage Sweep',
+    '# Audit Integration - Aggregate PII Leakage Sweep',
     '',
     `Generated: ${new Date().toISOString()}`,
     '',
@@ -112,8 +112,8 @@ export default async function leakageSweep(ctx) {
     'top-level field (excluding hash/seq/operator metadata). Expected leakage:',
     '',
     '- **pii-audit-matrix**: configurations `no-protection` (PII off), `l1-only`',
-    '  (token replacement only — does not redact field-name PII), `l2-only` (no L3/L4),',
-    '  `l3-only` (regex-only — name fields untouched), `observe-mode` (counts but does',
+    '  (token replacement only - does not redact field-name PII), `l2-only` (no L3/L4),',
+    '  `l3-only` (regex-only - name fields untouched), `observe-mode` (counts but does',
     "  not transform). These are EXPECTED to leak per the v1 spec; they're tested as",
     '  control conditions.',
     '- **all-tools**: deletes Bug 3 GUID before fixture cleanup; no PII fixtures used.',
@@ -126,7 +126,7 @@ export default async function leakageSweep(ctx) {
   await writeFile(path.join(ctx.outputDir, 'leakage-sweep-report.md'), md);
   ctx.log('info', `wrote leakage-sweep-report.md`);
 
-  // Don't throw on leaks here — pii-audit-matrix scenario already asserts on
+  // Don't throw on leaks here - pii-audit-matrix scenario already asserts on
   // unexpected leaks for its own matrix. This scenario is a meta-check.
   ctx.log('info', `✓ leakage sweep complete: ${totalRecords} records, ${totalLeaks} leaks aggregated across ${byScenario.size} scenarios`);
 }

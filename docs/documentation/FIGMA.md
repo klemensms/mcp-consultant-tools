@@ -18,11 +18,11 @@ MCP server that extracts design data from Figma files and FigJam boards, transfo
 
 ## Configuration
 
-Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both — only the wrapper key and the file differ.
+Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
-### VS Code — recommended (1Password)
+### VS Code - recommended (1Password)
 
-Credentials are resolved at runtime via biometric authentication — no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
+Credentials are resolved at runtime via biometric authentication - no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
 
 ```json
 {
@@ -41,7 +41,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-### VS Code — alternative (local credentials)
+### VS Code - alternative (local credentials)
 
 ```json
 {
@@ -62,9 +62,9 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 
 **Authentication:** provide either `FIGMA_API_KEY` (personal access token) or `FIGMA_OAUTH_TOKEN`, not both.
 
-**Context window management (recommended for Figma — responses are 20-200KB):**
-- `MCP_CONTEXT_SAFE_RESPONSE` — real default `false`. Set to `true` (recommended for Figma) to offload large responses to disk and return a summary instead.
-- `MCP_RESPONSE_SIZE_THRESHOLD` — real default `5000` (bytes); `1000` recommended for Figma so more responses are offloaded.
+**Context window management (recommended for Figma - responses are 20-200KB):**
+- `MCP_CONTEXT_SAFE_RESPONSE` - real default `false`. Set to `true` (recommended for Figma) to offload large responses to disk and return a summary instead.
+- `MCP_RESPONSE_SIZE_THRESHOLD` - real default `5000` (bytes); `1000` recommended for Figma so more responses are offloaded.
 
 ### Claude Desktop
 

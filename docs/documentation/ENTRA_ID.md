@@ -5,17 +5,17 @@
 
 **Package:** `@mcp-consultant-tools/entra-id`
 
-MCP server for auditing Microsoft Entra ID app registrations: which client secrets and certificates are expiring or already expired, and what each app registration is permitted to do. **Every tool is read-only** — there are no write operations and no feature flags.
+MCP server for auditing Microsoft Entra ID app registrations: which client secrets and certificates are expiring or already expired, and what each app registration is permitted to do. **Every tool is read-only** - there are no write operations and no feature flags.
 
 ## Configuration
 
-Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both — only the wrapper key and the file differ.
+Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
 The `ENTRA_ID_*` variables are deliberately distinct from the shared `AZURE_*` service-principal block used by `azure-management` and `azure-defender`. Those two need subscription RBAC roles (`Reader`, `Security Reader`); this server needs a **Microsoft Graph directory permission** instead, so the app registration behind it is usually a different one. There is no subscription ID here.
 
-### VS Code — recommended (1Password)
+### VS Code - recommended (1Password)
 
-Credentials are resolved at runtime via biometric authentication — no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for the full setup guide.
+Credentials are resolved at runtime via biometric authentication - no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for the full setup guide.
 
 ```json
 {
@@ -33,7 +33,7 @@ Credentials are resolved at runtime via biometric authentication — no secrets 
 }
 ```
 
-### Claude Desktop — local credentials
+### Claude Desktop - local credentials
 
 ```json
 {
@@ -59,7 +59,7 @@ All three variables are required.
 |------------|------|---------|
 | `Application.Read.All` | Application | Both tools, including reading credential collections |
 
-Grant it as an **application** permission with admin consent — this server authenticates with client credentials and has no signed-in user. `Application.Read.All` is the least-privileged option; there is no narrower one. It also covers the `servicePrincipals` read used to turn API-permission GUIDs into names.
+Grant it as an **application** permission with admin consent - this server authenticates with client credentials and has no signed-in user. `Application.Read.All` is the least-privileged option; there is no narrower one. It also covers the `servicePrincipals` read used to turn API-permission GUIDs into names.
 
 ## Prompts
 
@@ -78,7 +78,7 @@ Grant it as an **application** permission with admin consent — this server aut
 
 **Every filter scans the whole tenant.** Microsoft Graph cannot filter `/applications` by credential expiry, nor by a display-name substring. Filtering therefore happens after the full list is fetched, and `maxResults` trims afterwards. When `truncated` is `true`, `maxResults` cut the list and the counts describe only the rows returned; omit `maxResults` for tenant-wide totals.
 
-**Secret values are never returned.** Microsoft Graph exposes a secret's value only in the response to the call that created it. This server can show you a secret's `displayName`, `keyId`, dates and a three-character `hint` — never the secret itself.
+**Secret values are never returned.** Microsoft Graph exposes a secret's value only in the response to the call that created it. This server can show you a secret's `displayName`, `keyId`, dates and a three-character `hint` - never the secret itself.
 
 **An unresolved API permission is reported, not hidden.** Permissions are GUIDs; they are resolved to names via the resource's service principal. Where that lookup fails, the permission is returned with `unresolved: true` and the raw GUID as its name rather than being dropped or guessed at.
 

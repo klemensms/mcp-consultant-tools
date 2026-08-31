@@ -69,7 +69,7 @@ AZUREDEVOPS_FEEDS=
 
 **Timeline record `type` is an untyped string with no published enum.** `last-deploys` compares it case-insensitively against `stage`, and reports `noStageRecordsFound` rather than pretending a stage never deployed.
 
-**Stage names must match case-insensitively, and `succeededWithIssues` is a success.** Strict `===` on the name, or accepting only `succeeded`, makes a deployed stage report as never deployed — and that reads identically to a genuine miss. `availableStageNames` and `searchWindowFull` exist so a miss is diagnosable.
+**Stage names must match case-insensitively, and `succeededWithIssues` is a success.** Strict `===` on the name, or accepting only `succeeded`, makes a deployed stage report as never deployed - and that reads identically to a genuine miss. `availableStageNames` and `searchWindowFull` exist so a miss is diagnosable.
 
 **Build and Pipelines are different REST surfaces with different enums.** `Build.result` has `partiallySucceeded`; the Pipelines API's `RunResult` does not. `BuildStatus` spells it `cancelling`; `RunState` spells it `canceling`. Do not share a constant across the two.
 
@@ -77,11 +77,11 @@ AZUREDEVOPS_FEEDS=
 
 **A feed that 403s is not an empty feed.** `AdminClient` errors carry `.status` (`getAdoErrorStatus()`); `feed-summary` lists such feeds under `unreadableFeeds` and marks `totalPackagesIsLowerBound`. Any new fan-out across resources must do the same.
 
-**Package provenance is preview-only (`7.1-preview.1`) and exposes no documented build/branch field.** `buildId` and `branch` are best-effort reads of an untyped `data` bag and are `null` when absent — never the string `"unknown"`. Check `structuredProvenanceAvailable`.
+**Package provenance is preview-only (`7.1-preview.1`) and exposes no documented build/branch field.** `buildId` and `branch` are best-effort reads of an untyped `data` bag and are `null` when absent - never the string `"unknown"`. Check `structuredProvenanceAvailable`.
 
 **Feeds live on `feeds.dev.azure.com`**, not `pkgs.dev.azure.com` (protocol-specific routes only).
 
-**Pre-existing, deliberately not fixed inside a port commit:** `src/index.ts` carries a duplicate private `createServiceContext()` alongside `context-factory.ts` (same anti-pattern as `azure-sql` and `azure-management`) — a new context field must be added to **both** or the build fails. The tool-category tables below still use the old `admin-` prefixed names for some tools; the registered names are unprefixed.
+**Pre-existing, deliberately not fixed inside a port commit:** `src/index.ts` carries a duplicate private `createServiceContext()` alongside `context-factory.ts` (same anti-pattern as `azure-sql` and `azure-management`) - a new context field must be added to **both** or the build fails. The tool-category tables below still use the old `admin-` prefixed names for some tools; the registered names are unprefixed.
 
 ## Testing
 

@@ -20,10 +20,10 @@ This package provides Azure DevOps admin operations across nine domains: pipelin
 
 <layers>
 
-1. **AdminClient** (`services/admin-client.ts`) — Axios-based HTTP client. Provides `makeRequest()`, `validateProject()`, `validateFeed()`, and `formatDateForAdo()`. Handles 401/403/404 error translation.
-2. **Services** (`services/`) — One class per domain. All business logic lives here.
-3. **Tools** (`tools/`) — Thin MCP wrappers. Each tool file returns `{ readonly, upsert, delete }` counts for startup logging.
-4. **CLI** (`cli/`) — Commander.js commands. One file per domain under `cli/commands/`. Reuses the same ServiceContext.
+1. **AdminClient** (`services/admin-client.ts`) - Axios-based HTTP client. Provides `makeRequest()`, `validateProject()`, `validateFeed()`, and `formatDateForAdo()`. Handles 401/403/404 error translation.
+2. **Services** (`services/`) - One class per domain. All business logic lives here.
+3. **Tools** (`tools/`) - Thin MCP wrappers. Each tool file returns `{ readonly, upsert, delete }` counts for startup logging.
+4. **CLI** (`cli/`) - Commander.js commands. One file per domain under `cli/commands/`. Reuses the same ServiceContext.
 
 </layers>
 
@@ -57,9 +57,9 @@ The three-tier permission model is enforced at tool registration time, not at re
 
 | Tier | Count | Condition | Purpose |
 |------|-------|-----------|---------|
-| Tier 1 — Read-Only | 36 | Always registered | View resources |
-| Tier 2 — Upsert | 29 | Requires `_UPSERT=true` flag | Create and update |
-| Tier 3 — Delete/Disable | 10 | Requires `_DELETE=true` or `_DISABLE=true` flag | Destructive operations |
+| Tier 1 - Read-Only | 36 | Always registered | View resources |
+| Tier 2 - Upsert | 29 | Requires `_UPSERT=true` flag | Create and update |
+| Tier 3 - Delete/Disable | 10 | Requires `_DELETE=true` or `_DISABLE=true` flag | Destructive operations |
 
 Each resource category has its own independent flag pair. Enabling pipelines upsert does not enable environments upsert.
 
@@ -137,7 +137,7 @@ packages/azure-devops-admin/src/
 
 | Variable | Description |
 |----------|-------------|
-| `AZUREDEVOPS_ORGANIZATION` | Organization name only — not the full URL (e.g., `mycompany`, not `https://dev.azure.com/mycompany`) |
+| `AZUREDEVOPS_ORGANIZATION` | Organization name only - not the full URL (e.g., `mycompany`, not `https://dev.azure.com/mycompany`) |
 | `AZUREDEVOPS_PAT` | Personal Access Token |
 | `AZUREDEVOPS_PROJECTS` | Comma-separated list of allowed project names. Use `*` to allow all projects. |
 
@@ -193,7 +193,7 @@ Note: `get-build-status`, `get-build-timeline`, and `get-build-logs` are duplica
 Lists all YAML pipeline definitions in a project. Returns id, name, path, repository info, and YAML filename for each pipeline.
 
 **Parameters:**
-- `project` (string, required) — Project name
+- `project` (string, required) - Project name
 
 </tool>
 
@@ -202,8 +202,8 @@ Lists all YAML pipeline definitions in a project. Returns id, name, path, reposi
 Gets detailed pipeline config including triggers, variables (secrets masked as `***SECRET***`), queue settings, and repository info.
 
 **Parameters:**
-- `project` (string, required) — Project name
-- `definitionId` (number, required) — Pipeline definition ID
+- `project` (string, required) - Project name
+- `definitionId` (number, required) - Pipeline definition ID
 
 </tool>
 
@@ -212,8 +212,8 @@ Gets detailed pipeline config including triggers, variables (secrets masked as `
 Gets the raw YAML content for a pipeline. For non-Azure-Repos pipelines (GitHub/GHE), returns metadata and a message indicating the YAML is external.
 
 **Parameters:**
-- `project` (string, required) — Project name
-- `definitionId` (number, required) — Pipeline definition ID
+- `project` (string, required) - Project name
+- `definitionId` (number, required) - Pipeline definition ID
 
 **Behavior:** If `repository.type !== 'TfsGit'`, returns location metadata instead of content and includes a message directing to the external repository URL.
 
@@ -224,9 +224,9 @@ Gets the raw YAML content for a pipeline. For non-Azure-Repos pipelines (GitHub/
 Lists recent pipeline runs. Returns build ID, buildNumber, status, result, branch, timestamps, requestedBy, and reason.
 
 **Parameters:**
-- `project` (string, required) — Project name
-- `definitionId` (number, required) — Pipeline definition ID
-- `top` (number, optional) — Max results, default 10
+- `project` (string, required) - Project name
+- `definitionId` (number, required) - Pipeline definition ID
+- `top` (number, optional) - Max results, default 10
 
 </tool>
 
@@ -235,11 +235,11 @@ Lists recent pipeline runs. Returns build ID, buildNumber, status, result, branc
 Gets build status with configurable detail. Combines basic status, optional timeline, and optional logs in one call.
 
 **Parameters:**
-- `project` (string, required) — Project name
-- `buildId` (number, required) — Build ID
-- `detail` (enum, optional) — `summary` (default), `timeline`, `full`
-- `timelineScope` (enum, optional) — `problems` (default), `stages`, `jobs`, `all`
-- `maxIssues` (number, optional) — Max issues per record, default 5
+- `project` (string, required) - Project name
+- `buildId` (number, required) - Build ID
+- `detail` (enum, optional) - `summary` (default), `timeline`, `full`
+- `timelineScope` (enum, optional) - `problems` (default), `stages`, `jobs`, `all`
+- `maxIssues` (number, optional) - Max issues per record, default 5
 
 **detail behavior:**
 - `summary`: Basic status fields only
@@ -253,10 +253,10 @@ Gets build status with configurable detail. Combines basic status, optional time
 Gets step-by-step build breakdown. Always includes summary stats (totalErrors, totalWarnings, failed list) regardless of scope.
 
 **Parameters:**
-- `project` (string, required) — Project name
-- `buildId` (number, required) — Build ID
-- `scope` (enum, optional) — `problems` (default, only errors/warnings/failed), `stages`, `jobs`, `all`
-- `maxIssues` (number, optional) — Max issues per record, prioritizes errors over warnings, default 5
+- `project` (string, required) - Project name
+- `buildId` (number, required) - Build ID
+- `scope` (enum, optional) - `problems` (default, only errors/warnings/failed), `stages`, `jobs`, `all`
+- `maxIssues` (number, optional) - Max issues per record, prioritizes errors over warnings, default 5
 
 **scope behavior:**
 - `problems`: Records with errorCount > 0, warningCount > 0, or result = failed/canceled
@@ -271,10 +271,10 @@ Gets step-by-step build breakdown. Always includes summary stats (totalErrors, t
 Lists available logs or retrieves content of a specific log with noise filtering.
 
 **Parameters:**
-- `project` (string, required) — Project name
-- `buildId` (number, required) — Build ID
-- `logId` (number, optional) — Specific log ID; omit to get the listing
-- `mode` (enum, optional) — `summary` (default, filters progress indicators), `full`, `errors` (only error/warning lines)
+- `project` (string, required) - Project name
+- `buildId` (number, required) - Build ID
+- `logId` (number, optional) - Specific log ID; omit to get the listing
+- `mode` (enum, optional) - `summary` (default, filters progress indicators), `full`, `errors` (only error/warning lines)
 
 **Log filtering (mode=summary):** Strips git progress lines matching patterns: `Counting objects:`, `Compressing objects:`, `Receiving objects:`, `Resolving deltas:`, `Unpacking objects:`, `Updating files:`.
 
@@ -287,8 +287,8 @@ Lists available logs or retrieves content of a specific log with noise filtering
 Finds approval checkpoints for a build by reading its timeline, then fetches approval details including assignedApprovers, status, and instructions.
 
 **Parameters:**
-- `project` (string, required) — Project name
-- `buildId` (number, required) — Build ID
+- `project` (string, required) - Project name
+- `buildId` (number, required) - Build ID
 
 **Implementation:** Reads timeline to find `Checkpoint.Approval` records, then calls `/pipelines/approvals?approvalIds=...&$expand=steps`.
 
@@ -299,13 +299,13 @@ Finds approval checkpoints for a build by reading its timeline, then fetches app
 Every pipeline in a project with the status of its latest build.
 
 **Parameters:**
-- `project` (string, required) — Project name
-- `nameContains` (string, optional) — Case-insensitive substring filter
-- `maxResults` (number, optional, default 25) — Maximum pipelines to inspect
+- `project` (string, required) - Project name
+- `nameContains` (string, optional) - Case-insensitive substring filter
+- `maxResults` (number, optional, default 25) - Maximum pipelines to inspect
 
 **Implementation:** One call to `/build/definitions`, then one `/build/builds?definitions={id}&$top=1&queryOrder=queueTimeDescending` per pipeline. `maxResults` bounds that fan-out.
 
-`resultBreakdown` covers the whole `BuildResult` enum — `succeeded`, `partiallySucceeded`, `failed`, `canceled`, `none` — plus `noBuilds` and `other`, so the counts always add up to `pipelineCount`. Counting only succeeded/failed leaves `partiallySucceeded` pipelines invisible.
+`resultBreakdown` covers the whole `BuildResult` enum - `succeeded`, `partiallySucceeded`, `failed`, `canceled`, `none` - plus `noBuilds` and `other`, so the counts always add up to `pipelineCount`. Counting only succeeded/failed leaves `partiallySucceeded` pipelines invisible.
 
 `truncated` is `true` when more pipelines matched than `maxResults` allowed.
 
@@ -316,12 +316,12 @@ Every pipeline in a project with the status of its latest build.
 Latest successful deployment of each stage of one pipeline, with the build's `templateParameters`.
 
 **Parameters:**
-- `project` (string, required) — Project name
-- `pipelineId` (number, optional) — Build definition ID. Preferred.
-- `pipelineName` (string, optional) — Exact name, matched case-insensitively
+- `project` (string, required) - Project name
+- `pipelineId` (number, optional) - Build definition ID. Preferred.
+- `pipelineName` (string, optional) - Exact name, matched case-insensitively
 - `stages` (string[], optional, default `["Dev","UAT","Prod"]`)
-- `templateParameter` (string, optional) — Surface this parameter as `paramValue` per stage
-- `searchTop` (number, optional, default 50) — Recent builds to scan
+- `templateParameter` (string, optional) - Surface this parameter as `paramValue` per stage
+- `searchTop` (number, optional, default 50) - Recent builds to scan
 
 **Implementation:** Stage-level status does **not** exist on the Build object. Recent builds are listed newest-first and their timelines walked until every stage is found. `vsrm.dev.azure.com` (`_apis/release/deployments`) is Classic Release only and does not apply to YAML pipelines; `environmentdeploymentrecords` only sees stages that use the `environment:` keyword. The build timeline is the one source that works universally.
 
@@ -351,14 +351,14 @@ Creates a new YAML pipeline definition. Supports three repository types.
 
 **Parameters:**
 - `project` (string, required)
-- `name` (string, required) — Pipeline display name
-- `yamlPath` (string, required) — Path to YAML file in repo (e.g., `azure-pipelines.yml`)
-- `repositoryId` (string, required) — GUID for Azure Repos; `org/repo` format for GitHub
-- `folder` (string, optional) — Folder path, default `\` (root). Use backslash-delimited paths.
-- `repositoryType` (enum, optional) — `TfsGit` (default), `GitHub`, `GitHubEnterprise`
-- `repositoryUrl` (string, optional) — Required for GitHub/GHE (e.g., `https://github.com/org/repo.git`)
-- `defaultBranch` (string, optional) — Required for GitHub/GHE. Accepts `main` or `refs/heads/main` (auto-normalized)
-- `serviceConnectionId` (string, optional) — Required for GitHub/GHE. GUID from `list-svc-conns`.
+- `name` (string, required) - Pipeline display name
+- `yamlPath` (string, required) - Path to YAML file in repo (e.g., `azure-pipelines.yml`)
+- `repositoryId` (string, required) - GUID for Azure Repos; `org/repo` format for GitHub
+- `folder` (string, optional) - Folder path, default `\` (root). Use backslash-delimited paths.
+- `repositoryType` (enum, optional) - `TfsGit` (default), `GitHub`, `GitHubEnterprise`
+- `repositoryUrl` (string, optional) - Required for GitHub/GHE (e.g., `https://github.com/org/repo.git`)
+- `defaultBranch` (string, optional) - Required for GitHub/GHE. Accepts `main` or `refs/heads/main` (auto-normalized)
+- `serviceConnectionId` (string, optional) - Required for GitHub/GHE. GUID from `list-svc-conns`.
 
 **Validation:** For non-`TfsGit` types, throws if `repositoryUrl` or `serviceConnectionId` is missing.
 
@@ -402,10 +402,10 @@ Updates a pipeline definition. Fetches current definition first, merges updates,
 **Parameters:**
 - `project` (string, required)
 - `definitionId` (number, required)
-- `name` (string, optional) — New name
-- `path` (string, optional) — New folder path
-- `queueStatus` (enum, optional) — `enabled`, `disabled`, `paused`
-- `variables` (object, optional) — Record of `{ value, isSecret?, allowOverride? }`
+- `name` (string, optional) - New name
+- `path` (string, optional) - New folder path
+- `queueStatus` (enum, optional) - `enabled`, `disabled`, `paused`
+- `variables` (object, optional) - Record of `{ value, isSecret?, allowOverride? }`
 
 </tool>
 
@@ -427,10 +427,10 @@ Queues a new build run.
 **Parameters:**
 - `project` (string, required)
 - `definitionId` (number, required)
-- `sourceBranch` (string, optional) — Source branch ref (e.g., `refs/heads/main`, `refs/tags/v1.0.0`). Defaults to the pipeline's default branch.
-- `sourceVersion` (string, optional) — Commit SHA to build. Defaults to the tip of `sourceBranch`.
-- `variables` (object, optional) — Runtime variables as `Record<string, string>`; serialized to `parameters` field
-- `parameters` (object, optional) — Template parameters for YAML pipelines; sent as `templateParameters`
+- `sourceBranch` (string, optional) - Source branch ref (e.g., `refs/heads/main`, `refs/tags/v1.0.0`). Defaults to the pipeline's default branch.
+- `sourceVersion` (string, optional) - Commit SHA to build. Defaults to the tip of `sourceBranch`.
+- `variables` (object, optional) - Runtime variables as `Record<string, string>`; serialized to `parameters` field
+- `parameters` (object, optional) - Template parameters for YAML pipelines; sent as `templateParameters`
 
 </tool>
 
@@ -452,7 +452,7 @@ Retries a failed build. Fetches original build's `definition.id` and `sourceBran
 
 **Parameters:**
 - `project` (string, required)
-- `buildId` (number, required) — The failed build ID
+- `buildId` (number, required) - The failed build ID
 
 </tool>
 
@@ -462,8 +462,8 @@ Approves or rejects a pipeline stage gate. Use `list-pending-approvals` to find 
 
 **Parameters:**
 - `project` (string, required)
-- `approvalId` (string, required) — GUID from `list-pending-approvals`
-- `status` (enum, required) — `approved` or `rejected`
+- `approvalId` (string, required) - GUID from `list-pending-approvals`
+- `status` (enum, required) - `approved` or `rejected`
 - `comment` (string, optional)
 
 **Implementation:** PATCH to `/pipelines/approvals` with body `[{ approvalId, status, comment }]`.
@@ -509,7 +509,7 @@ Gets detailed connection configuration including type, URL, authorization scheme
 
 **Parameters:**
 - `project` (string, required)
-- `connectionId` (string, required) — GUID
+- `connectionId` (string, required) - GUID
 
 </tool>
 
@@ -530,11 +530,11 @@ Creates a new service connection. Use `get-svc-conn-types` to discover valid typ
 **Parameters:**
 - `project` (string, required)
 - `name` (string, required)
-- `type` (string, required) — Common values: `AzureRM`, `GitHub`, `npm`, `NuGet`, `Docker`
-- `url` (string, optional) — Service URL (required for some types)
+- `type` (string, required) - Common values: `AzureRM`, `GitHub`, `npm`, `NuGet`, `Docker`
+- `url` (string, optional) - Service URL (required for some types)
 - `description` (string, optional)
-- `authorization` (object, optional) — `{ scheme: string, parameters?: Record<string, string> }`
-- `data` (object, optional) — Type-specific configuration as `Record<string, string>`
+- `authorization` (object, optional) - `{ scheme: string, parameters?: Record<string, string> }`
+- `data` (object, optional) - Type-specific configuration as `Record<string, string>`
 
 </tool>
 
@@ -544,11 +544,11 @@ Updates connection metadata. Cannot update credentials for security reasons.
 
 **Parameters:**
 - `project` (string, required)
-- `connectionId` (string, required) — GUID
+- `connectionId` (string, required) - GUID
 - `name` (string, optional)
 - `description` (string, optional)
 - `url` (string, optional)
-- `data` (object, optional) — Updated data fields
+- `data` (object, optional) - Updated data fields
 
 </tool>
 
@@ -557,8 +557,8 @@ Updates connection metadata. Cannot update credentials for security reasons.
 Shares a service connection with additional projects.
 
 **Parameters:**
-- `connectionId` (string, required) — GUID
-- `projectIds` (string[], required) — Array of project ID GUIDs
+- `connectionId` (string, required) - GUID
+- `projectIds` (string[], required) - Array of project ID GUIDs
 
 </tool>
 
@@ -572,7 +572,7 @@ Permanently deletes a service connection. Pipelines using this connection will f
 
 **Parameters:**
 - `project` (string, required)
-- `connectionId` (string, required) — GUID
+- `connectionId` (string, required) - GUID
 
 </tool>
 
@@ -619,7 +619,7 @@ Creates a new variable group with optional initial variables.
 - `project` (string, required)
 - `name` (string, required)
 - `description` (string, optional)
-- `variables` (object, optional) — `Record<string, { value: string, isSecret?: boolean }>`
+- `variables` (object, optional) - `Record<string, { value: string, isSecret?: boolean }>`
 
 </tool>
 
@@ -643,8 +643,8 @@ Sets or creates a variable in a variable group. Creates the variable if it doesn
 - `project` (string, required)
 - `groupId` (number, required)
 - `variableName` (string, required)
-- `value` (string, required) — Supports pipeline expressions: `$(var)`, `$[counter('prefix', 0)]`, `$(Build.BuildId)`
-- `isSecret` (boolean, optional) — Mark as secret, default false
+- `value` (string, required) - Supports pipeline expressions: `$(var)`, `$[counter('prefix', 0)]`, `$(Build.BuildId)`
+- `isSecret` (boolean, optional) - Mark as secret, default false
 
 </tool>
 
@@ -688,7 +688,7 @@ Permanently deletes a variable group. Pipelines using this group will fail.
 Lists all agent pools in the organization. Returns pool type, size, hosted status, and auto-provision settings.
 
 **Parameters:**
-- `poolType` (enum, optional) — `automation` (build/release pipelines) or `deployment` (environment deployment groups)
+- `poolType` (enum, optional) - `automation` (build/release pipelines) or `deployment` (environment deployment groups)
 
 </tool>
 
@@ -707,7 +707,7 @@ Lists all agents in a pool with name, version, OS, enabled status, and online/of
 
 **Parameters:**
 - `poolId` (number, required)
-- `includeCapabilities` (boolean, optional) — Include system and user capabilities, default false
+- `includeCapabilities` (boolean, optional) - Include system and user capabilities, default false
 
 </tool>
 
@@ -731,10 +731,10 @@ Updates pool settings.
 
 **Parameters:**
 - `poolId` (number, required)
-- `autoProvision` (boolean, optional) — Auto-provision pool to new projects
-- `autoUpdate` (boolean, optional) — Auto-update agents
-- `autoSize` (boolean, optional) — Auto-size pool based on demand
-- `targetSize` (number, optional) — Target pool size for auto-scaling
+- `autoProvision` (boolean, optional) - Auto-provision pool to new projects
+- `autoUpdate` (boolean, optional) - Auto-update agents
+- `autoSize` (boolean, optional) - Auto-size pool based on demand
+- `targetSize` (number, optional) - Target pool size for auto-scaling
 
 </tool>
 
@@ -798,7 +798,7 @@ Gets deployment history for an environment including pipeline, owner, timestamps
 **Parameters:**
 - `project` (string, required)
 - `environmentId` (number, required)
-- `top` (number, optional) — Max results, default 10
+- `top` (number, optional) - Max results, default 10
 
 </tool>
 
@@ -822,7 +822,7 @@ Creates a new deployment environment.
 
 **Parameters:**
 - `project` (string, required)
-- `name` (string, required) — Common values: `Production`, `Staging`, `Development`, `QA`
+- `name` (string, required) - Common values: `Production`, `Staging`, `Development`, `QA`
 - `description` (string, optional)
 
 </tool>
@@ -846,9 +846,9 @@ Adds a check (approval, business hours, branch control, etc.) to an environment.
 **Parameters:**
 - `project` (string, required)
 - `environmentId` (number, required)
-- `checkType` (enum, required) — `Approval`, `BusinessHours`, `BranchControl`, `InvokeRESTAPI`, `InvokeAzureFunction`, `ExclusiveLock`, `RequiredTemplate`
-- `settings` (any, required) — Check-specific configuration (see below)
-- `timeout` (number, optional) — Timeout in minutes, default 43200 (30 days)
+- `checkType` (enum, required) - `Approval`, `BusinessHours`, `BranchControl`, `InvokeRESTAPI`, `InvokeAzureFunction`, `ExclusiveLock`, `RequiredTemplate`
+- `settings` (any, required) - Check-specific configuration (see below)
+- `timeout` (number, optional) - Timeout in minutes, default 43200 (30 days)
 
 **settings by checkType:**
 
@@ -868,9 +868,9 @@ Updates an existing check's settings or timeout.
 
 **Parameters:**
 - `project` (string, required)
-- `checkId` (number, required) — Check configuration ID from `get-env-checks`
-- `settings` (any, optional) — Updated check-specific settings
-- `timeout` (number, optional) — Updated timeout in minutes
+- `checkId` (number, required) - Check configuration ID from `get-env-checks`
+- `settings` (any, optional) - Updated check-specific settings
+- `timeout` (number, optional) - Updated timeout in minutes
 
 </tool>
 
@@ -916,7 +916,7 @@ Lists all iterations (sprints) with their hierarchy, dates, and time frame. Retu
 
 **Parameters:**
 - `project` (string, required)
-- `depth` (number, optional) — Hierarchy depth to traverse, default 10
+- `depth` (number, optional) - Hierarchy depth to traverse, default 10
 
 </tool>
 
@@ -926,7 +926,7 @@ Gets a specific iteration by path including start/finish dates and time frame.
 
 **Parameters:**
 - `project` (string, required)
-- `path` (string, required) — Use backslash for hierarchy: `Sprint 1` or `Release 1\Sprint 1`
+- `path` (string, required) - Use backslash for hierarchy: `Sprint 1` or `Release 1\Sprint 1`
 
 </tool>
 
@@ -936,7 +936,7 @@ Lists all area paths with their hierarchy. Returns a flattened list with full pa
 
 **Parameters:**
 - `project` (string, required)
-- `depth` (number, optional) — Hierarchy depth to traverse, default 10
+- `depth` (number, optional) - Hierarchy depth to traverse, default 10
 
 </tool>
 
@@ -946,7 +946,7 @@ Gets a specific area path.
 
 **Parameters:**
 - `project` (string, required)
-- `path` (string, required) — Use backslash for hierarchy: `Backend` or `Product\Backend`
+- `path` (string, required) - Use backslash for hierarchy: `Backend` or `Product\Backend`
 
 </tool>
 
@@ -960,11 +960,11 @@ Creates a new iteration with optional dates and optional team subscription. If `
 
 **Parameters:**
 - `project` (string, required)
-- `name` (string, required) — e.g., `Sprint 1`
-- `parentPath` (string, optional) — Parent path to create under; omit for root
-- `startDate` (string, optional) — ISO format: `2024-01-01` (auto-converted to `2024-01-01T00:00:00Z`)
-- `finishDate` (string, optional) — ISO format: `2024-01-14`
-- `team` (string, optional) — Team name; if provided, calls `addIterationToTeam` after creation
+- `name` (string, required) - e.g., `Sprint 1`
+- `parentPath` (string, optional) - Parent path to create under; omit for root
+- `startDate` (string, optional) - ISO format: `2024-01-01` (auto-converted to `2024-01-01T00:00:00Z`)
+- `finishDate` (string, optional) - ISO format: `2024-01-14`
+- `team` (string, optional) - Team name; if provided, calls `addIterationToTeam` after creation
 
 </tool>
 
@@ -974,7 +974,7 @@ Updates an iteration's name or dates.
 
 **Parameters:**
 - `project` (string, required)
-- `path` (string, required) — Iteration path
+- `path` (string, required) - Iteration path
 - `name` (string, optional)
 - `startDate` (string, optional)
 - `finishDate` (string, optional)
@@ -988,7 +988,7 @@ Creates a new area path.
 **Parameters:**
 - `project` (string, required)
 - `name` (string, required)
-- `parentPath` (string, optional) — Parent area path; omit for root
+- `parentPath` (string, optional) - Parent area path; omit for root
 
 </tool>
 
@@ -998,8 +998,8 @@ Renames an area path.
 
 **Parameters:**
 - `project` (string, required)
-- `path` (string, required) — Area path to rename
-- `name` (string, required) — New name
+- `path` (string, required) - Area path to rename
+- `name` (string, required) - New name
 
 </tool>
 
@@ -1009,8 +1009,8 @@ Subscribes an existing iteration to a team's sprint planning view.
 
 **Parameters:**
 - `project` (string, required)
-- `team` (string, required) — Team name
-- `iterationId` (string, required) — Iteration identifier GUID (the `identifier` field from `create-iteration` or `get-iteration`)
+- `team` (string, required) - Team name
+- `iterationId` (string, required) - Iteration identifier GUID (the `identifier` field from `create-iteration` or `get-iteration`)
 
 **Note:** `iterationId` is a GUID, not the iteration path.
 
@@ -1026,8 +1026,8 @@ Deletes an iteration. Work items in this iteration are reclassified to the targe
 
 **Parameters:**
 - `project` (string, required)
-- `path` (string, required) — Iteration path
-- `reclassifyId` (number, required) — ID of the iteration to move work items to (from `list-iterations`)
+- `path` (string, required) - Iteration path
+- `reclassifyId` (number, required) - ID of the iteration to move work items to (from `list-iterations`)
 
 </tool>
 
@@ -1037,8 +1037,8 @@ Deletes an area path. Work items in this area are reclassified to the target are
 
 **Parameters:**
 - `project` (string, required)
-- `path` (string, required) — Area path
-- `reclassifyId` (number, required) — ID of the area to move work items to (from `list-areas`)
+- `path` (string, required) - Area path
+- `reclassifyId` (number, required) - ID of the area to move work items to (from `list-areas`)
 
 </tool>
 
@@ -1050,9 +1050,9 @@ Deletes an area path. Work items in this area are reclassified to the target are
 
 **5 tools total: 2 read-only + 3 upsert**
 
-Team sprint capacity — each member's capacity-per-day + days-off, and the team-wide days-off — via the team-scoped work API (`{project}/{team}/_apis/work/teamsettings/iterations/{iterationId}/...`). `iterationId` is the iteration **identifier GUID** (the `identifier` field from `list-iterations`), not the integer id. Writes are **full replace** of the targeted member's / team's activities + days-off.
+Team sprint capacity - each member's capacity-per-day + days-off, and the team-wide days-off - via the team-scoped work API (`{project}/{team}/_apis/work/teamsettings/iterations/{iterationId}/...`). `iterationId` is the iteration **identifier GUID** (the `identifier` field from `list-iterations`), not the integer id. Writes are **full replace** of the targeted member's / team's activities + days-off.
 
-Identity resolution: the `member` parameter accepts an identity GUID, email, or display name. Non-GUID values are resolved against the team's membership (`_apis/projects/{project}/teams/{team}/members`) — email match first, then display name. Ambiguous or unmatched values raise an error listing the team's members.
+Identity resolution: the `member` parameter accepts an identity GUID, email, or display name. Non-GUID values are resolved against the team's membership (`_apis/projects/{project}/teams/{team}/members`) - email match first, then display name. Ambiguous or unmatched values raise an error listing the team's members.
 
 Days-off are `{start,end}` arrays. A single day is `start == end`. ADO counts only the team's working days inside a range; enumerating single days is the most predictable. Dates accept `YYYY-MM-DD` or full ISO (auto-converted to `...T00:00:00Z`).
 
@@ -1065,18 +1065,18 @@ Returns every team member's capacity for a sprint: identity GUID, display name, 
 **Parameters:**
 - `project` (string, required)
 - `team` (string, required)
-- `iterationId` (string, required) — Iteration identifier GUID
+- `iterationId` (string, required) - Iteration identifier GUID
 
 </tool>
 
 <tool name="get-team-days-off">
 
-Returns the team-wide days-off for a sprint (shared non-working days, e.g. public holidays / office closures) — separate from per-member days-off.
+Returns the team-wide days-off for a sprint (shared non-working days, e.g. public holidays / office closures) - separate from per-member days-off.
 
 **Parameters:**
 - `project` (string, required)
 - `team` (string, required)
-- `iterationId` (string, required) — Iteration identifier GUID
+- `iterationId` (string, required) - Iteration identifier GUID
 
 </tool>
 
@@ -1086,40 +1086,40 @@ Returns the team-wide days-off for a sprint (shared non-working days, e.g. publi
 
 <tool name="set-team-member-capacity">
 
-Sets one member's capacity-per-day + days-off. **Full replace** — the supplied values overwrite that member's existing capacity (omit `daysOff` to clear them).
+Sets one member's capacity-per-day + days-off. **Full replace** - the supplied values overwrite that member's existing capacity (omit `daysOff` to clear them).
 
 **Parameters:**
 - `project` (string, required)
 - `team` (string, required)
-- `iterationId` (string, required) — Iteration identifier GUID
-- `member` (string, required) — Identity GUID, email, or display name
-- `capacityPerDay` (number, required) — e.g., `6`
-- `activityName` (string, optional) — Activity name; defaults to `""` (Unassigned)
-- `daysOff` (array, optional) — `[{start,end}]`; single day = `start==end`; omit to clear
+- `iterationId` (string, required) - Iteration identifier GUID
+- `member` (string, required) - Identity GUID, email, or display name
+- `capacityPerDay` (number, required) - e.g., `6`
+- `activityName` (string, optional) - Activity name; defaults to `""` (Unassigned)
+- `daysOff` (array, optional) - `[{start,end}]`; single day = `start==end`; omit to clear
 
 </tool>
 
 <tool name="set-team-capacities-batch">
 
-Sets capacity + days-off for many members in one call — **one PATCH per member**, so members not listed are left untouched (never wiped). Each entry is a full replace for that member. The team roster is fetched once and reused for resolution. Returns per-member `{status, teamMemberId, daysOffEntries}` plus succeeded/failed counts.
+Sets capacity + days-off for many members in one call - **one PATCH per member**, so members not listed are left untouched (never wiped). Each entry is a full replace for that member. The team roster is fetched once and reused for resolution. Returns per-member `{status, teamMemberId, daysOffEntries}` plus succeeded/failed counts.
 
 **Parameters:**
 - `project` (string, required)
 - `team` (string, required)
-- `iterationId` (string, required) — Iteration identifier GUID
-- `members` (array, required) — `[{ member, capacityPerDay, activityName?, daysOff? }]`
+- `iterationId` (string, required) - Iteration identifier GUID
+- `members` (array, required) - `[{ member, capacityPerDay, activityName?, daysOff? }]`
 
 </tool>
 
 <tool name="set-team-days-off">
 
-Sets the team-wide days-off for a sprint. **Full replace** — the supplied list overwrites the team's existing days-off (pass `[]` to clear).
+Sets the team-wide days-off for a sprint. **Full replace** - the supplied list overwrites the team's existing days-off (pass `[]` to clear).
 
 **Parameters:**
 - `project` (string, required)
 - `team` (string, required)
-- `iterationId` (string, required) — Iteration identifier GUID
-- `daysOff` (array, required) — `[{start,end}]`; `[]` clears all team days-off
+- `iterationId` (string, required) - Iteration identifier GUID
+- `daysOff` (array, required) - `[{start,end}]`; `[]` clears all team days-off
 
 </tool>
 
@@ -1131,7 +1131,7 @@ Sets the team-wide days-off for a sprint. **Full replace** — the supplied list
 
 **4 tools total: 4 read-only only**
 
-Feed access is validated against the `AZUREDEVOPS_FEEDS` allowlist. The API uses a different base URL: `https://feeds.dev.azure.com/{organization}` — **not** `pkgs.dev.azure.com`, which serves protocol-specific routes only.
+Feed access is validated against the `AZUREDEVOPS_FEEDS` allowlist. The API uses a different base URL: `https://feeds.dev.azure.com/{organization}` - **not** `pkgs.dev.azure.com`, which serves protocol-specific routes only.
 
 <tool-group name="read-only">
 
@@ -1140,11 +1140,11 @@ Feed access is validated against the `AZUREDEVOPS_FEEDS` allowlist. The API uses
 Lists packages in an Azure Artifacts feed with optional filtering. Returns package names, latest versions, and publish dates.
 
 **Parameters:**
-- `feedName` (string, required) — Feed name (e.g., `Contoso`)
-- `project` (string, optional) — For project-scoped feeds; omit for org-scoped
-- `namePrefix` (string, optional) — Filter by name prefix (e.g., `pp-solution-`)
-- `packageType` (enum, optional) — `nuget`, `npm`, `maven`, `upack`, `pypi`
-- `top` (number, optional) — Max results, default 50
+- `feedName` (string, required) - Feed name (e.g., `Contoso`)
+- `project` (string, optional) - For project-scoped feeds; omit for org-scoped
+- `namePrefix` (string, optional) - Filter by name prefix (e.g., `pp-solution-`)
+- `packageType` (enum, optional) - `nuget`, `npm`, `maven`, `upack`, `pypi`
+- `top` (number, optional) - Max results, default 50
 
 </tool>
 
@@ -1154,11 +1154,11 @@ Gets version history for a specific package, sorted by publish date.
 
 **Parameters:**
 - `feedName` (string, required)
-- `packageName` (string, required) — Full package name
-- `project` (string, optional) — For project-scoped feeds
-- `packageType` (enum, optional) — Protocol type hint for faster lookup
-- `top` (number, optional) — Max versions, default 10
-- `includeDelisted` (boolean, optional) — Include deprecated versions, default false
+- `packageName` (string, required) - Full package name
+- `project` (string, optional) - For project-scoped feeds
+- `packageType` (enum, optional) - Protocol type hint for faster lookup
+- `top` (number, optional) - Max versions, default 10
+- `includeDelisted` (boolean, optional) - Include deprecated versions, default false
 
 <example name="find-latest-for-deployment">
 
@@ -1177,15 +1177,15 @@ Gets version history for a specific package, sorted by publish date.
 All feeds with their package counts.
 
 **Parameters:**
-- `project` (string, optional) — For project-scoped feeds. Omit for org-scoped.
-- `maxPackagesPerFeed` (number, optional, default 1000) — Stop counting a feed after this many packages
+- `project` (string, optional) - For project-scoped feeds. Omit for org-scoped.
+- `maxPackagesPerFeed` (number, optional, default 1000) - Stop counting a feed after this many packages
 
 **Implementation:** `GET /_apis/packaging/feeds`, then pages `/packages?$top=&$skip=` per feed until a short page arrives. The packages endpoint returns a bare array with **no total count and no continuation token**, so counting requires paging; a single unpaged call silently caps.
 
 | Field | Meaning |
 |-------|---------|
 | `packageCount` | Packages counted in that feed |
-| `packageCountTruncated` | `true` when `maxPackagesPerFeed` was hit first — the count is a floor |
+| `packageCountTruncated` | `true` when `maxPackagesPerFeed` was hit first - the count is a floor |
 | `unreadableFeeds` | Feeds that errored, each with its HTTP `status` and `reason` |
 | `totalPackagesIsLowerBound` | `true` when any feed was truncated **or** any feed was unreadable |
 
@@ -1199,10 +1199,10 @@ Publish provenance for one package version.
 
 **Parameters:**
 - `feedName` (string, required)
-- `packageName` (string, required) — Full package name, matched case-insensitively
-- `version` (string, required) — Exact version string, matched case-insensitively
-- `project` (string, optional) — For project-scoped feeds
-- `packageType` (enum, optional) — Protocol type hint
+- `packageName` (string, required) - Full package name, matched case-insensitively
+- `version` (string, required) - Exact version string, matched case-insensitively
+- `project` (string, optional) - For project-scoped feeds
+- `packageType` (enum, optional) - Protocol type hint
 
 **Implementation:** Resolves package name → id and version string → id, then calls `/Packages/{id}/Versions/{id}/provenance`.
 
@@ -1213,7 +1213,7 @@ Publish provenance for one package version.
 | Field | Meaning |
 |-------|---------|
 | `data` | The raw provenance bag, verbatim |
-| `buildId` / `branch` | Best-effort reads of known key names. **`null` when absent — never the string `"unknown"`**, so absence cannot be mistaken for a value |
+| `buildId` / `branch` | Best-effort reads of known key names. **`null` when absent - never the string `"unknown"`**, so absence cannot be mistaken for a value |
 | `structuredProvenanceAvailable` | `false` when neither a build nor a branch could be read |
 
 </tool>
@@ -1235,9 +1235,9 @@ Project tools operate at the organization scope. They do NOT take a `project` pa
 Lists all projects in the organization.
 
 **Parameters:**
-- `stateFilter` (string, optional) — `all`, `wellFormed` (default), `createPending`, `deleting`
-- `top` (number, optional) — Max results
-- `skip` (number, optional) — For pagination
+- `stateFilter` (string, optional) - `all`, `wellFormed` (default), `createPending`, `deleting`
+- `top` (number, optional) - Max results
+- `skip` (number, optional) - For pagination
 
 </tool>
 
@@ -1246,7 +1246,7 @@ Lists all projects in the organization.
 Gets detailed project information including version control type and process template.
 
 **Parameters:**
-- `projectId` (string, required) — Project name or GUID
+- `projectId` (string, required) - Project name or GUID
 
 </tool>
 
@@ -1255,7 +1255,7 @@ Gets detailed project information including version control type and process tem
 Gets extended project properties (process template ID, system capabilities).
 
 **Parameters:**
-- `projectId` (string, required) — Project name or GUID
+- `projectId` (string, required) - Project name or GUID
 
 </tool>
 
@@ -1265,14 +1265,14 @@ Gets extended project properties (process template ID, system capabilities).
 
 <tool name="create-project">
 
-Creates a new Azure DevOps project. Polls the operation status until complete (typically 5–30 seconds).
+Creates a new Azure DevOps project. Polls the operation status until complete (typically 5-30 seconds).
 
 **Parameters:**
-- `name` (string, required) — Must be unique in the organization
+- `name` (string, required) - Must be unique in the organization
 - `description` (string, optional)
-- `visibility` (string, optional) — `private` (default) or `public`
-- `processTemplate` (string, optional) — `Agile` (default), `Scrum`, `Basic`, `CMMI`
-- `versionControl` (string, optional) — `Git` (default) or `Tfvc`
+- `visibility` (string, optional) - `private` (default) or `public`
+- `processTemplate` (string, optional) - `Agile` (default), `Scrum`, `Basic`, `CMMI`
+- `versionControl` (string, optional) - `Git` (default) or `Tfvc`
 
 </tool>
 
@@ -1281,7 +1281,7 @@ Creates a new Azure DevOps project. Polls the operation status until complete (t
 Updates a project's name and/or description.
 
 **Parameters:**
-- `projectId` (string, required) — Project name or GUID
+- `projectId` (string, required) - Project name or GUID
 - `name` (string, optional)
 - `description` (string, optional)
 
@@ -1296,7 +1296,7 @@ Updates a project's name and/or description.
 Permanently deletes a project and all its data. Cannot be undone. Polls until the operation completes.
 
 **Parameters:**
-- `projectId` (string, required) — Project name or GUID
+- `projectId` (string, required) - Project name or GUID
 
 </tool>
 

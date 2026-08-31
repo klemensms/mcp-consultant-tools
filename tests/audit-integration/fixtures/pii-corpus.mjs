@@ -5,7 +5,7 @@ import { createRecord, deleteRecord, resultText } from '../harness/client.mjs';
  * `AUDITTEST_` (or `audittest_` for emails) prefix so the leakage sweeper
  * (Task 38) can grep for these literals across audit JSONL output.
  *
- * Email values use the RFC 2606 reserved `.invalid` TLD — guaranteed never
+ * Email values use the RFC 2606 reserved `.invalid` TLD - guaranteed never
  * to be a real address. Phone values are deliberately fake.
  */
 export const KNOWN_PII_STRINGS = {
@@ -42,7 +42,7 @@ export async function createPiiFixture(client, label) {
   });
   if (result?.isError) {
     throw new Error(
-      `createPiiFixture(${label ?? 'unlabelled'}): create-record failed — ${resultText(result)}`,
+      `createPiiFixture(${label ?? 'unlabelled'}): create-record failed - ${resultText(result)}`,
     );
   }
   const text = resultText(result);
@@ -102,7 +102,7 @@ export async function deletePiiFixture(client, fixture) {
   });
   if (result?.isError) {
     throw new Error(
-      `deletePiiFixture(${fixture.id}): delete-record failed — ${resultText(result)}`,
+      `deletePiiFixture(${fixture.id}): delete-record failed - ${resultText(result)}`,
     );
   }
   return true;

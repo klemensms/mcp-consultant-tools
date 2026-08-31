@@ -19,13 +19,13 @@ The Azure SQL Database integration provides access to Azure SQL Database and SQL
 ## Architecture
 
 **Service classes:**
-- `ConnectionService` — manages connection pools, server/database resolution, credential handling
-- `QueryService` — validates and executes SELECT queries, schema exploration queries
-- `WriteService` — handles write operations (views, stored procedures, DML) behind feature flags
-- `PerformanceService` — Query Store diagnostics (waits, CPU, failures, plans); delegates execution to `QueryService`
-- `SessionService` — live session/request/transaction DMV diagnostics (blocking chains, executing requests, deadlock graphs, long-running transactions); delegates execution to `QueryService`
-- `SpaceService` — database/table/TempDB space DMV diagnostics; delegates execution to `QueryService`
-- `IndexService` — index-health diagnostics (disabled indexes, missing FK indexes, usage stats) plus the gated `sql-create-fk-indexes` write; delegates execution to `QueryService`
+- `ConnectionService` - manages connection pools, server/database resolution, credential handling
+- `QueryService` - validates and executes SELECT queries, schema exploration queries
+- `WriteService` - handles write operations (views, stored procedures, DML) behind feature flags
+- `PerformanceService` - Query Store diagnostics (waits, CPU, failures, plans); delegates execution to `QueryService`
+- `SessionService` - live session/request/transaction DMV diagnostics (blocking chains, executing requests, deadlock graphs, long-running transactions); delegates execution to `QueryService`
+- `SpaceService` - database/table/TempDB space DMV diagnostics; delegates execution to `QueryService`
+- `IndexService` - index-health diagnostics (disabled indexes, missing FK indexes, usage stats) plus the gated `sql-create-fk-indexes` write; delegates execution to `QueryService`
 
 `ConnectionService`, `QueryService` and `WriteService` share connection pooling through `ConnectionService`. `PerformanceService`, `SessionService`, `SpaceService` and `IndexService` compose over `QueryService` rather than `ConnectionService`, so their queries inherit the same row limits, response-size cap, PII redaction and error sanitisation as every other read. The `ServiceContext` interface exposes lazy getters for all seven services plus 9 feature-flag guard functions.
 
@@ -94,7 +94,7 @@ packages/azure-sql/src/
 
 The server supports two mutually exclusive modes, checked in this order:
 
-**Mode 1: Multi-server (`AZURE_SQL_SERVERS`)** — recommended for production.
+**Mode 1: Multi-server (`AZURE_SQL_SERVERS`)** - recommended for production.
 
 ```bash
 AZURE_SQL_SERVERS='[
@@ -127,12 +127,12 @@ AZURE_SQL_SERVERS='[
 ```
 
 Key behaviors:
-- `databases: []` (empty array) — triggers discovery mode; `sql-list-databases` queries `sys.databases` and any database name may be used as a parameter
-- `active: false` on a server or database — tool calls against that target throw an error with a clear message
+- `databases: []` (empty array) - triggers discovery mode; `sql-list-databases` queries `sys.databases` and any database name may be used as a parameter
+- `active: false` on a server or database - tool calls against that target throw an error with a clear message
 - Per-server authentication: each server entry can independently use SQL auth or Azure AD
 - Pool key format: `"serverId:database"` (e.g., `"prod-sql:AppDB"`)
 
-**Mode 2: Single-server (legacy)** — backward-compatible, creates a single resource entry with `id: "default"`.
+**Mode 2: Single-server (legacy)** - backward-compatible, creates a single resource entry with `id: "default"`.
 
 ```bash
 AZURE_SQL_SERVER=myserver.database.windows.net
@@ -147,7 +147,7 @@ AZURE_SQL_PASSWORD=SecurePassword123!
 
 ### Environment Variables
 
-**Server selection (required — one mode only):**
+**Server selection (required - one mode only):**
 
 | Variable | Description |
 |----------|-------------|
@@ -157,7 +157,7 @@ AZURE_SQL_PASSWORD=SecurePassword123!
 | `AZURE_SQL_USERNAME` | SQL auth username (single-server mode) |
 | `AZURE_SQL_PASSWORD` | SQL auth password (single-server mode) |
 
-**Azure AD authentication** is configured **per server, inside the `AZURE_SQL_SERVERS` JSON** — not via top-level env vars. Set `useAzureAd: true` plus `azureAdClientId`, `azureAdClientSecret`, and `azureAdTenantId` on the individual server entry (see the `dev-sql` entry in the multi-server example above). When `useAzureAd` is true, that server's `username`/`password` are ignored. Single-server mode (`AZURE_SQL_SERVER`/`AZURE_SQL_DATABASE`/…) reads only server, port, database, username, and password — it supports SQL authentication only.
+**Azure AD authentication** is configured **per server, inside the `AZURE_SQL_SERVERS` JSON** - not via top-level env vars. Set `useAzureAd: true` plus `azureAdClientId`, `azureAdClientSecret`, and `azureAdTenantId` on the individual server entry (see the `dev-sql` entry in the multi-server example above). When `useAzureAd` is true, that server's `username`/`password` are ignored. Single-server mode (`AZURE_SQL_SERVER`/`AZURE_SQL_DATABASE`/…) reads only server, port, database, username, and password - it supports SQL authentication only.
 
 **Optional global settings:**
 
@@ -214,7 +214,7 @@ For the session and space diagnostic tools, which read `sys.dm_exec_*`, `sys.dm_
 |---|---|---|
 | SQL Server (on-prem/IaaS), Managed Instance | `GRANT VIEW SERVER STATE TO [mcp_readonly];` | Server scope. SQL Server 2022+ also accepts the narrower `VIEW SERVER PERFORMANCE STATE`. |
 | Azure SQL Database | `GRANT VIEW DATABASE STATE TO [mcp_readonly];` | `VIEW SERVER STATE` cannot be granted. Results are scoped to the connected database. |
-| Azure SQL Database — Basic / S0 / S1 / elastic pools | server admin, Microsoft Entra admin, or `##MS_ServerStateReader##` | `VIEW DATABASE STATE` alone is not sufficient on these tiers. |
+| Azure SQL Database - Basic / S0 / S1 / elastic pools | server admin, Microsoft Entra admin, or `##MS_ServerStateReader##` | `VIEW DATABASE STATE` alone is not sufficient on these tiers. |
 
 `sql-get-table-space` additionally needs `VIEW DEFINITION` (already granted above) for `sys.dm_db_partition_stats`. `sql-get-database-space` reads `sys.database_files`, a catalog view requiring only `public`.
 
@@ -234,7 +234,7 @@ For write operations, grant additional permissions as needed for the specific op
 
 <tool name="sql-list-servers">
 
-**`sql-list-servers`** — List all configured SQL servers from `AZURE_SQL_SERVERS` with active/inactive status, database count, and authentication method. Takes no parameters.
+**`sql-list-servers`** - List all configured SQL servers from `AZURE_SQL_SERVERS` with active/inactive status, database count, and authentication method. Takes no parameters.
 
 Returns: `id`, `name`, `server`, `port`, `active`, `databaseCount`, `authMethod` (`SQL` | `Azure AD`), `description`.
 
@@ -242,7 +242,7 @@ Returns: `id`, `name`, `server`, `port`, `active`, `databaseCount`, `authMethod`
 
 <tool name="sql-list-databases">
 
-**`sql-list-databases`** — List databases for a given server.
+**`sql-list-databases`** - List databases for a given server.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -254,7 +254,7 @@ If `databases: []` was configured for the server (discovery mode), this queries 
 
 <tool name="sql-get-defaults">
 
-**`sql-get-defaults`** — Return the default server and database that omitted `serverId`/`database` parameters resolve to. Takes no parameters. Read-only, and reads local configuration only — no database round-trip.
+**`sql-get-defaults`** - Return the default server and database that omitted `serverId`/`database` parameters resolve to. Takes no parameters. Read-only, and reads local configuration only - no database round-trip.
 
 Returns: `defaultServerId`, `defaultDatabase`.
 
@@ -264,7 +264,7 @@ Agents rarely need this: every tool applies the defaults automatically when the 
 
 <tool name="sql-test-connection">
 
-**`sql-test-connection`** — Test connectivity and return server information.
+**`sql-test-connection`** - Test connectivity and return server information.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -279,7 +279,7 @@ Returns: `connected`, `server`, `database`, `sqlVersion`, `currentDatabase`, `lo
 
 <tool name="sql-list-tables">
 
-**`sql-list-tables`** — List all user tables with row counts and storage sizes.
+**`sql-list-tables`** - List all user tables with row counts and storage sizes.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -292,7 +292,7 @@ Returns: `schemaName`, `tableName`, `rowCount`, `sizeMB` per table. Queries `INF
 
 <tool name="sql-list-views">
 
-**`sql-list-views`** — List all views with their definitions.
+**`sql-list-views`** - List all views with their definitions.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -305,7 +305,7 @@ Returns: `schemaName`, `viewName`, `definition` per view. Queries `INFORMATION_S
 
 <tool name="sql-list-sprocs">
 
-**`sql-list-sprocs`** — List all stored procedures with creation and modification dates.
+**`sql-list-sprocs`** - List all stored procedures with creation and modification dates.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -318,7 +318,7 @@ Returns: `schemaName`, `procedureName`, `createdDate`, `modifiedDate`. Queries `
 
 <tool name="sql-list-triggers">
 
-**`sql-list-triggers`** — List all triggers with event types and enabled/disabled status.
+**`sql-list-triggers`** - List all triggers with event types and enabled/disabled status.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -331,7 +331,7 @@ Returns: `schemaName`, `triggerName`, `objectName` (parent table), `triggerEvent
 
 <tool name="sql-list-functions">
 
-**`sql-list-functions`** — List all user-defined functions with return types.
+**`sql-list-functions`** - List all user-defined functions with return types.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -344,7 +344,7 @@ Returns: `schemaName`, `functionName`, `returnType`, `createdDate`, `modifiedDat
 
 <tool name="sql-get-table-schema">
 
-**`sql-get-table-schema`** — Get complete table schema: columns, indexes, and foreign keys.
+**`sql-get-table-schema`** - Get complete table schema: columns, indexes, and foreign keys.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -364,7 +364,7 @@ Verifies table existence before querying; throws if not found with suggestion to
 
 <tool name="sql-get-obj-def">
 
-**`sql-get-obj-def`** — Get the SQL definition (source code) for views, stored procedures, functions, or triggers.
+**`sql-get-obj-def`** - Get the SQL definition (source code) for views, stored procedures, functions, or triggers.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -382,7 +382,7 @@ Queries `sys.objects` + `OBJECT_DEFINITION()`. Returns `objectName`, `schemaName
 
 <tool name="sql-execute-query">
 
-**`sql-execute-query`** — Execute a SELECT query with multi-layer security validation.
+**`sql-execute-query`** - Execute a SELECT query with multi-layer security validation.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -395,13 +395,13 @@ Queries `sys.objects` + `OBJECT_DEFINITION()`. Returns `objectName`, `schemaName
 2. Normalize whitespace
 3. Verify query starts with `SELECT` after cleaning
 4. Check against dangerous keyword patterns with word-boundary detection (`\b`):
-   - `insert|update|delete|merge` — write operations
-   - `drop|create|alter|truncate` — schema modifications
-   - `exec|execute|sp_executesql` — command execution
-   - `xp_*|sp_*` — system stored procedures
-   - `grant|revoke|deny` — permission changes
-   - `into` — SELECT INTO
-   - `openquery|openrowset|opendatasource` — linked server queries
+   - `insert|update|delete|merge` - write operations
+   - `drop|create|alter|truncate` - schema modifications
+   - `exec|execute|sp_executesql` - command execution
+   - `xp_*|sp_*` - system stored procedures
+   - `grant|revoke|deny` - permission changes
+   - `into` - SELECT INTO
+   - `openquery|openrowset|opendatasource` - linked server queries
 
 **Result limits:**
 - Row limit: `AZURE_SQL_MAX_RESULT_ROWS` (default 1000). Rows are sliced first; `truncated: true` is set on the response.
@@ -427,11 +427,11 @@ All six tools are read-only (`readOnlyHint: true`) and query the `sys.query_stor
 | `ERROR` | Throws a distinct message pointing at `SET QUERY_STORE CLEAR` recovery |
 | view unreadable | Throws: *"Query Store is not available on database 'X'"* (system database, pre-2016 engine, or missing `VIEW DATABASE STATE`) |
 
-This gate exists because the `sys.query_store_*` views still resolve when Query Store is switched off — they simply return **zero rows**. Without the gate an agent reads "no waits found" as "the database is healthy" rather than "diagnostics are unavailable". The gate costs one extra round-trip per tool call.
+This gate exists because the `sys.query_store_*` views still resolve when Query Store is switched off - they simply return **zero rows**. Without the gate an agent reads "no waits found" as "the database is healthy" rather than "diagnostics are unavailable". The gate costs one extra round-trip per tool call.
 
 <tool name="sql-get-top-waits">
 
-**`sql-get-top-waits`** — Top 20 wait categories across all queries over the last 7 days, grouped by `query_hash` + `wait_category_desc`. No parameters beyond the target pair.
+**`sql-get-top-waits`** - Top 20 wait categories across all queries over the last 7 days, grouped by `query_hash` + `wait_category_desc`. No parameters beyond the target pair.
 
 Returns: `waits[]` (`querySqlText` truncated to 200 chars, `waitCategoryDesc`, `totalWaitMs`, `avgWaitMs`) and `summary` (`totalCategories`, `topCategory`).
 
@@ -439,7 +439,7 @@ Returns: `waits[]` (`querySqlText` truncated to 200 chars, `waitCategoryDesc`, `
 
 <tool name="sql-find-query-in-store">
 
-**`sql-find-query-in-store`** — Search Query Store by query text. The entry point for the other query-ID-based tools.
+**`sql-find-query-in-store`** - Search Query Store by query text. The entry point for the other query-ID-based tools.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -451,7 +451,7 @@ Returns: `queries[]` (`queryId`, `querySqlText`, `avgDuration`, `avgCpuTime`, `c
 
 <tool name="sql-get-query-wait-stats">
 
-**`sql-get-query-wait-stats`** — Per-interval wait-category breakdown for one `queryId`, newest interval first.
+**`sql-get-query-wait-stats`** - Per-interval wait-category breakdown for one `queryId`, newest interval first.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -463,7 +463,7 @@ Returns: `waits[]` (`waitCategoryDesc`, `avgQueryWaitTimeMs`, `totalQueryWaitTim
 
 <tool name="sql-get-cpu-intensive-queries">
 
-**`sql-get-cpu-intensive-queries`** — Top CPU consumers grouped by `query_hash`, so plan variants of the same statement roll up together.
+**`sql-get-cpu-intensive-queries`** - Top CPU consumers grouped by `query_hash`, so plan variants of the same statement roll up together.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -476,7 +476,7 @@ Returns: `queries[]` (`queryHash`, `totalCpuMs`, `avgCpuMs`, `maxCpuMs`, `maxLog
 
 <tool name="sql-get-failed-queries">
 
-**`sql-get-failed-queries`** — Queries whose Query Store `execution_type = 3` (exception/timeout), newest execution first.
+**`sql-get-failed-queries`** - Queries whose Query Store `execution_type = 3` (exception/timeout), newest execution first.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -489,7 +489,7 @@ Returns: `queries[]` (`queryHash`, `querySqlText`, `executionType`, `executionTy
 
 <tool name="sql-get-query-plan">
 
-**`sql-get-query-plan`** — All Query Store execution plans for one `queryId`, newest plan first. Output can exceed 1 MB and is subject to `AZURE_SQL_MAX_RESPONSE_SIZE_MB`.
+**`sql-get-query-plan`** - All Query Store execution plans for one `queryId`, newest plan first. Output can exceed 1 MB and is subject to `AZURE_SQL_MAX_RESPONSE_SIZE_MB`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -509,7 +509,7 @@ All four tools are read-only (`readOnlyHint: true`), take no feature flag, and a
 
 <tool name="sql-get-blocking-chains">
 
-**`sql-get-blocking-chains`** — Recursive blocking hierarchy built from `sys.dm_exec_sessions` + `sys.dm_exec_requests` + `sys.dm_exec_connections`. `EXCHANGE`/`CXPACKET` waits are excluded from the recursion so intra-query parallelism doesn't masquerade as blocking. No parameters beyond the target pair.
+**`sql-get-blocking-chains`** - Recursive blocking hierarchy built from `sys.dm_exec_sessions` + `sys.dm_exec_requests` + `sys.dm_exec_connections`. `EXCHANGE`/`CXPACKET` waits are excluded from the recursion so intra-query parallelism doesn't masquerade as blocking. No parameters beyond the target pair.
 
 Returns: `chains[]` (`headBlockerSessionId`, `sessionId`, `blockingSessionId`, `waitType`, `waitDurationMs`, `waitResource`, `level`, `blockerQuery`) and `summary` (`totalBlocked`, `headBlockers`). `level` is `0` for a head blocker; blocked sessions count up from `1`.
 
@@ -517,7 +517,7 @@ Returns: `chains[]` (`headBlockerSessionId`, `sessionId`, `blockingSessionId`, `
 
 <tool name="sql-get-executing-requests">
 
-**`sql-get-executing-requests`** — Currently executing requests, ordered by CPU descending.
+**`sql-get-executing-requests`** - Currently executing requests, ordered by CPU descending.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -529,7 +529,7 @@ Returns: `requests[]` (`sessionId`, `status`, `startTime`, `cpuTimeMs`, `logical
 
 <tool name="sql-get-deadlock-graphs">
 
-**`sql-get-deadlock-graphs`** — Recent deadlock graphs from the `system_health` ring buffer, newest first. **Not supported on Azure SQL Database** (see the engine-edition gate above).
+**`sql-get-deadlock-graphs`** - Recent deadlock graphs from the `system_health` ring buffer, newest first. **Not supported on Azure SQL Database** (see the engine-edition gate above).
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -541,7 +541,7 @@ Returns: `deadlocks[]` (`eventTimestamp`, `deadlockXml`, `victimProcess`, `deadl
 
 <tool name="sql-get-long-running-transactions">
 
-**`sql-get-long-running-transactions`** — Open user transactions past a duration threshold, from `sys.dm_tran_active_transactions` joined to the session and database transaction DMVs. Use to find transactions pinning the log or holding locks.
+**`sql-get-long-running-transactions`** - Open user transactions past a duration threshold, from `sys.dm_tran_active_transactions` joined to the session and database transaction DMVs. Use to find transactions pinning the log or holding locks.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -555,11 +555,11 @@ Returns: `transactions[]` (`transactionId`, `sessionId`, `transactionBeginTime`,
 
 All four tools are read-only (`readOnlyHint: true`), take no feature flag, and accept the standard `serverId` / `database` pair. Like the session tools they do **not** gate on Query Store.
 
-**TempDB targeting.** `sql-get-tempdb-space` and `sql-get-tempdb-session-usage` always describe the TempDB of the resolved connection — `database` selects which connection pool is used, not which database is inspected. `buildTempDbSpaceQuery()` reaches TempDB by three-part name (`tempdb.sys.dm_db_file_space_usage`, `tempdb.sys.database_files`); TempDB is the one documented exception to Azure SQL Database's ban on cross-database references, and Azure SQL Database has no `USE` statement. `buildTempDbSessionUsageQuery()` reads `sys.dm_db_session_space_usage` **unprefixed**, because that DMV is documented as applicable only to TempDB regardless of database context. Neither query needs an engine-edition branch.
+**TempDB targeting.** `sql-get-tempdb-space` and `sql-get-tempdb-session-usage` always describe the TempDB of the resolved connection - `database` selects which connection pool is used, not which database is inspected. `buildTempDbSpaceQuery()` reaches TempDB by three-part name (`tempdb.sys.dm_db_file_space_usage`, `tempdb.sys.database_files`); TempDB is the one documented exception to Azure SQL Database's ban on cross-database references, and Azure SQL Database has no `USE` statement. `buildTempDbSessionUsageQuery()` reads `sys.dm_db_session_space_usage` **unprefixed**, because that DMV is documented as applicable only to TempDB regardless of database context. Neither query needs an engine-edition branch.
 
 <tool name="sql-get-database-space">
 
-**`sql-get-database-space`** — Data and log file sizes from `sys.database_files`. No parameters beyond the target pair.
+**`sql-get-database-space`** - Data and log file sizes from `sys.database_files`. No parameters beyond the target pair.
 
 Returns: `files[]` (`fileId`, `fileName`, `fileType`, `sizeMb`, `usedMb`, `freeMb`, `freePercent`, `maxSizeMb`, `growthSetting`, `physicalName`) and `summary` (`totalSizeMb`, `totalUsedMb`, `totalFreeMb`, `fileCount`). `maxSizeMb` is `null` when the file is set to unlimited growth (`max_size = -1`).
 
@@ -567,7 +567,7 @@ Returns: `files[]` (`fileId`, `fileName`, `fileType`, `sizeMb`, `usedMb`, `freeM
 
 <tool name="sql-get-table-space">
 
-**`sql-get-table-space`** — Largest user tables by reserved space, from `sys.dm_db_partition_stats`. System-shipped tables are excluded.
+**`sql-get-table-space`** - Largest user tables by reserved space, from `sys.dm_db_partition_stats`. System-shipped tables are excluded.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -579,7 +579,7 @@ Returns: `tables[]` (`schema`, `table`, `rowCount`, `reservedKb`, `dataKb`, `ind
 
 <tool name="sql-get-tempdb-space">
 
-**`sql-get-tempdb-space`** — TempDB file breakdown with the allocation split that identifies what is consuming it. No parameters beyond the target pair.
+**`sql-get-tempdb-space`** - TempDB file breakdown with the allocation split that identifies what is consuming it. No parameters beyond the target pair.
 
 Returns: `files[]` (`fileId`, `sizeMb`, `usedMb`, `freeMb`, `freePercent`, `versionStoreMb`, `userObjectMb`, `internalObjectMb`, `mixedExtentMb`) and `summary` (`totalSizeMb`, `totalVersionStoreMb`, `totalUserObjectMb`, `totalInternalObjectMb`). A large `versionStoreMb` points at long-running snapshot-isolation readers; a large `internalObjectMb` at spills (sorts, hashes).
 
@@ -587,7 +587,7 @@ Returns: `files[]` (`fileId`, `sizeMb`, `usedMb`, `freeMb`, `freePercent`, `vers
 
 <tool name="sql-get-tempdb-session-usage">
 
-**`sql-get-tempdb-session-usage`** — User sessions consuming TempDB, ranked by net allocation. Pairs with `sql-get-tempdb-space` to attribute growth to a session. Only user sessions that have allocated pages are returned.
+**`sql-get-tempdb-session-usage`** - User sessions consuming TempDB, ranked by net allocation. Pairs with `sql-get-tempdb-space` to attribute growth to a session. Only user sessions that have allocated pages are returned.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -599,7 +599,7 @@ Returns: `sessions[]` (`sessionId`, `loginName`, `hostName`, `programName`, `use
 
 ### Index Health (DMV + Catalog Views)
 
-The three read tools below are read-only (`readOnlyHint: true`), take no feature flag, and accept the standard `serverId` / `database` pair. They read `sys.indexes`, `sys.foreign_key_columns`, `sys.dm_db_index_usage_stats` and `sys.dm_db_partition_stats` — never Query Store, so they do **not** gate on it. `sys.dm_db_partition_stats` and `sys.dm_db_index_usage_stats` additionally need `VIEW DEFINITION`.
+The three read tools below are read-only (`readOnlyHint: true`), take no feature flag, and accept the standard `serverId` / `database` pair. They read `sys.indexes`, `sys.foreign_key_columns`, `sys.dm_db_index_usage_stats` and `sys.dm_db_partition_stats` - never Query Store, so they do **not** gate on it. `sys.dm_db_partition_stats` and `sys.dm_db_index_usage_stats` additionally need `VIEW DEFINITION`.
 
 The fourth tool in the group, `sql-create-fk-indexes`, is a write and is documented under Write Operations below.
 
@@ -609,29 +609,29 @@ The fourth tool in the group, `sql-create-fk-indexes`, is a write and is documen
 
 <tool name="sql-get-disabled-indexes">
 
-**`sql-get-disabled-indexes`** — Disabled indexes from `sys.indexes` (`is_disabled = 1`), with key columns aggregated via `STRING_AGG(... ) WITHIN GROUP (ORDER BY ic.key_ordinal)` (SQL Server 2017+). No parameters beyond the target pair.
+**`sql-get-disabled-indexes`** - Disabled indexes from `sys.indexes` (`is_disabled = 1`), with key columns aggregated via `STRING_AGG(... ) WITHIN GROUP (ORDER BY ic.key_ordinal)` (SQL Server 2017+). No parameters beyond the target pair.
 
 Returns: `indexes[]` (`schema`, `table`, `indexName`, `indexType`, `indexColumns`, `tableRowCount`, `backsForeignKey`, `rebuildStatement`) and `summary` (`total`, `byTable` keyed `schema.table`, `backingForeignKeys`).
 
-`rebuildStatement` is a ready-to-run `ALTER INDEX … REBUILD;` **returned as text**. The service never executes it: the tool stays `readOnlyHint: true`, and rebuilding takes a schema lock that can hold for a long time on a large table. `backsForeignKey` marks the indexes whose disablement is breaking FK enforcement — rebuild those first.
+`rebuildStatement` is a ready-to-run `ALTER INDEX … REBUILD;` **returned as text**. The service never executes it: the tool stays `readOnlyHint: true`, and rebuilding takes a schema lock that can hold for a long time on a large table. `backsForeignKey` marks the indexes whose disablement is breaking FK enforcement - rebuild those first.
 
 </tool>
 
 <tool name="sql-get-missing-fk-indexes">
 
-**`sql-get-missing-fk-indexes`** — Every row of `sys.foreign_key_columns`, flagged with whether a rowstore index (`i.type IN (1, 2)`) has that column at `key_ordinal = 1`. No parameters beyond the target pair.
+**`sql-get-missing-fk-indexes`** - Every row of `sys.foreign_key_columns`, flagged with whether a rowstore index (`i.type IN (1, 2)`) has that column at `key_ordinal = 1`. No parameters beyond the target pair.
 
 Returns: `foreignKeys[]` (`schema`, `table`, `column`, `referencedTable`, `referencedColumn`, `isIndexed`) and `summary` (`total`, `indexed`, `missing`).
 
 Two semantics worth stating plainly. **Leading key, not mere membership:** an FK column at position 2 of a composite index cannot serve the FK lookup, so it counts as missing. **Per column, not per constraint:** a composite foreign key reports each of its columns separately, and `sql-create-fk-indexes` would accordingly build one single-column index per column rather than one composite index. This mirrors the tool's source semantics; if you want a composite index, write it yourself.
 
-This tool is the dry run for `sql-create-fk-indexes` — the rows with `isIndexed: false` are exactly what that tool would create.
+This tool is the dry run for `sql-create-fk-indexes` - the rows with `isIndexed: false` are exactly what that tool would create.
 
 </tool>
 
 <tool name="sql-get-index-usage-stats">
 
-**`sql-get-index-usage-stats`** — Read/write counters per index from `sys.dm_db_index_usage_stats`, ordered least-read first (`seeks + scans + lookups` ascending, then `updates` descending), so the strongest drop candidates surface at the top.
+**`sql-get-index-usage-stats`** - Read/write counters per index from `sys.dm_db_index_usage_stats`, ordered least-read first (`seeks + scans + lookups` ascending, then `updates` descending), so the strongest drop candidates surface at the top.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -641,13 +641,13 @@ Returns: `indexes[]` (`schema`, `table`, `indexName`, `indexType`, `hasUsageData
 
 Three documented properties of the DMV shape this query, and each maps to a field in the output:
 
-1. **A never-used index has no row at all**, not a row of zeros — *"When an index is used, a row is added to sys.dm_db_index_usage_stats if a row does not already exist for the index."* Hence the `LEFT JOIN` and the `hasUsageData` flag. `isUnused` therefore requires `hasUsageData && userSeeks === 0 && userScans === 0 && userLookups === 0 && userUpdates > 0` — the engine maintains the index on every write and nothing reads it. An index with **no** row has seen no activity of any kind, which is an absence of evidence rather than evidence of disuse, and is never flagged.
-2. **The counters reset** — *"The counters are initialized to empty whenever the database engine is started … whenever a database is detached or is shut down (for example, because AUTO_CLOSE is set to ON), all rows associated with the database are removed."* `statsSince` (`sys.dm_os_sys_info.sqlserver_start_time`) and `statsWindowHours` (`DATEDIFF(HOUR, …, GETDATE())`) report the accumulation window. `DATEDIFF` runs server-side on purpose: computing the delta client-side would skew by the server's UTC offset. On Azure SQL Database treat the window as approximate — a database can be relocated to a host whose start time predates its own arrival. Note that `ALTER INDEX … REBUILD` reset the counters on SQL Server 2012/2014 but **not** on 2016+, Managed Instance, or Azure SQL Database.
-3. **Memory-optimized and spatial indexes are not covered** — *"The DMV sys.dm_db_index_usage_stats does not return information about memory-optimized indexes or spatial indexes."* Both are excluded (`i.type <> 4`, `t.is_memory_optimized = 0`) rather than reported as having no usage data, which would read as "unused".
+1. **A never-used index has no row at all**, not a row of zeros - *"When an index is used, a row is added to sys.dm_db_index_usage_stats if a row does not already exist for the index."* Hence the `LEFT JOIN` and the `hasUsageData` flag. `isUnused` therefore requires `hasUsageData && userSeeks === 0 && userScans === 0 && userLookups === 0 && userUpdates > 0` - the engine maintains the index on every write and nothing reads it. An index with **no** row has seen no activity of any kind, which is an absence of evidence rather than evidence of disuse, and is never flagged.
+2. **The counters reset** - *"The counters are initialized to empty whenever the database engine is started … whenever a database is detached or is shut down (for example, because AUTO_CLOSE is set to ON), all rows associated with the database are removed."* `statsSince` (`sys.dm_os_sys_info.sqlserver_start_time`) and `statsWindowHours` (`DATEDIFF(HOUR, …, GETDATE())`) report the accumulation window. `DATEDIFF` runs server-side on purpose: computing the delta client-side would skew by the server's UTC offset. On Azure SQL Database treat the window as approximate - a database can be relocated to a host whose start time predates its own arrival. Note that `ALTER INDEX … REBUILD` reset the counters on SQL Server 2012/2014 but **not** on 2016+, Managed Instance, or Azure SQL Database.
+3. **Memory-optimized and spatial indexes are not covered** - *"The DMV sys.dm_db_index_usage_stats does not return information about memory-optimized indexes or spatial indexes."* Both are excluded (`i.type <> 4`, `t.is_memory_optimized = 0`) rather than reported as having no usage data, which would read as "unused".
 
 `sys.dm_os_sys_info` is `CROSS JOIN`ed rather than fetched separately. It carries the same permission requirement as the usage DMV on every platform, so the join adds no grant the caller does not already need.
 
-`isHeavilyScanned` is `userScans > userSeeks * 10 && userScans > 1000` — a scan-to-seek ratio that lopsided, at that volume, suggests a missing or misordered key.
+`isHeavilyScanned` is `userScans > userSeeks * 10 && userScans > 1000` - a scan-to-seek ratio that lopsided, at that volume, suggests a missing or misordered key.
 
 </tool>
 
@@ -657,7 +657,7 @@ All write tools call a guard function before executing. If the corresponding env
 
 <tool name="sql-manage-view">
 
-**`sql-manage-view`** — Create or alter a view. Requires `SQL_ENABLE_VIEW_MANAGE=true`.
+**`sql-manage-view`** - Create or alter a view. Requires `SQL_ENABLE_VIEW_MANAGE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -673,7 +673,7 @@ Executes: `CREATE OR ALTER VIEW [schema].[name] AS {selectBody}`. Audit-logged a
 
 <tool name="sql-deploy-view-file">
 
-**`sql-deploy-view-file`** — Deploy a SQL view from a local `.sql` file. Requires `SQL_ENABLE_VIEW_MANAGE=true`.
+**`sql-deploy-view-file`** - Deploy a SQL view from a local `.sql` file. Requires `SQL_ENABLE_VIEW_MANAGE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -681,7 +681,7 @@ Executes: `CREATE OR ALTER VIEW [schema].[name] AS {selectBody}`. Audit-logged a
 | `serverId` | string | No | Server ID (omit for default) |
 | `database` | string | No | Database name (omit for default) |
 
-Reads the file and executes its contents as-is against the database. Use this instead of `sql-manage-view` when the view exists as a local file — preserves exact formatting, comments, and avoids agent rewriting. The file must start with `CREATE OR ALTER VIEW` (leading SQL comments are allowed). View name is extracted from the SQL for audit logging. Audit-logged as `CREATE` operation.
+Reads the file and executes its contents as-is against the database. Use this instead of `sql-manage-view` when the view exists as a local file - preserves exact formatting, comments, and avoids agent rewriting. The file must start with `CREATE OR ALTER VIEW` (leading SQL comments are allowed). View name is extracted from the SQL for audit logging. Audit-logged as `CREATE` operation.
 
 Validations:
 - File must have `.sql` extension
@@ -692,7 +692,7 @@ Validations:
 
 <tool name="sql-drop-view">
 
-**`sql-drop-view`** — Drop a view if it exists. Requires `SQL_ENABLE_VIEW_DROP=true`.
+**`sql-drop-view`** - Drop a view if it exists. Requires `SQL_ENABLE_VIEW_DROP=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -707,7 +707,7 @@ Executes: `DROP VIEW IF EXISTS [schema].[name]`. Audit-logged as `DELETE` operat
 
 <tool name="sql-manage-sproc">
 
-**`sql-manage-sproc`** — Create or alter a stored procedure. Requires `SQL_ENABLE_SPROC_MANAGE=true`.
+**`sql-manage-sproc`** - Create or alter a stored procedure. Requires `SQL_ENABLE_SPROC_MANAGE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -723,7 +723,7 @@ Executes: `CREATE OR ALTER PROCEDURE [schema].[name] {definition}`. Audit-logged
 
 <tool name="sql-deploy-sproc-file">
 
-**`sql-deploy-sproc-file`** — Deploy a stored procedure from a local `.sql` file. Requires `SQL_ENABLE_SPROC_MANAGE=true`.
+**`sql-deploy-sproc-file`** - Deploy a stored procedure from a local `.sql` file. Requires `SQL_ENABLE_SPROC_MANAGE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -731,7 +731,7 @@ Executes: `CREATE OR ALTER PROCEDURE [schema].[name] {definition}`. Audit-logged
 | `serverId` | string | No | Server ID (omit for default) |
 | `database` | string | No | Database name (omit for default) |
 
-Reads the file and executes its contents as-is against the database. Use this instead of `sql-manage-sproc` when the procedure exists as a local file — preserves exact formatting, comments, and avoids agent rewriting. The file must start with `CREATE OR ALTER PROCEDURE` (leading SQL comments are allowed). Procedure name is extracted from the SQL for audit logging. Audit-logged as `CREATE` operation.
+Reads the file and executes its contents as-is against the database. Use this instead of `sql-manage-sproc` when the procedure exists as a local file - preserves exact formatting, comments, and avoids agent rewriting. The file must start with `CREATE OR ALTER PROCEDURE` (leading SQL comments are allowed). Procedure name is extracted from the SQL for audit logging. Audit-logged as `CREATE` operation.
 
 Validations:
 - File must have `.sql` extension
@@ -742,7 +742,7 @@ Validations:
 
 <tool name="sql-drop-sproc">
 
-**`sql-drop-sproc`** — Drop a stored procedure if it exists. Requires `SQL_ENABLE_SPROC_DROP=true`.
+**`sql-drop-sproc`** - Drop a stored procedure if it exists. Requires `SQL_ENABLE_SPROC_DROP=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -757,7 +757,7 @@ Executes: `DROP PROCEDURE IF EXISTS [schema].[name]`. Audit-logged as `DELETE` o
 
 <tool name="sql-execute-sproc">
 
-**`sql-execute-sproc`** — Execute a stored procedure with optional parameters. Requires `SQL_ENABLE_SPROC_EXECUTE=true`.
+**`sql-execute-sproc`** - Execute a stored procedure with optional parameters. Requires `SQL_ENABLE_SPROC_EXECUTE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -767,7 +767,7 @@ Executes: `DROP PROCEDURE IF EXISTS [schema].[name]`. Audit-logged as `DELETE` o
 | `sprocName` | string | Yes | Procedure name (identifier-validated) |
 | `parameters` | object | No | Key-value parameter map passed via `request.input()` |
 
-Uses `mssql` library's `request.execute()` — not raw SQL interpolation. Parameters are bound via `request.input(key, value)` for safe parameter passing. Audit-logged as `READ` operation.
+Uses `mssql` library's `request.execute()` - not raw SQL interpolation. Parameters are bound via `request.input(key, value)` for safe parameter passing. Audit-logged as `READ` operation.
 
 Returns: `rows`, `rowCount`, `returnValue`.
 
@@ -775,7 +775,7 @@ Returns: `rows`, `rowCount`, `returnValue`.
 
 <tool name="sql-insert-records">
 
-**`sql-insert-records`** — Execute an INSERT statement. Requires `SQL_ENABLE_INSERT=true`.
+**`sql-insert-records`** - Execute an INSERT statement. Requires `SQL_ENABLE_INSERT=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -789,7 +789,7 @@ DML validation applied (see DML Validation section). Audit-logged as `CREATE` op
 
 <tool name="sql-update-records">
 
-**`sql-update-records`** — Execute an UPDATE statement. Requires `SQL_ENABLE_UPDATE=true`.
+**`sql-update-records`** - Execute an UPDATE statement. Requires `SQL_ENABLE_UPDATE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -803,7 +803,7 @@ DML validation applied. Audit-logged as `UPDATE` operation. Returns `success`, `
 
 <tool name="sql-delete-records">
 
-**`sql-delete-records`** — Execute a DELETE statement. Requires `SQL_ENABLE_DELETE=true`.
+**`sql-delete-records`** - Execute a DELETE statement. Requires `SQL_ENABLE_DELETE=true`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -817,18 +817,18 @@ DML validation applied plus a mandatory WHERE clause check. If no WHERE clause i
 
 <tool name="sql-create-fk-indexes">
 
-**`sql-create-fk-indexes`** — Create a single-column nonclustered index named `IX_<table>_<column>` on every foreign-key column that lacks a leading-key index. Requires `SQL_ENABLE_INDEX_CREATE=true`. No parameters beyond the target pair.
+**`sql-create-fk-indexes`** - Create a single-column nonclustered index named `IX_<table>_<column>` on every foreign-key column that lacks a leading-key index. Requires `SQL_ENABLE_INDEX_CREATE=true`. No parameters beyond the target pair.
 
-Annotations: `{ readOnlyHint: false, destructiveHint: false, openWorldHint: true }`. Creating an index is additive — it adds an object, it does not remove or alter data — so it carries the same annotation shape as `sql-manage-view`, not `sql-drop-view`. Like the other write tools it stays **visible** when its flag is off and fails with an explicit message; `sql-execute-unrestricted` is the deliberate exception that hides.
+Annotations: `{ readOnlyHint: false, destructiveHint: false, openWorldHint: true }`. Creating an index is additive - it adds an object, it does not remove or alter data - so it carries the same annotation shape as `sql-manage-view`, not `sql-drop-view`. Like the other write tools it stays **visible** when its flag is off and fails with an explicit message; `sql-execute-unrestricted` is the deliberate exception that hides.
 
 Returns: `results[]` (`indexName`, `schema`, `table`, `column`, `status`, `errorMessage`) with `status` one of `created` / `skipped` / `failed`; `summary` (`created`, `skipped`, `failed`); and `truncated`.
 
 Implementation notes:
 
 - **`checkIndexCreateEnabled()` runs before target resolution.** `createWithTarget()` takes an optional `before` callback for exactly this: the flag guard must report "Index creation is disabled" rather than whichever configuration error server/database resolution would have raised first.
-- **Per-attempt reporting.** The T-SQL cursor writes one row per attempted index into a table variable — `created`, `skipped` (an index of that name already exists), or `failed` with `ERROR_MESSAGE()` — and selects it as the single result set (`SET NOCOUNT ON` guarantees it is the only one). The source this was ported from returned only three counters and labelled every row `created` regardless of outcome, swallowing the error text entirely.
+- **Per-attempt reporting.** The T-SQL cursor writes one row per attempted index into a table variable - `created`, `skipped` (an index of that name already exists), or `failed` with `ERROR_MESSAGE()` - and selects it as the single result set (`SET NOCOUNT ON` guarantees it is the only one). The source this was ported from returned only three counters and labelled every row `created` regardless of outcome, swallowing the error text entirely.
 - **`truncated`.** The report is a normal result set and is subject to `AZURE_SQL_MAX_RESULT_ROWS`. When `truncated` is `true` the summary counts are a lower bound on what the server actually did.
-- **`@IndexName` is `NVARCHAR(300)`, not `sysname`.** A generated name longer than 128 characters must fail loudly inside `CREATE INDEX` — and be reported as `failed` — rather than be silently truncated into a collision with another index.
+- **`@IndexName` is `NVARCHAR(300)`, not `sysname`.** A generated name longer than 128 characters must fail loudly inside `CREATE INDEX` - and be reported as `failed` - rather than be silently truncated into a collision with another index.
 - **Blast radius.** Every `CREATE INDEX` takes a schema lock on its table and can run for minutes on a large one. Run `sql-get-missing-fk-indexes` first; it is the dry run and lists exactly what this will create. Composite foreign keys yield one single-column index per column, not one composite index.
 
 </tool>
@@ -837,7 +837,7 @@ Implementation notes:
 
 <tool name="sql-execute-unrestricted">
 
-**`sql-execute-unrestricted`** — Execute any T-SQL without restrictions. Requires `SQL_ENABLE_UNRESTRICTED=true`. **Conditionally registered** — this tool does not appear in the MCP tool list at all when the flag is off (unlike other write tools which are always visible but guard on call).
+**`sql-execute-unrestricted`** - Execute any T-SQL without restrictions. Requires `SQL_ENABLE_UNRESTRICTED=true`. **Conditionally registered** - this tool does not appear in the MCP tool list at all when the flag is off (unlike other write tools which are always visible but guard on call).
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -855,7 +855,7 @@ Implementation notes:
 
 **Audit logging:** Each batch is individually audit-logged with an auto-detected operation type (`READ` for SELECT, `CREATE` for INSERT/CREATE, `UPDATE` for UPDATE/ALTER/EXEC, `DELETE` for DELETE/DROP/TRUNCATE).
 
-**Result set capture:** For batches that return rows (SELECT-like), the first recordset is included. Multi-recordset batches (e.g., `SELECT 1; SELECT 2` in a single batch) only capture the first recordset — split with GO if all results are needed.
+**Result set capture:** For batches that return rows (SELECT-like), the first recordset is included. Multi-recordset batches (e.g., `SELECT 1; SELECT 2` in a single batch) only capture the first recordset - split with GO if all results are needed.
 
 Returns per-batch results:
 ```typescript
@@ -883,7 +883,7 @@ Returns per-batch results:
 
 <prompt name="sql-database-overview">
 
-**`sql-database-overview`** — Comprehensive database overview.
+**`sql-database-overview`** - Comprehensive database overview.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -896,7 +896,7 @@ Calls all five listing methods in parallel (`listTables`, `listViews`, `listStor
 
 <prompt name="sql-table-details">
 
-**`sql-table-details`** — Detailed report for a specific table.
+**`sql-table-details`** - Detailed report for a specific table.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -911,7 +911,7 @@ Calls `getTableSchema()` and formats via `formatTableSchemaAsMarkdown()`. Append
 
 <prompt name="sql-query-results">
 
-**`sql-query-results`** — Execute a SELECT query and return formatted results.
+**`sql-query-results`** - Execute a SELECT query and return formatted results.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -935,19 +935,19 @@ Calls `executeSelectQuery()` (same security validation as `sql-execute-query`). 
 
 Multi-layer validation for read-only queries:
 
-1. **Comment stripping** — `--` single-line and `/* */` multi-line comments removed before validation
-2. **SELECT enforcement** — cleaned query must start with `select`
+1. **Comment stripping** - `--` single-line and `/* */` multi-line comments removed before validation
+2. **SELECT enforcement** - cleaned query must start with `select`
 3. **Keyword blocklist** with word-boundary regex (`\b`):
-   - `insert|update|delete|merge` — write operations
-   - `drop|create|alter|truncate` — schema modifications
-   - `exec|execute|sp_executesql` — command execution
-   - `xp_*|sp_*` — system stored procedures
-   - `grant|revoke|deny` — permission changes
-   - `into` — SELECT INTO data exfiltration
-   - `openquery|openrowset|opendatasource` — linked server queries
-4. **Result size limits** — 1000 rows (configurable), 10 MB (hardcoded)
-5. **Timeout enforcement** — 30 seconds (configurable)
-6. **Audit logging** — every execution logged regardless of outcome
+   - `insert|update|delete|merge` - write operations
+   - `drop|create|alter|truncate` - schema modifications
+   - `exec|execute|sp_executesql` - command execution
+   - `xp_*|sp_*` - system stored procedures
+   - `grant|revoke|deny` - permission changes
+   - `into` - SELECT INTO data exfiltration
+   - `openquery|openrowset|opendatasource` - linked server queries
+4. **Result size limits** - 1000 rows (configurable), 10 MB (hardcoded)
+5. **Timeout enforcement** - 30 seconds (configurable)
+6. **Audit logging** - every execution logged regardless of outcome
 
 </query-safety>
 
@@ -960,12 +960,12 @@ The `WriteService.validateDmlQuery()` method is applied to INSERT, UPDATE, and D
 1. Strip comments and normalize whitespace
 2. Verify query starts with expected keyword (`INSERT`, `UPDATE`, or `DELETE`)
 3. Check against dangerous pattern list:
-   - `drop|create|alter|truncate` — schema modifications
-   - `exec|execute|sp_executesql` — command execution
-   - `xp_\w+` — xp_ system procedures
-   - `sp_\w+` — sp_ system procedures
-   - `grant|revoke|deny` — permission changes
-   - `openquery|openrowset|opendatasource` — linked server queries
+   - `drop|create|alter|truncate` - schema modifications
+   - `exec|execute|sp_executesql` - command execution
+   - `xp_\w+` - xp_ system procedures
+   - `sp_\w+` - sp_ system procedures
+   - `grant|revoke|deny` - permission changes
+   - `openquery|openrowset|opendatasource` - linked server queries
 
 **Additional DELETE safety:** After DML validation, checks for presence of `where` in cleaned query. Rejects without WHERE clause.
 
@@ -1062,7 +1062,7 @@ poolConfig.authentication = {
 
 **Health-checked pool reuse:** Before returning an existing pool, checks `pool.connected && pool.healthy`. Closes and recreates unhealthy pools.
 
-**Server/database resolution:** `resolveServerId()` and `resolveDatabase()` provide default resolution — if a single active server/database is configured, tools can omit these parameters. Tool descriptions warn: "OMIT to use default. DO NOT GUESS."
+**Server/database resolution:** `resolveServerId()` and `resolveDatabase()` provide default resolution - if a single active server/database is configured, tools can omit these parameters. Tool descriptions warn: "OMIT to use default. DO NOT GUESS."
 
 </connection-service>
 
@@ -1079,7 +1079,7 @@ Internal `executeQuery<T>()` method:
 - Applies row limit (`maxResultRows`) via array slicing with `truncated` flag
 - Handles timeout and permission errors with specific messages
 
-Schema exploration methods use `INFORMATION_SCHEMA` views and `sys.*` catalog views. `getTableSchema()` runs 3 queries in parallel (columns, indexes, foreign keys) with the index and FK queries silently catching errors (returns empty arrays on failure — some SQL editions may not support all catalog views).
+Schema exploration methods use `INFORMATION_SCHEMA` views and `sys.*` catalog views. `getTableSchema()` runs 3 queries in parallel (columns, indexes, foreign keys) with the index and FK queries silently catching errors (returns empty arrays on failure - some SQL editions may not support all catalog views).
 
 </query-service>
 
@@ -1106,23 +1106,23 @@ Handles view management, stored procedure management/execution, and DML. All met
 
 **File:** `packages/azure-sql/src/services/performance-service.ts`
 
-Query Store diagnostics. Unlike the other services, it depends on `QueryService` rather than `ConnectionService` — every diagnostic query goes through `QueryService.executeQuery()` and therefore inherits connection pooling, the row limit, the response-size cap, PII redaction and error sanitisation without re-implementing any of them.
+Query Store diagnostics. Unlike the other services, it depends on `QueryService` rather than `ConnectionService` - every diagnostic query goes through `QueryService.executeQuery()` and therefore inherits connection pooling, the row limit, the response-size cap, PII redaction and error sanitisation without re-implementing any of them.
 
 **Query builders.** The SQL lives in exported pure functions, each returning `{ sql, parameters }`:
 
 | Builder | Parameters |
 |---|---|
-| `buildQueryStoreStateQuery()` | — |
-| `buildTopWaitsQuery()` | — |
+| `buildQueryStoreStateQuery()` | - |
+| `buildTopWaitsQuery()` | - |
 | `buildFindQueryInStoreQuery({ queryPattern })` | `@queryPattern` |
 | `buildQueryWaitStatsQuery({ queryId })` | `@queryId` |
 | `buildCpuIntensiveQueriesQuery({ hours?, limit? })` | `@hours` (default 24), `@limit` (default 15) |
 | `buildFailedQueriesQuery({ includePlan?, limit? })` | `@limit` (default 50) |
 | `buildQueryPlanQuery({ queryId })` | `@queryId` |
 
-Every caller-supplied value is a bound parameter — nothing is interpolated into the SQL string. The only structural variation is `buildFailedQueriesQuery`, which adds a `cast(p.query_plan as xml)` column when `includePlan` is set. The builders are exported so they can be unit-tested without a live database; `src/services/__tests__/performance-service.test.ts` asserts parameter binding, defaults, and the plan-column branch.
+Every caller-supplied value is a bound parameter - nothing is interpolated into the SQL string. The only structural variation is `buildFailedQueriesQuery`, which adds a `cast(p.query_plan as xml)` column when `includePlan` is set. The builders are exported so they can be unit-tested without a live database; `src/services/__tests__/performance-service.test.ts` asserts parameter binding, defaults, and the plan-column branch.
 
-**Gate.** Each public method calls `assertQueryStoreEnabled()` first — see the Query Store gate table under Tool Reference for the state matrix and the reason the gate is proactive rather than error-driven.
+**Gate.** Each public method calls `assertQueryStoreEnabled()` first - see the Query Store gate table under Tool Reference for the state matrix and the reason the gate is proactive rather than error-driven.
 
 </performance-service>
 
@@ -1227,7 +1227,7 @@ The CLI reuses the same `ServiceContext` as the MCP server via `context-factory.
 
 ### Parameter Mapping
 
-Genuinely required tool parameters (e.g., `schemaName`, `tableName`, `query`) become positional CLI arguments. The optional `serverId` / `database` target pair is always passed as `-s, --server-id` / `-d, --database` options — never positional — and resolves to the configured defaults when omitted. Other optional parameters become `--flag` options. JSON object parameters (like `parameters` for `sql-execute-sproc`) are passed as JSON strings and parsed in the command handler.
+Genuinely required tool parameters (e.g., `schemaName`, `tableName`, `query`) become positional CLI arguments. The optional `serverId` / `database` target pair is always passed as `-s, --server-id` / `-d, --database` options - never positional - and resolves to the configured defaults when omitted. Other optional parameters become `--flag` options. JSON object parameters (like `parameters` for `sql-execute-sproc`) are passed as JSON strings and parsed in the command handler.
 
 ### CLI Usage Examples
 
