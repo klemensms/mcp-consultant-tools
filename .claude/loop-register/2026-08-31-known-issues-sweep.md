@@ -143,3 +143,47 @@ Append-only. Close an item by changing its `State`; never rewrite or delete one.
   and reversing it is local: three fields and one helper function in `analyseOneFlow`. **Not
   load-bearing** - the remaining queue is an em-dash sweep and the closing hop, and neither builds on
   this shape, so the chain proceeds. If it needs to change, changing it later costs the same as now.
+
+### ⚑16 · The em-dash entry understated its own scope by nineteen files
+- **Kind:** gotcha
+- **Hop:** 3 · known-issues sweep
+- **State:** closed-by-L3
+- **Outcome (hop 3):** all 174 swept, 3,508 characters replaced, entry removed. `docs/` was 97 files
+  and not the 98 recorded, which the artifact had already caught. The nineteen extra are the root
+  `CLAUDE.md` and `README.md`, `MCP-APPS-QUICKSTART.md`, `.mcp.json.example`, twelve files under
+  `.claude/`, and the three scan-config files.
+- **Matters because:** the entry's **Affects** line named four areas - `docs/`, `tests/`,
+  `packages/**/*.md`, `scripts/` - and its reproduction commands only ever looked at those four. A
+  repo-wide count found nineteen more files carrying the characters, all of them outside
+  `packages/*/src` and therefore inside the entry's own title. Sweeping only the stated scope would
+  have left the entry removable only by a claim that was not true. This is ⚑11 again on a different
+  field: an entry's **Affects** line is written from the same sweep output as its **Fix** line and is
+  no more reliable. Regenerate the count over the whole repo, not over the areas the entry lists.
+
+### ⚑17 · The sweep diverges eight files from `mcp-computer-use`, which is not on this machine
+- **Kind:** deferred
+- **Hop:** 3 · known-issues sweep
+- **State:** open
+- **Matters because:** the root `CLAUDE.md` lists eight files as mirrored verbatim to the sibling
+  repo: `scripts/install-hooks.sh`, `scripts/hooks/pre-commit`, `scripts/hooks/commit-msg`,
+  `scripts/internal-scan-lib.sh`, `scripts/scan-tarball.sh`, `.secret-scan-allowlist`,
+  `.secret-scan-longstr-allowlist` and `.internal-scan-placeholders`. All eight carried the
+  characters and all eight were swept. `~/Repo/mcp-computer-use/` is not on this machine, so the
+  mirror could not be done in the same change and the contract's "edit both" is unmet. Every
+  divergence is inside a `#` comment, so no hook behaviour changed on either side - the cost is that
+  a future diff of the two copies now shows noise. Mirror the sweep when that repo is next checked
+  out. Recorded in the commit message as well, so it is not register-only.
+
+### ⚑18 · This session's `grep` is a shell function, and one flag silently downgrades it
+- **Kind:** gotcha
+- **Hop:** 3 · known-issues sweep
+- **State:** open
+- **Matters because:** `grep` here resolves to a shell function that routes to `ugrep`, which is what
+  makes `-P` work at all on macOS. The function hands off to the system BSD `grep` whenever certain
+  flags appear, `-Z` and `--null` among them. So `grep -rlIZP …`, written to make a NUL-separated
+  list safe for `xargs -0`, drops to BSD `grep`, which rejects `-P` - and with `2>/dev/null` in the
+  pipeline the error is invisible and the command reports no matches. That reads as "already clean"
+  and cost a round here. Use the function's own newline output with a `while IFS= read -r` loop
+  instead of `-Z`, and never let `2>/dev/null` hide a `grep` failure when its emptiness is the
+  answer you are acting on. Worth proposing for the machine-local `CLAUDE.md`; that is Klemens's
+  call, not the loop's.
