@@ -126,6 +126,35 @@ export interface WebhookRegistrationsResult {
 // Flow Complexity Types
 // ============================================================================
 
+/**
+ * Stand-in score for a flow whose complexity walk threw.
+ *
+ * Only ever returned alongside an `analysisFailures` entry naming `complexity`, so it
+ * is never mistaken for a real zero: the point of the failure list is that this shape
+ * and a genuinely trivial flow are no longer the same answer.
+ */
+const UNSCORED_COMPLEXITY: FlowComplexityResult = {
+  score: 0,
+  riskLevel: 'Low',
+  breakdown: {
+    actionCount: 0,
+    uniqueConnectors: 0,
+    httpConnectors: 0,
+    premiumConnectors: 0,
+    conditions: 0,
+    loops: 0,
+    parallelBranches: 0,
+    errorScopes: 0,
+  },
+  flags: {
+    usesHttp: false,
+    usesPremium: false,
+    hasErrorHandling: false,
+    hasExternalTrigger: false,
+    hasParallelExecution: false,
+  },
+};
+
 export interface FlowComplexityAnalysis {
   id: string;
   name: string;
@@ -136,6 +165,15 @@ export interface FlowComplexityAnalysis {
   urls?: FlowUrlReference[];
   secretWarnings?: SecretWarning[];
   environmentVariables?: string[];
+  /**
+   * Sections of this flow's analysis that could not be built, and why. Absent when the
+   * whole analysis ran. The definition was read successfully in every case here - a
+   * definition that could not be read is in `fanOut.failures` instead.
+   *
+   * Without this, a flow whose complexity walk or secret scan crashed scored zero and
+   * reported no hardcoded secrets, which is what an honestly simple flow looks like.
+   */
+  analysisFailures?: { section: string; reason: string }[];
 }
 
 export interface FlowComplexityResult_Full {
@@ -163,6 +201,11 @@ export interface FlowComplexityResult_Full {
     byRiskLevel: Record<RiskLevel, number>;
     averageComplexity: number;
     highRiskFlows: string[];
+    /**
+     * Flows counted in `total` whose analysis is incomplete - see each flow's
+     * `analysisFailures`. Their scores and secret-warning counts understate.
+     */
+    flowsWithPartialAnalysis: number;
     flowsWithSecretWarnings?: number;
     totalUrlsFound?: number;
     totalSecretWarnings?: number;
@@ -968,6 +1011,7 @@ export class IntegrationAuditService {
     let totalScore = 0;
     const highRiskFlows: string[] = [];
     let flowsWithSecretWarnings = 0;
+    let flowsWithPartialAnalysis = 0;
     let totalUrlsFound = 0;
     let totalSecretWarnings = 0;
     const allEnvVars = new Set<string>();
@@ -975,6 +1019,8 @@ export class IntegrationAuditService {
     for (const analysis of analyses) {
       byRiskLevel[analysis.complexity.riskLevel]++;
       totalScore += analysis.complexity.score;
+
+      if (analysis.analysisFailures) flowsWithPartialAnalysis++;
 
       if (
         analysis.complexity.riskLevel === 'High' ||
@@ -1008,6 +1054,7 @@ export class IntegrationAuditService {
         averageComplexity:
           analyses.length > 0 ? Math.round(totalScore / analyses.length) : 0,
         highRiskFlows,
+        flowsWithPartialAnalysis,
         flowsWithSecretWarnings,
         totalUrlsFound,
         totalSecretWarnings,
@@ -1028,11 +1075,34 @@ export class IntegrationAuditService {
     flowDefinition: Record<string, unknown>,
     envVarMap: Map<string, string> | undefined
   ): FlowComplexityAnalysis {
-    const complexity = calculateFlowComplexity(flowDefinition);
+    // Each section is attempted separately, so one malformed branch of a definition
+    // does not cost the other two. A section that throws is named rather than left as
+    // an empty result, which reads as a flow that genuinely has nothing in it.
+    const analysisFailures: { section: string; reason: string }[] = [];
+
+    const attempt = <T>(section: string, fn: () => T): T | undefined => {
+      try {
+        return fn();
+      } catch (error) {
+        analysisFailures.push({
+          section,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+        return undefined;
+      }
+    };
+
+    const complexity =
+      attempt('complexity', () => calculateFlowComplexity(flowDefinition)) ??
+      UNSCORED_COMPLEXITY;
     const summary = this.flowService.parseFlowSummary(flowDefinition);
-    const urls = extractUrlsFromFlowDefinition(flowDefinition, envVarMap);
-    const secretWarnings = detectHardcodedSecrets(flowDefinition);
-    const envVars = urls
+    const urls = attempt('urls', () =>
+      extractUrlsFromFlowDefinition(flowDefinition, envVarMap)
+    );
+    const secretWarnings = attempt('secretWarnings', () =>
+      detectHardcodedSecrets(flowDefinition)
+    );
+    const envVars = (urls ?? [])
       .filter((u) => u.environmentVariable)
       .map((u) => u.environmentVariable!);
 
@@ -1044,8 +1114,10 @@ export class IntegrationAuditService {
       triggerType: summary.triggerInfo as string,
       state,
       urls,
-      secretWarnings: secretWarnings.length > 0 ? secretWarnings : undefined,
+      secretWarnings:
+        secretWarnings && secretWarnings.length > 0 ? secretWarnings : undefined,
       environmentVariables: envVars.length > 0 ? [...new Set(envVars)] : undefined,
+      ...(analysisFailures.length > 0 ? { analysisFailures } : {}),
     };
   }
 

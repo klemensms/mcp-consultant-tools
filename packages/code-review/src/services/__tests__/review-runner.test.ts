@@ -24,7 +24,7 @@ const nuget = (packages: any[] = []): NugetPackageReport => ({
   repository: 'r',
   branch: 'main',
   projects: [{ path: 'A.csproj', packages }],
-  fanOut: { centralPackageManagement: allRead, projects: allRead },
+  fanOut: { centralPackageManagement: allRead, projects: allRead, vulnerabilityLookups: allRead },
   summary: { totalProjects: 1, totalPackages: packages.length, uniquePackages: packages.length, outdatedPackages: 0, vulnerablePackages: 0, byStatus: {} },
 });
 

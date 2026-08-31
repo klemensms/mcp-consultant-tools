@@ -28,6 +28,7 @@ export function buildReviewIssues(
     ['source files (plugin detection)', dotnet.fanOut.sourceFiles],
     ['Directory.Packages.props files', nuget.fanOut.centralPackageManagement],
     ['project files (NuGet audit)', nuget.fanOut.projects],
+    ['NuGet registration lookups', nuget.fanOut.vulnerabilityLookups],
   ];
 
   for (const [label, info] of scanned) {

@@ -479,19 +479,38 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
               };
             } catch (err) {
               const navProperty = await navPromise.catch(() => null);
+              // The metadata read failed, so EntitySetName below is naive pluralisation
+              // rather than a value from Dataverse. Dataverse pluralisation is irregular
+              // - `activityparty` is `activityparties`, `opportunity` is `opportunities`
+              // - and this value is pasted straight into an @odata.bind URL, so it is
+              // flagged rather than rendered as if it had been read.
               return {
                 LogicalName: targetEntity,
                 EntitySetName: `${targetEntity}s`,
+                PrimaryIdAttribute: undefined,
                 BindingPropertyName: navProperty ?? lookupAttributeName.toLowerCase(),
-                error: 'Could not fetch metadata',
+                error: err instanceof Error ? err.message : String(err),
+                entitySetNameIsGuess: true,
               };
             }
           })
         );
 
         const primaryTarget = targetResults[0];
+        const unread = targetResults.filter((t) => t.entitySetNameIsGuess);
 
         let responseText = `📋 Lookup Target for '${lookupAttributeName}' on '${entityLogicalName}':\n\n`;
+
+        // Before anything a reader might copy. A guessed EntitySetName in an @odata.bind
+        // URL fails at runtime, and without this the payload gave no sign it was a guess.
+        if (unread.length > 0) {
+          responseText += `⚠️ **INCOMPLETE: metadata could not be read for ${unread.length} of ${targetResults.length} target ${targetResults.length === 1 ? 'entity' : 'entities'}.** `;
+          responseText += `Their **EntitySetName** below is naive pluralisation, not a value from Dataverse, and Dataverse pluralisation is irregular. Verify before using it in an \`@odata.bind\` URL.\n\n`;
+          for (const t of unread) {
+            responseText += `- \`${t.LogicalName}\`: ${t.error}\n`;
+          }
+          responseText += `\n`;
+        }
         responseText += `## Lookup Attribute\n`;
         responseText += `| Property | Value |\n`;
         responseText += `|----------|-------|\n`;
@@ -503,8 +522,8 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
         responseText += `| Property | Value |\n`;
         responseText += `|----------|-------|\n`;
         responseText += `| **Entity** | \`${primaryTarget.LogicalName}\` |\n`;
-        responseText += `| **EntitySetName** | \`${primaryTarget.EntitySetName}\` |\n`;
-        responseText += `| **Primary ID** | \`${primaryTarget.PrimaryIdAttribute}\` |\n`;
+        responseText += `| **EntitySetName** | \`${primaryTarget.EntitySetName}\`${primaryTarget.entitySetNameIsGuess ? ' ⚠️ guessed - not read from Dataverse' : ''} |\n`;
+        responseText += `| **Primary ID** | ${primaryTarget.PrimaryIdAttribute ? `\`${primaryTarget.PrimaryIdAttribute}\`` : '⚠️ could not be read'} |\n`;
         responseText += `| **NavigationProperty** | \`${primaryTarget.BindingPropertyName}\` |\n\n`;
 
         responseText += `## Usage\n\n`;
@@ -519,7 +538,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
           responseText += `| Target Entity | Navigation Property | EntitySetName |\n`;
           responseText += `|---------------|---------------------|---------------|\n`;
           for (const target of targetResults) {
-            responseText += `| \`${target.LogicalName}\` | \`${target.BindingPropertyName}@odata.bind\` | \`${target.EntitySetName}\` |\n`;
+            responseText += `| \`${target.LogicalName}\` | \`${target.BindingPropertyName}@odata.bind\` | \`${target.EntitySetName}\`${target.entitySetNameIsGuess ? ' ⚠️ guessed' : ''} |\n`;
           }
           responseText += `\n**Example for each target:**\n`;
           for (const target of targetResults) {

@@ -27,6 +27,24 @@ export type FetchJson = (url: string) => Promise<any>;
 const NUGET_SERVICE_INDEX = 'https://api.nuget.org/v3/index.json';
 const MAX_CONCURRENT = 5;
 
+/**
+ * HTTP status off a rejected request, or null when the error carried none. The three
+ * places checked are the ones `FanOutRecorder` already reads, so a status this function
+ * acts on is the same status the recorder will report.
+ */
+function httpStatusOf(error: unknown): number | null {
+  if (typeof error !== 'object' || error === null) return null;
+  const e = error as {
+    response?: { status?: unknown };
+    statusCode?: unknown;
+    status?: unknown;
+  };
+  if (typeof e.response?.status === 'number') return e.response.status;
+  if (typeof e.statusCode === 'number') return e.statusCode;
+  if (typeof e.status === 'number') return e.status;
+  return null;
+}
+
 export interface NugetVersionData {
   latestVersion: string;
   latestStableVersion: string;
@@ -100,9 +118,15 @@ export class NugetPackageService {
     let regIndex: any;
     try {
       regIndex = await this.fetchJson(indexUrl);
-    } catch {
-      // 404 = package is not on nuget.org (private/internal feed). Not an error for the caller.
-      return empty;
+    } catch (error) {
+      // A 404 is a real answer: the package is not on nuget.org, so it is a private or
+      // internal feed reference and there is nothing to compare it against. Every other
+      // failure - a 403, a 5xx, a transport error - means the lookup did not happen,
+      // which is not the same thing. It is rethrown so the caller's fan-out recorder
+      // names the package rather than leaving it at the 'unknown' status a package with
+      // no published version honestly carries.
+      if (httpStatusOf(error) === 404) return empty;
+      throw error;
     }
 
     const pages: any[] = regIndex?.items ?? [];
@@ -159,6 +183,9 @@ export class NugetPackageService {
     // audit of an 8-project repository were the same document.
     const cpmReads = new FanOutRecorder();
     const projectReads = new FanOutRecorder();
+    // A refused feed lookup left the package at its initial 'unknown', the same value a
+    // package with no published version legitimately carries.
+    const vulnerabilityLookups = new FanOutRecorder();
 
     // Central Package Management: each Directory.Packages.props applies to every csproj at or below
     // its directory, so resolve by walking up the project's directory tree (MSBuild import semantics).
@@ -235,17 +262,23 @@ export class NugetPackageService {
       for (let i = 0; i < allPackages.length; i += MAX_CONCURRENT) {
         const batch = allPackages.slice(i, i + MAX_CONCURRENT);
         await Promise.all(
-          batch.map(async (pkg) => {
-            try {
-              const data = await this.fetchPackageData(pkg.id, pkg.currentVersion || undefined);
-              pkg.latestVersion = data.latestVersion;
-              pkg.latestStableVersion = data.latestStableVersion;
-              pkg.vulnerabilities = data.vulnerabilities;
-              pkg.status = determinePackageStatus(pkg);
-            } catch {
-              // Leave status 'unknown' if the lookup fails.
-            }
-          }),
+          batch.map(async (pkg) =>
+            vulnerabilityLookups.run(
+              `${pkg.id}@${pkg.currentVersion || 'unresolved'}`,
+              'NuGet registration lookup',
+              async () => {
+                const data = await this.fetchPackageData(
+                  pkg.id,
+                  pkg.currentVersion || undefined,
+                );
+                pkg.latestVersion = data.latestVersion;
+                pkg.latestStableVersion = data.latestStableVersion;
+                pkg.vulnerabilities = data.vulnerabilities;
+                pkg.status = determinePackageStatus(pkg);
+                return pkg.status;
+              },
+            ),
+          ),
         );
       }
     }
@@ -263,6 +296,7 @@ export class NugetPackageService {
       fanOut: {
         centralPackageManagement: cpmReads.result(),
         projects: projectReads.result(),
+        vulnerabilityLookups: vulnerabilityLookups.result(),
       },
       summary: {
         totalProjects: projects.length,

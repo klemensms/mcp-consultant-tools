@@ -125,44 +125,60 @@ that version's severity enum has no `Critical`, which is exactly what the packag
 
 ---
 
-## X2: 11 fan-outs record the outcome but not the reason, or the value but not that it is partial
+## X2: 5 fan-outs are blocked behind the stale `core` pin
 
-**Status:** measured 2026-08-21, re-measured 2026-08-24 after the conversions. **Not converted.**
+**Status:** measured 2026-08-21, re-measured 2026-08-24, six of eleven closed 2026-08-31.
 **Reproduce the candidate list:** `node scripts/sweep-fanout-candidates.mjs --list`.
 
 The fan-out contract (`packages/core/src/helpers/fan-out.ts`) is applied in `azure-management`,
 `azure-defender`, `powerplatform-core`, `azure-devops`, `code-review` and `audit-cli`. The sweep
 looks for shape rather than log wording: a `catch` inside an iteration that neither rethrows nor
-records the failure. It returns **23 candidates across 12 of 29 packages**, each read rather than
-regex-classified. **None of the 23 is the "dropped item, no record" defect** - those were converted -
-but two weaker families remain, and they are worth taking together when someone next opens this.
+records the failure. It returns **24 candidates across 12 of 29 packages**, each read rather than
+regex-classified.
 
-**5 record the outcome but not the reason.** Weaker rather than wrong: a caller can see something is
-off, but not what:
+**Six of the eleven defects were closed on 2026-08-31.** The five that remain are all blocked by the
+same thing, and it is not the code: `azure-sql`, `azure-storage` and `service-bus` pin
+`@mcp-consultant-tools/core` at `33.0.0`, which predates both `FanOutRecorder` and `buildTruncation`.
+Importing either fails the build with `TS2305: Module '"@mcp-consultant-tools/core"' has no exported
+member 'FanOutRecorder'` (measured, so the failure is at least loud rather than silent). Closing them
+needs the pin bump tracked in "18 packages ship a two-major-old `core` to end users" above, which is
+release-shaped and deliberately not pulled into a bug fix.
 
-| Package | Site | What is missing |
-|---|---|---|
-| `code-review` | `nuget-package-service.ts:245` | a failed lookup leaves `status: 'unknown'`, the same value a package that was never looked up carries |
-| `azure-storage` | `AzureStorageService.ts:311` and `:321` | the operation continues with a logged error and no payload trace |
-| `azure-sql` | `connection-service.ts:183` | as above |
-| `service-bus` | `service-bus-service.ts:201` | as above |
+| Package | Site | What is missing | Helper it needs |
+|---|---|---|---|
+| `azure-storage` | `AzureStorageService.ts:311` and `:321` | the operation continues with a logged error and no payload trace | `FanOutRecorder` |
+| `azure-sql` | `connection-service.ts:183` | as above | `FanOutRecorder` |
+| `service-bus` | `service-bus-service.ts:201` | as above | `FanOutRecorder` |
+| `azure-storage` | `services/BlobService.ts:298` | an undeclared partial value | `buildTruncation` |
 
-**6 are an undeclared partial *value* rather than a dropped item**, so `buildTruncation` fits them
-better than `FanOutRecorder`: `powerplatform-core/src/utils/complexity-calculator.ts:265` and `:300`,
-`flow-url-extractor.ts:165` and `:284`, `powerplatform-data/src/tools/read-tools.ts:481`,
-`azure-storage/src/services/BlobService.ts:298`.
+**⚠️ The entry's original prescription was wrong for five of the six that closed, and the correction
+is worth keeping.** It said the six "undeclared partial value" sites fitted `buildTruncation` better
+than `FanOutRecorder`. On reading them, five are not caps at all: they are a whole analysis crashing
+and returning its empty accumulator. `buildTruncation` cannot describe that - it would have written
+`hasMore: true` and `truncationReason: 'requestedMax'` into the payload, both false, inside the one
+contract whose stated purpose is to stop a payload making a claim it cannot support. **Neither helper
+fits a total analysis failure.** Those sites now propagate the error to the caller, which declares it
+against the thing it belongs to. Check which of the three shapes a site actually is before reaching
+for a helper:
 
-**The remaining 12 candidates are not defects** and should not be converted: a fallback chain where
+- a **dropped item** in an iteration, where the rest continue → `FanOutRecorder`
+- a **capped list**, where more rows exist at the source → `buildTruncation`
+- a **whole section that failed**, returning an empty accumulator → propagate, and name the section
+  where the caller assembles its result (`analysisFailures`, `completeness.failures`)
+
+**The remaining 13 candidates are not defects** and should not be converted: a fallback chain where
 failing on one candidate *is* the loop (`1password/op-cli-adapter.ts:30` probing four paths for the
 `op` binary; `powerplatform-core/src/services/MetadataService.ts:165` and `:180`, whose caller sets an
 explicit `optionSetWarning` when every fallback fails; `azure-devops/src/sync/template-loader.ts:71`),
 a declared default (`core/src/helpers/resolve-version.ts:33`, `audit-cli/src/quarantine.ts:70`), a
 side-effect rather than a collected item (`azure-devops/src/services/sync-service.ts:304` cleanup,
 `core/src/helpers/cli-helpers.ts:119` cache write, `teams/src/services/teams-service.ts:579`
-token-cache clear, `azure-devops/src/ui/src/views/genui-view.ts:181` clipboard fallback), a missing
-directory yielding no files (`audit-cli/src/search.ts` base-directory probe), or a startup config
-warning (`rest-api/src/context-factory.ts:74`, `rest-api/src/services/rest-api-service.ts:73` - the
-latter narrows the host allowlist, which fails closed and is logged).
+token-cache clear, `azure-devops/src/ui/src/views/genui-view.ts:181` clipboard fallback), a declared
+degradation that still emits its marker (`teams/src/message-content.ts:226`, where a quoted reply
+whose JSON will not parse still renders `[quoted reply]` so the reader knows a quote was there), a
+missing directory yielding no files (`audit-cli/src/search.ts` base-directory probe), or a startup
+config warning (`rest-api/src/context-factory.ts:74`, `rest-api/src/services/rest-api-service.ts:73` -
+the latter narrows the host allowlist, which fails closed and is logged).
 
 **17 packages have no candidates at all:** `application-insights`, `azure-b2c`,
 `azure-data-factory`, `azure-defender`, `azure-devops-admin`, `azure-management`, `entra-id`,
@@ -170,13 +186,15 @@ latter narrows the host allowlist, which fails closed and is logged).
 `powerplatform`, `powerplatform-customization`, `sharepoint`, `todoist`.
 
 ⚠️ **The count is a floor, not a total.** The iteration test looks back 60 lines. That is a
-heuristic, and it has already missed one real defect: `ValidationService.validateBestPractices`
-dropped every entity whose metadata could not be read, in a loop body longer than the look-back, so
-the sweep never saw it. It was found by reading the file while fixing the two sites the sweep *did*
-report. Read around any site the sweep names; do not treat the list as exhaustive.
+heuristic, and it has already missed two real defects. `ValidationService.validateBestPractices`
+dropped every entity whose metadata could not be read, in a loop body longer than the look-back.
+`NugetPackageService.fetchPackageData` swallowed *every* registration-fetch failure and returned an
+empty result - the sweep named the caller at `:245`, not the swallow itself two frames down, and the
+comment there said "404 = not on nuget.org", which is true of a 404 and false of the 403, 5xx and
+transport errors it also caught. Read around any site the sweep names, and follow the call.
 
-**Fix:** convert the 5 outcome-only sites to `FanOutRecorder` and the 6 undeclared-partial sites to
-`buildTruncation`.
+**Fix:** bump the `core` pin on `azure-sql`, `azure-storage` and `service-bus`, then convert the four
+`FanOutRecorder` sites and the one `buildTruncation` site above.
 
 ---
 

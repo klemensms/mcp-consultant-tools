@@ -262,8 +262,15 @@ export function extractComplexityFactors(
     breakdown.uniqueConnectors = connectors.size;
     breakdown.httpConnectors = httpConnectorsFound.size;
     breakdown.premiumConnectors = premiumConnectorsFound.size;
-  } catch {
-    // Return partial breakdown on parse errors
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    // Not swallowed: a partial breakdown scores as a simple flow, which is
+    // indistinguishable from a flow that genuinely is one. The caller declares the
+    // failure against the flow it belongs to - see
+    // `IntegrationAuditService.analyseOneFlow`.
+    throw new Error(
+      `Flow definition could not be walked for complexity: ${reason}`
+    );
   }
 
   return breakdown;
@@ -297,8 +304,13 @@ export function extractComplexityFlags(
         flags.hasExternalTrigger = EXTERNAL_TRIGGER_TYPES.has(triggerType);
       }
     }
-  } catch {
-    // Return partial flags on parse errors
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    // Not swallowed: an all-false flag set is the same answer as a flow with no
+    // external trigger and no premium connector.
+    throw new Error(
+      `Flow definition could not be read for complexity flags: ${reason}`
+    );
   }
 
   return flags;

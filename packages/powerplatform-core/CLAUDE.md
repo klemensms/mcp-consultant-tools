@@ -80,6 +80,31 @@ finishes before the slice, so its `truncation` block carries a real `totalAvaila
 null a paged read would give. If you add another client-side cap, follow that pattern and put the
 warning on the summary line too - `validationFanOutSuffix` is where a reader actually sees it.
 
+### Three shapes of incomplete, and the one that has no helper
+
+`buildTruncation` and `FanOutRecorder` cover two of the three ways a result can be short. Before
+reaching for either, decide which shape you actually have, because forcing the wrong one writes a
+false claim into the payload:
+
+| Shape | Example | What to use |
+|---|---|---|
+| A **dropped item** in an iteration, the rest continuing | one flow definition unreadable out of forty | `FanOutRecorder` |
+| A **capped list**, more rows existing at the source | `$top` without a continuation token | `buildTruncation` |
+| A **whole section that failed**, returning its empty accumulator | the complexity walk throwing on a malformed definition | neither - propagate |
+
+The third has no helper and must not borrow one. `buildTruncation` would have to say `hasMore: true`
+and `truncationReason: 'requestedMax'`, neither of which happened, in the one contract whose purpose
+is to stop a payload claiming what it cannot support. Instead let the error out of the utility and
+name the section where the caller assembles its result: `analyseOneFlow` collects
+`analysisFailures: { section, reason }[]` onto the flow, `generateAuditReport` collects
+`completeness.failures` onto the report, and the summary carries a count so a reader who never opens
+the payload still sees it.
+
+The four utilities behind `analyseOneFlow` - `extractComplexityFactors`, `extractComplexityFlags`,
+`extractUrlsFromFlowDefinition` and `detectHardcodedSecrets` - now throw rather than returning a
+partial. Do not restore a `catch` to any of them: an empty result from these reads as a simple flow
+with no outbound URLs and no hardcoded secrets, which is the answer that costs most when wrong.
+
 ## File Size Management
 
 This package was created to address file size limits:

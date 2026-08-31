@@ -186,7 +186,11 @@ describe('cr-review health verdict', () => {
     repository: 'Contoso.Repo',
     branch: 'main',
     projects: [],
-    fanOut: { centralPackageManagement: noFailures, projects: noFailures },
+    fanOut: {
+      centralPackageManagement: noFailures,
+      projects: noFailures,
+      vulnerabilityLookups: noFailures,
+    },
     summary: {
       totalProjects: 2,
       totalPackages: 0,

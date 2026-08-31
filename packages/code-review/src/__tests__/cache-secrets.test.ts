@@ -69,7 +69,7 @@ const nugetReport: NugetPackageReport = {
       ],
     },
   ],
-  fanOut: { centralPackageManagement: allRead, projects: allRead },
+  fanOut: { centralPackageManagement: allRead, projects: allRead, vulnerabilityLookups: allRead },
   summary: { totalProjects: 1, totalPackages: 1, uniquePackages: 1, outdatedPackages: 1, vulnerablePackages: 0, byStatus: { outdated: 1 } },
 };
 

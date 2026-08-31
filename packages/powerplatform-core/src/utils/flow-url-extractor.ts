@@ -162,8 +162,12 @@ export function extractUrlsFromFlowDefinition(
     if (actions) {
       processActions(actions, urls, envVarMap);
     }
-  } catch {
-    // Return partial results on parse errors
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    // Not swallowed: a partial URL list reads as a flow that calls nothing outward.
+    throw new Error(
+      `Flow definition could not be traversed for URLs: ${reason}`
+    );
   }
 
   return urls;
@@ -281,8 +285,13 @@ export function detectHardcodedSecrets(
     if (actions) {
       scanActionsForSecrets(actions, warnings);
     }
-  } catch {
-    // Return partial results on parse errors
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    // Not swallowed, and this is the costliest of the four: an empty warning list
+    // reports the flow as carrying no hardcoded credentials.
+    throw new Error(
+      `Flow definition could not be scanned for hardcoded secrets: ${reason}`
+    );
   }
 
   return warnings;

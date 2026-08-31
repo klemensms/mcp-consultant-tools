@@ -39,6 +39,7 @@ export function registerNugetPackageCommands(program: Command, ctx: ServiceConte
           ...scanGapLines([
             ['Directory.Packages.props files', report.fanOut.centralPackageManagement],
             ['project files', report.fanOut.projects],
+            ['NuGet registration lookups', report.fanOut.vulnerabilityLookups],
           ])
         );
 

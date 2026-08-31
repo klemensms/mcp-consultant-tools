@@ -82,6 +82,13 @@ export interface NugetPackageReport {
     centralPackageManagement: FanOutInfo;
     /** `.csproj` files found by the glob. */
     projects: FanOutInfo;
+    /**
+     * Per-package lookups against the NuGet registration API, when `checkVulnerabilities`
+     * was on. `attempted: 0` means the caller did not ask, not that every lookup passed.
+     * A failure here leaves that package at `status: 'unknown'`, which is also the honest
+     * status of a package with no comparable published version.
+     */
+    vulnerabilityLookups: FanOutInfo;
   };
 }
 
