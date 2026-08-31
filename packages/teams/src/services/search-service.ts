@@ -27,6 +27,12 @@ const MAX_TOP = 50;
 const MAX_HIT_CHARS = 600;
 
 /**
+ * A hit is a pointer, so its budget stays small - but a clipped hit still has to
+ * say where the whole message is, or it reads as the end of the road.
+ */
+const HIT_TRUNCATION_HINT = "read it in full with get-chat-messages or get-channel-messages using the ids above";
+
+/**
  * Teams walked when placing a channel hit whose team id Graph got wrong.
  *
  * ceiling: a hit in a channel of the 21st team keeps no team id at all. Raise it,
@@ -178,6 +184,7 @@ function toSearchHit(hit: any): MessageSearchHit {
     ? truncateText(
         htmlToText(resource.body.content, resource.body.contentType, undefined, resource.attachments),
         MAX_HIT_CHARS,
+        HIT_TRUNCATION_HINT,
       )
     : undefined;
 
@@ -199,7 +206,9 @@ function toSearchHit(hit: any): MessageSearchHit {
     authorAddress: emailAddress.address ?? undefined,
     createdDateTime: resource.createdDateTime ?? undefined,
     // Graph's summary marks the matched terms, which is what makes a hit skimmable.
-    summary: hit?.summary ? truncateText(stripHitMarkers(hit.summary), MAX_HIT_CHARS) : undefined,
+    summary: hit?.summary
+      ? truncateText(stripHitMarkers(hit.summary), MAX_HIT_CHARS, HIT_TRUNCATION_HINT)
+      : undefined,
     text: body,
     teamId: isChannelHit ? channelIdentity.teamId : undefined,
     channelId: isChannelHit ? channelIdentity.channelId ?? undefined : undefined,

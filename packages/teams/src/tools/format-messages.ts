@@ -5,8 +5,10 @@
  * timestamp, body as plain text, and the message ID - the ID matters because it is
  * what a reply call needs next.
  *
- * Long bodies are truncated per message so one wide read cannot exhaust a context
- * window; the caller can narrow with `top` or a date range and read the rest.
+ * One read shares a single body budget across its messages, so a wide read cannot
+ * exhaust a context window while a narrow one can return a long message whole.
+ * Narrowing with `top` or a date range therefore does buy a bigger per-message
+ * budget - see allocateBodyBudgets.
  */
 
 import { truncateText } from "../message-content.js";
@@ -20,8 +22,15 @@ import type {
   UserInfo,
 } from "../types.js";
 
-/** Per-message body budget. A 20-message read stays well inside a context window. */
-const MAX_BODY_CHARS = 1500;
+/**
+ * Body budget for one read, shared across every message in it.
+ *
+ * Set to what a default 20-message read used to cost at the old fixed 1500 chars
+ * per message, so an ordinary read is no more expensive than before. The budget
+ * being shared rather than per-message is what lets a narrow read spend it all on
+ * one long message.
+ */
+const TOTAL_BODY_CHARS = 30_000;
 
 export interface FormatOptions {
   heading: string;
@@ -36,8 +45,10 @@ export function formatMessages(messages: MessageInfo[], options: FormatOptions):
   }
 
   const lines: string[] = [`## ${options.heading}`, ""];
+  const budgets = allocateBodyBudgets(messages);
+  const hint = truncationHint(messages.length);
 
-  for (const message of messages) {
+  for (const [index, message] of messages.entries()) {
     const timestamp = formatTimestamp(message.createdDateTime);
     const flags: string[] = [];
 
@@ -63,7 +74,9 @@ export function formatMessages(messages: MessageInfo[], options: FormatOptions):
 
     lines.push(`**${message.authorName}** · ${timestamp} · \`${message.id}\`${flagSuffix}`);
 
-    const body = message.text ? truncateText(message.text, MAX_BODY_CHARS) : "_(no text content)_";
+    const body = message.text
+      ? truncateText(message.text, budgets[index] ?? 0, hint)
+      : "_(no text content)_";
     lines.push(body);
     lines.push("");
   }
@@ -71,6 +84,50 @@ export function formatMessages(messages: MessageInfo[], options: FormatOptions):
   lines.push(`**Total:** ${messages.length} message(s)`);
 
   return lines.join("\n");
+}
+
+/**
+ * Split the read's body budget across its messages, max-min fair share.
+ *
+ * An equal split alone would be worse than the fixed cap it replaces: a single
+ * long message inside a 50-message read would get 600 chars where it used to get
+ * 1500. So the shortest messages are served first and whatever they do not use is
+ * released to the ones still waiting. Real reads are mostly short messages, so in
+ * practice one long message in an ordinary read comes back whole.
+ *
+ * Returns one budget per message, positionally aligned with `messages`.
+ */
+function allocateBodyBudgets(messages: MessageInfo[]): number[] {
+  const budgets = new Array<number>(messages.length).fill(0);
+  const shortestFirst = messages
+    .map((message, index) => ({ length: message.text?.length ?? 0, index }))
+    .sort((a, b) => a.length - b.length);
+
+  let remaining = TOTAL_BODY_CHARS;
+  let unserved = shortestFirst.length;
+
+  for (const { length, index } of shortestFirst) {
+    const share = Math.floor(remaining / unserved);
+    const granted = Math.min(length, share);
+    budgets[index] = granted;
+    remaining -= granted;
+    unserved--;
+  }
+
+  return budgets;
+}
+
+/**
+ * What to do about a body that did not fit.
+ *
+ * A wider read can be narrowed, and narrowing now genuinely raises the budget. A
+ * read that is already one message has nothing left to narrow, so it says so
+ * rather than sending the caller round a loop that changes nothing.
+ */
+function truncationHint(readSize: number): string {
+  return readSize > 1
+    ? "narrow to this message with top: 1 and a since/until window for the full text"
+    : "this message is over the whole-read budget, open it in Teams to read the rest";
 }
 
 export function formatChats(chats: ChatInfo[]): string {

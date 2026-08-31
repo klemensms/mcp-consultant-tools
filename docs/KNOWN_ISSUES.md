@@ -285,3 +285,40 @@ came back green honestly.
 `mcp-audit-cli search` is read by `tests/audit-integration/scenarios/search-cli.mjs`, which
 `npm test` does not run. Anything under `tests/` that parses a command's output has to be checked
 against that command by hand, because nothing else will.
+
+---
+
+## teams: files can be seen but neither sent nor fetched
+
+**Status:** confirmed in source and by a live read (2026-08-31). **Affects:** the whole `teams`
+package.
+
+A message read names its attachments and hands back the file's URL, so an agent can see that a
+document was shared and what it is called:
+
+```
+[attachment: Report.docx - https://contoso.sharepoint.com/personal/.../Microsoft%20Teams%20Chat%20Files/Report.docx]
+```
+
+**That URL is the end of the road inside this package.** There is no tool that fetches it and no tool
+that sends a file. Grepping `packages/teams/src` for `driveItem`, `hostedContents`, `/content`,
+`createUploadSession` or `multipart` returns nothing outside a comment; the only `readFileSync` on a
+caller-supplied path is `cli/commands/message-commands.ts:100`, which reads an Adaptive Card JSON
+body. All 26 tools are message, chat, people, reaction and search operations.
+
+**A neighbouring package already does the file half, and is not wired to this one.**
+`packages/sharepoint` ships `spo-download-file` (`tools/read-tools.ts:315`) and `spo-upload-file`
+(`tools/write-tools.ts:19`) over `/drives/{driveId}/items/{itemId}/content`. Using it on a Teams
+attachment means resolving that `contentUrl` into a site id, a drive id and an item path by hand,
+which nothing in either package does.
+
+**Fix:** Graph resolves a sharing URL in one call - `GET /shares/{base64url-encoded-url}/driveItem`,
+then `/content` - so a `get-message-attachment` tool needs no site or drive lookup and no new
+package dependency. It does need a `Files.Read.All` scope, which is **not** in `DEVICE_CODE_SCOPES`,
+so read the Scope Boundary rule in `packages/teams/CLAUDE.md` first: an unconsented scope fails at
+sign-in and takes all 26 tools down, not one. Sending a file is a larger job - a Teams file share is
+an upload to the chat's own SharePoint folder followed by a message carrying a reference attachment,
+not a message parameter - and is worth treating as separate work.
+
+---
+

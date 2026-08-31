@@ -365,9 +365,12 @@ export function htmlToText(
  * Truncate rendered message text so one wide read cannot exhaust a context window.
  * Returns the text unchanged when it is already within the limit.
  */
-export function truncateText(text: string, maxChars: number): string {
+export function truncateText(text: string, maxChars: number, hint?: string): string {
   if (text.length <= maxChars) {
     return text;
   }
-  return `${text.slice(0, maxChars)}… [truncated, ${text.length - maxChars} more chars]`;
+  // A bare "[truncated, N more chars]" reads as a dead end. Callers that know how
+  // the rest can be reached pass a hint, so the notice says what to do next.
+  const suffix = hint ? ` - ${hint}` : "";
+  return `${text.slice(0, maxChars)}… [truncated, ${text.length - maxChars} more chars${suffix}]`;
 }

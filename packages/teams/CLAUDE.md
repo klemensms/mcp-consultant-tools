@@ -349,7 +349,16 @@ Same semantics as the chat three. Two differences that matter:
 - **They need `ChannelMessage.ReadWrite`, which the code never requests.** See the Scope Boundary note — that is deliberate, not an omission.
 - **No `/users/{me}` segment.** The team and channel already scope a channel message, so unlike the chat delete these need no `getMe()`. All three share `channelMessagePath()` so a `replyId` cannot be honoured by one and dropped by another.
 
-⚠️ **DELETE IS BLOCKED ON THIS TENANT AND EDIT IS NOT. Do not spend an hour on it.** Confirmed live 2026-08-20 across both surfaces: chat and channel `softDelete` both return 403 `AclCheckFailed` — *"Initiator is not allowed to delete message"* — on a message the signed-in user posted seconds earlier. The scope, path and request shape are all correct: a nonexistent id returns 404 on the very same endpoint, so the call reaches Teams and Teams refuses it. **Editing works on both surfaces, live, including on a 35-hour-old message.** Teams governs edit and delete with separate messaging-policy switches and this tenant permits one and not the other. Nothing in this package can change that; it needs a Teams administrator. The delete and undo code paths are therefore **shipped but never successfully exercised end to end** — the failure mode is proven, the success path is not.
+⚠️ **Whether delete works is a tenant messaging-policy setting, not a property of this package, and it has changed once already. Measure it before concluding anything.** Teams governs edit and delete with separate policy switches, so one can be permitted while the other is not, and a refusal arrives as 403 `AclCheckFailed` — *"Initiator is not allowed to delete message"* — on a message the signed-in user posted seconds earlier. That error means the call reached Teams and Teams refused it; the scope, path and request shape are fine, and a nonexistent id returns 404 on the very same endpoint. Nothing in this package can change a refusal; it needs a Teams administrator.
+
+**Current measured state on this tenant:**
+
+| Surface | Edit | Delete / undo |
+|---|---|---|
+| Chat | works (2026-08-20, incl. a 35-hour-old message) | **works** — full delete → `_(deleted)_` → undo → restored round trip, verified live 2026-08-31 |
+| Channel | works (2026-08-20) | 403 `AclCheckFailed` at the last measurement, 2026-08-20; **not retested since** |
+
+Chat delete returned 403 on 2026-08-20 and succeeded on 2026-08-31, so the policy was changed in between. Treat the channel row as unknown rather than blocked — it has simply not been measured since the chat row moved.
 
 ### People Tools
 
@@ -506,7 +515,7 @@ Square brackets are required. A bare `@Jane` is sent as plain text — there is 
   **Graph emits one `<at>` element per word of a mention**, each with its own `mentions[]` entry, all resolving to the same entity — so "Jane Doe" arrives as two elements and rendered naively becomes `@Jane @Doe`. `htmlToText` takes the message's `mentions[]` as a third argument and coalesces runs of `<at>` elements **keyed on the resolved entity id** (`mentioned.user.id`, else `conversation`/`application`/`tag`). Key on the entity, never on adjacency: two different people mentioned back to back are also adjacent, and merging those would invent a name nobody wrote. With no `mentions[]` there is nothing to key on, so each element renders separately rather than being guessed at — which means **the argument has to actually be plumbed through `toMessageInfo`**, and a test asserts that end to end rather than only testing the renderer in isolation.
 
   `<emoji>` elements carry the character in `alt` and have no text content, so without an explicit branch every emoji silently vanishes from a message body.
-- `truncateText()` — caps each rendered body so one wide read cannot exhaust a context window.
+- `truncateText()` — caps a rendered body, and takes an optional hint so the notice says how to reach the rest rather than reading as a dead end. **The cap is not per message.** `formatMessages` shares one 30,000-char budget across the read (`allocateBodyBudgets`), serving shorter messages first and releasing what they do not use, so narrowing a read genuinely buys a bigger budget for the message you want. A fixed per-message cap did not: a message over the old 1,500 could not be read in full by any call, while the file header claimed `top` or a date range would get you the rest. Verified live 2026-08-31 - a 2,279-char message came back whole at `top: 5` and was cut at 1,500 by `beta.11`.
 
 This function was previously duplicated as a private `markdownToHtml` in both `tools/send-message.ts` and `cli/commands/message-commands.ts`. Neither calls it now: both pass raw content and a `format` to the service, and `buildOutboundMessage()` in `src/mentions.ts` is the single entry point that converts, sanitises and resolves mentions. Call that rather than `markdownToHtml` directly on any new send path — it is what keeps the body and the `mentions[]` array in step.
 
