@@ -11,9 +11,14 @@ import type { ServiceContext } from './types.js';
 export type { ServiceContext } from './types.js';
 
 export function createServiceContext(): ServiceContext {
-  const piiPipeline = createPiiPipelineFromEnv({
-    environmentIdentifier: process.env.AZURE_B2C_TENANT_ID,
-  });
+  // Built on first use, not here: the CLI calls this factory at module load,
+  // before Commander's preAction hook has loaded --env-file. Reading PII
+  // config eagerly would read it from an env that is not populated yet.
+  let piiPipelineInstance: ReturnType<typeof createPiiPipelineFromEnv> | null = null;
+  const piiPipeline = () =>
+    (piiPipelineInstance ??= createPiiPipelineFromEnv({
+      environmentIdentifier: process.env.AZURE_B2C_TENANT_ID,
+    }));
   let client: B2CClient | null = null;
   let userService: UserService | null = null;
   let groupService: GroupService | null = null;
@@ -53,7 +58,7 @@ export function createServiceContext(): ServiceContext {
 
   function getUserService(): UserService {
     if (!userService) {
-      userService = new UserService(getClient(), piiPipeline);
+      userService = new UserService(getClient(), piiPipeline());
     }
     return userService;
   }

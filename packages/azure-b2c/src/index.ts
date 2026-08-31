@@ -27,9 +27,13 @@ const pkg = require('../package.json');
  * Build a ServiceContext from environment variables (lazy service initialization).
  */
 function createServiceContext(): ServiceContext {
-  const piiPipeline = createPiiPipelineFromEnv({
-    environmentIdentifier: process.env.AZURE_B2C_TENANT_ID,
-  });
+  // Built on first use, so both entry points behave identically; see the note
+  // in context-factory.ts.
+  let piiPipelineInstance: ReturnType<typeof createPiiPipelineFromEnv> | null = null;
+  const piiPipeline = () =>
+    (piiPipelineInstance ??= createPiiPipelineFromEnv({
+      environmentIdentifier: process.env.AZURE_B2C_TENANT_ID,
+    }));
   let client: B2CClient | null = null;
   let userService: UserService | null = null;
   let groupService: GroupService | null = null;
@@ -69,7 +73,7 @@ function createServiceContext(): ServiceContext {
 
   function getUserService(): UserService {
     if (!userService) {
-      userService = new UserService(getClient(), piiPipeline);
+      userService = new UserService(getClient(), piiPipeline());
     }
     return userService;
   }

@@ -61,52 +61,6 @@ list already report their failures through `result.fanOut`, so only the cap is u
 
 ---
 
-## `PII_PROTECTION` does not reach the CLI path when it comes from `--env-file`
-
-**Status:** confirmed in source 2026-08-31. **Affects:** the CLIs of `azure-sql`, `azure-devops`,
-`rest-api` and `azure-b2c`. Grep for `const ctx = createServiceContext();` in each `src/cli.ts`.
-
-All four CLIs build the ServiceContext at module top level, on the line immediately before
-`program.parseAsync(...)`:
-
-```ts
-program.hook('preAction', async (thisCommand) => {
-  const opts = thisCommand.opts();
-  await loadEnvAndResolve(opts.envFile);   // runs during parseAsync
-});
-
-const ctx = createServiceContext();        // runs at import, BEFORE the hook
-registerAllCommands(program, ctx);
-
-program.parseAsync(process.argv)...
-```
-
-Commander runs a `preAction` hook during `parseAsync`, so `loadEnvAndResolve` cannot have run when
-`createServiceContext()` executes. `createServiceContext()` calls `createPiiPipelineFromEnv()`,
-which reads `process.env` immediately. Anything supplied only through `--env-file` (or a `.env`
-that `loadEnvAndResolve` would have picked up) is therefore invisible to the pipeline: PII
-protection resolves to OFF and the layer toggles, hint list and session salt all fall back to
-defaults.
-
-An earlier note claimed the mechanism could not be module-level initialisation because
-`createServiceContext()` is an exported function. That is true of `context-factory.ts` and beside
-the point: `cli.ts` calls that function at import time.
-
-**The MCP server path is not affected.** There the context is built inside
-`registerAzureDevOpsTools()` (and its equivalents), by which point the MCP client has already put
-the `env:` block into `process.env`.
-
-**Second symptom, same cause.** The "looks unprotected" startup warning is evaluated at pipeline
-construction, so on the CLI path it is computed against unloaded env. A run whose `--env-file`
-sets `PII_PROTECTION=true` still warns that protection is off.
-
-**Fix:** build the context lazily, after the `preAction` hook has run - for example pass a
-`() => ServiceContext` thunk to `registerAllCommands`, or move the construction into an
-`action` wrapper. All four CLIs need the same change, and `packages/*/src/index.ts` must keep
-working unchanged.
-
----
-
 ## Unverified: `list-api-connections` trusts ARM's own split between secret and non-secret parameters
 
 **Status:** NOT confirmed against a live response. **Affects:**

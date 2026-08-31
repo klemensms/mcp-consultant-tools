@@ -111,15 +111,20 @@ function buildConfigFromEnv(): RestApiConfig {
  * Build a ServiceContext from environment variables (lazy service initialization).
  */
 export function createServiceContext(): ServiceContext {
-  const piiPipeline = createPiiPipelineFromEnv({
-    environmentIdentifier: process.env.REST_BASE_URL,
-  });
+  // Built on first use, not here: the CLI calls this factory at module load,
+  // before Commander's preAction hook has loaded --env-file. Reading PII
+  // config eagerly would read it from an env that is not populated yet.
+  let piiPipelineInstance: ReturnType<typeof createPiiPipelineFromEnv> | null = null;
+  const piiPipeline = () =>
+    (piiPipelineInstance ??= createPiiPipelineFromEnv({
+      environmentIdentifier: process.env.REST_BASE_URL,
+    }));
   let service: RestApiService | null = null;
 
   function getService(): RestApiService {
     if (!service) {
       const config = buildConfigFromEnv();
-      service = new RestApiService(config, piiPipeline);
+      service = new RestApiService(config, piiPipeline());
       console.error("REST API service initialized");
       console.error(`  Base URL: ${config.baseUrl}`);
       console.error(`  Auth method: ${service.getAuthMethod()}`);

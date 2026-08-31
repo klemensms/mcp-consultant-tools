@@ -25,9 +25,14 @@ import {
  * Build a ServiceContext from environment variables (lazy client initialization).
  */
 export function createServiceContext(): ServiceContext {
-  const piiPipeline = createPiiPipelineFromEnv({
-    environmentIdentifier: process.env.AZUREDEVOPS_ORGANIZATION,
-  });
+  // Built on first use, not here: the CLI calls this factory at module load,
+  // before Commander's preAction hook has loaded --env-file. Reading PII
+  // config eagerly would read it from an env that is not populated yet.
+  let piiPipelineInstance: ReturnType<typeof createPiiPipelineFromEnv> | null = null;
+  const piiPipeline = () =>
+    (piiPipelineInstance ??= createPiiPipelineFromEnv({
+      environmentIdentifier: process.env.AZUREDEVOPS_ORGANIZATION,
+    }));
   let client: AzureDevOpsClient | null = null;
 
   function getClient(): AzureDevOpsClient {
@@ -81,14 +86,14 @@ export function createServiceContext(): ServiceContext {
   return {
     get client() { return getClient(); },
     get wiki() { return wiki ??= new WikiService(getClient()); },
-    get workItem() { return workItem ??= new WorkItemService(getClient(), piiPipeline); },
+    get workItem() { return workItem ??= new WorkItemService(getClient(), piiPipeline()); },
     get pullRequest() { return pullRequest ??= new PullRequestService(getClient()); },
     get build() { return build ??= new BuildService(getClient()); },
     get git() { return git ??= new GitService(getClient()); },
     get variableGroup() { return variableGroup ??= new VariableGroupService(getClient()); },
-    get sync() { return sync ??= new SyncService(workItem ??= new WorkItemService(getClient(), piiPipeline)); },
+    get sync() { return sync ??= new SyncService(workItem ??= new WorkItemService(getClient(), piiPipeline())); },
     get configuration() { return configuration ??= new ConfigurationService(); },
-    get checklist() { return checklist ??= new ChecklistService(getClient(), workItem ??= new WorkItemService(getClient(), piiPipeline)); },
-    get test() { return test ??= new TestService(getClient(), workItem ??= new WorkItemService(getClient(), piiPipeline)); },
+    get checklist() { return checklist ??= new ChecklistService(getClient(), workItem ??= new WorkItemService(getClient(), piiPipeline())); },
+    get test() { return test ??= new TestService(getClient(), workItem ??= new WorkItemService(getClient(), piiPipeline())); },
   };
 }

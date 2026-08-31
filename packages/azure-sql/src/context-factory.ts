@@ -33,9 +33,14 @@ function pickEnvironmentIdentifier(): string | undefined {
 }
 
 export function createServiceContext(): ServiceContext {
-  const piiPipeline = createPiiPipelineFromEnv({
-    environmentIdentifier: pickEnvironmentIdentifier(),
-  });
+  // Built on first use, not here: the CLI calls this factory at module load,
+  // before Commander's preAction hook has loaded --env-file. Reading PII
+  // config eagerly would read it from an env that is not populated yet.
+  let piiPipelineInstance: ReturnType<typeof createPiiPipelineFromEnv> | null = null;
+  const piiPipeline = () =>
+    (piiPipelineInstance ??= createPiiPipelineFromEnv({
+      environmentIdentifier: pickEnvironmentIdentifier(),
+    }));
   let connection: ConnectionService | null = null;
   let query: QueryService | null = null;
   let write: WriteService | null = null;
@@ -91,13 +96,13 @@ export function createServiceContext(): ServiceContext {
   }
 
   function getQuery(): QueryService {
-    return query ??= new QueryService(getConnection(), piiPipeline);
+    return query ??= new QueryService(getConnection(), piiPipeline());
   }
 
   return {
     get connection() { return getConnection(); },
     get query() { return getQuery(); },
-    get write() { return write ??= new WriteService(getConnection(), piiPipeline); },
+    get write() { return write ??= new WriteService(getConnection(), piiPipeline()); },
     get performance() { return performance ??= new PerformanceService(getQuery()); },
     get session() { return session ??= new SessionService(getQuery()); },
     get space() { return space ??= new SpaceService(getQuery()); },
