@@ -97,3 +97,158 @@ describe('htmlToText emoji', () => {
     expect(htmlToText(html, 'html')).toBe('Nice work');
   });
 });
+
+describe('htmlToText links', () => {
+  // The whole point of reading a thread through the tool is not having to open
+  // Teams to finish the job, and an anchor whose href is dropped forces exactly
+  // that - the label survives, so nothing even signals a link was there.
+  it('renders an anchor as a markdown link', () => {
+    const html = '<p><a href="https://example.com/faqs/122">Sample Documents</a> Its all here.</p>';
+
+    expect(htmlToText(html, 'html')).toBe('[Sample Documents](https://example.com/faqs/122) Its all here.');
+  });
+
+  // Teams auto-links a pasted URL, labelling the anchor with the URL itself.
+  // Rendering that as markdown would produce [https://x](https://x).
+  it('emits a bare URL when the label is already the URL', () => {
+    const html = '<p>See <a href="https://example.com/page">https://example.com/page</a></p>';
+
+    expect(htmlToText(html, 'html')).toBe('See https://example.com/page');
+  });
+
+  it('ignores a trailing slash when deciding the label is the URL', () => {
+    const html = '<p><a href="https://example.com/page/">https://example.com/page</a></p>';
+
+    expect(htmlToText(html, 'html')).toBe('https://example.com/page');
+  });
+
+  it('strips the scheme before comparing a mailto anchor', () => {
+    const html = '<p>Mail <a href="mailto:jdoe@example.com">jdoe@example.com</a></p>';
+
+    expect(htmlToText(html, 'html')).toBe('Mail jdoe@example.com');
+  });
+
+  it('keeps the label when the anchor carries no href', () => {
+    const html = '<p>Nothing <a>to see</a> here</p>';
+
+    expect(htmlToText(html, 'html')).toBe('Nothing to see here');
+  });
+
+  it('falls back to the URL when the anchor has no label', () => {
+    const html = '<p><a href="https://example.com/page"></a></p>';
+
+    expect(htmlToText(html, 'html')).toBe('https://example.com/page');
+  });
+
+  it('renders every anchor in a message, not just the first', () => {
+    const html = '<p><a href="https://example.com/a">A</a> and <a href="https://example.com/b">B</a></p>';
+
+    expect(htmlToText(html, 'html')).toBe('[A](https://example.com/a) and [B](https://example.com/b)');
+  });
+
+  it('resolves a mention inside an anchor before using it as the label', () => {
+    const html = '<p><a href="https://example.com/x"><at id="0">Jane</at></a></p>';
+    const mentions = [{ id: 0, mentionText: 'Jane', mentioned: { user: { id: USER_A } } }];
+
+    expect(htmlToText(html, 'html', mentions)).toBe('[@Jane](https://example.com/x)');
+  });
+});
+
+describe('htmlToText attachments', () => {
+  // The body carries only a placeholder <attachment id="...">; the name and the
+  // URL live in the sibling attachments[] array, which the renderer was never
+  // given - so every attachment collapsed to a bare, unidentifiable marker.
+  it('resolves a file attachment to its name and URL', () => {
+    const html = '<p>Here you go</p><attachment id="abc123"></attachment>';
+    const attachments = [{
+      id: 'abc123',
+      contentType: 'reference',
+      contentUrl: 'https://contoso.sharepoint.com/Shared%20Documents/Report.docx',
+      name: 'Report.docx',
+    }];
+
+    expect(htmlToText(html, 'html', undefined, attachments)).toBe(
+      'Here you go\n[attachment: Report.docx - https://contoso.sharepoint.com/Shared%20Documents/Report.docx]',
+    );
+  });
+
+  it('renders a link-preview card as its title and URL', () => {
+    const html = '<attachment id="card1"></attachment>';
+    const attachments = [{
+      id: 'card1',
+      contentType: 'reference',
+      contentUrl: 'https://example.com/faqs/122',
+      name: 'Sample Documents',
+    }];
+
+    expect(htmlToText(html, 'html', undefined, attachments)).toBe(
+      '[attachment: Sample Documents - https://example.com/faqs/122]',
+    );
+  });
+
+  // A quoted reply and a preview card are both <attachment> placeholders, so
+  // without the contentType a reader has to guess from position which is which.
+  it('marks a quoted reply as a quote rather than an attachment', () => {
+    const html = '<attachment id="quote1"></attachment>\n<p>Agreed</p>';
+    const attachments = [{
+      id: 'quote1',
+      contentType: 'messageReference',
+      content: JSON.stringify({
+        messageId: '1616965872395',
+        messagePreview: 'Can someone confirm the date?',
+        messageSender: { user: { id: USER_B, displayName: 'Jane Doe' } },
+      }),
+    }];
+
+    expect(htmlToText(html, 'html', undefined, attachments)).toBe(
+      '[quoted reply from Jane Doe: Can someone confirm the date?]\nAgreed',
+    );
+  });
+
+  it('still marks a quoted reply when its content will not parse', () => {
+    const html = '<attachment id="quote1"></attachment>';
+    const attachments = [{ id: 'quote1', contentType: 'messageReference', content: 'not json' }];
+
+    expect(htmlToText(html, 'html', undefined, attachments)).toBe('[quoted reply]');
+  });
+
+  it('names the content type when an attachment has neither name nor URL', () => {
+    const html = '<attachment id="card2"></attachment>';
+    const attachments = [{ id: 'card2', contentType: 'application/vnd.microsoft.card.adaptive' }];
+
+    expect(htmlToText(html, 'html', undefined, attachments)).toBe(
+      '[attachment: application/vnd.microsoft.card.adaptive]',
+    );
+  });
+
+  // Graph does not always pair an attachment with a placeholder in the body -
+  // an unfurled link preview often arrives with the body carrying only the URL.
+  it('appends an attachment that has no placeholder in the body', () => {
+    const html = '<p>Have a look</p>';
+    const attachments = [{
+      id: 'orphan1',
+      contentType: 'reference',
+      contentUrl: 'https://example.com/faqs/122',
+      name: 'Sample Documents',
+    }];
+
+    expect(htmlToText(html, 'html', undefined, attachments)).toBe(
+      'Have a look\n[attachment: Sample Documents - https://example.com/faqs/122]',
+    );
+  });
+
+  it('keeps the bare placeholder when the attachments array is missing', () => {
+    const html = '<p>Here you go</p><attachment id="abc123"></attachment>';
+
+    expect(htmlToText(html, 'html')).toBe('Here you go\n[attachment]');
+  });
+
+  it('keeps the bare placeholder when no attachment matches the id', () => {
+    const html = '<attachment id="abc123"></attachment>';
+    const attachments = [{ id: 'somethingelse', contentType: 'reference', name: 'Other.docx' }];
+
+    expect(htmlToText(html, 'html', undefined, attachments)).toBe(
+      '[attachment]\n[attachment: Other.docx]',
+    );
+  });
+});

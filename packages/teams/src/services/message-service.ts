@@ -588,7 +588,12 @@ function toMessageInfo(message: any): MessageInfo {
     lastModifiedDateTime: message.lastModifiedDateTime ?? undefined,
     authorName,
     authorId: user?.id ?? undefined,
-    text: htmlToText(message.body?.content ?? "", message.body?.contentType, message.mentions),
+    text: htmlToText(
+      message.body?.content ?? "",
+      message.body?.contentType,
+      message.mentions,
+      message.attachments,
+    ),
     replyCount: message["replies@odata.count"] ?? undefined,
     importance: message.importance ?? undefined,
     messageType: message.messageType ?? undefined,

@@ -69,6 +69,25 @@ export interface GraphMention {
 }
 
 /**
+ * A Graph chatMessage attachment. The message body carries only an
+ * <attachment id="..."> placeholder; everything a reader needs - the file name,
+ * the link a preview card points at, the message a reply is quoting - lives out
+ * here and has to be joined back on by id.
+ */
+export interface GraphAttachment {
+  id?: string;
+  /** "reference" for a file or an unfurled link, "messageReference" for a quote. */
+  contentType?: string;
+  contentUrl?: string;
+  /** JSON string; the quoted message for a messageReference, card payload otherwise. */
+  content?: string | null;
+  name?: string;
+}
+
+/** Longest quoted-message preview rendered inline before it is clipped. */
+const QUOTE_PREVIEW_CHARS = 200;
+
+/**
  * The entity a given <at> element resolves to, or undefined when it cannot be
  * resolved. Two <at> elements belong to the same mention only if this matches.
  */
@@ -154,13 +173,111 @@ function renderMentions(document: Document, mentions?: GraphMention[]): void {
 }
 
 /**
+ * True when an anchor's label is just its own URL, which is what Teams emits for
+ * a pasted link. Rendering those as markdown would produce [https://x](https://x),
+ * so they are compared with the scheme and any trailing slash set aside.
+ */
+function isSelfLabelled(label: string, href: string): boolean {
+  const bare = (value: string) => value.replace(/^(mailto:|tel:)/i, "").replace(/\/+$/, "");
+  return bare(label) === bare(href);
+}
+
+/**
+ * Render each link as markdown, so the URL survives the flattening.
+ *
+ * textContent keeps an anchor's label and throws the href away, which loses the
+ * one part of a link that cannot be recovered from the rest of the message - and
+ * loses it silently, since the label reads as ordinary prose afterwards.
+ *
+ * Runs after mentions, emoji and images so a label built out of those elements is
+ * already resolved by the time it is read.
+ */
+function renderAnchors(document: Document): void {
+  for (const anchor of Array.from(document.querySelectorAll("a"))) {
+    const href = (anchor.getAttribute("href") ?? "").trim();
+    const label = (anchor.textContent ?? "").trim();
+
+    let rendered: string;
+    if (!href) {
+      rendered = label;
+    } else if (!label) {
+      rendered = href;
+    } else if (isSelfLabelled(label, href)) {
+      // The label, not the href: it is the same target either way, and it is the
+      // form without the mailto: scheme or the slash Teams appends.
+      rendered = label;
+    } else {
+      rendered = `[${label}](${href})`;
+    }
+
+    anchor.replaceWith(document.createTextNode(rendered));
+  }
+}
+
+/** Describe a quoted reply from the message it quotes. */
+function describeQuotedReply(attachment: GraphAttachment): string {
+  let sender: string | undefined;
+  let preview: string | undefined;
+
+  try {
+    const quoted = JSON.parse(attachment.content ?? "");
+    sender = quoted?.messageSender?.user?.displayName?.trim() || undefined;
+    preview = quoted?.messagePreview?.replace(/\s+/g, " ").trim() || undefined;
+  } catch {
+    // The marker alone still tells the reader a quote was there, which is the
+    // part that misleads when it is missing.
+  }
+
+  if (preview && preview.length > QUOTE_PREVIEW_CHARS) {
+    preview = `${preview.slice(0, QUOTE_PREVIEW_CHARS)}…`;
+  }
+
+  return `[quoted reply${sender ? ` from ${sender}` : ""}${preview ? `: ${preview}` : ""}]`;
+}
+
+/**
+ * Describe one attachment in a single bracketed line.
+ *
+ * A bare "[attachment]" is ambiguous in the way that costs a reader the most: a
+ * quoted reply and an unfurled link card look identical, so which one it is has
+ * to be guessed from where it sits in the message. Naming the thing removes the
+ * guess.
+ */
+function describeAttachment(attachment?: GraphAttachment): string {
+  if (!attachment) {
+    return "[attachment]";
+  }
+
+  if (attachment.contentType === "messageReference") {
+    return describeQuotedReply(attachment);
+  }
+
+  const name = attachment.name?.trim();
+  const url = attachment.contentUrl?.trim();
+
+  if (name && url) {
+    return `[attachment: ${name} - ${url}]`;
+  }
+
+  const identified = name || url || attachment.contentType?.trim();
+
+  return identified ? `[attachment: ${identified}]` : "[attachment]";
+}
+
+/**
  * Flatten Teams message HTML to readable plain text.
  *
- * Keeps @-mentions as "@Name", marks images and attachments as placeholders
- * (their content is a Graph hostedContents URL, useless to a reader), and
- * collapses the div nesting Teams emits into ordinary line breaks.
+ * Keeps @-mentions as "@Name", renders links as markdown so their URLs survive,
+ * marks images as placeholders (their content is a Graph hostedContents URL,
+ * useless to a reader), names each attachment from the sibling attachments[]
+ * array, and collapses the div nesting Teams emits into ordinary line breaks.
  */
-export function htmlToText(html: string, contentType?: string, mentions?: GraphMention[]): string {
+export function htmlToText(
+  html: string,
+  contentType?: string,
+  mentions?: GraphMention[],
+  attachments?: GraphAttachment[],
+): string {
   if (!html) {
     return "";
   }
@@ -188,8 +305,29 @@ export function htmlToText(html: string, contentType?: string, mentions?: GraphM
     img.replaceWith(document.createTextNode(alt ? `[image: ${alt}]` : "[image]"));
   }
 
-  for (const attachment of Array.from(document.querySelectorAll("attachment"))) {
-    attachment.replaceWith(document.createTextNode("[attachment]"));
+  renderAnchors(document);
+
+  // The placeholder carries only an id; the name and URL are joined back on from
+  // attachments[]. Rendered on its own line because Teams emits the placeholder
+  // as an inline sibling of the body, so it otherwise runs into the last word.
+  const placed = new Set<string>();
+  for (const placeholder of Array.from(document.querySelectorAll("attachment"))) {
+    const id = placeholder.getAttribute("id");
+    const attachment = id ? attachments?.find((a) => a.id === id) : undefined;
+
+    if (attachment?.id) {
+      placed.add(attachment.id);
+    }
+
+    // Graph separates the placeholder from the body with its own newline, which
+    // would leave a blank line inside the message - and a blank line is what
+    // separates one message from the next in a rendered read, so the quote reads
+    // as its own message. Drop the blank sibling and keep the single break.
+    while (isBlankText(placeholder.nextSibling)) {
+      placeholder.nextSibling?.remove();
+    }
+
+    placeholder.replaceWith(document.createTextNode(`\n${describeAttachment(attachment)}`));
   }
 
   // System event messages carry no readable body.
@@ -205,14 +343,22 @@ export function htmlToText(html: string, contentType?: string, mentions?: GraphM
     }
   }
 
-  const text = document.body.textContent ?? "";
-
-  return text
+  const text = (document.body.textContent ?? "")
     .replace(/ /g, " ")      // &nbsp;
     .replace(/[ \t]+/g, " ")
     .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+
+  // Graph does not always pair an attachment with a placeholder in the body.
+  // Appending the strays keeps the failure mode this whole function exists to
+  // fix - content arriving from Graph and silently not being shown - from
+  // recurring one level up.
+  const strays = (attachments ?? [])
+    .filter((attachment) => !attachment.id || !placed.has(attachment.id))
+    .map(describeAttachment);
+
+  return [text, ...strays].filter((line) => line !== "").join("\n");
 }
 
 /**

@@ -175,7 +175,10 @@ function toSearchHit(hit: any): MessageSearchHit {
   const channelIdentity = resource.channelIdentity ?? {};
 
   const body = resource.body?.content
-    ? truncateText(htmlToText(resource.body.content, resource.body.contentType), MAX_HIT_CHARS)
+    ? truncateText(
+        htmlToText(resource.body.content, resource.body.contentType, undefined, resource.attachments),
+        MAX_HIT_CHARS,
+      )
     : undefined;
 
   // Every hit carries BOTH chatId and channelIdentity, whichever kind it is: a chat

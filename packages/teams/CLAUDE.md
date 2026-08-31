@@ -239,7 +239,7 @@ List channels in a team to find channel IDs.
 
 ### Message Read Tools
 
-All reads default to the 20 most recent messages and cap at Graph's maximum of 50. Bodies are returned as plain text with HTML stripped; each message shows author, timestamp and ID.
+All reads default to the 20 most recent messages and cap at Graph's maximum of 50. Bodies are returned as plain text with HTML stripped, links kept as markdown and attachments named; each message shows author, timestamp and ID.
 
 #### get-channel-messages
 
@@ -497,7 +497,11 @@ Square brackets are required. A bare `@Jane` is sent as plain text — there is 
 
 - `markdownToHtml()` — outbound. Every send/reply path routes through it, so model-generated markup never reaches Graph unsanitized. Uses `marked` + `dompurify` (bold, italic, code, lists, headings, tables, blockquotes; `<script>`, event handlers and `<img>` stripped).
 - `sanitizeHtml()` — outbound, for caller-supplied HTML, same allowlist.
-- `htmlToText()` — inbound. Flattens Teams' nested-div bodies to readable text, renders `<at>` mentions as `@Name`, renders `<emoji>` as the character in its `alt`, and replaces images/attachments/system events with placeholders (their content is a Graph `hostedContents` URL, useless to a reader).
+- `htmlToText()` - inbound. Flattens Teams' nested-div bodies to readable text, renders `<at>` mentions as `@Name`, renders `<emoji>` as the character in its `alt`, renders `<a>` as a markdown link so the URL survives, names each `<attachment>` from the message's `attachments[]` array, and replaces images and system events with placeholders (an image's content is a Graph `hostedContents` URL, useless to a reader).
+
+  **`textContent` silently discards an anchor's `href`.** The label survives and reads as ordinary prose, so a message that lost a URL looks intact - there is nothing to notice. Anchors render as `[label](href)`, except where the label is already the URL (Teams auto-links a pasted link, labelling it with itself), which would otherwise produce `[https://x](https://x)`; the comparison sets aside a `mailto:`/`tel:` scheme and a trailing slash.
+
+  **An attachment's identity is not in the body.** The body carries only `<attachment id="...">`; the file name, the URL a preview card points at and the message a reply quotes all live in the sibling `attachments[]` array, so `htmlToText` takes it as a fourth argument and joins on `id`. Without it every attachment of every kind renders as an identical `[attachment]`, and a link card cannot be told from a quoted reply. A `messageReference` attachment carries the quoted message in its `content` as a JSON string (`messagePreview`, `messageSender.user.displayName`) - that text exists **nowhere else in the response**, so not reading it forces the reader to infer which message a reply answered. Same plumbing rule as `mentions[]`: `toMessageInfo` has to pass `message.attachments` through, and an attachment Graph sends with no placeholder in the body is appended rather than dropped.
 
   **Graph emits one `<at>` element per word of a mention**, each with its own `mentions[]` entry, all resolving to the same entity — so "Jane Doe" arrives as two elements and rendered naively becomes `@Jane @Doe`. `htmlToText` takes the message's `mentions[]` as a third argument and coalesces runs of `<at>` elements **keyed on the resolved entity id** (`mentioned.user.id`, else `conversation`/`application`/`tag`). Key on the entity, never on adjacency: two different people mentioned back to back are also adjacent, and merging those would invent a name nobody wrote. With no `mentions[]` there is nothing to key on, so each element renders separately rather than being guessed at — which means **the argument has to actually be plumbed through `toMessageInfo`**, and a test asserts that end to end rather than only testing the renderer in isolation.
 
