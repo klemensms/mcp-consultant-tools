@@ -11,7 +11,7 @@ source, what was not, and where to start.
 `dependencies` pin `@mcp-consultant-tools/core` below the workspace version. Regenerate the list
 with a loop over `packages/*/package.json` rather than trusting the one below.
 
-The workspace is at `35.0.0-beta.1`. Fifteen packages pin `core` at `33.0.0` (`1password`,
+The workspace is at `35.0.0-beta.2`. Fifteen packages pin `core` at `33.0.0` (`1password`,
 `application-insights`, `azure-b2c`, `azure-data-factory`, `azure-devops-admin`, `azure-sql`,
 `azure-storage`, `fabric`, `figma`, `github-enterprise`, `log-analytics`, `service-bus`,
 `sharepoint`, `teams`, `todoist`) and three pin `34.1.0` (`entra-id`, `message-center`,

@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/code-review",
-  "version": "35.0.0-beta.5",
+  "version": "35.0.0-beta.6",
   "description": "MCP server for provider-agnostic repository code review - .NET framework EOL scanning, NuGet package auditing, cyclomatic complexity, and GitHub Packages inventory across Azure DevOps and GitHub Enterprise",
   "type": "module",
   "main": "./build/index.js",
@@ -42,7 +42,7 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "@mcp-consultant-tools/core": "35.0.0-beta.1",
+    "@mcp-consultant-tools/core": "35.0.0-beta.2",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "axios": "^1.8.3",
     "commander": "^14.0.3",
