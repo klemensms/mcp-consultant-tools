@@ -842,7 +842,7 @@ flowchart TD
       <pre class="code-block"><span class="field-key">"name"</span>: "Contoso Deutschland GmbH",
 <span class="field-key">"emailaddress1"</span>: <span class="raw-pii">"info@contoso.de"</span>,
 <span class="field-key">"_primarycontactid_value@…FormattedValue"</span>: <span class="raw-pii">"Maria Schmidt"</span>,
-<span class="field-key">"_primarycontactid_value"</span>: "91484a2f-7f44-f111-bec5-6045bdf2343f"</pre>
+<span class="field-key">"_primarycontactid_value"</span>: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"</pre>
       <div class="footer-note absent">no footer · pipeline disabled · FormattedValue exposes Maria's display name</div>
       <p class="footnote">In beta.1/.2 the FormattedValue was suppressed because the read path didn't ask for annotations. beta.3 adds <code style="font-family: var(--font-code);">Prefer: odata.include-annotations="*"</code> to <code style="font-family: var(--font-code);">DataService</code>, so the display name now reaches the pipeline - and can therefore be redacted.</p>
     </div>
@@ -874,7 +874,7 @@ flowchart TD
         <div class="scenario-name">Full v1 - L4 NER closes the relationship-name gap</div>
       </div>
       <pre class="code-block"><span class="field-key">"_primarycontactid_value@…FormattedValue"</span>: <span class="redact">[REDACTED:name:4dc861]</span>,
-<span class="field-key">"_primarycontactid_value"</span>: "91484a2f-7f44-f111-bec5-6045bdf2343f",
+<span class="field-key">"_primarycontactid_value"</span>: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
 <span class="field-key">"emailaddress1"</span>: <span class="redact">[REDACTED:email:744ba2]</span>,
 <span class="field-key">"name"</span>: "Contoso Deutschland GmbH"</pre>
       <div class="footer-note">[PII protection: 1 email + 1 name redacted by L1/L2/L3/L4]</div>

@@ -244,7 +244,7 @@ Tests whether OData FormattedValue annotations on lookup fields surface the rela
   "name": "Contoso Deutschland GmbH",
   "emailaddress1": "info@contoso.de",
   "_primarycontactid_value@OData.Community.Display.V1.FormattedValue": "Maria Schmidt",
-  "_primarycontactid_value": "91484a2f-7f44-f111-bec5-6045bdf2343f"
+  "_primarycontactid_value": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 }
 ```
 
@@ -283,7 +283,7 @@ Regex doesn't match person names. The annotation still leaks "Maria Schmidt".
 ```json
 {
   "_primarycontactid_value@OData.Community.Display.V1.FormattedValue": "[REDACTED:name:4dc861]",
-  "_primarycontactid_value": "91484a2f-7f44-f111-bec5-6045bdf2343f",
+  "_primarycontactid_value": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
   "emailaddress1": "[REDACTED:email:744ba2]",
   "name": "Contoso Deutschland GmbH"
 }

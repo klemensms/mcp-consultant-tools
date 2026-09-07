@@ -21,11 +21,11 @@ HTML visual explainer.
 
 | Record | ID | Notes |
 | --- | --- | --- |
-| Contact: Maria Schmidt | `91484a2f-7f44-f111-bec5-6045bdf2343f` | German PII, Layer 4 multilingual NER target. `description` field contains embedded John Smith name + email + Klaus Müller name + DOB-shape date. |
-| Contact: John Smith | `0779294e-7f44-f111-bec5-7c1e5204526a` | English baseline. Description contains embedded phone number. |
-| Contact: Klaus Müller | `78503054-7f44-f111-bec5-7c1e5204526a` | Unicode handling check. |
-| Account: Contoso Deutschland GmbH | `3d8ca556-7f44-f111-bec5-6045bdf2343f` | Lookup `_primarycontactid_value` points at Maria. |
-| Annotation on Maria | `5c8ca556-7f44-f111-bec5-6045bdf2343f` | `notetext` packs all four PII shapes (email, phone, DOB-shape, two person names) into one free-text field. |
+| Contact: Maria Schmidt | `aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee` | German PII, Layer 4 multilingual NER target. `description` field contains embedded John Smith name + email + Klaus Müller name + DOB-shape date. |
+| Contact: John Smith | `bbbbbbbb-cccc-dddd-eeee-ffffffffffff` | English baseline. Description contains embedded phone number. |
+| Contact: Klaus Müller | `cccccccc-dddd-eeee-ffff-aaaaaaaaaaaa` | Unicode handling check. |
+| Account: Contoso Deutschland GmbH | `dddddddd-eeee-ffff-aaaa-bbbbbbbbbbbb` | Lookup `_primarycontactid_value` points at Maria. |
+| Annotation on Maria | `eeeeeeee-ffff-aaaa-bbbb-cccccccccccc` | `notetext` packs all four PII shapes (email, phone, DOB-shape, two person names) into one free-text field. |
 
 To re-seed (e.g. fresh tenant): see `seed.md` for the canonical sequence.
 *[seed.md is a TODO - the seed is currently captured in the conversation log;
