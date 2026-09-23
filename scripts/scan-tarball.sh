@@ -8,7 +8,7 @@
 # `npm publish` (wired into /release_workflow and /release_workflow_beta).
 #
 # Usage: ./scripts/scan-tarball.sh packages/figma
-# Exit 0 = clean, 1 = findings (ABORT the release), 2 = usage/pack error.
+# Exit 0 = clean, 1 = findings (ABORT the release), 2 = usage/pack/pattern-list error.
 
 set -uo pipefail
 
@@ -27,6 +27,9 @@ ABS_PKG=$(cd "$REPO_ROOT/$PKG" 2>/dev/null && pwd) || ABS_PKG=$(cd "$PKG" 2>/dev
 
 # shellcheck source=internal-scan-lib.sh
 source "$REPO_ROOT/scripts/internal-scan-lib.sh"
+
+# An invalid pattern line switches off its whole list, so check them before scanning.
+check_internal_lists || { echo "❌ Fix the pattern list line(s) above, then re-scan." >&2; exit 2; }
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT

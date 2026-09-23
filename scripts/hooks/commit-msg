@@ -12,30 +12,39 @@ set -e
 REPO_ROOT=$(git rev-parse --show-toplevel)
 LONGSTR_ALLOWLIST="$REPO_ROOT/.secret-scan-longstr-allowlist"
 
+# shellcheck source=../internal-scan-lib.sh
+source "$REPO_ROOT/scripts/internal-scan-lib.sh"
+
+# Check every pattern list before any scan reads it (see pre-commit for why this must
+# run here, in the hook's own shell).
+BAD_LIST=0
+check_pattern_list "$LONGSTR_ALLOWLIST" || BAD_LIST=1
+check_internal_lists || BAD_LIST=1
+if [ $BAD_LIST -eq 1 ]; then
+    echo "🛑 BLOCKED: fix the pattern list line(s) above. While one is invalid, its whole list is off."
+    exit 1
+fi
+
 # Strip comment lines (rebase/merge templates)
 MSG=$(grep -v '^#' "$1" || true)
 [ -z "$MSG" ] && exit 0
 
-if [ -f "$REPO_ROOT/scripts/internal-scan-lib.sh" ]; then
-    # shellcheck source=../internal-scan-lib.sh
-    source "$REPO_ROOT/scripts/internal-scan-lib.sh"
-    if ! printf '%s\n' "$MSG" | internal_scan "commit message"; then
-        echo ""
-        echo "🛑 BLOCKED: the commit MESSAGE contains internal/client identifiers."
-        echo "   Messages are forever (only a history rewrite removes them) - reword it."
-        echo "   Say \"a client project\", not the project name. Do NOT bypass."
-        exit 1
-    fi
+if ! printf '%s\n' "$MSG" | internal_scan "commit message"; then
+    echo ""
+    echo "🛑 BLOCKED: the commit MESSAGE contains internal/client identifiers."
+    echo "   Messages are forever (only a history rewrite removes them) - reword it."
+    echo "   Say \"a client project\", not the project name. Do NOT bypass."
+    exit 1
 fi
 
 # Long credential-like strings in the message
 LONG_STRINGS=$(printf '%s\n' "$MSG" | grep -oE '[a-zA-Z0-9+/~]{35,}' || true)
 if [ -n "$LONG_STRINGS" ] && [ -f "$LONGSTR_ALLOWLIST" ]; then
-    LONG_STRINGS=$(printf '%s\n' "$LONG_STRINGS" | grep -vEf <(grep -v '^#' "$LONGSTR_ALLOWLIST" | grep -v '^$') 2>/dev/null || true)
+    LONG_STRINGS=$(printf '%s\n' "$LONG_STRINGS" | grep -vEf <(grep -v '^#' "$LONGSTR_ALLOWLIST" | grep -v '^$')) || grep_ok $? "commit message for long strings" || exit 1
 fi
 if [ -n "$LONG_STRINGS" ]; then
     echo "🛑 BLOCKED: long credential-like string in the commit message:"
-    printf '%s\n' "$LONG_STRINGS" | head -3 | sed 's/^/     /'
+    head -3 <<<"$LONG_STRINGS" | sed 's/^/     /'
     echo "   If this is a hash/identifier false positive, add it to .secret-scan-longstr-allowlist."
     exit 1
 fi

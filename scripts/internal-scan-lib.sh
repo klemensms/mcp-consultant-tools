@@ -30,12 +30,66 @@ _internal_section() {
 
 _placeholder_filter() {
     # stdin (one extracted endpoint per line) → stdout, dropping lines matching a
-    # sanctioned placeholder pattern (extended regex, case-insensitive, anchorable)
+    # sanctioned placeholder pattern (extended regex, case-insensitive, anchorable).
+    # Exit status is grep's: 0 = lines remain, 1 = none remain, 2 = grep failed.
     if [ -f "$PLACEHOLDER_LIST" ]; then
-        grep -viE -f <(grep -v '^#' "$PLACEHOLDER_LIST" | grep -v '^$') 2>/dev/null || true
+        grep -viE -f <(grep -v '^#' "$PLACEHOLDER_LIST" | grep -v '^$')
     else
         cat
     fi
+}
+
+grep_ok() {
+    # $1 = a grep exit status, $2 = what was being scanned. grep exits 0 on a match and 1
+    # on none, and both are normal. 2 means grep failed and the scan did not run, which
+    # must block rather than pass: print why and return 1.
+    [ "$1" -le 1 ] && return 0
+    echo "❌ ERROR: the scan of $2 failed (grep exit $1), so it did not run."
+    return 1
+}
+
+_numbered_patterns() {
+    # $1 = list file, $2 = optional section → "line<TAB>pattern" for every pattern a scan
+    # reads from it, using the same comment and blank-line rules as the scans themselves
+    if [ -n "${2:-}" ]; then
+        awk -v sec="[$2]" '$0==sec{on=1;next} /^\[/{on=0} on && !/^#/ && NF {print NR "\t" $0}' "$1"
+    else
+        awk '!/^#/ && length($0) {print NR "\t" $0}' "$1"
+    fi
+}
+
+check_pattern_list() {
+    # $1 = pattern list file, $2 = optional [SECTION] name. grep exits 2 on an invalid
+    # pattern, and a scan fed that list then matches nothing, so one bad line switches
+    # off the whole list and the scan passes. Prints file:line for each invalid pattern
+    # and returns 1. Call it in the script's own shell, never inside $(...), so the
+    # caller can stop. The pattern itself is not printed: denylist entries are private.
+    local file="$1" section="${2:-}" n pat rc bad=0
+    [ -f "$file" ] || return 0
+    rc=0
+    grep -Ef <(_numbered_patterns "$file" "$section" | cut -f2-) </dev/null >/dev/null 2>&1 || rc=$?
+    [ $rc -le 1 ] && return 0
+    while IFS=$'\t' read -r n pat; do
+        rc=0
+        grep -Ee "$pat" </dev/null >/dev/null 2>&1 || rc=$?
+        if [ $rc -gt 1 ]; then
+            echo "❌ ERROR: invalid regex at $file:$n${section:+ ([$section])}"
+            bad=1
+        fi
+    done < <(_numbered_patterns "$file" "$section")
+    [ $bad -eq 1 ] || echo "❌ ERROR: $file${section:+ ([$section])} does not compile as a pattern list"
+    return 1
+}
+
+check_internal_lists() {
+    # Checks every list internal_scan and internal_scan_dir read. Returns 1 if any is invalid.
+    local rc=0
+    check_pattern_list "$PLACEHOLDER_LIST" || rc=1
+    if [ -f "$INTERNAL_LIST" ]; then
+        check_pattern_list "$INTERNAL_LIST" SUBSTRING || rc=1
+        check_pattern_list "$INTERNAL_LIST" WORD || rc=1
+    fi
+    return $rc
 }
 
 _warn_missing_denylist() {
@@ -44,8 +98,8 @@ _warn_missing_denylist() {
 }
 
 internal_scan() {
-    # Scan stdin text. $1 = label for messages. Returns 1 on any hit.
-    local label="$1" found=0 text subs words hits ep
+    # Scan stdin text. $1 = label for messages. Returns 1 on any hit, or if a scan failed.
+    local label="$1" found=0 text subs words shits="" whits="" hits ep
     text=$(cat)
     [ -z "$text" ] && return 0
 
@@ -54,49 +108,56 @@ internal_scan() {
     else
         subs=$(_internal_section "$INTERNAL_LIST" SUBSTRING)
         words=$(_internal_section "$INTERNAL_LIST" WORD)
-        hits=$(
-            { [ -n "$subs" ] && printf '%s\n' "$text" | grep -iE -f <(printf '%s\n' "$subs");
-              [ -n "$words" ] && printf '%s\n' "$text" | grep -wE -f <(printf '%s\n' "$words"); } 2>/dev/null | sort -u
-        ) || true
+        if [ -n "$subs" ]; then
+            shits=$(printf '%s\n' "$text" | grep -iE -f <(printf '%s\n' "$subs")) || grep_ok $? "$label for denylist substrings" || found=1
+        fi
+        if [ -n "$words" ]; then
+            whits=$(printf '%s\n' "$text" | grep -wE -f <(printf '%s\n' "$words")) || grep_ok $? "$label for denylist words" || found=1
+        fi
+        hits=$(printf '%s\n' "$shits" "$whits" | sed '/^$/d' | sort -u)
         if [ -n "$hits" ]; then
             echo "🛑 INTERNAL IDENTIFIER detected in $label:"
-            printf '%s\n' "$hits" | head -10 | sed 's/^/     /'
+            head -10 <<<"$hits" | sed 's/^/     /'
             found=1
         fi
     fi
 
-    ep=$(printf '%s\n' "$text" | grep -oiE "$ENDPOINT_PATTERNS" 2>/dev/null | sort -u | _placeholder_filter)
+    ep=$(printf '%s\n' "$text" | grep -oiE "$ENDPOINT_PATTERNS" 2>/dev/null | sort -u | _placeholder_filter) || grep_ok $? "$label for endpoints" || found=1
     if [ -n "$ep" ]; then
         echo "🛑 REAL-LOOKING INTERNAL ENDPOINT in $label (use sanctioned placeholders - CLAUDE.md → Public Repo Hygiene):"
-        printf '%s\n' "$ep" | head -10 | sed 's/^/     /'
+        head -10 <<<"$ep" | sed 's/^/     /'
         found=1
     fi
     return $found
 }
 
 internal_scan_dir() {
-    # Scan a directory tree (text files only). $1 = dir, $2 = label. Returns 1 on any hit.
-    local dir="$1" label="$2" found=0 subs words hits ep
+    # Scan a directory tree (text files only). $1 = dir, $2 = label. Returns 1 on any hit,
+    # or if a scan failed.
+    local dir="$1" label="$2" found=0 subs words shits="" whits="" hits ep
     if [ ! -f "$INTERNAL_LIST" ]; then
         _warn_missing_denylist
     else
         subs=$(_internal_section "$INTERNAL_LIST" SUBSTRING)
         words=$(_internal_section "$INTERNAL_LIST" WORD)
-        hits=$(
-            { [ -n "$subs" ] && grep -rinIE -f <(printf '%s\n' "$subs") "$dir";
-              [ -n "$words" ] && grep -rnwIE -f <(printf '%s\n' "$words") "$dir"; } 2>/dev/null | sort -u
-        ) || true
+        if [ -n "$subs" ]; then
+            shits=$(grep -rinIE -f <(printf '%s\n' "$subs") "$dir") || grep_ok $? "$label for denylist substrings" || found=1
+        fi
+        if [ -n "$words" ]; then
+            whits=$(grep -rnwIE -f <(printf '%s\n' "$words") "$dir") || grep_ok $? "$label for denylist words" || found=1
+        fi
+        hits=$(printf '%s\n' "$shits" "$whits" | sed '/^$/d' | sort -u)
         if [ -n "$hits" ]; then
             echo "🛑 INTERNAL IDENTIFIER detected in $label:"
-            printf '%s\n' "$hits" | head -10 | sed 's/^/     /'
+            head -10 <<<"$hits" | sed 's/^/     /'
             found=1
         fi
     fi
 
-    ep=$(grep -rhoiIE "$ENDPOINT_PATTERNS" "$dir" 2>/dev/null | sort -u | _placeholder_filter)
+    ep=$(grep -rhoiIE "$ENDPOINT_PATTERNS" "$dir" 2>/dev/null | sort -u | _placeholder_filter) || grep_ok $? "$label for endpoints" || found=1
     if [ -n "$ep" ]; then
         echo "🛑 REAL-LOOKING INTERNAL ENDPOINT in $label (use sanctioned placeholders - CLAUDE.md → Public Repo Hygiene):"
-        printf '%s\n' "$ep" | head -10 | sed 's/^/     /'
+        head -10 <<<"$ep" | sed 's/^/     /'
         found=1
     fi
     return $found
