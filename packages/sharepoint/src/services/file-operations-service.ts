@@ -205,7 +205,7 @@ export class FileOperationsService {
         response = await client
           .api(apiPath)
           .header('Content-Type', 'application/octet-stream')
-          .header('@microsoft.graph.conflictBehavior', conflictBehavior)
+          .query({ '@microsoft.graph.conflictBehavior': conflictBehavior })
           .put(buffer);
       } else {
         response = await this.uploadLargeFile(client, driveId, normalizedPath, buffer, overwrite);
