@@ -25,6 +25,9 @@ export function registerOutlookTools(server: any): void {
 }
 
 export { MailReadService } from './services/mail-read-service.js';
+export { MailWriteService } from './services/mail-write-service.js';
+export { MailSendService } from './services/mail-send-service.js';
+export { assertSafeLocalFile } from './local-file-guard.js';
 export { htmlToText, markdownToHtml, wrapUntrusted } from './mail-content.js';
 export type * from './types.js';
 

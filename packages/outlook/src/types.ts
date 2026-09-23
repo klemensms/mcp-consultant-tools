@@ -3,6 +3,8 @@
  */
 import type { DelegatedGraphAuth } from '@mcp-consultant-tools/m365-core';
 import type { MailReadService } from './services/mail-read-service.js';
+import type { MailWriteService } from './services/mail-write-service.js';
+import type { MailSendService } from './services/mail-send-service.js';
 
 export interface MailSummary {
   id: string;
@@ -63,4 +65,6 @@ export interface SavedAttachment {
 export interface ServiceContext {
   readonly auth: DelegatedGraphAuth;
   readonly mail: MailReadService;
+  readonly write: MailWriteService;
+  readonly send: MailSendService;
 }

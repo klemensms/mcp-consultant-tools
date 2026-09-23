@@ -6,6 +6,8 @@
  */
 import { DelegatedGraphAuth, resolveDownloadDir } from '@mcp-consultant-tools/m365-core';
 import { MailReadService } from './services/mail-read-service.js';
+import { MailWriteService } from './services/mail-write-service.js';
+import { MailSendService } from './services/mail-send-service.js';
 import type { ServiceContext } from './types.js';
 
 export type { ServiceContext } from './types.js';
@@ -21,6 +23,8 @@ function requireEnv(name: string, hint: string): string {
 export function createServiceContext(): ServiceContext {
   let auth: DelegatedGraphAuth | null = null;
   let mail: MailReadService | null = null;
+  let write: MailWriteService | null = null;
+  let send: MailSendService | null = null;
 
   function getAuth(): DelegatedGraphAuth {
     if (!auth) {
@@ -50,6 +54,19 @@ export function createServiceContext(): ServiceContext {
         });
       }
       return mail;
+    },
+    get write() {
+      if (!write) {
+        const maxMB = Number(process.env.OUTLOOK_MAX_ATTACHMENT_MB || '25');
+        write = new MailWriteService(getAuth(), { maxAttachmentMB: Number.isFinite(maxMB) && maxMB > 0 ? maxMB : 25 });
+      }
+      return write;
+    },
+    get send() {
+      if (!send) {
+        send = new MailSendService(getAuth());
+      }
+      return send;
     },
   };
 }
