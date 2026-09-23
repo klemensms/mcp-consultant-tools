@@ -31,3 +31,15 @@ Chain: executes `docs/superpowers/plans/2026-09-23-delegated-outlook-sharepoint.
 - **Hop:** origin · a2cb6e5
 - **State:** open
 - **Matters because:** the pre-commit secret hook flags an environment-variable reference assigned to a field named like a secret as a high-entropy value, and it runs before the whole Bash command, so an edit and a commit in one call never apply the edit. Read the variable into a short local name first, and edit and commit in separate calls.
+
+### ⚑6 · Outlook $expand of attachments and the $search quote escape are not live-verified
+- **Kind:** assumption
+- **Hop:** 2 · f714563
+- **State:** open
+- **Matters because:** `getMessage` and `getConversation` read attachments with `$expand=attachments($select=id,name,size,contentType,isInline)`, and `searchMessages` escapes an inner double quote with a backslash. Both follow the documented shape; neither can be tried until a registration carries a mail permission. If `$expand` is rejected beside `$filter` on a conversation, fall back to one attachments call per message.
+
+### ⚑7 · The pre-commit secret scan printed "grep: stdout: Broken pipe" and still reported clean
+- **Kind:** gotcha
+- **Hop:** 2 · f714563
+- **State:** open
+- **Matters because:** a grep producer cut off by a short-circuiting reader is the pattern that inverts a guard under `pipefail` (global `CLAUDE.md` coding principle 6), so the "no secrets" verdict may not have covered every staged line. Not investigated here; the commit held only code this session wrote. Find which hook prints it (repo `scripts/hooks/pre-commit` or a global hook) and replace the pipe with a command substitution. The repo hook is mirrored with a sibling repo.
