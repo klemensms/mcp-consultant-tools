@@ -23,25 +23,25 @@ Chain: executes `docs/superpowers/plans/2026-09-23-delegated-outlook-sharepoint.
 ### ⚑4 · The MCP test runner does not strip an MCP_TEST_ENV_ prefix
 - **Kind:** gotcha
 - **Hop:** origin · a2cb6e5
-- **State:** open
+- **State:** closed · recorded in `docs/KNOWN_ISSUES.md` § "The MCP test runner documents an `MCP_TEST_ENV_` prefix it never strips"; runner not edited, since it is mirrored with the sibling repo
 - **Matters because:** its header says `MCP_TEST_ENV_*` variables are passed to the server, but it passes the whole environment unchanged, so `MCP_TEST_ENV_SHAREPOINT_TENANT_ID` reaches the server under that name and config looks missing. Set the real variable names directly. The runner is mirrored with a sibling repo, so fix the header in both or leave it.
 
 ### ⚑5 · The global secret guard blocks `clientSecret = env.X`
 - **Kind:** gotcha
 - **Hop:** origin · a2cb6e5
-- **State:** open
+- **State:** closed · recorded in `docs/KNOWN_ISSUES.md` § "A machine-wide secret guard blocks a secret-named field assigned from an environment variable"
 - **Matters because:** the pre-commit secret hook flags an environment-variable reference assigned to a field named like a secret as a high-entropy value, and it runs before the whole Bash command, so an edit and a commit in one call never apply the edit. Read the variable into a short local name first, and edit and commit in separate calls.
 
 ### ⚑6 · Outlook $expand of attachments and the $search quote escape are not live-verified
 - **Kind:** assumption
 - **Hop:** 2 · f714563
-- **State:** open
+- **State:** already-recorded-in:docs/technical/OUTLOOK_TECHNICAL.md § Testing and packages/outlook/CLAUDE.md § Testing · resolves on measurement at the Outlook live check, not a decision
 - **Matters because:** `getMessage` and `getConversation` read attachments with `$expand=attachments($select=id,name,size,contentType,isInline)`, and `searchMessages` escapes an inner double quote with a backslash. Both follow the documented shape; neither can be tried until a registration carries a mail permission. If `$expand` is rejected beside `$filter` on a conversation, fall back to one attachments call per message.
 
 ### ⚑7 · The pre-commit secret scan printed "grep: stdout: Broken pipe" and still reported clean
 - **Kind:** gotcha
 - **Hop:** 2 · f714563
-- **State:** held by the monitor (it is investigating in a scratch copy; do not work on it)
+- **State:** closed · 6d3b853 (hooks fail closed), ad0bffd (scripts/test-hooks.sh), b25140d (root CLAUDE.md); resolved by the monitor
 - **Matters because:** a grep producer cut off by a short-circuiting reader is the pattern that inverts a guard under `pipefail` (global `CLAUDE.md` coding principle 6), so the "no secrets" verdict may not have covered every staged line. Not investigated here; the commit held only code this session wrote. Find which hook prints it (repo `scripts/hooks/pre-commit` or a global hook) and replace the pipe with a command substitution. The repo hook is mirrored with a sibling repo.
 
 ### ⚑8 · Task 3b: OneDrive in the SharePoint server (monitor scope addition)
@@ -59,7 +59,7 @@ Chain: executes `docs/superpowers/plans/2026-09-23-delegated-outlook-sharepoint.
 ### ⚑10 · The Outlook live check needs its own sign-in
 - **Kind:** gotcha
 - **Hop:** 2 · a642545
-- **State:** open
+- **State:** already-recorded-in:packages/outlook/CLAUDE.md § Testing and docs/technical/OUTLOOK_TECHNICAL.md (token cache) · the Task 6 live check is handed to the monitor as an open action, pending the maintainer's next Outlook sign-in; plan Status 21:45
 - **Matters because:** the token cache key is salted with the server name, so the SharePoint sign-in cannot be reused for `outlook` even on the same registration. The Task 6 live check needs one more device-code sign-in with `OUTLOOK_*` set from the teams entry (the env wrapper takes `outlook` as its first argument). Ask for it once, together with any other pending sign-in, not as a stream of codes.
 
 ### ⚑11 · A retention policy refuses deleting a folder that still holds files
@@ -71,11 +71,11 @@ Chain: executes `docs/superpowers/plans/2026-09-23-delegated-outlook-sharepoint.
 ### ⚑12 · The SharePoint test fake ignores headers and query options
 - **Kind:** gotcha
 - **Hop:** 3 · c2fb443
-- **State:** open
+- **State:** already-recorded-in:packages/sharepoint/CLAUDE.md (Tests line)
 - **Matters because:** `packages/sharepoint/src/__tests__/fake-graph.ts` accepts `.header()` and `.query()` and drops them, so a test built on it cannot see a bad header or a missing query parameter; that is how the upload header defect survived. New tests that care about the wire request should use `graph-recorder.ts` beside it, which drives a real Graph client. Not worth migrating the existing tests unprompted.
 
 ### ⚑13 · The SharePoint CLI accepts --json and ignores it
 - **Kind:** deferred
 - **Hop:** 3 · Task 7 docs
-- **State:** open
+- **State:** open · being fixed in the closing hop at the monitor's instruction (2026-09-23 21:48)
 - **Matters because:** `mcp-spo-cli --json get-my-drive` prints the same summary as without the flag; the full JSON only lands in `.context/.mcp-spo-cache/`. A pre-existing defect (the v33 CLI), outside this build's tasks, so it is documented as ignored rather than fixed here. The fix is in `packages/sharepoint/src/cli/output.ts`, which does not read the global option; the repo rule is to fix defects here rather than raise an issue, so the monitor should decide whether a later hop takes it.

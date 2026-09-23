@@ -232,25 +232,24 @@ not a message parameter - and is worth treating as separate work.
 
 ---
 
-## `npm test` at the root runs nothing in 14 of 29 packages, and reports success
+## `npm test` at the root runs nothing in 13 of 31 packages, and reports success
 
-**Status:** measured 2026-08-31 across every package manifest. **Affects:** the whole repo's test
+**Status:** measured 2026-09-23 across every package manifest. **Affects:** the whole repo's test
 signal, most sharply `powerplatform-data`. **Reproduce:**
 `for d in packages/*/; do node -e "const j=require('./$d/package.json'); console.log(j.name, j.scripts?.test ?? 'NO TEST SCRIPT')"; done`
 
-The root script is `npm run test --workspaces --if-present`. Fifteen packages declare a `test`
-script and run; **fourteen declare none, so `--if-present` skips them silently** - no warning, no
+The root script is `npm run test --workspaces --if-present`. Eighteen packages declare a `test`
+script and run; **thirteen declare none, so `--if-present` skips them silently** - no warning, no
 non-zero exit, nothing in the output naming them. A full-repo run therefore prints a green
-aggregate ("1,289 passing across 15 workspaces") that is accurate about what ran and says nothing
-about the other fourteen.
+aggregate that is accurate about what ran and says nothing about the other thirteen.
 
-None of the fourteen contains a test file either, so this is an absence of tests rather than tests
+None of the thirteen contains a test file either, so this is an absence of tests rather than tests
 that are merely unwired: `1password`, `application-insights`, `azure-b2c`, `azure-storage`,
 `fabric`, `figma`, `github-enterprise`, `powerplatform`, `powerplatform-customization`,
-`powerplatform-data`, `rest-api`, `service-bus`, `sharepoint`, `todoist`.
+`powerplatform-data`, `rest-api`, `service-bus`, `todoist`.
 
 **Why this is a defect and not just a coverage gap.** The failure is that the aggregate looks the
-same either way. An agent that changes `packages/sharepoint/src`, runs `npm test`, sees green and
+same either way. An agent that changes `packages/service-bus/src`, runs `npm test`, sees green and
 reports the change verified has verified nothing, and the output gave it no way to tell.
 
 **`powerplatform-data` is the sharpest case** because a fix has already landed there without a unit
@@ -264,7 +263,7 @@ but leaves no regression guard.
 **Fix, cheapest first:**
 
 1. **Make the silence visible.** Drop `--if-present` from the root `test` script, or add a
-   `"test": "echo 'no tests in <pkg>' && exit 0"` to each of the fourteen. Either way the run names
+   `"test": "echo 'no tests in <pkg>' && exit 0"` to each of the thirteen. Either way the run names
    what it skipped. This is a one-line change and it is worth doing before the rest.
 2. **Add vitest** to a package at a time, starting with `powerplatform-data`. Copy the config from
    `packages/powerplatform-core/`.
@@ -273,5 +272,27 @@ but leaves no regression guard.
    (`packages/azure-devops/`) already uses.
 
 Steps 2 and 3 are per-package work and want their own iteration. Step 1 does not.
+
+---
+
+## The MCP test runner documents an `MCP_TEST_ENV_` prefix it never strips
+
+**Status:** confirmed 2026-09-23, in source and in a live run. **Affects:** anyone passing server configuration to `.claude/templates/mcp-test-runner.mjs`.
+
+The runner's header says `MCP_TEST_ENV_*` variables are passed to the server, which reads as "set `MCP_TEST_ENV_SHAREPOINT_TENANT_ID` and the server sees `SHAREPOINT_TENANT_ID`". It does not: the code copies the whole environment unchanged (`const serverEnv = { ...process.env }`), so the prefixed name reaches the server literally and its configuration looks missing. The same app-only call failed with the prefix and passed without it.
+
+**Workaround:** set the server's real variable names directly on the runner's command line.
+
+**Fix:** either strip the prefix or correct the header. The runner is mirrored with the `mcp-computer-use` sibling repo, so change both copies in the same pass; that repo is not checked out on this machine.
+
+---
+
+## A machine-wide secret guard blocks a secret-named field assigned from an environment variable
+
+**Status:** observed 2026-09-23. **Affects:** commits on a machine running a Claude Code secret guard hook in front of Bash; not this repo's own `scripts/hooks/pre-commit`.
+
+A line that assigns an environment variable straight to a field named like a secret (a client secret field, for example) is flagged as a high-entropy secret although it holds no value. The guard runs before the whole Bash command, so an edit and a commit chained in one call never apply the edit either.
+
+**Workaround:** read the variable into a short local name first and assign that to the field, and run the edit and the commit as separate calls. The repo's own allowlists (`.secret-scan-allowlist`, `.secret-scan-longstr-allowlist`) do not reach this guard.
 
 ---
