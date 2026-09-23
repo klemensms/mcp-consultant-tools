@@ -103,7 +103,7 @@ Calendar, contacts, shared mailboxes, mail rules, creating sharing links, perman
 ## Testing
 
 - Unit tests (vitest) stub the Graph client and assert the exact path, query and body for every call, including query options an endpoint rejects (see `packages/teams/CLAUDE.md` § Testing for why absences are pinned too). Fixtures for response shapes are captured live wherever the permission exists, not copied from documentation.
-- SharePoint is tested live against a test site the user supplied, signed in against an existing registration on which delegated `Sites.ReadWrite.All` has been requested. The first sign-in checks the token's `scp` claim for it before any SharePoint live test; without it, live tests stop and the result is reported. Write and delete tests use one disposable folder, removed afterwards.
+- SharePoint is tested live against a test site the user supplied, signed in against an existing registration on which delegated `Sites.ReadWrite.All` has been requested. The first sign-in checks the token's `scp` claim for it before any SharePoint live test; without it, live tests stop and the result is reported. A permanent `mcp-test-data` folder on the test site holds regression fixtures (nested folders; Word, PowerPoint, Excel, PDF and text files carrying known searchable words) and stays in place. Write and delete tests work in their own run folder inside it and delete only what they create.
 - Outlook is tested live only once its registration has mail permissions. Until then it signs in and every mail tool returns the missing-permission hint, which is itself checked.
 - App-only SharePoint behaviour gets a regression check: with a secret configured, the server starts in client-credentials mode and the existing tools are unchanged.
 

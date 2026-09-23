@@ -11,7 +11,7 @@ Chain: executes `docs/superpowers/plans/2026-09-23-delegated-outlook-sharepoint.
 ### ⚑2 · Task 2 and Task 3 live checks not yet run
 - **Kind:** deferred
 - **Hop:** origin · a773014
-- **State:** open, narrowed at hop 2: Task 2 passed, search passed and answered the IT question (plan Status 21:25). Left: `spo-resolve-link` on a document URL and `spo-download-file` with `convertToPdf` + `saveToDisk` on a Word file, confirming a `%PDF` header. Needs test documents first (⚑9).
+- **State:** closed · hop 3, plan Status 21:35 (resolve-link, PDF download and search on the new test data all passed)
 - **Matters because:** the Task 3 result on whether `Sites.ReadWrite.All` covers Microsoft Search for files decides the last row of the IT request (D-001 waits on it). Check granted scopes with `auth status` before any live SharePoint call.
 
 ### ⚑3 · searchFiles returns a result object, not a bare hit list
@@ -47,13 +47,13 @@ Chain: executes `docs/superpowers/plans/2026-09-23-delegated-outlook-sharepoint.
 ### ⚑8 · Task 3b: OneDrive in the SharePoint server (monitor scope addition)
 - **Kind:** deferred
 - **Hop:** 2 · a642545
-- **State:** open
+- **State:** closed · a7bf682 (read-only live check passed; OneDrive writes are unit-tested only)
 - **Matters because:** asked for by the maintainer through the monitor. Device-code mode only. Add `spo-get-my-drive` (`GET /me/drive`: drive id, web URL, quota) and `spo-list-my-drive` (`/me/drive/root/children`, or `/me/drive/root:/{path}:/children`), with CLI parity; unit tests pinning the `/me/drive` paths and that item, download, upload, create-folder, move, rename, copy and delete work given the OneDrive drive id. Write Task 3b into the plan and a short OneDrive subsection into the spec **in the same commit as the code**. No write tests in OneDrive: it stays read-only unless the monitor agrees otherwise. Live read already probed: `/me/drive` and its root listing work on `Sites.ReadWrite.All` alone.
 
 ### ⚑9 · Test data rule widened: a permanent `mcp-test-data` folder
 - **Kind:** decision
 - **Hop:** 2 · a642545
-- **State:** open (already recorded by the monitor in the untracked local targets file)
+- **State:** closed · c2fb443 (folder built and left in place; the spec's Testing section and plan Task 4 now state the widened rule)
 - **Matters because:** replaces "one disposable folder, removed afterwards". Create what real coverage needs under a top-level `mcp-test-data` folder on the test site (nested folders; Word, PowerPoint, Excel, PDF and text files carrying known searchable words), leave it in place as a regression fixture, and delete only what a delete test itself creates. Microsoft Search indexes new files with a delay, often minutes; retry later rather than reading an empty result as a permission failure. Office files can be made locally with macOS `textutil -convert docx` (Word) before upload.
 
 ### ⚑10 · The Outlook live check needs its own sign-in
@@ -61,3 +61,15 @@ Chain: executes `docs/superpowers/plans/2026-09-23-delegated-outlook-sharepoint.
 - **Hop:** 2 · a642545
 - **State:** open
 - **Matters because:** the token cache key is salted with the server name, so the SharePoint sign-in cannot be reused for `outlook` even on the same registration. The Task 6 live check needs one more device-code sign-in with `OUTLOOK_*` set from the teams entry (the env wrapper takes `outlook` as its first argument). Ask for it once, together with any other pending sign-in, not as a stream of codes.
+
+### ⚑11 · A retention policy refuses deleting a folder that still holds files
+- **Kind:** gotcha
+- **Hop:** 3 · plan Status 21:35
+- **State:** open
+- **Matters because:** on the test tenant, `spo-delete-item` on a non-empty folder failed with `Request was cancelled by event received. If attempting to delete a non-empty folder, it's possible that it's on hold`; deleting the contents first, then the empty folder, worked. Task 7's SharePoint docs should tell an agent to delete contents before the folder when it sees that message. Not a server defect as far as can be told (inferred: retention policy).
+
+### ⚑12 · The SharePoint test fake ignores headers and query options
+- **Kind:** gotcha
+- **Hop:** 3 · c2fb443
+- **State:** open
+- **Matters because:** `packages/sharepoint/src/__tests__/fake-graph.ts` accepts `.header()` and `.query()` and drops them, so a test built on it cannot see a bad header or a missing query parameter; that is how the upload header defect survived. New tests that care about the wire request should use `graph-recorder.ts` beside it, which drives a real Graph client. Not worth migrating the existing tests unprompted.
