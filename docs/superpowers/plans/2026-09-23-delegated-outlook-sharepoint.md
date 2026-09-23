@@ -229,6 +229,7 @@ export function assertSafeLocalFile(filePath: string, homeDir?: string): string;
 
 ## Status (newest first)
 
+- 2026-09-23 20:50: D-001 answered A by the maintainer. One request for both new app registrations, raised after the 24 September discussion, once the Task 3 live check has settled whether a file permission is needed beyond `Sites.ReadWrite.All`. The request text is held privately.
 - 2026-09-23 20:45, `00c9da7`: Task 1 done. `m365-core` built, 40 unit tests green (token cache, scope decoder, switches, device-code auth with a faked MSAL client). No live check in this task.
 - 2026-09-23: plan written by the monitor session. Build not started.
 
