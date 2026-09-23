@@ -113,9 +113,13 @@ export class ListService {
     try {
       const client = await this.spo.getAuthenticatedGraphClient();
       const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+      // Graph rejects root:/ ("Resource not found for the segment 'root:'"); the drive root is plain /root.
+      const itemPath = normalizedPath.replace(/\/+/g, '/') === '/'
+        ? `/drives/${driveId}/root`
+        : `/drives/${driveId}/root:${normalizedPath}`;
 
       const response = await client
-        .api(`/drives/${driveId}/root:${normalizedPath}`)
+        .api(itemPath)
         .select('id,name,webUrl,size,createdDateTime,lastModifiedDateTime,createdBy,lastModifiedBy,file,folder,parentReference')
         .get();
 
