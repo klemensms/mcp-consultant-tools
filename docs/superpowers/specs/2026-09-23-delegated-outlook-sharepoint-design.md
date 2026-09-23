@@ -48,6 +48,16 @@ Behaviour in device-code mode:
 - `spo-download-file` gains two optional parameters: `saveToDisk` (write to `SHAREPOINT_DOWNLOAD_DIR`, return the absolute path) and `convertToPdf` (Graph `?format=pdf` for Word, PowerPoint and Excel), so an agent can read an Office document without a local parser.
 - Existing write tools (upload, create folder, move, copy, rename) and the delete tool work unchanged under a delegated token, behind the existing switches.
 
+### OneDrive (device-code mode only)
+
+The signed-in user's own OneDrive is reachable through the same server, on `Sites.ReadWrite.All` alone.
+
+- `spo-get-my-drive` - `GET /me/drive`: drive id, web URL, owner, quota, and `siteUrl`, the OneDrive's `https://contoso-my.sharepoint.com/personal/{name}` address.
+- `spo-list-my-drive` - lists the root (`/me/drive/root/children`) or a folder by path (`/me/drive/root:/{path}:/children`, each path segment encoded).
+- Every item tool takes a drive id, so given the OneDrive `driveId`, and `siteUrl` as `siteId`, the existing get-item, list-items, download, upload, create-folder, move, rename, copy and delete tools act on OneDrive unchanged. In device-code mode a OneDrive `/personal/` URL is accepted as a site URL alongside `/sites/` and `/teams/`.
+- In app-only mode both tools refuse: there is no signed-in user whose OneDrive to open.
+- Live testing on OneDrive is read-only. Writes are covered by unit tests only, because the OneDrive is the user's own working storage.
+
 ## Outlook (new package)
 
 Environment:

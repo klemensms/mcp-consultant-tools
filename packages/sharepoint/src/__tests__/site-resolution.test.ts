@@ -47,6 +47,7 @@ describe('site resolution', () => {
       '/sites/contoso.sharepoint.com:/sites/example': { id: GRAPH_SITE_ID },
       '/sites/contoso.sharepoint.com:/teams/project': { id: GRAPH_SITE_ID },
       '/sites/contoso.sharepoint.com:/sites/intranet': { id: GRAPH_SITE_ID },
+      '/sites/contoso-my.sharepoint.com:/personal/jdoe_contoso_com': { id: GRAPH_SITE_ID },
     };
   });
 
@@ -67,6 +68,14 @@ describe('site resolution', () => {
     const spo = service('device-code');
     await spo.getGraphSiteId('https://contoso.sharepoint.com/teams/project/');
     expect(graph.calls).toEqual(['/sites/contoso.sharepoint.com:/teams/project']);
+  });
+
+  it('device code: a OneDrive URL (as spo-get-my-drive returns it) is accepted as a site and resolves', async () => {
+    const spo = service('device-code');
+    const oneDrive = 'https://contoso-my.sharepoint.com/personal/jdoe_contoso_com/Documents';
+    expect(spo.getSiteById(oneDrive).siteUrl).toBe('https://contoso-my.sharepoint.com/personal/jdoe_contoso_com');
+    await spo.getGraphSiteId(oneDrive);
+    expect(graph.calls).toEqual(['/sites/contoso-my.sharepoint.com:/personal/jdoe_contoso_com']);
   });
 
   it('device code: a configured id still works', async () => {

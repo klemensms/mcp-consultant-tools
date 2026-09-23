@@ -1,7 +1,7 @@
 /**
  * SharePoint cross-site discovery CLI commands (device-code mode).
  *
- * Maps spo-search-files, spo-resolve-link and spo-find-sites.
+ * Maps spo-search-files, spo-resolve-link, spo-find-sites, spo-get-my-drive and spo-list-my-drive.
  */
 
 import type { Command } from 'commander';
@@ -62,6 +62,43 @@ export function registerDiscoveryCommands(program: Command, ctx: ServiceContext)
           fileName: `find-sites-${opts.query}`,
           data: sites,
           summary: `Found ${sites.length} site(s):\n` + sites.map((s) => `  - ${s.displayName ?? s.name}: ${s.webUrl}`).join('\n'),
+        });
+      } catch (error) {
+        handleCliError(error);
+      }
+    });
+
+  // spo-get-my-drive
+  program
+    .command('get-my-drive')
+    .description('Get your own OneDrive: drive id, web URL and quota (sign-in mode)')
+    .action(async () => {
+      try {
+        const drive = await ctx.discovery.getMyDrive();
+        outputResult({
+          fileName: 'my-drive',
+          data: drive,
+          summary:
+            `OneDrive: ${drive.webUrl}\nDrive: ${drive.driveId}\nSite (use as --site-id): ${drive.siteUrl}\n` +
+            `Used: ${drive.quota?.used ?? '?'} of ${drive.quota?.total ?? '?'} bytes (${drive.quota?.state ?? 'unknown'})`,
+        });
+      } catch (error) {
+        handleCliError(error);
+      }
+    });
+
+  // spo-list-my-drive
+  program
+    .command('list-my-drive')
+    .description('List files and folders in your own OneDrive (sign-in mode)')
+    .option('--path <path>', "Folder path from the OneDrive root; omit for the root")
+    .action(async (opts: any) => {
+      try {
+        const items = await ctx.discovery.listMyDrive(opts.path);
+        outputResult({
+          fileName: `list-my-drive-${opts.path ?? 'root'}`,
+          data: items,
+          summary: `${items.length} item(s):\n` + items.map((i) => `  ${i.isFolder ? '[folder]' : '        '} ${i.name}`).join('\n'),
         });
       } catch (error) {
         handleCliError(error);

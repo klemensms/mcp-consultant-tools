@@ -129,6 +129,26 @@ export class TokenCache { constructor(filePrefix: string, clientId: string, toke
 - [ ] **Live check:** `spo-search-files` for a word known to be on the test site returns hits; `spo-resolve-link` on a document URL from the test site returns the item; `spo-download-file` with `convertToPdf` on a Word document writes a PDF that opens. Capture one real search response, scrub every identifier to sanctioned placeholders, and use it as the fixture. Record in the status section whether search, recent and shared-with-me worked on a registration that has `Sites.ReadWrite.All` but no `Files.*`; this decides the last row of the IT request.
 - [ ] **Commit:** `feat(sharepoint): cross-site file search, link resolution and readable downloads`
 
+### Task 3b: OneDrive in the SharePoint server (device-code mode only)
+
+**Files:**
+- Modify: `packages/sharepoint/src/services/discovery-service.ts`, `src/services/sharepoint-service.ts` (site URL pattern), `src/tools/discovery-tools.ts`, `src/cli/commands/discovery-commands.ts`, and the spec's SharePoint section (OneDrive subsection, same commit as the code).
+- Test: `src/__tests__/onedrive.test.ts`, `src/__tests__/site-resolution.test.ts`.
+
+**Interfaces:**
+- Produces: `getMyDrive(): Promise<MyDriveInfo>` (`driveId`, `driveType`, `webUrl`, `siteUrl`, `owner`, `quota`); `listMyDrive(folderPath?: string): Promise<MyDriveItem[]>`. Tools `spo-get-my-drive`, `spo-list-my-drive`; CLI `get-my-drive`, `list-my-drive [--path]`.
+
+- [ ] **Tests to write first**
+  - `getMyDrive` reads `/me/drive` and returns the mapped drive, with `siteUrl` cut from the web URL at `/personal/{name}`.
+  - `listMyDrive`: no path, `/` and `""` list `/me/drive/root/children`; a path lists `/me/drive/root:/{path}:/children` with each segment encoded and outer slashes trimmed.
+  - Both refuse in app-only mode and make no Graph call.
+  - A OneDrive `/personal/` URL is accepted as a site in device-code mode and resolves through `/sites/{host}:/personal/{name}`.
+  - Given the OneDrive drive id, get-item, download, upload, create-folder, rename, move, copy and delete all address `/drives/{id}/...` and never `/sites/`.
+- [ ] **Implement.**
+- [ ] **Verify:** build and tests green.
+- [ ] **Live check, read-only:** `get-my-drive`, `list-my-drive` at the root and on a folder whose name has a space, `get-item` and `list-items` with the returned `siteUrl` and `driveId`, and `spo-get-my-drive` through the MCP test runner. No writes to OneDrive.
+- [ ] **Commit:** `feat(sharepoint): read your own OneDrive in sign-in mode`
+
 ### Task 4: SharePoint write and delete under a delegated token
 
 **Files:**

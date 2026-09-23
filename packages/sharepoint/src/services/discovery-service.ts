@@ -2,8 +2,8 @@
  * SharePoint cross-site discovery (device-code mode only).
  *
  * Searches, resolves links and finds sites as the signed-in user, across every
- * site, OneDrive and Teams library they can open. App-only mode has no user to
- * search as, so these operations refuse there.
+ * site, OneDrive and Teams library they can open, and reads the user's own
+ * OneDrive. App-only mode has no user to act as, so these operations refuse there.
  *
  * Not built: drive "recent" and "sharedWithMe". Both Graph endpoints are
  * deprecated and stop returning data after November 2026.
@@ -47,6 +47,28 @@ export interface DriveItemInfo {
   size?: number;
   lastModifiedDateTime?: string;
   parentPath?: string;
+}
+
+export interface MyDriveInfo {
+  driveId: string;
+  driveType?: string;
+  webUrl?: string;
+  /** The OneDrive's site URL; pass it as siteId to the item tools. */
+  siteUrl?: string;
+  owner?: string;
+  quota?: { total?: number; used?: number; remaining?: number; deleted?: number; state?: string };
+}
+
+export interface MyDriveItem {
+  name: string;
+  itemId: string;
+  driveId?: string;
+  webUrl?: string;
+  isFolder: boolean;
+  childCount?: number;
+  mimeType?: string;
+  size?: number;
+  lastModifiedDateTime?: string;
 }
 
 export interface SiteSummary {
@@ -157,6 +179,54 @@ export class DiscoveryService {
       };
     } catch (error) {
       throw this.spo.handleError(error, 'resolve link');
+    }
+  }
+
+  /** The signed-in user's OneDrive: drive id, web URL and quota. */
+  async getMyDrive(): Promise<MyDriveInfo> {
+    this.requireDelegated('OneDrive');
+    try {
+      const client = await this.spo.getAuthenticatedGraphClient();
+      const drive = await client.api('/me/drive').select('id,driveType,webUrl,owner,quota').get();
+      const quota = drive.quota ?? {};
+      return {
+        driveId: drive.id,
+        driveType: drive.driveType,
+        webUrl: drive.webUrl,
+        siteUrl: drive.webUrl ? toSiteUrl(drive.webUrl) ?? undefined : undefined,
+        owner: drive.owner?.user?.displayName,
+        quota: { total: quota.total, used: quota.used, remaining: quota.remaining, deleted: quota.deleted, state: quota.state },
+      };
+    } catch (error) {
+      throw this.spo.handleError(error, 'get OneDrive');
+    }
+  }
+
+  /** List a folder in the signed-in user's OneDrive; no path means the root. */
+  async listMyDrive(folderPath?: string): Promise<MyDriveItem[]> {
+    this.requireDelegated('OneDrive');
+    const segments = (folderPath ?? '').split('/').filter(Boolean).map(encodeURIComponent);
+    const apiPath = segments.length ? `/me/drive/root:/${segments.join('/')}:/children` : '/me/drive/root/children';
+
+    try {
+      const client = await this.spo.getAuthenticatedGraphClient();
+      const response = await client
+        .api(apiPath)
+        .select('id,name,webUrl,size,lastModifiedDateTime,file,folder,parentReference')
+        .get();
+      return (response?.value ?? []).map((item: any) => ({
+        name: item.name,
+        itemId: item.id,
+        driveId: item.parentReference?.driveId,
+        webUrl: item.webUrl,
+        isFolder: Boolean(item.folder),
+        childCount: item.folder?.childCount,
+        mimeType: item.file?.mimeType,
+        size: item.size,
+        lastModifiedDateTime: item.lastModifiedDateTime,
+      }));
+    } catch (error) {
+      throw this.spo.handleError(error, 'list OneDrive');
     }
   }
 

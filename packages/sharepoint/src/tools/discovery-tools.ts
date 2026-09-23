@@ -2,7 +2,8 @@
  * SharePoint cross-site discovery tools (device-code mode).
  *
  * Search, link resolution and site finding act as the signed-in user, across
- * every site, OneDrive and Teams library they can open.
+ * every site, OneDrive and Teams library they can open. The OneDrive tools read
+ * the user's own OneDrive.
  */
 
 import { z } from 'zod';
@@ -65,6 +66,37 @@ export function registerDiscoveryTools(server: any, ctx: ServiceContext): void {
         return json(await ctx.discovery.findSites(query));
       } catch (error: any) {
         return fail('find sites', error);
+      }
+    }
+  );
+
+  server.tool(
+    'spo-get-my-drive',
+    'Get your own OneDrive (sign-in mode): drive id, web URL, owner and storage quota. ' +
+      'Pass the returned driveId as driveId, and siteUrl as siteId, to spo-get-item, spo-download-file and the other item tools.',
+    {},
+    { readOnlyHint: true, openWorldHint: true },
+    async () => {
+      try {
+        return json(await ctx.discovery.getMyDrive());
+      } catch (error: any) {
+        return fail('get OneDrive', error);
+      }
+    }
+  );
+
+  server.tool(
+    'spo-list-my-drive',
+    'List the files and folders in your own OneDrive (sign-in mode): the root, or a folder by path such as Documents/Reports.',
+    {
+      path: z.string().optional().describe("Folder path from the OneDrive root, for example 'Documents/Reports'. Omit or '/' for the root."),
+    },
+    { readOnlyHint: true, openWorldHint: true },
+    async ({ path }: any) => {
+      try {
+        return json(await ctx.discovery.listMyDrive(path));
+      } catch (error: any) {
+        return fail('list OneDrive', error);
       }
     }
   );

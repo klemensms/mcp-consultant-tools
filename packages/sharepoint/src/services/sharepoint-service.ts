@@ -71,8 +71,11 @@ export function describeSharePointScopes(scopes: string[]): { read: string; writ
   };
 }
 
-/** A SharePoint site URL: https://{tenant}.sharepoint.com/sites/{name} or /teams/{name}. */
-const SITE_URL_PATTERN = /^\/(sites|teams)\/[^/]+/i;
+/**
+ * A SharePoint site URL: https://{tenant}.sharepoint.com/sites/{name} or /teams/{name},
+ * or a OneDrive: https://contoso-my.sharepoint.com/personal/{name}.
+ */
+const SITE_URL_PATTERN = /^\/(sites|teams|personal)\/[^/]+/i;
 
 /**
  * Reduce a pasted SharePoint URL to its site URL (origin + /sites/{name} or
