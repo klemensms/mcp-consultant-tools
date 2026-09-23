@@ -155,4 +155,4 @@ mcp-spo-cli get-my-drive
 mcp-spo-cli download-file --site-id https://contoso.sharepoint.com/sites/example --drive-id <driveId> --item-id <itemId> --convert-to-pdf --save-to-disk
 ```
 
-The global `--json` flag is listed but currently ignored: the CLI always prints its summary and writes the full JSON to `.context/.mcp-spo-cache/`. Read that file.
+Every read prints a summary and writes the full JSON to `.context/.mcp-spo-cache/`. With the global `--json` flag, stdout carries the full JSON alone and the cache path goes to stderr. `--no-cache` is accepted but ignored: reads always write the cache.

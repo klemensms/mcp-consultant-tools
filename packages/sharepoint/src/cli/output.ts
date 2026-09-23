@@ -28,12 +28,25 @@ export interface OutputOptions {
   persist?: boolean;
 }
 
+let jsonOutput = false;
+
+/**
+ * Honour the global `--json` flag. Called once from the CLI's preAction hook,
+ * before any command prints.
+ */
+export function setJsonOutput(on: boolean): void {
+  jsonOutput = on;
+}
+
 /**
  * Write full JSON to cache directory and print summary to stdout.
+ * With `--json`, stdout carries the full JSON alone and the cache path goes to stderr.
  */
 export function outputResult({ fileName, data, summary, persist = true }: OutputOptions): void {
+  const printed = jsonOutput ? JSON.stringify(data, null, 2) : summary;
+
   if (!persist) {
-    console.log(summary);
+    console.log(printed);
     return;
   }
 
@@ -47,8 +60,12 @@ export function outputResult({ fileName, data, summary, persist = true }: Output
   const filePath = join(cacheBase, `${fileName.replace(/[^A-Za-z0-9._-]+/g, '-')}.json`);
   writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
 
-  console.log(summary);
-  console.log(`\nFull output: ${filePath}`);
+  console.log(printed);
+  if (jsonOutput) {
+    console.error(`Full output: ${filePath}`);
+  } else {
+    console.log(`\nFull output: ${filePath}`);
+  }
 }
 
 /**

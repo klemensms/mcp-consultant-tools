@@ -500,7 +500,7 @@ Item-level operations (`listItems`, `getItem`, etc.) do not use the cache - only
 
 **Binary:** `mcp-spo-cli`
 
-CLI uses the same `ServiceContext` via `context-factory.ts`. All commands output a human-readable summary to stdout; full JSON is cached to `.context/.mcp-spo-cache/`. The global `--json` flag is listed but currently ignored.
+CLI uses the same `ServiceContext` via `context-factory.ts`. All commands output a human-readable summary to stdout; full JSON is cached to `.context/.mcp-spo-cache/`. With the global `--json` flag, stdout carries the full JSON alone and the cache path goes to stderr. `--no-cache` is accepted but ignored: reads always write the cache.
 
 <command-groups>
 

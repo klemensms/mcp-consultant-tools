@@ -11,6 +11,7 @@ import { createRequire } from 'node:module';
 import { createCliProgram, loadEnvAndResolve } from '@mcp-consultant-tools/core';
 import { createServiceContext } from './context-factory.js';
 import { registerAllCommands } from './cli/commands/index.js';
+import { setJsonOutput } from './cli/output.js';
 
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json');
@@ -24,6 +25,7 @@ const program = createCliProgram({
 // Load env before parsing (--env-file handled by commander hook)
 program.hook('preAction', async (thisCommand: any) => {
   const opts = thisCommand.opts();
+  setJsonOutput(Boolean(opts.json));
   await loadEnvAndResolve(opts.envFile);
 });
 

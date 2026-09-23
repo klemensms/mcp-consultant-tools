@@ -225,7 +225,7 @@ Other Graph errors are passed through with their message.
 | `send-draft`, `send` | the two send tools |
 | `delete` (needs `--confirm`) | `mail-delete-message` |
 
-Global flags `--json`, `--no-cache` and `--env-file` behave as in every package.
+With the global `--json` flag, stdout carries the full JSON alone and the cache path goes to stderr; `--env-file` loads the environment from a file. `--no-cache` is accepted but ignored: reads always write the cache.
 
 </cli>
 
