@@ -74,6 +74,24 @@ export function describeSharePointScopes(scopes: string[]): { read: string; writ
 /** A SharePoint site URL: https://{tenant}.sharepoint.com/sites/{name} or /teams/{name}. */
 const SITE_URL_PATTERN = /^\/(sites|teams)\/[^/]+/i;
 
+/**
+ * Reduce a pasted SharePoint URL to its site URL (origin + /sites/{name} or
+ * /teams/{name}), or null when it is not a SharePoint site URL.
+ */
+export function toSiteUrl(input: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' || !url.hostname.toLowerCase().endsWith('.sharepoint.com')) {
+    return null;
+  }
+  const match = url.pathname.match(SITE_URL_PATTERN);
+  return match ? `${url.origin}${match[0]}` : null;
+}
+
 export class SharePointService {
   private config: SharePointConfig;
   private msalClient: ConfidentialClientApplication | null = null;
@@ -212,7 +230,7 @@ export class SharePointService {
   getSiteById(siteId: string): SharePointSiteConfig {
     const site = this.config.sites.find(s => s.id === siteId);
     if (!site && this.delegatedAuth) {
-      const siteUrl = this.siteUrlFromInput(siteId);
+      const siteUrl = toSiteUrl(siteId);
       if (siteUrl) {
         return { id: siteId, name: siteUrl, siteUrl, active: true };
       }
@@ -234,24 +252,6 @@ export class SharePointService {
       );
     }
     return site;
-  }
-
-  /**
-   * Reduce a pasted SharePoint URL to its site URL (origin + /sites/{name} or
-   * /teams/{name}), or null when it is not a SharePoint site URL.
-   */
-  private siteUrlFromInput(input: string): string | null {
-    let url: URL;
-    try {
-      url = new URL(input);
-    } catch {
-      return null;
-    }
-    if (url.protocol !== 'https:' || !url.hostname.toLowerCase().endsWith('.sharepoint.com')) {
-      return null;
-    }
-    const match = url.pathname.match(SITE_URL_PATTERN);
-    return match ? `${url.origin}${match[0]}` : null;
   }
 
   /** Get the raw config (for list-service access) */

@@ -321,9 +321,15 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
       path: z.string().optional().describe(
         descWithExamples("File path relative to drive root (use this OR itemId, not both)", FILE_PATH_EXAMPLES)
       ),
+      saveToDisk: z.boolean().optional().describe(
+        "Save the file to SHAREPOINT_DOWNLOAD_DIR (default ~/Downloads/mcp-sharepoint) and return its absolute path instead of the content"
+      ),
+      convertToPdf: z.boolean().optional().describe(
+        "Return a PDF rendering of a Word, PowerPoint or Excel file, so it can be read without an Office parser"
+      ),
     },
     { readOnlyHint: true, openWorldHint: true },
-    async ({ siteId, driveId, itemId, path }: any) => {
+    async ({ siteId, driveId, itemId, path, saveToDisk, convertToPdf }: any) => {
       try {
         if (!itemId && !path) {
           return {
@@ -335,7 +341,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
         const byPath = !itemId;
         const identifier = itemId || path;
 
-        const result = await ctx.files.downloadFile(siteId, driveId, identifier, byPath);
+        const result = await ctx.files.downloadFile(siteId, driveId, identifier, byPath, { saveToDisk, convertToPdf });
 
         return {
           content: [{
@@ -347,6 +353,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
               size: result.size,
               itemId: result.itemId,
               webUrl: result.webUrl,
+              path: result.path,
               content: result.content,
             }, null, 2),
           }],

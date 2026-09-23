@@ -323,6 +323,8 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
     .requiredOption('--drive-id <driveId>', 'Drive ID')
     .option('--item-id <itemId>', 'Item ID (use this OR --path)')
     .option('--path <path>', 'File path relative to drive root (use this OR --item-id)')
+    .option('--save-to-disk', 'Save to SHAREPOINT_DOWNLOAD_DIR and print the path instead of the content')
+    .option('--convert-to-pdf', 'Download a PDF rendering of a Word, PowerPoint or Excel file')
     .action(async (opts: any) => {
       try {
         if (!opts.itemId && !opts.path) {
@@ -332,7 +334,15 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
 
         const byPath = !opts.itemId;
         const identifier = opts.itemId || opts.path;
-        const result = await ctx.files.downloadFile(opts.siteId, opts.driveId, identifier, byPath);
+        const result = await ctx.files.downloadFile(opts.siteId, opts.driveId, identifier, byPath, {
+          saveToDisk: Boolean(opts.saveToDisk),
+          convertToPdf: Boolean(opts.convertToPdf),
+        });
+
+        if (result.path) {
+          console.log(`Saved: ${result.path}\nSize: ${result.size} bytes\nType: ${result.mimeType}`);
+          return;
+        }
 
         outputResult({
           fileName: `download-${(result as any).fileName || 'file'}`,

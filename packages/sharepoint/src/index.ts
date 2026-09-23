@@ -33,7 +33,7 @@ export function registerSharePointTools(server: any): void {
   const deleteEnabled = process.env.SHAREPOINT_ENABLE_DELETE === 'true';
   const writeToolCount = writeEnabled ? 5 : 0;
   const deleteToolCount = deleteEnabled ? 1 : 0;
-  const totalTools = 19 + writeToolCount + deleteToolCount;
+  const totalTools = 22 + writeToolCount + deleteToolCount;
   console.error(`SharePoint tools registered: ${totalTools} tools (${writeToolCount + deleteToolCount} write), 10 prompts`);
 }
 

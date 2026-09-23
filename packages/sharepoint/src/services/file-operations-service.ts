@@ -7,6 +7,7 @@
 
 import { Client, ResponseType } from '@microsoft/microsoft-graph-client';
 import { auditLogger } from '@mcp-consultant-tools/core';
+import { saveToDownloadDir } from '@mcp-consultant-tools/m365-core';
 import type { SharePointService } from './sharepoint-service.js';
 import type {
   FileDownloadResult,
@@ -27,6 +28,16 @@ const TEXT_MIME_PREFIXES = [
   'application/sql',
 ];
 
+/** Office formats Graph converts to PDF (subset of the format=pdf source list on Microsoft Learn). */
+const PDF_CONVERTIBLE = ['doc', 'docx', 'docm', 'dot', 'dotx', 'dotm', 'rtf', 'odt', 'ppt', 'pptx', 'pps', 'ppsx', 'odp', 'xls', 'xlsx', 'xlsm', 'ods'];
+
+export interface DownloadOptions {
+  /** Write the file to the download folder and return its path instead of the content. */
+  saveToDisk?: boolean;
+  /** Ask Graph for a PDF rendering (Word, PowerPoint and Excel files only). */
+  convertToPdf?: boolean;
+}
+
 function isTextMime(mimeType: string): boolean {
   const lower = mimeType.toLowerCase();
   return TEXT_MIME_PREFIXES.some(prefix => lower.startsWith(prefix));
@@ -35,6 +46,8 @@ function isTextMime(mimeType: string): boolean {
 export interface FileOperationsConfig {
   maxDownloadSizeMB: number;
   maxUploadSizeMB: number;
+  /** Where saveToDisk writes files. */
+  downloadDir: string;
 }
 
 export class FileOperationsService {
@@ -47,14 +60,16 @@ export class FileOperationsService {
   }
 
   /**
-   * Download file content from SharePoint
-   * Text files returned as UTF-8, binary files as base64
+   * Download file content from SharePoint.
+   * Text files returned as UTF-8, binary files as base64; or saved to the
+   * download folder with the path returned. convertToPdf renders Office files as PDF.
    */
   async downloadFile(
     siteId: string,
     driveId: string,
     itemIdOrPath: string,
-    byPath: boolean = false
+    byPath: boolean = false,
+    options: DownloadOptions = {}
   ): Promise<FileDownloadResult> {
     const timer = auditLogger.startTimer();
 
@@ -75,6 +90,13 @@ export class FileOperationsService {
         throw new Error(`Item '${meta.name}' is a folder, not a file. Use spo-list-items to browse folder contents.`);
       }
 
+      const extension = (meta.name.includes('.') ? meta.name.split('.').pop() : '').toLowerCase();
+      if (options.convertToPdf && !PDF_CONVERTIBLE.includes(extension)) {
+        throw new Error(
+          `Cannot convert '.${extension}' to PDF. Supported extensions: ${PDF_CONVERTIBLE.map((e) => '.' + e).join(', ')}.`
+        );
+      }
+
       const maxBytes = this.config.maxDownloadSizeMB * 1024 * 1024;
       if (meta.size > maxBytes) {
         throw new Error(
@@ -84,9 +106,9 @@ export class FileOperationsService {
       }
 
       // Download content
-      const contentPath = byPath
+      const contentPath = (byPath
         ? `/drives/${driveId}/root:${itemIdOrPath.startsWith('/') ? itemIdOrPath : '/' + itemIdOrPath}:/content`
-        : `/drives/${driveId}/items/${meta.id}/content`;
+        : `/drives/${driveId}/items/${meta.id}/content`) + (options.convertToPdf ? '?format=pdf' : '');
 
       const response = await client
         .api(contentPath)
@@ -94,7 +116,8 @@ export class FileOperationsService {
         .get();
 
       const buffer = Buffer.from(response as ArrayBuffer);
-      const mimeType: string = meta.file.mimeType || 'application/octet-stream';
+      const mimeType: string = options.convertToPdf ? 'application/pdf' : meta.file.mimeType || 'application/octet-stream';
+      const fileName: string = options.convertToPdf ? meta.name.replace(/\.[^.]+$/, '') + '.pdf' : meta.name;
       const isText = isTextMime(mimeType);
 
       auditLogger.log({
@@ -103,16 +126,27 @@ export class FileOperationsService {
         componentType: 'File',
         componentName: meta.name,
         success: true,
-        parameters: { siteId, driveId, itemIdOrPath, size: meta.size, mimeType },
+        parameters: { siteId, driveId, itemIdOrPath, size: meta.size, mimeType, ...options },
         executionTimeMs: timer(),
       });
+
+      if (options.saveToDisk) {
+        return {
+          path: saveToDownloadDir(this.config.downloadDir, fileName, buffer),
+          mimeType,
+          fileName,
+          size: buffer.length,
+          itemId: meta.id,
+          webUrl: meta.webUrl,
+        };
+      }
 
       return {
         content: isText ? buffer.toString('utf-8') : buffer.toString('base64'),
         encoding: isText ? 'utf-8' : 'base64',
         mimeType,
-        fileName: meta.name,
-        size: meta.size,
+        fileName,
+        size: options.convertToPdf ? buffer.length : meta.size,
         itemId: meta.id,
         webUrl: meta.webUrl,
       };

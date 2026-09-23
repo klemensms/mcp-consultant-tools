@@ -64,6 +64,10 @@ SHAREPOINT_MAX_UPLOAD_SIZE_MB=100      # Upload size limit
 ### Delete Tool (1 tool, requires SHAREPOINT_ENABLE_DELETE=true)
 - `spo-delete-item` - Delete file/folder (requires confirm=true)
 
+## Not built: recent and shared-with-me
+
+`spo-list-my-recent` and `spo-list-shared-with-me` were specified but not built: Microsoft Learn marks both Graph endpoints (`drive: recent`, `drive: sharedWithMe`) deprecated, operating degraded until November 2026 and returning no data after that. Use `spo-search-files` instead.
+
 ## Write Protection
 
 Write tools are **disabled by default** and require explicit feature flags:

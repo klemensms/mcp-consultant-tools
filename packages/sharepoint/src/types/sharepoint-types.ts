@@ -220,8 +220,9 @@ export interface ConnectionTestResult {
  * File Download Result
  */
 export interface FileDownloadResult {
-  content: string;
-  encoding: 'utf-8' | 'base64';
+  content?: string;              // Omitted when saved to disk
+  path?: string;                 // Absolute path when saved to disk
+  encoding?: 'utf-8' | 'base64'; // Omitted when saved to disk
   mimeType: string;
   fileName: string;
   size: number;
