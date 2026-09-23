@@ -229,6 +229,7 @@ export function assertSafeLocalFile(filePath: string, homeDir?: string): string;
 
 ## Status (newest first)
 
+- 2026-09-23 20:45, `00c9da7`: Task 1 done. `m365-core` built, 40 unit tests green (token cache, scope decoder, switches, device-code auth with a faked MSAL client). No live check in this task.
 - 2026-09-23: plan written by the monitor session. Build not started.
 
 ## What to request from your IT administrator
