@@ -17,7 +17,7 @@ Chain: executes `docs/superpowers/plans/2026-09-23-delegated-outlook-sharepoint.
 ### ⚑3 · searchFiles returns a result object, not a bare hit list
 - **Kind:** assumption
 - **Hop:** origin · a773014
-- **State:** open
+- **State:** closed · da8a61f (technical reference and package CLAUDE.md describe the object)
 - **Matters because:** the plan's interface said `Promise<FileHit[]>`; the build returns `{ total, moreResultsAvailable, hits }` so an agent can page. Docs in Task 7 must describe the object; nothing else depends on the bare form.
 
 ### ⚑4 · The MCP test runner does not strip an MCP_TEST_ENV_ prefix
@@ -65,7 +65,7 @@ Chain: executes `docs/superpowers/plans/2026-09-23-delegated-outlook-sharepoint.
 ### ⚑11 · A retention policy refuses deleting a folder that still holds files
 - **Kind:** gotcha
 - **Hop:** 3 · plan Status 21:35
-- **State:** open
+- **State:** closed · da8a61f (in the SharePoint user guide, technical reference and package CLAUDE.md)
 - **Matters because:** on the test tenant, `spo-delete-item` on a non-empty folder failed with `Request was cancelled by event received. If attempting to delete a non-empty folder, it's possible that it's on hold`; deleting the contents first, then the empty folder, worked. Task 7's SharePoint docs should tell an agent to delete contents before the folder when it sees that message. Not a server defect as far as can be told (inferred: retention policy).
 
 ### ⚑12 · The SharePoint test fake ignores headers and query options
