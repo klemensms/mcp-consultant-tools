@@ -1,0 +1,50 @@
+{
+  "name": "@mcp-consultant-tools/m365-core",
+  "version": "35.0.0-beta.1",
+  "description": "Internal shared library for delegated (sign-in as the user) Microsoft Graph servers - device-code sign-in, encrypted MSAL token cache and feature switches",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build *.tsbuildinfo",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "microsoft-graph",
+    "msal",
+    "device-code"
+  ],
+  "author": "Klemens Stelk",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klemensms/mcp-consultant-tools.git",
+    "directory": "packages/m365-core"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^3.8.1",
+    "@microsoft/microsoft-graph-client": "^3.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.8.2",
+    "vitest": "^2.1.9"
+  }
+}
