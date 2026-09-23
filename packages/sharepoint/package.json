@@ -19,7 +19,8 @@
     "build": "tsc",
     "clean": "rm -rf build *.tsbuildinfo",
     "prepublishOnly": "npm run build",
-    "start:http": "node --env-file=.env build/http-server.js"
+    "start:http": "node --env-file=.env build/http-server.js",
+    "test": "vitest run"
   },
   "keywords": [
     "mcp",
@@ -42,6 +43,7 @@
   "dependencies": {
     "@azure/msal-node": "^3.3.0",
     "@mcp-consultant-tools/core": "33.0.0",
+    "@mcp-consultant-tools/m365-core": "35.0.0-beta.1",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "axios": "^1.8.3",
@@ -52,7 +54,8 @@
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^22.10.5",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^2.1.9"
   },
   "bin": {
     "mcp-spo": "build/index.js",

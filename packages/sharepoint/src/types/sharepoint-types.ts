@@ -21,11 +21,12 @@ export interface SharePointSiteConfig {
  * SharePoint Service Configuration
  */
 export interface SharePointConfig {
-  sites: SharePointSiteConfig[];
+  sites: SharePointSiteConfig[]; // Required in client-credentials mode; named shortcuts in device-code mode
   authMethod: 'entra-id';        // Only Entra ID supported (Graph API requirement)
+  authMode: 'client-credentials' | 'device-code';
   tenantId: string;
   clientId: string;
-  clientSecret: string;
+  clientSecret?: string;         // client-credentials mode only
   cacheTTL?: number;             // Cache TTL in seconds (default: 300)
   maxSearchResults?: number;     // Max search results (default: 100)
 }

@@ -18,7 +18,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
   write
     .command('upload')
     .description('Upload a file to a SharePoint document library. Requires SHAREPOINT_ENABLE_WRITE=true.')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--drive-id <driveId>', 'Drive ID')
     .requiredOption('--path <path>', 'Target file path relative to drive root (including filename)')
     .requiredOption('--content <content>', 'File content (text string or base64-encoded binary)')
@@ -49,7 +49,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
   write
     .command('create-folder')
     .description('Create a new folder in a SharePoint document library. Requires SHAREPOINT_ENABLE_WRITE=true.')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--drive-id <driveId>', 'Drive ID')
     .requiredOption('--parent-path <parentPath>', "Parent folder path (use '/' for drive root)")
     .requiredOption('--folder-name <folderName>', 'Name for the new folder')
@@ -76,7 +76,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
   write
     .command('move')
     .description('Move a file or folder to a new location. Requires SHAREPOINT_ENABLE_WRITE=true.')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--drive-id <driveId>', 'Source drive ID')
     .requiredOption('--item-id <itemId>', 'ID of the file or folder to move')
     .requiredOption('--target-drive-id <targetDriveId>', 'Target drive ID (can be same as source)')
@@ -105,7 +105,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
   write
     .command('copy')
     .description('Copy a file or folder to a new location. Requires SHAREPOINT_ENABLE_WRITE=true.')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--drive-id <driveId>', 'Source drive ID')
     .requiredOption('--item-id <itemId>', 'ID of the file or folder to copy')
     .requiredOption('--target-drive-id <targetDriveId>', 'Target drive ID')
@@ -136,7 +136,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
   write
     .command('rename')
     .description('Rename a file or folder in SharePoint. Requires SHAREPOINT_ENABLE_WRITE=true.')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--drive-id <driveId>', 'Drive ID')
     .requiredOption('--item-id <itemId>', 'ID of the file or folder to rename')
     .requiredOption('--new-name <newName>', 'New name for the file or folder (include file extension for files)')
@@ -163,7 +163,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
   write
     .command('delete')
     .description('Delete a file or folder from SharePoint. Requires SHAREPOINT_ENABLE_DELETE=true. Item is moved to recycle bin.')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--drive-id <driveId>', 'Drive ID')
     .requiredOption('--item-id <itemId>', 'ID of the file or folder to delete')
     .option('--confirm', 'Confirm deletion (required for safety)')

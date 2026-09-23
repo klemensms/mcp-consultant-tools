@@ -16,7 +16,7 @@ export function registerSharePointPrompts(server: any, ctx: ServiceContext): voi
   server.prompt(
     "spo-site-overview",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
     },
     async ({ siteId }: any) => {
       try {

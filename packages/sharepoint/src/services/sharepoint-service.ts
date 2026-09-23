@@ -9,6 +9,9 @@
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
 import { auditLogger } from '@mcp-consultant-tools/core';
+import { DelegatedGraphAuth } from '@mcp-consultant-tools/m365-core';
+import type { AuthStatus, DeviceCodeStart } from '@mcp-consultant-tools/m365-core';
+import type { SharePointAuthMode } from '../auth-mode.js';
 import type {
   SharePointConfig,
   SharePointSiteConfig,
@@ -29,9 +32,52 @@ export type {
   ConnectionTestResult,
 };
 
+/** Delegated permissions that let the signed-in user read SharePoint content. */
+const READ_SCOPES = ['Sites.Read.All', 'Sites.ReadWrite.All', 'Sites.Manage.All', 'Sites.FullControl.All', 'Files.Read.All', 'Files.ReadWrite.All'];
+/** Delegated permissions that also allow upload, move, rename and delete. */
+const WRITE_SCOPES = ['Sites.ReadWrite.All', 'Sites.Manage.All', 'Sites.FullControl.All', 'Files.ReadWrite.All'];
+
+const NO_SIGN_IN_NEEDED =
+  'No sign-in needed: this server uses app-only authentication (SHAREPOINT_CLIENT_SECRET is configured). ' +
+  'Remove the secret, or set SHAREPOINT_AUTH_MODE=device-code, to sign in as yourself instead.';
+
+export interface SharePointAuthStatus {
+  mode: SharePointAuthMode;
+  state: AuthStatus['state'] | 'not_needed';
+  account?: string;
+  expiresAt?: string;
+  grantedScopes?: string[];
+  capabilities?: { read: string; writeAndDelete: string };
+  message: string;
+}
+
+export type SharePointSignInStart = (DeviceCodeStart & { mode: 'device-code' }) | { mode: 'client-credentials'; state: 'not_needed'; message: string };
+
+/**
+ * Describe what the granted delegated permissions allow. Display only: the
+ * token's scp claim is read unverified.
+ */
+export function describeSharePointScopes(scopes: string[]): { read: string; writeAndDelete: string } {
+  const has = (list: string[]) => list.filter((s) => scopes.includes(s));
+  const read = has(READ_SCOPES);
+  const write = has(WRITE_SCOPES);
+  return {
+    read: read.length
+      ? `available (${read.join(', ')})`
+      : 'missing - the app registration needs delegated Sites.Read.All or Sites.ReadWrite.All, granted by an administrator',
+    writeAndDelete: write.length
+      ? `available (${write.join(', ')}); still needs SHAREPOINT_ENABLE_WRITE / SHAREPOINT_ENABLE_DELETE`
+      : 'missing - the app registration needs delegated Sites.ReadWrite.All, granted by an administrator',
+  };
+}
+
+/** A SharePoint site URL: https://{tenant}.sharepoint.com/sites/{name} or /teams/{name}. */
+const SITE_URL_PATTERN = /^\/(sites|teams)\/[^/]+/i;
+
 export class SharePointService {
   private config: SharePointConfig;
   private msalClient: ConfidentialClientApplication | null = null;
+  private delegatedAuth: DelegatedGraphAuth | null = null;
   private accessToken: string | null = null;
   private tokenExpirationTime: number = 0;
   private graphClient: Client | null = null;
@@ -42,6 +88,20 @@ export class SharePointService {
 
   constructor(config: SharePointConfig) {
     this.config = config;
+
+    if (config.authMode === 'device-code') {
+      if (!config.tenantId || !config.clientId) {
+        throw new Error('SharePoint device-code sign-in requires tenantId and clientId');
+      }
+      this.delegatedAuth = new DelegatedGraphAuth({
+        serverName: 'sharepoint',
+        tenantId: config.tenantId,
+        clientId: config.clientId,
+        authToolName: 'spo-authenticate',
+      });
+      console.error('SharePoint service created (device-code mode: acts as the signed-in user)');
+      return;
+    }
 
     if (!config.tenantId || !config.clientId || !config.clientSecret) {
       throw new Error('SharePoint Entra ID authentication requires tenantId, clientId, and clientSecret');
@@ -123,6 +183,9 @@ export class SharePointService {
    * Initialize Graph Client with MSAL token provider
    */
   private async getGraphClient(): Promise<Client> {
+    if (this.delegatedAuth) {
+      return this.delegatedAuth.getGraphClient();
+    }
     const token = await this.getAccessToken();
     this.graphClient = Client.init({
       authProvider: (done) => {
@@ -142,9 +205,23 @@ export class SharePointService {
     return this.config.sites;
   }
 
-  /** Get site configuration by ID */
+  /**
+   * Get site configuration by ID. In device-code mode a full SharePoint site URL
+   * is accepted too, so any site the signed-in user can open works without config.
+   */
   getSiteById(siteId: string): SharePointSiteConfig {
     const site = this.config.sites.find(s => s.id === siteId);
+    if (!site && this.delegatedAuth) {
+      const siteUrl = this.siteUrlFromInput(siteId);
+      if (siteUrl) {
+        return { id: siteId, name: siteUrl, siteUrl, active: true };
+      }
+      const configured = this.getActiveSites().map(s => s.id).join(', ') || 'none configured';
+      throw new Error(
+        `SharePoint site '${siteId}' not found. Pass either a configured site id (${configured}) ` +
+        `or a full site URL such as https://contoso.sharepoint.com/sites/example.`
+      );
+    }
     if (!site) {
       const availableSites = this.getActiveSites().map(s => s.id).join(', ');
       throw new Error(
@@ -157,6 +234,24 @@ export class SharePointService {
       );
     }
     return site;
+  }
+
+  /**
+   * Reduce a pasted SharePoint URL to its site URL (origin + /sites/{name} or
+   * /teams/{name}), or null when it is not a SharePoint site URL.
+   */
+  private siteUrlFromInput(input: string): string | null {
+    let url: URL;
+    try {
+      url = new URL(input);
+    } catch {
+      return null;
+    }
+    if (url.protocol !== 'https:' || !url.hostname.toLowerCase().endsWith('.sharepoint.com')) {
+      return null;
+    }
+    const match = url.pathname.match(SITE_URL_PATTERN);
+    return match ? `${url.origin}${match[0]}` : null;
   }
 
   /** Get the raw config (for list-service access) */
@@ -306,6 +401,20 @@ export class SharePointService {
 
   handleError(error: any, context: string): Error {
     let errorMessage = `SharePoint ${context} failed`;
+
+    // Graph SDK errors carry statusCode rather than an axios-style response.
+    const delegatedStatus = this.delegatedAuth ? (error?.statusCode ?? error?.response?.status) : undefined;
+    if (delegatedStatus === 403) {
+      return new Error(
+        `Access denied (${context}). Either your own account cannot open this site or file in SharePoint, ` +
+        'or the app registration lacks the delegated permission (Sites.Read.All to read, Sites.ReadWrite.All to write). ' +
+        'A missing permission is granted on the app registration by an administrator; signing in again does not fix it. ' +
+        'Run spo-auth-status to see which permissions the sign-in carries.'
+      );
+    }
+    if (delegatedStatus === 401) {
+      return new Error(`Not signed in, or the sign-in has expired (${context}). Call spo-authenticate to sign in.`);
+    }
 
     if (error.response) {
       const status = error.response.status;
@@ -512,6 +621,59 @@ export class SharePointService {
       });
       throw this.handleError(error, 'get drive info');
     }
+  }
+
+  // ============================================================================
+  // Delegated sign-in (device-code mode)
+  // ============================================================================
+
+  getAuthMode(): SharePointAuthMode {
+    return this.delegatedAuth ? 'device-code' : 'client-credentials';
+  }
+
+  /** The delegated auth, or null in app-only mode. */
+  getDelegatedAuth(): DelegatedGraphAuth | null {
+    return this.delegatedAuth;
+  }
+
+  async startSignIn(): Promise<SharePointSignInStart> {
+    if (!this.delegatedAuth) {
+      return { mode: 'client-credentials', state: 'not_needed', message: NO_SIGN_IN_NEEDED };
+    }
+    return { mode: 'device-code', ...(await this.delegatedAuth.startDeviceCode()) };
+  }
+
+  private toAuthStatus(status: AuthStatus): SharePointAuthStatus {
+    return {
+      mode: 'device-code',
+      ...status,
+      ...(status.grantedScopes ? { capabilities: describeSharePointScopes(status.grantedScopes) } : {}),
+    };
+  }
+
+  async getAuthStatus(): Promise<SharePointAuthStatus> {
+    if (!this.delegatedAuth) {
+      return { mode: 'client-credentials', state: 'not_needed', message: NO_SIGN_IN_NEEDED };
+    }
+    return this.toAuthStatus(await this.delegatedAuth.getStatus());
+  }
+
+  /** Wait for a pending device-code sign-in (the CLI "auth login" uses this). */
+  async waitForSignIn(timeoutMs: number): Promise<SharePointAuthStatus> {
+    if (!this.delegatedAuth) {
+      return { mode: 'client-credentials', state: 'not_needed', message: NO_SIGN_IN_NEEDED };
+    }
+    return this.toAuthStatus(await this.delegatedAuth.waitForCompletion(timeoutMs));
+  }
+
+  async logout(): Promise<{ mode: SharePointAuthMode; message: string }> {
+    if (!this.delegatedAuth) {
+      return { mode: 'client-credentials', message: NO_SIGN_IN_NEEDED };
+    }
+    await this.delegatedAuth.logout();
+    this.cache.clear();
+    this.siteIdCache.clear();
+    return { mode: 'device-code', message: 'Signed out. The cached SharePoint sign-in has been removed.' };
   }
 
   /** Close service and clear resources */

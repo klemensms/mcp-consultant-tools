@@ -13,6 +13,7 @@ export const SITE_ID_EXAMPLES = [
   { label: "Named site", value: "intranet" },
   { label: "Default site", value: "default" },
   { label: "Project site", value: "project-alpha" },
+  { label: "Site URL (sign-in mode)", value: "https://contoso.sharepoint.com/sites/example" },
 ];
 
 // ========================================

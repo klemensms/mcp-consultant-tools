@@ -19,7 +19,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
     "spo-upload-file",
     "Upload a file to a SharePoint document library. Requires SHAREPOINT_ENABLE_WRITE=true. For text content use encoding 'utf-8' (default), for binary content use 'base64'. Files up to SHAREPOINT_MAX_UPLOAD_SIZE_MB (default 100MB) are supported.",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       driveId: z.string().describe("Drive ID"),
       path: z.string().describe(
         descWithExamples("Target file path relative to drive root (including filename)", UPLOAD_PATH_EXAMPLES)
@@ -46,7 +46,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
     "spo-create-folder",
     "Create a new folder in a SharePoint document library. Requires SHAREPOINT_ENABLE_WRITE=true.",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       driveId: z.string().describe("Drive ID"),
       parentPath: z.string().describe(
         descWithExamples("Parent folder path (use '/' for drive root)", [
@@ -75,7 +75,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
     "spo-delete-item",
     "Delete a file or folder from SharePoint. Requires SHAREPOINT_ENABLE_DELETE=true AND confirm=true. This action is IRREVERSIBLE - the item is moved to the site recycle bin.",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       driveId: z.string().describe("Drive ID"),
       itemId: z.string().describe("ID of the file or folder to delete"),
       confirm: z.boolean().describe("Must be set to true to confirm deletion. Safety mechanism to prevent accidental deletions."),
@@ -105,7 +105,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
     "spo-move-item",
     "Move a file or folder to a new location within or across document libraries. Requires SHAREPOINT_ENABLE_WRITE=true.",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       driveId: z.string().describe("Source drive ID"),
       itemId: z.string().describe("ID of the file or folder to move"),
       targetDriveId: z.string().describe("Target drive ID (can be same as source for moves within a library)"),
@@ -133,7 +133,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
     "spo-copy-item",
     "Copy a file or folder to a new location. Requires SHAREPOINT_ENABLE_WRITE=true. Copy is asynchronous - the operation may take a moment to complete for large files.",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       driveId: z.string().describe("Source drive ID"),
       itemId: z.string().describe("ID of the file or folder to copy"),
       targetDriveId: z.string().describe("Target drive ID"),
@@ -162,7 +162,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
     "spo-rename-item",
     "Rename a file or folder in SharePoint. Requires SHAREPOINT_ENABLE_WRITE=true.",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       driveId: z.string().describe("Drive ID"),
       itemId: z.string().describe("ID of the file or folder to rename"),
       newName: z.string().describe("New name for the file or folder (include file extension for files)"),

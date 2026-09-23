@@ -43,7 +43,8 @@ export function outputResult({ fileName, data, summary, persist = true }: Output
     mkdirSync(cacheBase, { recursive: true });
   }
 
-  const filePath = join(cacheBase, `${fileName}.json`);
+  // A site id can be a full URL in device-code mode; keep the name to one path segment.
+  const filePath = join(cacheBase, `${fileName.replace(/[^A-Za-z0-9._-]+/g, '-')}.json`);
   writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
 
   console.log(summary);

@@ -34,7 +34,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "spo-get-site-info",
     "Get detailed site information including metadata, created/modified dates, and owner info",
     {
-      siteId: z.string().describe(descWithExamples("Site ID from configuration (use spo-list-sites to find IDs)", SITE_ID_EXAMPLES)),
+      siteId: z.string().describe(descWithExamples("Site ID from configuration, or (sign-in mode) a full site URL (use spo-list-sites to find IDs)", SITE_ID_EXAMPLES)),
     },
     { readOnlyHint: true, openWorldHint: true },
     async ({ siteId }: any) => {
@@ -52,7 +52,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "spo-test-connection",
     "Test connectivity to a SharePoint site and verify permissions (Sites.Read.All and Files.Read.All required)",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
     },
     { readOnlyHint: true, openWorldHint: true },
     async ({ siteId }: any) => {
@@ -70,7 +70,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "spo-list-drives",
     "List all document libraries (drives) in a SharePoint site with metadata",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
     },
     { readOnlyHint: true, openWorldHint: true },
     async ({ siteId }: any) => {
@@ -88,7 +88,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "spo-get-drive-info",
     "Get detailed document library information including quota, owner, and created/modified dates",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       driveId: z.string().describe(descWithExamples("Drive ID (use spo-list-drives to find IDs)", DRIVE_ID_EXAMPLES)),
     },
     { readOnlyHint: true, openWorldHint: true },
@@ -127,7 +127,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "spo-list-items",
     "List all files and folders in a document library or folder",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       driveId: z.string().describe("Drive ID"),
       folderId: z.string().optional().describe("Folder ID (optional, defaults to root)"),
     },
@@ -147,7 +147,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "spo-get-item",
     "Get detailed file or folder metadata by ID",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       driveId: z.string().describe("Drive ID"),
       itemId: z.string().describe("Item ID"),
     },
@@ -167,7 +167,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "spo-get-item-by-path",
     "Get file or folder metadata by path (relative to drive root)",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       driveId: z.string().describe("Drive ID"),
       path: z.string().describe(descWithExamples("Item path relative to drive root", FILE_PATH_EXAMPLES)),
     },
@@ -187,7 +187,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "spo-search-items",
     "Search for files by filename or metadata (filename and metadata search only, not full-text)",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       query: z.string().describe("Search query"),
       driveId: z.string().optional().describe("Limit search to specific drive (optional)"),
       limit: z.number().optional().describe("Maximum results (default: 100, max configured in SHAREPOINT_MAX_SEARCH_RESULTS)"),
@@ -208,7 +208,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "spo-get-recent-items",
     "Get recently modified items in a document library",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       driveId: z.string().describe("Drive ID"),
       limit: z.number().optional().describe("Maximum results (default: 20, max: 100)"),
       days: z.number().optional().describe("Days back to search (default: 30)"),
@@ -229,7 +229,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "spo-get-folder-structure",
     "Get recursive folder tree structure (useful for understanding site organization)",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       driveId: z.string().describe("Drive ID"),
       folderId: z.string().optional().describe("Root folder ID (optional, defaults to drive root)"),
       depth: z.number().optional().describe("Recursion depth (default: 3, max: 10)"),
@@ -315,7 +315,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "spo-download-file",
     "Download file content from SharePoint. Text files (json, csv, txt, xml, etc.) returned as UTF-8 string. Binary files (docx, pdf, xlsx, etc.) returned as base64-encoded string. Use itemId or path to identify the file.",
     {
-      siteId: z.string().describe("Site ID from configuration"),
+      siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       driveId: z.string().describe("Drive ID"),
       itemId: z.string().optional().describe("Item ID (use this OR path, not both)"),
       path: z.string().optional().describe(

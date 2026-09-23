@@ -32,7 +32,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
   program
     .command('get-site-info')
     .description('Get detailed site information including metadata')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .action(async (opts: any) => {
       try {
         const siteInfo = await ctx.sharepoint.getSiteInfo(opts.siteId);
@@ -50,7 +50,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
   program
     .command('test-connection')
     .description('Test connectivity to a SharePoint site and verify permissions')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .action(async (opts: any) => {
       try {
         const result = await ctx.sharepoint.testConnection(opts.siteId);
@@ -68,7 +68,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
   program
     .command('list-drives')
     .description('List all document libraries (drives) in a SharePoint site')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .action(async (opts: any) => {
       try {
         const drives = await ctx.sharepoint.listDrives(opts.siteId);
@@ -87,7 +87,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
   program
     .command('get-drive-info')
     .description('Get detailed document library information')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--drive-id <driveId>', 'Drive ID')
     .action(async (opts: any) => {
       try {
@@ -125,7 +125,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
   program
     .command('list-items')
     .description('List all files and folders in a document library or folder')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--drive-id <driveId>', 'Drive ID')
     .option('--folder-id <folderId>', 'Folder ID (defaults to root)')
     .action(async (opts: any) => {
@@ -147,7 +147,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
   program
     .command('get-item')
     .description('Get detailed file or folder metadata by ID')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--drive-id <driveId>', 'Drive ID')
     .requiredOption('--item-id <itemId>', 'Item ID')
     .action(async (opts: any) => {
@@ -167,7 +167,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
   program
     .command('get-item-by-path')
     .description('Get file or folder metadata by path (relative to drive root)')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--drive-id <driveId>', 'Drive ID')
     .requiredOption('--path <path>', 'Item path relative to drive root')
     .action(async (opts: any) => {
@@ -187,7 +187,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
   program
     .command('search-items')
     .description('Search for files by filename or metadata')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--query <query>', 'Search query')
     .option('--drive-id <driveId>', 'Limit search to specific drive')
     .option('--limit <limit>', 'Maximum results', parseInt)
@@ -211,7 +211,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
   program
     .command('get-recent-items')
     .description('Get recently modified items in a document library')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--drive-id <driveId>', 'Drive ID')
     .option('--limit <limit>', 'Maximum results (default: 20)', parseInt)
     .option('--days <days>', 'Days back to search (default: 30)', parseInt)
@@ -234,7 +234,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
   program
     .command('get-folder-structure')
     .description('Get recursive folder tree structure')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--drive-id <driveId>', 'Drive ID')
     .option('--folder-id <folderId>', 'Root folder ID (defaults to drive root)')
     .option('--depth <depth>', 'Recursion depth (default: 3, max: 10)', parseInt)
@@ -319,7 +319,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
   program
     .command('download-file')
     .description('Download file content from SharePoint')
-    .requiredOption('--site-id <siteId>', 'Site ID from configuration')
+    .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--drive-id <driveId>', 'Drive ID')
     .option('--item-id <itemId>', 'Item ID (use this OR --path)')
     .option('--path <path>', 'File path relative to drive root (use this OR --item-id)')
