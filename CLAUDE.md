@@ -150,11 +150,11 @@ This is a PUBLIC repo developed while testing against internal client projects. 
 ## Monorepo Architecture (v28+)
 
 Workspace root with `packages/`:
-- **Foundations:** `core` (shared utilities), `powerplatform-core` (internal PP library), `meta` (all integrations bundled).
+- **Foundations:** `core` (shared utilities), `powerplatform-core` (internal PP library), `m365-core` (internal delegated Microsoft 365 auth for `sharepoint` and `outlook`), `meta` (all integrations bundled).
 - **PowerPlatform (3-package split):** `powerplatform` read-only ✅ PRODUCTION-SAFE • `powerplatform-customization` schema changes ⚠️ DEV ONLY • `powerplatform-data` data CRUD ⚠️ OPERATIONAL.
 - **Azure DevOps:** `azure-devops` (work items, wiki, PRs) • `azure-devops-admin` (pipelines, admin).
 - **Azure platform:** `azure-management` (ARM) • `azure-defender` (Defender for Cloud, read-only) • `entra-id` (app registration audit, read-only) • `azure-data-factory` • `fabric` (Microsoft Fabric) • `application-insights` • `log-analytics` • `azure-sql` • `service-bus` • `azure-storage` • `azure-b2c`.
-- **Other integrations:** `figma` • `sharepoint` • `github-enterprise` • `teams` • `1password` • `rest-api`.
+- **Other integrations:** `figma` • `sharepoint` • `outlook` • `github-enterprise` • `teams` • `1password` • `rest-api`.
 
 **18 packages pin `@mcp-consultant-tools/core` below the workspace version (`35.0.0-beta.2`)**, so npm installs a registry copy under their own `node_modules` instead of linking the workspace. Fifteen sit at `33.0.0`: `1password`, `application-insights`, `azure-b2c`, `azure-data-factory`, `azure-devops-admin`, `azure-sql`, `azure-storage`, `fabric`, `figma`, `github-enterprise`, `log-analytics`, `service-bus`, `sharepoint`, `teams`, `todoist`. Three sit at `34.1.0`: `entra-id`, `message-center`, `rest-api`. Regenerate the list rather than trusting it - it drifts every release. Add an export to `core`, edit one of those packages, and the export is missing at test time while the build passes; change existing `core` behaviour and it silently does not reach them at all, locally or for end users. **Bumping the pin alone is not enough** - npm leaves the stale copy on disk, so `rm -rf packages/<pkg>/node_modules/@mcp-consultant-tools/core` after the bump, then `npm install`, then confirm the package resolves to the workspace path. An 18-package bump is a release-shaped change; do it deliberately, not inside a bug fix. Tracked in `docs/KNOWN_ISSUES.md`.
 

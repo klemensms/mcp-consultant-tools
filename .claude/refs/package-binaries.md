@@ -24,6 +24,7 @@ This explicitly tells npx which package to install and which binary to run. The 
 | `@mcp-consultant-tools/azure-sql` | `mcp-sql` | `mcp-sql-cli` |
 | `@mcp-consultant-tools/service-bus` | `mcp-sb` | `mcp-sb-cli` |
 | `@mcp-consultant-tools/sharepoint` | `mcp-spo` | `mcp-spo-cli` |
+| `@mcp-consultant-tools/outlook` | `mcp-outlook` | `mcp-outlook-cli` |
 | `@mcp-consultant-tools/figma` | `mcp-figma` | `mcp-figma-cli` |
 | `@mcp-consultant-tools/github-enterprise` | `mcp-ghe` | `mcp-ghe-cli` |
 | `@mcp-consultant-tools/azure-b2c` | `mcp-azure-b2c` | `mcp-azure-b2c-cli` |
