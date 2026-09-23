@@ -10,6 +10,7 @@ Shared delegated (sign in as the user) Microsoft Graph plumbing for the `sharepo
 | `src/token-cache.ts` | `TokenCache`: AES-256-GCM encrypted MSAL cache plugin, mode 0600, at `~/.mcp-consultant-tools/{server}-token-cache-{clientId}.enc`. |
 | `src/token-scopes.ts` | `decodeTokenScopes`: reads the `scp` claim for display. Never verifies the token, never used for an access decision. |
 | `src/switches.ts` | `isEnabled` / `requireEnabled`: off-by-default switches; only the exact string `true` enables. |
+| `src/downloads.ts` | `saveToDownloadDir`, `resolveDownloadDir`: one download folder per server (mode 0700), sanitised file names that cannot escape it, and `name (1).ext` instead of overwriting. |
 
 ## Rules
 
