@@ -1,7 +1,7 @@
 # Outlook - Technical Documentation
 
 <!-- This document is optimized for agent consumption using XML tags for structure.
-     User-facing summary: docs/documentation/outlook.md -->
+     User-facing summary: docs/documentation/OUTLOOK.md -->
 
 <overview>
 

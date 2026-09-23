@@ -10,7 +10,8 @@ SharePoint Online integration via Microsoft Graph API. Provides tools for site m
 **Package:** `@mcp-consultant-tools/sharepoint`
 **MCP binary:** `mcp-spo`
 **CLI binary:** `mcp-spo-cli`
-**Tool count:** 16 read tools (always available) + 5 write tools (SHAREPOINT_ENABLE_WRITE=true) + 1 delete tool (SHAREPOINT_ENABLE_DELETE=true) = 16-22 tools
+**Tool count:** 30, all registered whatever the switches: 16 read, 5 write (`SHAREPOINT_ENABLE_WRITE=true`), 1 delete (`SHAREPOINT_ENABLE_DELETE=true`), 3 sign-in and 5 discovery / OneDrive (sign-in mode). A switched-off tool refuses and names its variable.
+**Auth modes:** app-only (client credentials, when a secret is set) or sign-in mode (device code, acting as the user, when no secret is set).
 **Prompts:** 10
 
 </overview>
@@ -57,7 +58,29 @@ All services use lazy initialization in `createServiceContext()`. `SharePointSer
 
 <authentication>
 
-Authentication uses Entra ID client credentials flow via `@azure/msal-node`.
+<auth-mode-selection>
+
+`resolveAuthMode(env)` in `src/auth-mode.ts` picks the mode: `SHAREPOINT_CLIENT_SECRET` set gives `client-credentials`; not set gives `device-code`. `SHAREPOINT_AUTH_MODE=client-credentials|device-code` overrides the inference, and any other value throws naming the two allowed values.
+
+</auth-mode-selection>
+
+<auth-mode name="device-code">
+
+### Sign-in mode (device code)
+
+- MSAL `PublicClientApplication` through `@mcp-consultant-tools/m365-core`, scope `https://graph.microsoft.com/.default`.
+- Token cache: AES-256-GCM encrypted at `~/.mcp-consultant-tools/sharepoint-token-cache-{clientId}.enc`, mode 0600, shared by the CLI and the MCP server. The server name salts the key, so it is never shared with the Outlook server on the same registration.
+- **Delegated permission, measured live:** `Sites.ReadWrite.All` alone covers every read, write and delete tool, Microsoft Search for files (hits include OneDrive files), and `/me/drive`. No `Files.*` permission is needed.
+- `SHAREPOINT_SITES` and `SHAREPOINT_SITE_URL` are optional: every tool that takes a `siteId` also accepts a full site URL (`/sites/{name}`, `/teams/{name}`, or a OneDrive `/personal/{name}`), resolved through `GET /sites/{host}:/{path}` and cached.
+- The three sign-in tools and the CLI's `auth login` start and complete the sign-in; see the sign-in mode tool group below.
+
+</auth-mode>
+
+<auth-mode name="client-credentials">
+
+### App-only (client credentials)
+
+Authentication uses Entra ID client credentials flow via `@azure/msal-node`. Unchanged by sign-in mode: a regression test pins that a secret builds the confidential client and never constructs the delegated one.
 
 **Required Graph API permissions (Application permissions, admin consent required):**
 
@@ -78,6 +101,8 @@ scopes: ["https://graph.microsoft.com/.default"]
 
 **Site ID resolution:** Site URLs are translated to Graph API site IDs via `GET /sites/{hostname}:{pathname}`. Resolved IDs are cached in a separate `siteIdCache` map for the lifetime of the service instance.
 
+</auth-mode>
+
 </authentication>
 
 <environment-variables>
@@ -86,9 +111,11 @@ scopes: ["https://graph.microsoft.com/.default"]
 |----------|----------|---------|-------------|
 | `SHAREPOINT_TENANT_ID` | Yes | - | Azure tenant ID |
 | `SHAREPOINT_CLIENT_ID` | Yes | - | App registration client ID |
-| `SHAREPOINT_CLIENT_SECRET` | Yes | - | App registration client secret |
-| `SHAREPOINT_SITES` | One of these two | - | JSON array of site configs (see format below) |
-| `SHAREPOINT_SITE_URL` | One of these two | - | Single site URL; auto-creates `{id: 'default', name: 'Default SharePoint Site', active: true}` |
+| `SHAREPOINT_CLIENT_SECRET` | App-only | - | App registration client secret. Not set means sign-in mode. |
+| `SHAREPOINT_AUTH_MODE` | No | inferred | `client-credentials` or `device-code`, overriding the inference from the secret |
+| `SHAREPOINT_SITES` | App-only: one of these two | - | JSON array of site configs (see format below). Optional named shortcuts in sign-in mode. |
+| `SHAREPOINT_SITE_URL` | App-only: one of these two | - | Single site URL; auto-creates `{id: 'default', name: 'Default SharePoint Site', active: true}`. Optional in sign-in mode. |
+| `SHAREPOINT_DOWNLOAD_DIR` | No | `~/Downloads/mcp-sharepoint` | Folder `spo-download-file` writes to with `saveToDisk` |
 | `SHAREPOINT_MAX_DOWNLOAD_SIZE_MB` | No | `50` | Max file download size in MB |
 | `SHAREPOINT_MAX_UPLOAD_SIZE_MB` | No | `100` | Max file upload size in MB |
 | `SHAREPOINT_MAX_SEARCH_RESULTS` | No | `100` | Max search results returned |
@@ -178,10 +205,12 @@ scopes: ["https://graph.microsoft.com/.default"]
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `siteId` | string | Yes | Site ID from configuration |
+| `siteId` | string | Yes | Site ID from configuration, or (sign-in mode) a full site URL |
 | `driveId` | string | Yes | Drive ID |
 | `itemId` | string | No | Item ID - use this OR `path`, not both |
 | `path` | string | No | File path relative to drive root - use this OR `itemId`, not both |
+| `saveToDisk` | boolean | No | Write the file to `SHAREPOINT_DOWNLOAD_DIR` and return its absolute `path` instead of `content`. The file name is sanitised so it cannot escape the folder. |
+| `convertToPdf` | boolean | No | Request `/content?format=pdf` and return a PDF rendering. Word, PowerPoint and Excel extensions only; any other extension is refused with the supported list. |
 
 **Encoding logic (automatic, based on MIME type):**
 
@@ -198,7 +227,7 @@ Text MIME prefixes (returned as UTF-8 string):
 
 All other MIME types (e.g., `application/pdf`, Office formats) are returned as base64-encoded string.
 
-**Response fields:** `fileName`, `mimeType`, `encoding` (`utf-8` or `base64`), `size` (bytes), `itemId`, `webUrl`, `content`.
+**Response fields:** `fileName`, `mimeType`, `encoding` (`utf-8` or `base64`), `size` (bytes), `itemId`, `webUrl`, and either `content` or, with `saveToDisk`, `path`. With `convertToPdf`, `fileName` ends `.pdf` and `mimeType` is `application/pdf`.
 
 **Size limit:** Enforced against `SHAREPOINT_MAX_DOWNLOAD_SIZE_MB` (default 50 MB). Error message includes the actual size and how to increase the limit.
 
@@ -230,7 +259,7 @@ All other MIME types (e.g., `application/pdf`, Office formats) are returned as b
 **Upload strategy:**
 - Files ≤ 4 MB: simple PUT to `/drives/{driveId}/root:{path}:/content`
 - Files > 4 MB: chunked upload session via `/drives/{driveId}/root:{path}:/createUploadSession`, with 3.2 MB chunks (multiple of 320 KB as required by Graph API)
-- `conflictBehavior`: `'replace'` if `overwrite=true`, `'fail'` otherwise
+- `conflictBehavior`: `'replace'` if `overwrite=true`, `'fail'` otherwise. On the simple PUT it is sent as the query parameter `@microsoft.graph.conflictBehavior`; as a header it is not a legal header name and fetch throws before the request is sent. In the upload session body it is an `item` property.
 
 ### spo-create-folder
 
@@ -301,6 +330,29 @@ Uses Graph PATCH with `{ name: newName }`.
 **Behavior:** Item is moved to the site recycle bin (not permanently deleted). The item name is retrieved before deletion and included in the success response.
 
 **CLI equivalent:** `mcp-spo-cli write delete --site-id ... --drive-id ... --item-id ... --confirm`
+
+**Retention:** where a retention policy applies, deleting a folder that still holds files fails with `Request was cancelled by event received. If attempting to delete a non-empty folder, it's possible that it's on hold`. Delete the files first, then the empty folder.
+
+</tool-group>
+
+<tool-group name="sign-in-mode">
+
+## Sign-in Mode Tools (device-code mode)
+
+All eight work only in sign-in mode. In app-only mode the discovery and OneDrive tools refuse with a message saying they act as the signed-in user, and the three sign-in tools report that no sign-in is needed.
+
+| Tool | Parameters | Behaviour |
+|---|---|---|
+| `spo-authenticate` | none | Starts a device-code sign-in; returns the URL and code at once and completes in the background. |
+| `spo-auth-status` | none | Mode, state, account, expiry, granted scopes and what each capability needs. |
+| `spo-logout` | none | Removes the account and the cache file. |
+| `spo-search-files` | `query`, `top?` (default 25, max 100), `from?` | `POST /search/query` with `entityTypes: ["driveItem"]`. Full-text across every site, OneDrive and Teams file the user can open; KQL supported. Returns `{ total, moreResultsAvailable, hits }`, each hit with `name`, `webUrl`, `location`, `siteId`, `driveId`, `itemId`, `lastModifiedDateTime`, `lastModifiedBy`, `size` and a plain `summary`. Page with `from`. New files can take several minutes to be indexed. |
+| `spo-resolve-link` | `url` | `GET /shares/u!{base64url}/driveItem`: any SharePoint or OneDrive URL, including a sharing link, to `{ name, itemId, driveId, siteId, webUrl, isFolder, mimeType, size, lastModifiedDateTime, parentPath }`. |
+| `spo-find-sites` | `query` | A site URL resolves through `/sites/{host}:/{path}`; a keyword searches `/sites?search=`. |
+| `spo-get-my-drive` | none | `GET /me/drive`: `{ driveId, driveType, webUrl, siteUrl, owner, quota }`. Pass `driveId` and `siteUrl` to the item tools to work in OneDrive. |
+| `spo-list-my-drive` | `path?` | The root (`/me/drive/root/children`) or a folder by path (`/me/drive/root:/{path}:/children`, each segment encoded). |
+
+**Not built:** `spo-list-my-recent` and `spo-list-shared-with-me`. Microsoft Learn marks `drive: recent` and `drive: sharedWithMe` deprecated, degraded until November 2026 and then returning no data.
 
 </tool-group>
 
@@ -448,7 +500,7 @@ Item-level operations (`listItems`, `getItem`, etc.) do not use the cache - only
 
 **Binary:** `mcp-spo-cli`
 
-CLI uses the same `ServiceContext` via `context-factory.ts`. All commands output a human-readable summary to stdout; full JSON is cached to `.context/.mcp-spo-cache/`.
+CLI uses the same `ServiceContext` via `context-factory.ts`. All commands output a human-readable summary to stdout; full JSON is cached to `.context/.mcp-spo-cache/`. The global `--json` flag is listed but currently ignored.
 
 <command-groups>
 
@@ -456,6 +508,8 @@ CLI uses the same `ServiceContext` via `context-factory.ts`. All commands output
 |--------------|----------|
 | (root) | `list-sites`, `get-site-info`, `test-connection`, `list-drives`, `get-drive-info`, `clear-cache`, `list-items`, `get-item`, `get-item-by-path`, `search-items`, `get-recent-items`, `get-folder-structure`, `get-crm-doc-locs`, `validate-doc-loc`, `verify-doc-mig`, `download-file` |
 | `write` | `upload`, `create-folder`, `move`, `copy`, `rename`, `delete` |
+| `auth` | `login` (blocks up to 15 minutes until sign-in completes), `status`, `logout` |
+| (root, sign-in mode) | `search-files`, `resolve-link`, `find-sites`, `get-my-drive`, `list-my-drive` |
 
 </command-groups>
 

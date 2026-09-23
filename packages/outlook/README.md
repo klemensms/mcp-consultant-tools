@@ -53,7 +53,7 @@ Open the URL, enter the code and sign in. Or call the `mail-authenticate` tool f
 
 20 tools, all prefixed `mail-`: 3 auth, 6 read, 8 write (`OUTLOOK_ENABLE_WRITE`), 2 send (`OUTLOOK_ENABLE_SEND`), 1 delete (`OUTLOOK_ENABLE_DELETE`). Every tool has a matching `mcp-outlook-cli` command.
 
-Guide: `docs/documentation/outlook.md`. Full reference: `docs/technical/OUTLOOK_TECHNICAL.md`.
+Guide: `docs/documentation/OUTLOOK.md`. Full reference: `docs/technical/OUTLOOK_TECHNICAL.md`.
 
 ## Safety
 

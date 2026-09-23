@@ -236,8 +236,8 @@ export function assertSafeLocalFile(filePath: string, homeDir?: string): string;
 ### Task 7: Documentation, local registration and hand-back
 
 **Files:**
-- Create: `packages/outlook/CLAUDE.md`, `packages/outlook/README.md`, `docs/documentation/outlook.md`, `docs/technical/OUTLOOK_TECHNICAL.md`, `packages/m365-core/CLAUDE.md` (if not written in Task 1).
-- Modify: `packages/sharepoint/CLAUDE.md`, `docs/documentation/sharepoint.md`, `docs/technical/SHAREPOINT_TECHNICAL.md`, root `README.md` (tool counts, package list), root `CLAUDE.md` (package list under Monorepo Architecture), `.claude/refs/package-binaries.md` (outlook row).
+- Create: `packages/outlook/CLAUDE.md`, `packages/outlook/README.md`, `docs/documentation/OUTLOOK.md`, `docs/technical/OUTLOOK_TECHNICAL.md`, `packages/m365-core/CLAUDE.md` (if not written in Task 1).
+- Modify: `packages/sharepoint/CLAUDE.md`, `docs/documentation/SHAREPOINT.md`, `docs/technical/SHAREPOINT_TECHNICAL.md`, root `README.md` (tool counts, package list), root `CLAUDE.md` (package list under Monorepo Architecture), `.claude/refs/package-binaries.md` (outlook row).
 
 - [ ] Write the docs following root `CLAUDE.md` § Documentation Strategy: short user docs, full XML-tagged technical docs. Include every environment variable with its default in each MCP config example.
 - [ ] Run the full check: `npm run build` at the root, then the three packages' tests.

@@ -2,7 +2,7 @@
 
 Delegated (signed in as the user) Outlook mail server. Device code only; there is no app-only mode and there must not be one, because app-only mail access reaches every mailbox in the tenant.
 
-Full reference: `docs/technical/OUTLOOK_TECHNICAL.md`. User guide: `docs/documentation/outlook.md`. Design: `docs/superpowers/specs/2026-09-23-delegated-outlook-sharepoint-design.md`.
+Full reference: `docs/technical/OUTLOOK_TECHNICAL.md`. User guide: `docs/documentation/OUTLOOK.md`. Design: `docs/superpowers/specs/2026-09-23-delegated-outlook-sharepoint-design.md`.
 
 ## Layout
 
