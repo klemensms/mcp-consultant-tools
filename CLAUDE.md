@@ -55,7 +55,7 @@ Conventions that MUST stay synchronized across this repo and every sibling. When
 These files are mirrored between this repo and `mcp-computer-use`. Edit both, or record a deliberate divergence below:
 
 - `.claude/agents/mcp-local-tester.md`, `.claude/templates/mcp-test-runner.mjs` - both copies carry a `SOURCE OF TRUTH` header pointing here
-- `scripts/install-hooks.sh`, `scripts/hooks/pre-commit`, `scripts/hooks/commit-msg`, `scripts/internal-scan-lib.sh`, `scripts/scan-tarball.sh`
+- `scripts/install-hooks.sh`, `scripts/hooks/pre-commit`, `scripts/hooks/commit-msg`, `scripts/internal-scan-lib.sh`, `scripts/scan-tarball.sh`, `scripts/test-hooks.sh`
 - `.secret-scan-allowlist`, `.secret-scan-longstr-allowlist`, `.internal-scan-placeholders` - file/header aligned; per-repo pattern entries can differ
 - `.internal-strings.local` (UNTRACKED in both repos - synced via private claude-config, never committed)
 
@@ -63,7 +63,7 @@ These files are mirrored between this repo and `mcp-computer-use`. Edit both, or
 
 **⚠️ Unmirrored divergence, 2026-08-31 - eight of the files above.** The repo-wide U+2014 / U+2013 sweep (`7f9c2c8`) changed all five `scripts/` files plus `.secret-scan-allowlist`, `.secret-scan-longstr-allowlist` and `.internal-scan-placeholders`, and `mcp-computer-use` is not checked out on this machine, so "edit both" could not be honoured. Every change is inside a `#` comment, so no hook behaviour moved on either side; the cost is that a diff of the two copies now shows comment noise. **Apply the same substitution to those eight files next time that repo is checked out**, before reading any diff between them as meaningful.
 
-**⚠️ Unmirrored divergence, 2026-09-23 - the fail-closed hook fix.** `scripts/hooks/pre-commit`, `scripts/hooks/commit-msg`, `scripts/internal-scan-lib.sh` and `scripts/scan-tarball.sh` now check every pattern list before scanning and stop on an invalid regex with its file and line, treat a grep exit of 2 as a failure instead of a pass, and scan renamed files (commit `fix(hooks): fail closed on invalid pattern lists and scan renamed files`). Unlike the dash sweep this changes behaviour, and the sibling's copies still fail open: on macOS one invalid line in a list silently switches that whole list off. **Copy those four files into `mcp-computer-use` next time it is checked out, then run a commit there**; the new check names any invalid line in that repo's own lists, and each must be fixed before it will commit.
+**⚠️ Unmirrored divergence, 2026-09-23 - the fail-closed hook fix.** `scripts/hooks/pre-commit`, `scripts/hooks/commit-msg`, `scripts/internal-scan-lib.sh` and `scripts/scan-tarball.sh` now check every pattern list before scanning and stop on an invalid regex with its file and line, treat a grep exit of 2 as a failure instead of a pass, and scan renamed files (commit `fix(hooks): fail closed on invalid pattern lists and scan renamed files`). Unlike the dash sweep this changes behaviour, and the sibling's copies still fail open: on macOS one invalid line in a list silently switches that whole list off. **Copy those four files, plus the new `scripts/test-hooks.sh` (`ad0bffd`), into `mcp-computer-use` next time it is checked out, then run `./scripts/test-hooks.sh` and a commit there**; the new check names any invalid line in that repo's own lists, and each must be fixed before it will commit.
 
 ## Release Notes - Master-Doc Model
 
@@ -113,6 +113,8 @@ node .claude/templates/mcp-test-runner.mjs
 ## Security: Preventing Secret Leaks
 
 Install the pre-commit hook once: `./scripts/install-hooks.sh`. The hook scans for secret patterns; allowlists at `.secret-scan-allowlist` (keywords) and `.secret-scan-longstr-allowlist` (long strings) reduce false positives.
+
+**After any edit to the hooks, `scripts/internal-scan-lib.sh` or a pattern list, run `./scripts/test-hooks.sh`** and commit only when it exits 0. It builds throwaway repos and checks that secrets, rename-only commits and invalid pattern lines are blocked and that a clean commit passes.
 
 **Auto-bypass policy** - when the hook blocks on commit, classify each flagged line:
 - **All false positives** (env var references like `process.env.CLIENT_SECRET`, CLI command names like `reset-password`, comments, import paths, doc examples) → `git commit --no-verify` automatically AND add the patterns to the relevant allowlist so it doesn't trigger next time.
