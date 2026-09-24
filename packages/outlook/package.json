@@ -43,7 +43,7 @@
     "@mcp-consultant-tools/core": "35.0.0-beta.2",
     "@mcp-consultant-tools/m365-core": "35.0.0-beta.1",
     "@microsoft/microsoft-graph-client": "^3.0.7",
-    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "commander": "^14.0.3",
     "dompurify": "^3.2.3",
     "jsdom": "^26.0.0",

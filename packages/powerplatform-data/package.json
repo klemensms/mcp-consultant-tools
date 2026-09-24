@@ -42,7 +42,7 @@
   "dependencies": {
     "@mcp-consultant-tools/core": "35.0.0-beta.2",
     "@mcp-consultant-tools/powerplatform-core": "35.0.0-beta.7",
-    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "commander": "^14.0.3",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.3",
