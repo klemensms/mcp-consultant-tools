@@ -296,3 +296,44 @@ A line that assigns an environment variable straight to a field named like a sec
 **Workaround:** read the variable into a short local name first and assign that to the field, and run the edit and the commit as separate calls. The repo's own allowlists (`.secret-scan-allowlist`, `.secret-scan-longstr-allowlist`) do not reach this guard.
 
 ---
+
+## HTTP mode serves every caller through one shared `McpServer` instance
+
+**Status:** confirmed 2026-09-24, in source. **Affects:** the HTTP servers in `powerplatform`, `powerplatform-data` and `sharepoint` (`src/http-server.ts` in each).
+
+Each HTTP server builds one `McpServer`, connects it once to one `InMemoryTransport` pair at start-up, and then relays every `POST /mcp` from every HTTP caller through that same pair. That is the pattern the SDK's cross-client data-leak advisory (GHSA-345p-7cg4-v4c7) warns about: responses and server state are shared by all callers of one process. Raising the SDK to 1.26+ (the patched range, now ^1.26.0 across the workspace) does not change this, because the SDK's new guard only rejects connecting one server to a second transport, which these servers never do.
+
+**Risk:** low while HTTP mode is a local server used by one person. It becomes a real leak the moment one HTTP server is shared by more than one user or client.
+
+**Fix:** before HTTP mode is ever shared, create a `McpServer` and transport per session (or per request) instead of one per process, using the SDK's Streamable HTTP transport with session IDs. All three copies of `http-server.ts` are near-identical, so fix them together.
+
+---
+
+## Moderate and low `npm audit` findings left after the 2026-09-24 dependency update
+
+**Status:** confirmed 2026-09-24 by `npm audit --json` at the root. **Affects:** nothing in CI: the audit job fails only on high or critical, and `npm audit --audit-level=high` exits 0. Re-run `npm audit` rather than trusting this list; it drifts with every lockfile change.
+
+**Fixable within the current major** (a range raise or a lockfile update, no API change expected):
+
+- `@azure/identity` (moderate, direct) in eleven packages, via its `@azure/msal-node` dependency.
+- `dompurify` <= 3.4.12 (moderate, direct) in `outlook` and `teams`: eighteen advisories in the sanitiser itself, mostly sanitisation bypasses that let markup or script survive, so this is the one worth doing first.
+- `express` (moderate, direct) in `powerplatform`, `powerplatform-data` and `sharepoint`, via `body-parser` and `qs` (both moderate, transitive, denial of service).
+- `ajv` 7.0.0 - 8.17.1 (moderate, transitive).
+- `esbuild` 0.27.3 - 0.28.0 (low, transitive, dev only).
+
+**Needs a major version bump:**
+
+- `@azure/msal-node` <= 5.1.4 and its `uuid` < 11.1.1 (moderate): the fix is `@azure/msal-node` 7, a two-major jump in eight packages (`application-insights`, `azure-data-factory`, `log-analytics`, `m365-core`, `powerplatform-core`, `service-bus`, `sharepoint`, `teams`). It touches delegated and app-only sign-in, so it needs its own change with sign-in tested live.
+- `vitest` and `@vitest/mocker` (moderate, GHSA-82fw-gwwq-j7x9, dev only): the fix is vitest 4.1.11 or later. npm suggests vitest 5, which needs Node 22.12+, while the CI build matrix still runs Node 18 and tests on Node 20. vitest 4.1.11 supports Node 20, so the order is: drop Node 18 from the matrix, then move to vitest 4.
+
+---
+
+## 24 package manifests declare `engines.node >=16` while the MCP SDK needs Node 18
+
+**Status:** confirmed 2026-09-24, in source. **Affects:** every package whose `package.json` says `"node": ">=16.0.0"`; list them with `grep -l '"node": ">=16' packages/*/package.json`. Six more already say `>=18.0.0`.
+
+`@modelcontextprotocol/sdk` declares `engines.node >=18`, and has done so since before the 2026-09-24 update (1.24.3 already required it; 1.30.1 still does). A user on Node 16 gets an npm `EBADENGINE` warning at install and an SDK that is not built for their runtime, although our manifests told them it was supported. This was not introduced by the SDK raise and was deliberately left unchanged there, because raising `engines` is a user-facing support change.
+
+**Fix:** raise `engines.node` to `>=18.0.0` in the 24 manifests, and consider `>=20.0.0` if the CI matrix drops Node 18. Mention it in the release notes as a support change.
+
+---
