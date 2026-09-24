@@ -59,9 +59,9 @@
     "@types/node": "^22.10.5",
     "@types/turndown": "^5.0.6",
     "typescript": "^5.8.2",
-    "vite": "^7.3.1",
+    "vite": "^7.3.5",
     "vite-plugin-singlefile": "^2.3.0",
-    "vitest": "^2.1.9"
+    "vitest": "^3.2.7"
   },
   "bin": {
     "mcp-ado": "build/index.js",
