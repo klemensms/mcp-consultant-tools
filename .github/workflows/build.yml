@@ -179,7 +179,8 @@ jobs:
           # Verify core package is at ^1.0.0 in all service packages
           for pkg_dir in packages/*/; do
             pkg_name=$(basename "$pkg_dir")
-            if [ "$pkg_name" = "core" ] || [ "$pkg_name" = "meta" ]; then
+            # m365-core is an internal auth library with no core dependency by design
+            if [ "$pkg_name" = "core" ] || [ "$pkg_name" = "meta" ] || [ "$pkg_name" = "m365-core" ]; then
               continue
             fi
 
