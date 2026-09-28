@@ -61,4 +61,49 @@ export function registerContentTools(server: any, ctx: ServiceContext): void {
       }
     }
   );
+
+  const cell = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+
+  server.tool(
+    'spo-read-excel',
+    'Read an Excel workbook on the server, without downloading it. Without worksheet: list the worksheets with their used ranges. ' +
+      'With worksheet: values, displayed text and formulas for range (such as A1:D20), or for the used range when range is left out.' +
+      ' Off when SHAREPOINT_CONTENT_READ excludes excel.',
+    {
+      ...itemRefShape,
+      worksheet: z.string().optional().describe('Worksheet name; leave out to list the worksheets'),
+      range: z.string().optional().describe('A1 range such as A1:D20; leave out for the used range'),
+    },
+    { readOnlyHint: true, openWorldHint: true },
+    async (args: any) => {
+      try {
+        const ref = refOf(args);
+        return json(args.worksheet ? await ctx.content.excel.readRange(ref, args.worksheet, args.range) : await ctx.content.excel.listWorksheets(ref));
+      } catch (error: any) {
+        return fail('read Excel workbook', error);
+      }
+    }
+  );
+
+  server.tool(
+    'spo-write-excel',
+    'Set values or formulas on a range of an Excel workbook, on the server, so co-authors see it as it happens. ' +
+      'Give values or formulas as rows, matching the range: A1:B2 takes [[1, 2], [3, 4]]. Formulas start with =.' +
+      ' Off unless SHAREPOINT_CONTENT_WRITE includes excel.',
+    {
+      ...itemRefShape,
+      worksheet: z.string().describe('Worksheet name'),
+      range: z.string().describe('A1 range such as B2 or A1:C3'),
+      values: z.array(z.array(cell)).optional().describe('Values, one inner array per row'),
+      formulas: z.array(z.array(cell)).optional().describe('Formulas, one inner array per row'),
+    },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    async (args: any) => {
+      try {
+        return json(await ctx.content.excel.writeRange(refOf(args), { worksheet: args.worksheet, range: args.range, values: args.values, formulas: args.formulas }));
+      } catch (error: any) {
+        return fail('write Excel range', error);
+      }
+    }
+  );
 }

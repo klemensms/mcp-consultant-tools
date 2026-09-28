@@ -9,7 +9,7 @@ Design: `docs/superpowers/specs/2026-09-28-sharepoint-content-and-outlook-drafts
 | 1 | Content settings and format gating | done |
 | 2 | Content service core: item locator, in-memory read, If-Match write, version report | done |
 | 3 | Text read and write tools | done |
-| 4 | Excel read and write through `/workbook` | todo |
+| 4 | Excel read and write through `/workbook` | done |
 | 5 | Word read (Markdown with paragraph anchors) and edit operations | todo |
 | 6 | PowerPoint read and text replace | todo |
 | 7 | `spo-create-file` (blank Office files generated in memory, text with content) | todo |

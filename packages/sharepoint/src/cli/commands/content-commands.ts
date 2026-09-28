@@ -62,4 +62,55 @@ export function registerContentCommands(program: Command, ctx: ServiceContext): 
         handleCliError(error);
       }
     });
+
+  // spo-read-excel
+  withItemRef(content.command('read-excel').description('List worksheets, or read a range (values, text, formulas) on the server'))
+    .option('--worksheet <name>', 'Worksheet name; leave out to list the worksheets')
+    .option('--range <range>', 'A1 range; leave out for the used range')
+    .action(async (opts: any) => {
+      try {
+        if (!opts.worksheet) {
+          const result = await ctx.content.excel.listWorksheets(refOf(opts));
+          outputResult({
+            fileName: `read-excel-${result.name}`,
+            data: result,
+            summary: `${result.name}: ${result.worksheets.length} worksheet(s)\n` +
+              result.worksheets.map((w) => `  - ${w.name}  ${w.usedRange ?? '(empty)'}`).join('\n'),
+          });
+          return;
+        }
+        const result = await ctx.content.excel.readRange(refOf(opts), opts.worksheet, opts.range);
+        outputResult({
+          fileName: `read-excel-${result.name}-${result.worksheet}`,
+          data: result,
+          summary: `${result.address} (${result.rowCount} x ${result.columnCount})\n` + result.text.map((row) => row.join('\t')).join('\n'),
+        });
+      } catch (error) {
+        handleCliError(error);
+      }
+    });
+
+  // spo-write-excel
+  withItemRef(content.command('write-excel').description('Set values or formulas on a range, on the server'))
+    .requiredOption('--worksheet <name>', 'Worksheet name')
+    .requiredOption('--range <range>', 'A1 range such as B2 or A1:C3')
+    .option('--values <json>', 'Values as a JSON array of rows, such as [[1,2],[3,4]]')
+    .option('--formulas <json>', 'Formulas as a JSON array of rows, such as [["=A1*2"]]')
+    .action(async (opts: any) => {
+      try {
+        const parse = (raw: string | undefined, name: string) => {
+          if (raw === undefined) return undefined;
+          try { return JSON.parse(raw); } catch { throw new Error(`--${name} must be a JSON array of rows.`); }
+        };
+        const result = await ctx.content.excel.writeRange(refOf(opts), {
+          worksheet: opts.worksheet,
+          range: opts.range,
+          values: parse(opts.values, 'values'),
+          formulas: parse(opts.formulas, 'formulas'),
+        });
+        outputResult({ fileName: `write-excel-${result.name}`, data: result, summary: `Wrote ${result.address} in ${result.name}` });
+      } catch (error) {
+        handleCliError(error);
+      }
+    });
 }
