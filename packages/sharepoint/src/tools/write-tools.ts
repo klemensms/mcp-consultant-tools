@@ -17,23 +17,27 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     "spo-upload-file",
-    "Upload a file to a SharePoint document library. Requires SHAREPOINT_ENABLE_WRITE=true. For text content use encoding 'utf-8' (default), for binary content use 'base64'. Files up to SHAREPOINT_MAX_UPLOAD_SIZE_MB (default 100MB) are supported.",
+    "Upload a file to a SharePoint document library. Requires SHAREPOINT_ENABLE_WRITE=true. Give content (text as 'utf-8', the default, or binary as 'base64') OR localPath, a file inside your home folder that is read from disk so its content never passes through the conversation (use this for Office files built locally). Hidden folders and credential-shaped files are refused. Files up to SHAREPOINT_MAX_UPLOAD_SIZE_MB (default 100MB) are supported.",
     {
       siteId: z.string().describe("Site ID from configuration, or (sign-in mode) a full site URL"),
       driveId: z.string().describe("Drive ID"),
       path: z.string().describe(
         descWithExamples("Target file path relative to drive root (including filename)", UPLOAD_PATH_EXAMPLES)
       ),
-      content: z.string().describe("File content (text string or base64-encoded binary)"),
+      content: z.string().optional().describe("File content (text string or base64-encoded binary). Use this OR localPath"),
+      localPath: z.string().optional().describe("Path of a local file inside your home folder, such as ~/Documents/model.xlsx. Use this OR content"),
       encoding: z.enum(['utf-8', 'base64']).optional().describe("Content encoding: 'utf-8' for text (default), 'base64' for binary"),
       overwrite: z.boolean().optional().describe("Overwrite if file exists (default: false, will fail if file exists)"),
     },
     // overwrite=true can replace an existing file, but the primary intent is to add content → mutating, non-destructive.
     { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    async ({ siteId, driveId, path, content, encoding, overwrite }: any) => {
+    async ({ siteId, driveId, path, content, localPath, encoding, overwrite }: any) => {
       try {
         ctx.checkWriteEnabled();
-        const result = await ctx.files.uploadFile(siteId, driveId, path, content, encoding || 'utf-8', overwrite || false);
+        if ((content === undefined) === (localPath === undefined)) throw new Error('Give either content or localPath, not both and not neither.');
+        const result = localPath !== undefined
+          ? await ctx.files.uploadLocalFile(siteId, driveId, path, localPath, overwrite || false)
+          : await ctx.files.uploadFile(siteId, driveId, path, content, encoding || 'utf-8', overwrite || false);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (error: any) {
         console.error("Error uploading file:", error);

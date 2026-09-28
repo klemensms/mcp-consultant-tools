@@ -8,6 +8,8 @@
 import { Client, ResponseType } from '@microsoft/microsoft-graph-client';
 import { auditLogger } from '@mcp-consultant-tools/core';
 import { saveToDownloadDir } from '@mcp-consultant-tools/m365-core';
+import fs from 'node:fs';
+import { assertSafeLocalFile } from '../local-file-guard.js';
 import type { SharePointService } from './sharepoint-service.js';
 import type {
   FileDownloadResult,
@@ -244,15 +246,101 @@ export class FileOperationsService {
   }
 
   /**
+   * Upload a file from the local disk, checked by the home-folder guard. Up to
+   * 4 MB is sent in one PUT; above that it is read from disk chunk by chunk
+   * into an upload session, so the whole file is never held in memory.
+   */
+  async uploadLocalFile(
+    siteId: string,
+    driveId: string,
+    path: string,
+    localPath: string,
+    overwrite: boolean = false,
+    homeDir?: string
+  ): Promise<FileUploadResult> {
+    const timer = auditLogger.startTimer();
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+    try {
+      const real = assertSafeLocalFile(localPath, homeDir);
+      const size = fs.statSync(real).size;
+      const maxBytes = this.config.maxUploadSizeMB * 1024 * 1024;
+      if (size > maxBytes) {
+        throw new Error(
+          `File size ${(size / (1024 * 1024)).toFixed(1)} MB exceeds upload limit of ${this.config.maxUploadSizeMB} MB. ` +
+          `Adjust SHAREPOINT_MAX_UPLOAD_SIZE_MB to increase the limit.`
+        );
+      }
+
+      const client = await this.spoService.getAuthenticatedGraphClient();
+      let response: any;
+      if (size <= 4 * 1024 * 1024) {
+        response = await client
+          .api(`/drives/${driveId}/root:${normalizedPath}:/content`)
+          .header('Content-Type', 'application/octet-stream')
+          .query({ '@microsoft.graph.conflictBehavior': overwrite ? 'replace' : 'fail' })
+          .put(fs.readFileSync(real));
+      } else {
+        const fd = fs.openSync(real, 'r');
+        try {
+          response = await this.uploadLargeFile(client, driveId, normalizedPath, {
+            size,
+            read: (offset, length) => {
+              const chunk = Buffer.alloc(length);
+              fs.readSync(fd, chunk, 0, length, offset);
+              return chunk;
+            },
+          }, overwrite);
+        } finally {
+          fs.closeSync(fd);
+        }
+      }
+
+      auditLogger.log({
+        operation: 'upload-file',
+        operationType: 'CREATE',
+        componentType: 'File',
+        componentName: response.name,
+        success: true,
+        parameters: { siteId, driveId, path: normalizedPath, size, source: 'localPath' },
+        executionTimeMs: timer(),
+      });
+
+      return {
+        itemId: response.id,
+        name: response.name,
+        webUrl: response.webUrl,
+        size: response.size,
+        createdDateTime: response.createdDateTime,
+        lastModifiedDateTime: response.lastModifiedDateTime,
+      };
+    } catch (error: any) {
+      auditLogger.log({
+        operation: 'upload-file',
+        operationType: 'CREATE',
+        componentType: 'File',
+        success: false,
+        error: error.message,
+        parameters: { siteId, driveId, path: normalizedPath, source: 'localPath' },
+        executionTimeMs: timer(),
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Upload large file using upload session (chunked upload)
    */
   private async uploadLargeFile(
     client: Client,
     driveId: string,
     path: string,
-    buffer: Buffer,
+    source: Buffer | { size: number; read(offset: number, length: number): Buffer },
     overwrite: boolean
   ): Promise<any> {
+    const total = Buffer.isBuffer(source) ? source.length : source.size;
+    const readChunk = (offset: number, end: number) =>
+      Buffer.isBuffer(source) ? source.subarray(offset, end) : source.read(offset, end - offset);
     const conflictBehavior = overwrite ? 'replace' : 'fail';
 
     const sessionResponse = await client
@@ -268,15 +356,15 @@ export class FileOperationsService {
     let offset = 0;
     let lastResponse: any;
 
-    while (offset < buffer.length) {
-      const end = Math.min(offset + CHUNK_SIZE, buffer.length);
-      const chunk = buffer.subarray(offset, end);
+    while (offset < total) {
+      const end = Math.min(offset + CHUNK_SIZE, total);
+      const chunk = readChunk(offset, end);
 
       const fetchResponse = await fetch(uploadUrl, {
         method: 'PUT',
         headers: {
           'Content-Length': chunk.length.toString(),
-          'Content-Range': `bytes ${offset}-${end - 1}/${buffer.length}`,
+          'Content-Range': `bytes ${offset}-${end - 1}/${total}`,
         },
         body: chunk,
       });

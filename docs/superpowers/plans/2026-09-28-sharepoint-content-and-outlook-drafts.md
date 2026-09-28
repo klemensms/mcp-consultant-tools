@@ -13,7 +13,7 @@ Design: `docs/superpowers/specs/2026-09-28-sharepoint-content-and-outlook-drafts
 | 5 | Word read (Markdown with paragraph anchors) and edit operations | done |
 | 6 | PowerPoint read and text replace | done |
 | 7 | `spo-create-file` (blank Office files generated in memory, text with content) | done |
-| 8 | `spo-upload-file` `localPath` input with the home-folder guard | todo |
+| 8 | `spo-upload-file` `localPath` input with the home-folder guard | done |
 | 9 | Outlook: `OUTLOOK_ENABLE_DRAFTS` split, attach from a SharePoint or OneDrive `url` | todo |
 | 10 | Docs: technical docs, user docs, package CLAUDE.md, release-notes "Changes Implemented" | todo |
 | 11 | Live verification, then the maintainer's local config | todo |

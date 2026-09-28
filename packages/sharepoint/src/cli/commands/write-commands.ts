@@ -21,20 +21,24 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
     .requiredOption('--site-id <siteId>', 'Site ID from configuration, or (sign-in mode) a full site URL')
     .requiredOption('--drive-id <driveId>', 'Drive ID')
     .requiredOption('--path <path>', 'Target file path relative to drive root (including filename)')
-    .requiredOption('--content <content>', 'File content (text string or base64-encoded binary)')
+    .option('--content <content>', 'File content (text string or base64-encoded binary). Use this OR --local-path')
+    .option('--local-path <path>', 'Local file inside your home folder to upload, read from disk. Use this OR --content')
     .option('--encoding <encoding>', "Content encoding: 'utf-8' for text (default), 'base64' for binary", 'utf-8')
     .option('--overwrite', 'Overwrite if file exists (default: false)')
     .action(async (opts: any) => {
       try {
         ctx.checkWriteEnabled();
-        const result = await ctx.files.uploadFile(
-          opts.siteId,
-          opts.driveId,
-          opts.path,
-          opts.content,
-          opts.encoding || 'utf-8',
-          opts.overwrite || false
-        );
+        if ((opts.content === undefined) === (opts.localPath === undefined)) throw new Error('Give either --content or --local-path, not both and not neither.');
+        const result = opts.localPath !== undefined
+          ? await ctx.files.uploadLocalFile(opts.siteId, opts.driveId, opts.path, opts.localPath, opts.overwrite || false)
+          : await ctx.files.uploadFile(
+              opts.siteId,
+              opts.driveId,
+              opts.path,
+              opts.content,
+              opts.encoding || 'utf-8',
+              opts.overwrite || false
+            );
         outputResult({ persist: false,
           fileName: `upload-${(result as any).name || 'file'}`,
           data: result,
