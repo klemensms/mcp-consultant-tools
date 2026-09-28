@@ -198,4 +198,32 @@ export function registerContentCommands(program: Command, ctx: ServiceContext): 
         handleCliError(error);
       }
     });
+
+  // spo-create-file
+  content.command('create').description('Create a blank Word, Excel or PowerPoint file, or a text file with content')
+    .option('--folder-url <url>', 'SharePoint or OneDrive link to the folder (sign-in mode)')
+    .option('--drive-id <driveId>', 'Drive ID (with --folder-path)')
+    .option('--folder-path <path>', 'Folder path from the drive root; leave out for the root')
+    .requiredOption('--file-name <name>', 'New file name with extension, such as Plan.docx')
+    .option('--content <text>', 'Text files only: the content')
+    .option('--content-file <path>', 'Text files only: read the content from a local file')
+    .action(async (opts: any) => {
+      try {
+        const text = opts.content !== undefined || opts.contentFile !== undefined ? inlineOrFile(opts.content, opts.contentFile, 'content') : undefined;
+        const result = await ctx.content.create.create({
+          folderUrl: opts.folderUrl,
+          driveId: opts.driveId,
+          folderPath: opts.folderPath,
+          fileName: opts.fileName,
+          content: text,
+        });
+        outputResult({
+          fileName: `create-${result.name}`,
+          data: result,
+          summary: `Created ${result.name} (item ${result.itemId}, eTag ${result.eTag})\n${result.webUrl}`,
+        });
+      } catch (error) {
+        handleCliError(error);
+      }
+    });
 }

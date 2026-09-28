@@ -41,7 +41,7 @@ export interface ContentDeps {
     getAuthenticatedGraphClient(): Promise<Client>;
     handleError(error: unknown, context: string): Error;
   };
-  resolveLink(url: string): Promise<{ driveId?: string; itemId: string }>;
+  resolveLink(url: string): Promise<{ driveId?: string; itemId: string; isFolder?: boolean }>;
   access: ContentAccess;
 }
 

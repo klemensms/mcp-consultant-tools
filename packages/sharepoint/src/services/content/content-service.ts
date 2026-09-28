@@ -8,6 +8,7 @@ import { TextContent } from './text-content.js';
 import { ExcelContent } from './excel-content.js';
 import { WordContent } from './word-content.js';
 import { PowerPointContent } from './powerpoint-content.js';
+import { CreateContent } from './create-content.js';
 
 export class ContentService {
   readonly core: ContentCore;
@@ -15,6 +16,7 @@ export class ContentService {
   readonly excel: ExcelContent;
   readonly word: WordContent;
   readonly powerpoint: PowerPointContent;
+  readonly create: CreateContent;
 
   constructor(deps: ContentDeps) {
     this.core = new ContentCore(deps);
@@ -22,5 +24,6 @@ export class ContentService {
     this.excel = new ExcelContent(this.core);
     this.word = new WordContent(this.core);
     this.powerpoint = new PowerPointContent(this.core);
+    this.create = new CreateContent(this.core, deps.resolveLink);
   }
 }

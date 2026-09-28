@@ -195,4 +195,26 @@ export function registerContentTools(server: any, ctx: ServiceContext): void {
       }
     }
   );
+
+  server.tool(
+    'spo-create-file',
+    'Create a new file: a blank Word (.docx), Excel (.xlsx) or PowerPoint (.pptx) file, or a text file (.md, .txt, .csv, .json and similar) with the content given. ' +
+      'Never replaces an existing file. Fill a new Office file in with spo-edit-word, spo-write-excel or spo-edit-powerpoint; ' +
+      'for a richly formatted file, build it locally and use spo-upload-file with localPath. Off unless SHAREPOINT_CONTENT_WRITE includes the format.',
+    {
+      folderUrl: z.string().optional().describe('SharePoint or OneDrive link to the folder (sign-in mode). Use this OR driveId with folderPath.'),
+      driveId: z.string().optional().describe('Drive ID (with folderPath)'),
+      folderPath: z.string().optional().describe('Folder path from the drive root, such as /Reports/2026; leave out for the root'),
+      fileName: z.string().describe('New file name with extension, such as Plan.docx or notes.md'),
+      content: z.string().optional().describe('Text files only: the content (UTF-8)'),
+    },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    async (args: any) => {
+      try {
+        return json(await ctx.content.create.create(args));
+      } catch (error: any) {
+        return fail('create file', error);
+      }
+    }
+  );
 }
