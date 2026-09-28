@@ -1,20 +1,22 @@
 /**
- * Changing the mailbox without sending anything: drafts, draft attachments,
+ * Changing the mailbox without sending anything: drafts and draft attachments
+ * (OUTLOOK_ENABLE_DRAFTS, which follows OUTLOOK_ENABLE_WRITE while unset),
  * mark read, move, flag (OUTLOOK_ENABLE_WRITE), and delete to Deleted Items
- * (OUTLOOK_ENABLE_DELETE). The switch is checked here, not in the tool layer,
- * so the CLI is held to it as well.
+ * (OUTLOOK_ENABLE_DELETE). The switches are checked here, not in the tool
+ * layer, so the CLI is held to them as well.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Client } from '@microsoft/microsoft-graph-client';
 import { requireEnabled } from '@mcp-consultant-tools/m365-core';
-import { permissionHint } from '../permissions.js';
+import { ATTACH_FROM_LINK_NEEDS, draftsEnabled, draftsFollowWrite, permissionHint } from '../permissions.js';
 import { assertSafeLocalFile } from '../local-file-guard.js';
-import { prependToBody, toGraphMessage, toHtml, toRecipients } from './compose.js';
+import { escapeHtml, insertAboveQuote, prependToBody, toGraphMessage, toHtml, toRecipients } from './compose.js';
 import type { BodyFormat, ComposeInput } from './compose.js';
 import type { GraphClientProvider } from './mail-read-service.js';
 
 const WRITE = 'OUTLOOK_ENABLE_WRITE';
+const DRAFTS = 'OUTLOOK_ENABLE_DRAFTS';
 const DELETE = 'OUTLOOK_ENABLE_DELETE';
 
 /** Graph takes a file attachment inline up to 3 MB; above that it needs an upload session. */
@@ -31,10 +33,21 @@ export interface MailWriteOptions {
   fetch?: typeof fetch;
 }
 
+/** Every draft result carries this, so an agent never reports a draft as sent. */
+export const NOTHING_SENT = 'Saved as a draft. Nothing was sent.';
+
 export interface DraftRef {
   id: string;
   webLink: string;
+  note: string;
 }
+
+export type AttachResult =
+  | { attached: true; attachmentId?: string; name: string; size: number; note: string }
+  | { attached: false; linkInserted: true; url: string; reason: string; note: string };
+
+/** Graph's share id for a sharing link or file URL: u! plus the URL in unpadded base64url. */
+const shareId = (url: string) => `u!${Buffer.from(url).toString('base64url')}`;
 
 const messagePath = (id: string) => `/me/messages/${encodeURIComponent(id)}`;
 
@@ -49,10 +62,17 @@ export class MailWriteService {
   }
 
   private requireWrite(): void {
-    requireEnabled(WRITE, 'Mail write (drafts, mark read, move, flag)');
+    requireEnabled(WRITE, 'Mail write (mark read, move, flag)');
   }
 
-  private async call<T>(group: 'write' | 'delete', run: () => Promise<T>): Promise<T> {
+  private requireDrafts(): void {
+    if (!draftsEnabled()) {
+      const follows = draftsFollowWrite() ? ` While ${DRAFTS} is unset it follows ${WRITE}, which is off too.` : '';
+      throw new Error(`Mail drafts (create, change, attach) are disabled. Set ${DRAFTS}=true to enable.${follows}`);
+    }
+  }
+
+  private async call<T>(group: 'write' | 'drafts' | 'delete', run: () => Promise<T>): Promise<T> {
     try {
       return await run();
     } catch (error) {
@@ -61,10 +81,10 @@ export class MailWriteService {
   }
 
   async createDraft(input: ComposeInput): Promise<DraftRef> {
-    this.requireWrite();
+    this.requireDrafts();
     const message = toGraphMessage(input);
-    const draft = await this.call('write', () => this.graph.api('/me/messages').post(message));
-    return { id: draft.id, webLink: draft.webLink };
+    const draft = await this.call('drafts', () => this.graph.api('/me/messages').post(message));
+    return { id: draft.id, webLink: draft.webLink, note: NOTHING_SENT };
   }
 
   /**
@@ -73,28 +93,28 @@ export class MailWriteService {
    * read back, and the new HTML written above the quoted thread.
    */
   async createReplyDraft(input: { messageId: string; replyAll?: boolean; body: string; format?: BodyFormat }): Promise<DraftRef> {
-    this.requireWrite();
+    this.requireDrafts();
     const action = input.replyAll ? 'createReplyAll' : 'createReply';
     const html = toHtml(input.body, input.format);
-    return this.call('write', async () => {
+    return this.call('drafts', async () => {
       const draft = await this.graph.api(`${messagePath(input.messageId)}/${action}`).post({});
       await this.writeAboveQuote(draft.id, html);
-      return { id: draft.id, webLink: draft.webLink };
+      return { id: draft.id, webLink: draft.webLink, note: NOTHING_SENT };
     });
   }
 
   async createForwardDraft(input: { messageId: string; to: string[]; body?: string; format?: BodyFormat }): Promise<DraftRef> {
-    this.requireWrite();
+    this.requireDrafts();
     const toRecipientsList = toRecipients(input.to);
     const html = input.body ? toHtml(input.body, input.format) : undefined;
-    return this.call('write', async () => {
+    return this.call('drafts', async () => {
       const draft = await this.graph
         .api(`${messagePath(input.messageId)}/createForward`)
         .post({ toRecipients: toRecipientsList });
       if (html) {
         await this.writeAboveQuote(draft.id, html);
       }
-      return { id: draft.id, webLink: draft.webLink };
+      return { id: draft.id, webLink: draft.webLink, note: NOTHING_SENT };
     });
   }
 
@@ -112,8 +132,8 @@ export class MailWriteService {
     subject?: string;
     body?: string;
     format?: BodyFormat;
-  }): Promise<{ id: string }> {
-    this.requireWrite();
+  }): Promise<{ id: string; note: string }> {
+    this.requireDrafts();
     const patch: Record<string, unknown> = {};
     if (input.subject !== undefined) patch.subject = input.subject;
     if (input.body !== undefined) patch.body = { contentType: 'HTML', content: toHtml(input.body, input.format) };
@@ -123,14 +143,38 @@ export class MailWriteService {
     if (Object.keys(patch).length === 0) {
       throw new Error('Nothing to update: give at least one of to, cc, bcc, subject or body.');
     }
-    await this.call('write', () => this.graph.api(messagePath(input.draftId)).patch(patch));
-    return { id: input.draftId };
+    await this.call('drafts', () => this.graph.api(messagePath(input.draftId)).patch(patch));
+    return { id: input.draftId, note: NOTHING_SENT };
   }
 
-  async addDraftAttachment(input: { draftId: string; filePath: string }): Promise<{ attachmentId?: string; name: string; size: number }> {
-    this.requireWrite();
-    const real = assertSafeLocalFile(input.filePath, this.options.homeDir);
+  /** Attach a local file (filePath) or a SharePoint or OneDrive file (url). Exactly one. */
+  async addDraftAttachment(input: { draftId: string; filePath?: string; url?: string }): Promise<AttachResult> {
+    this.requireDrafts();
+    if (!input.filePath && !input.url) {
+      throw new Error('Give filePath or url: a local file in your home folder, or a SharePoint or OneDrive link.');
+    }
+    if (input.filePath && input.url) {
+      throw new Error('Give filePath or url, not both.');
+    }
+    if (input.url) {
+      return this.attachFromLink(input.draftId, input.url);
+    }
+    const real = assertSafeLocalFile(input.filePath!, this.options.homeDir);
     const size = fs.statSync(real).size;
+    this.checkSize(size);
+    return this.attach(input.draftId, path.basename(real), size, (start, length) => {
+      const chunk = Buffer.alloc(length);
+      const handle = fs.openSync(real, 'r');
+      try {
+        fs.readSync(handle, chunk, 0, length, start);
+      } finally {
+        fs.closeSync(handle);
+      }
+      return chunk;
+    });
+  }
+
+  private checkSize(size: number): void {
     const maxBytes = this.options.maxAttachmentMB * 1024 * 1024;
     if (size > maxBytes) {
       throw new Error(
@@ -138,52 +182,105 @@ export class MailWriteService {
           'Raise OUTLOOK_MAX_ATTACHMENT_MB to attach it, or share a link instead.'
       );
     }
-    const name = path.basename(real);
-    const attachments = `${messagePath(input.draftId)}/attachments`;
+  }
 
+  /**
+   * Read the linked file's metadata with the Outlook sign-in, then its bytes
+   * into memory from the pre-authorised download URL; nothing touches the
+   * disk. When the sign-in may not read the file (403), put a link to it in
+   * the draft instead, above any quoted thread.
+   */
+  private async attachFromLink(draftId: string, url: string): Promise<AttachResult> {
+    if (!/^https:\/\//i.test(url)) {
+      throw new Error('url must be an https SharePoint or OneDrive link.');
+    }
+    let item: any;
+    try {
+      item = await this.graph.api(`/shares/${shareId(url)}/driveItem`).get();
+    } catch (error) {
+      if ((error as { statusCode?: number } | null)?.statusCode !== 403) {
+        throw error;
+      }
+      return this.insertLink(draftId, url);
+    }
+    if (item?.folder || !item?.file) {
+      throw new Error(`That link points to a folder or to something that is not a file (${item?.name ?? 'unnamed'}). Link to a single file.`);
+    }
+    const size: number = item.size ?? 0;
+    this.checkSize(size);
+    const downloadUrl: string | undefined = item['@microsoft.graph.downloadUrl'];
+    if (!downloadUrl) {
+      throw new Error(`Graph returned no download URL for ${item.name}, so its content cannot be read.`);
+    }
+    const response = await (this.options.fetch ?? fetch)(downloadUrl);
+    if (!response.ok) {
+      throw new Error(`Downloading ${item.name} failed: ${response.status} ${await response.text()}`);
+    }
+    const data = Buffer.from(await response.arrayBuffer());
+    return this.attach(draftId, item.name, data.length, (start, length) => data.subarray(start, start + length));
+  }
+
+  private async insertLink(draftId: string, url: string): Promise<AttachResult> {
+    const link = `<p><a href="${escapeHtml(url)}">${escapeHtml(url)}</a></p>`;
+    await this.call('drafts', async () => {
+      const current = await this.graph.api(messagePath(draftId)).select(['body']).get();
+      const content = insertAboveQuote(current?.body?.content ?? '', link);
+      await this.graph.api(messagePath(draftId)).patch({ body: { contentType: 'HTML', content } });
+    });
+    return {
+      attached: false,
+      linkInserted: true,
+      url,
+      reason:
+        'The Outlook sign-in may not read that file (403 Forbidden), so a link to it was put in the draft instead. ' +
+        `Attaching the file itself needs the delegated ${ATTACH_FROM_LINK_NEEDS[0]} permission on the Outlook app registration, ` +
+        'granted by an administrator with admin consent.',
+      note: NOTHING_SENT,
+    };
+  }
+
+  /** Inline up to 3 MB; above that an upload session fed by read(start, length). */
+  private async attach(
+    draftId: string,
+    name: string,
+    size: number,
+    read: (start: number, length: number) => Buffer
+  ): Promise<AttachResult> {
+    const attachments = `${messagePath(draftId)}/attachments`;
     if (size <= INLINE_ATTACHMENT_LIMIT) {
-      const data = fs.readFileSync(real);
-      const created = await this.call('write', () =>
+      const created = await this.call('drafts', () =>
         this.graph.api(attachments).post({
           '@odata.type': '#microsoft.graph.fileAttachment',
           name,
-          contentBytes: data.toString('base64'),
+          contentBytes: read(0, size).toString('base64'),
         })
       );
-      return { attachmentId: created?.id, name, size };
+      return { attached: true, attachmentId: created?.id, name, size, note: NOTHING_SENT };
     }
-
-    const session = await this.call('write', () =>
+    const session = await this.call('drafts', () =>
       this.graph.api(`${attachments}/createUploadSession`).post({ AttachmentItem: { attachmentType: 'file', name, size } })
     );
-    await this.uploadChunks(session.uploadUrl, real, size);
-    return { name, size };
+    await this.uploadChunks(session.uploadUrl, size, read);
+    return { attached: true, name, size, note: NOTHING_SENT };
   }
 
-  /** PUT the file in chunks to the pre-authorised upload URL. No Authorization header: the URL carries its own. */
-  private async uploadChunks(uploadUrl: string, filePath: string, size: number): Promise<void> {
+  /** PUT the bytes in chunks to the pre-authorised upload URL. No Authorization header: the URL carries its own. */
+  private async uploadChunks(uploadUrl: string, size: number, read: (start: number, length: number) => Buffer): Promise<void> {
     const doFetch = this.options.fetch ?? fetch;
-    const handle = fs.openSync(filePath, 'r');
-    try {
-      for (let start = 0; start < size; start += UPLOAD_CHUNK_BYTES) {
-        const length = Math.min(UPLOAD_CHUNK_BYTES, size - start);
-        const chunk = Buffer.alloc(length);
-        fs.readSync(handle, chunk, 0, length, start);
-        const response = await doFetch(uploadUrl, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/octet-stream',
-            'Content-Length': String(length),
-            'Content-Range': `bytes ${start}-${start + length - 1}/${size}`,
-          },
-          body: chunk,
-        });
-        if (!response.ok) {
-          throw new Error(`Attachment upload failed at byte ${start}: ${response.status} ${await response.text()}`);
-        }
+    for (let start = 0; start < size; start += UPLOAD_CHUNK_BYTES) {
+      const length = Math.min(UPLOAD_CHUNK_BYTES, size - start);
+      const response = await doFetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Length': String(length),
+          'Content-Range': `bytes ${start}-${start + length - 1}/${size}`,
+        },
+        body: read(start, length),
+      });
+      if (!response.ok) {
+        throw new Error(`Attachment upload failed at byte ${start}: ${response.status} ${await response.text()}`);
       }
-    } finally {
-      fs.closeSync(handle);
     }
   }
 

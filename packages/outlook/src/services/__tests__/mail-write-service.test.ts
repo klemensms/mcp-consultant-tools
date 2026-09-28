@@ -11,10 +11,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { MailWriteService } from '../mail-write-service.js';
-import { recordingGraph } from '../../__tests__/graph-recorder.js';
+import { graphError, recordingGraph } from '../../__tests__/graph-recorder.js';
 import type { RecordedRequest } from '../../__tests__/graph-recorder.js';
 
-const SWITCHES = ['OUTLOOK_ENABLE_WRITE', 'OUTLOOK_ENABLE_SEND', 'OUTLOOK_ENABLE_DELETE'];
+const SWITCHES = ['OUTLOOK_ENABLE_WRITE', 'OUTLOOK_ENABLE_DRAFTS', 'OUTLOOK_ENABLE_SEND', 'OUTLOOK_ENABLE_DELETE'];
+const NOTE = expect.stringMatching(/nothing was sent/i);
+const OUTLOOK_REPLY = '<html><body><p>My reply</p><div id="appendonsend"></div><hr><div id="divRplyFwdMsg">From: Jane Doe</div><div>Original text</div></body></html>';
 const QUOTED = '<html><body><div id="quoted">From: Jane Doe<br>Original text</div></body></html>';
 
 let home: string;
@@ -36,10 +38,19 @@ interface PutCall {
   length: number;
 }
 
-function service(respond: (r: RecordedRequest) => unknown = () => ({ id: 'DRAFT1', webLink: 'https://outlook.example.com/draft' }), maxAttachmentMB = 25) {
+function service(
+  respond: (r: RecordedRequest) => unknown = () => ({ id: 'DRAFT1', webLink: 'https://outlook.example.com/draft' }),
+  maxAttachmentMB = 25,
+  download?: Buffer
+) {
   const graph = recordingGraph(respond);
   const puts: PutCall[] = [];
-  const fakeFetch = async (url: string, init: any) => {
+  const gets: { url: string; headers: Record<string, string> }[] = [];
+  const fakeFetch = async (url: string, init: any = {}) => {
+    if ((init.method ?? 'GET') === 'GET') {
+      gets.push({ url, headers: init.headers ?? {} });
+      return new Response(download ?? Buffer.alloc(0), { status: 200 });
+    }
     puts.push({ url, headers: init.headers, length: (init.body as Buffer).length });
     return new Response(null, { status: puts.length === 0 ? 200 : 201 });
   };
@@ -47,7 +58,7 @@ function service(respond: (r: RecordedRequest) => unknown = () => ({ id: 'DRAFT1
     { getGraphClient: () => graph.client },
     { maxAttachmentMB, homeDir: home, fetch: fakeFetch as any }
   );
-  return { svc, requests: graph.requests, puts };
+  return { svc, requests: graph.requests, puts, gets };
 }
 
 describe('createDraft', () => {
@@ -60,7 +71,7 @@ describe('createDraft', () => {
       body: '**Hello** <script>alert(1)</script>',
       importance: 'high',
     });
-    expect(draft).toEqual({ id: 'DRAFT1', webLink: 'https://outlook.example.com/draft' });
+    expect(draft).toEqual({ id: 'DRAFT1', webLink: 'https://outlook.example.com/draft', note: NOTE });
     expect(requests).toHaveLength(1);
     expect(requests[0].method).toBe('POST');
     expect(requests[0].path).toBe('/me/messages');
@@ -105,7 +116,7 @@ describe('createReplyDraft', () => {
   it('creates the reply empty, reads it back, then writes the new text above the quoted thread', async () => {
     const { svc, requests } = replyGraph();
     const draft = await svc.createReplyDraft({ messageId: 'MSG1', body: 'Thanks, **agreed**.' });
-    expect(draft).toEqual({ id: 'REPLY1', webLink: 'https://outlook.example.com/reply' });
+    expect(draft).toEqual({ id: 'REPLY1', webLink: 'https://outlook.example.com/reply', note: NOTE });
     expect(requests.map((r) => `${r.method} ${r.path}`)).toEqual([
       'POST /me/messages/MSG1/createReply',
       'GET /me/messages/REPLY1',
@@ -176,7 +187,7 @@ describe('addDraftAttachment', () => {
     expect(requests[0].body.name).toBe('notes.txt');
     expect(Buffer.from(requests[0].body.contentBytes, 'base64').length).toBe(3 * 1024 * 1024);
     expect(puts).toHaveLength(0);
-    expect(result).toEqual({ attachmentId: 'ATT1', name: 'notes.txt', size: 3 * 1024 * 1024 });
+    expect(result).toEqual({ attached: true, attachmentId: 'ATT1', name: 'notes.txt', size: 3 * 1024 * 1024, note: NOTE });
   });
 
   it('uploads a file above 3 MB through an upload session in 320 KiB-multiple chunks', async () => {
@@ -211,6 +222,82 @@ describe('addDraftAttachment', () => {
     const key = path.join(home, 'server.pem');
     fs.writeFileSync(key, 'x');
     await expect(svc.addDraftAttachment({ draftId: 'DRAFT1', filePath: key })).rejects.toThrow(/refused/i);
+    expect(requests).toHaveLength(0);
+  });
+});
+
+describe('addDraftAttachment from a SharePoint or OneDrive link', () => {
+  const LINK = 'https://contoso.sharepoint.com/:w:/s/team/Abc123?e=x';
+  const SHARE = `/shares/u!${Buffer.from(LINK).toString('base64url')}/driveItem`;
+  const DOWNLOAD = 'https://contoso.sharepoint.com/download/pre-authorised';
+
+  function item(size: number, extra: Record<string, unknown> = {}) {
+    return { id: 'ITEM1', name: 'plan.docx', size, file: {}, webUrl: 'https://contoso.sharepoint.com/plan.docx', '@microsoft.graph.downloadUrl': DOWNLOAD, ...extra };
+  }
+
+  it('looks the link up through /shares, fetches the bytes into memory and posts them inline', async () => {
+    const bytes = Buffer.alloc(1000, 3);
+    const { svc, requests, gets } = service((r) => (r.method === 'GET' ? item(bytes.length) : { id: 'ATT1' }), 25, bytes);
+    const result = await svc.addDraftAttachment({ draftId: 'DRAFT1', url: LINK });
+    expect(requests.map((r) => `${r.method} ${r.path}`)).toEqual([`GET ${SHARE}`, 'POST /me/messages/DRAFT1/attachments']);
+    expect(gets).toEqual([{ url: DOWNLOAD, headers: {} }]);
+    expect(requests[1].body.name).toBe('plan.docx');
+    expect(Buffer.from(requests[1].body.contentBytes, 'base64').equals(bytes)).toBe(true);
+    expect(result).toEqual({ attached: true, attachmentId: 'ATT1', name: 'plan.docx', size: 1000, note: NOTE });
+  });
+
+  it('uploads a linked file above 3 MB through an upload session, from memory', async () => {
+    const size = 4 * 1024 * 1024;
+    const { svc, requests, puts } = service(
+      (r) => (r.method === 'GET' ? item(size) : { uploadUrl: 'https://outlook.example.com/upload/abc' }),
+      25,
+      Buffer.alloc(size, 1)
+    );
+    const result = await svc.addDraftAttachment({ draftId: 'DRAFT1', url: LINK });
+    expect(requests[1].path).toBe('/me/messages/DRAFT1/attachments/createUploadSession');
+    expect(puts.reduce((sum, put) => sum + put.length, 0)).toBe(size);
+    expect(result).toMatchObject({ attached: true, name: 'plan.docx', size });
+  });
+
+  it('refuses a linked file above the size cap before downloading it', async () => {
+    const { svc, requests, gets } = service(() => item(2 * 1024 * 1024), 1);
+    await expect(svc.addDraftAttachment({ draftId: 'DRAFT1', url: LINK })).rejects.toThrow(/OUTLOOK_MAX_ATTACHMENT_MB/);
+    expect(requests).toHaveLength(1);
+    expect(gets).toHaveLength(0);
+  });
+
+  it('refuses a link to a folder', async () => {
+    const { svc } = service(() => ({ id: 'F1', name: 'Team', folder: { childCount: 3 } }));
+    await expect(svc.addDraftAttachment({ draftId: 'DRAFT1', url: LINK })).rejects.toThrow(/folder/i);
+  });
+
+  it('on 403 puts a link to the file above any quoted thread and says Files.Read.All is needed', async () => {
+    const { svc, requests, gets } = service((r) => {
+      if (r.path.startsWith('/shares/')) return graphError(403, 'accessDenied', 'Access denied');
+      if (r.method === 'GET') return { body: { contentType: 'html', content: OUTLOOK_REPLY } };
+      return {};
+    });
+    const result: any = await svc.addDraftAttachment({ draftId: 'DRAFT1', url: LINK });
+    expect(requests.map((r) => `${r.method} ${r.path}`)).toEqual([`GET ${SHARE}`, 'GET /me/messages/DRAFT1', 'PATCH /me/messages/DRAFT1']);
+    expect(gets).toHaveLength(0);
+    const content: string = requests[2].body.body.content;
+    expect(content).toContain(`href="${LINK.replace(/&/g, '&amp;')}"`);
+    expect(content.indexOf('My reply')).toBeLessThan(content.indexOf('href'));
+    expect(content.indexOf('href')).toBeLessThan(content.indexOf('Original text'));
+    expect(result).toMatchObject({ attached: false, linkInserted: true, url: LINK, note: NOTE });
+    expect(result.reason).toMatch(/Files\.Read\.All/);
+  });
+
+  it('needs exactly one of filePath and url', async () => {
+    const { svc, requests } = service();
+    await expect(svc.addDraftAttachment({ draftId: 'DRAFT1' })).rejects.toThrow(/filePath or url/);
+    await expect(svc.addDraftAttachment({ draftId: 'DRAFT1', url: LINK, filePath: '/x' })).rejects.toThrow(/not both/);
+    expect(requests).toHaveLength(0);
+  });
+
+  it('refuses a url that is not https', async () => {
+    const { svc, requests } = service();
+    await expect(svc.addDraftAttachment({ draftId: 'DRAFT1', url: 'file:///etc/passwd' })).rejects.toThrow(/https/);
     expect(requests).toHaveLength(0);
   });
 });

@@ -1,5 +1,6 @@
 /**
- * Outlook write and delete CLI commands (OUTLOOK_ENABLE_WRITE, OUTLOOK_ENABLE_DELETE).
+ * Outlook draft, write and delete CLI commands (OUTLOOK_ENABLE_DRAFTS,
+ * OUTLOOK_ENABLE_WRITE, OUTLOOK_ENABLE_DELETE).
  *
  * Maps mail-create-draft, mail-create-reply-draft, mail-create-forward-draft,
  * mail-update-draft, mail-add-draft-attachment, mail-mark-read,
@@ -33,7 +34,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
     .action(async (opts: any) => {
       try {
         const draft = await ctx.write.createDraft(opts);
-        done(`Draft created: ${draft.id}\n${draft.webLink}`, draft);
+        done(`Draft created: ${draft.id}\n${draft.webLink}\n${draft.note}`, draft);
       } catch (error) {
         handleCliError(error);
       }
@@ -50,7 +51,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
     .action(async (opts: any) => {
       try {
         const draft = await ctx.write.createReplyDraft({ messageId: opts.messageId, body: opts.body, replyAll: opts.all, format: opts.format });
-        done(`Reply draft created: ${draft.id}\n${draft.webLink}`, draft);
+        done(`Reply draft created: ${draft.id}\n${draft.webLink}\n${draft.note}`, draft);
       } catch (error) {
         handleCliError(error);
       }
@@ -67,7 +68,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
     .action(async (opts: any) => {
       try {
         const draft = await ctx.write.createForwardDraft(opts);
-        done(`Forward draft created: ${draft.id}\n${draft.webLink}`, draft);
+        done(`Forward draft created: ${draft.id}\n${draft.webLink}\n${draft.note}`, draft);
       } catch (error) {
         handleCliError(error);
       }
@@ -87,7 +88,7 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
     .action(async (opts: any) => {
       try {
         const result = await ctx.write.updateDraft(opts);
-        done(`Draft updated: ${result.id}`, result);
+        done(`Draft updated: ${result.id}. ${result.note}`, result);
       } catch (error) {
         handleCliError(error);
       }
@@ -96,13 +97,19 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
   // mail-add-draft-attachment
   program
     .command('attach')
-    .description('Attach a local file from your home folder to a draft')
+    .description('Attach a local file from your home folder, or a SharePoint or OneDrive file by link, to a draft (nothing is sent)')
     .requiredOption('--draft-id <id>', 'Draft id')
-    .requiredOption('--file <path>', 'Absolute path or ~/ path')
+    .option('--file <path>', 'Absolute path or ~/ path')
+    .option('--url <link>', 'SharePoint or OneDrive link; read into memory, never saved to disk')
     .action(async (opts: any) => {
       try {
-        const result = await ctx.write.addDraftAttachment({ draftId: opts.draftId, filePath: opts.file });
-        done(`Attached ${result.name} (${result.size} bytes)`, result);
+        const result = await ctx.write.addDraftAttachment({ draftId: opts.draftId, filePath: opts.file, url: opts.url });
+        done(
+          result.attached
+            ? `Attached ${result.name} (${result.size} bytes). ${result.note}`
+            : `Link inserted instead of an attachment: ${result.reason} ${result.note}`,
+          result
+        );
       } catch (error) {
         handleCliError(error);
       }

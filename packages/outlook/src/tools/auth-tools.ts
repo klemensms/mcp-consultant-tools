@@ -51,7 +51,8 @@ export function registerAuthTools(server: any, ctx: ServiceContext): void {
   server.tool(
     'mail-auth-status',
     'Show the Outlook sign-in state, the signed-in account, the delegated permissions the sign-in carries, ' +
-      'and for each tool group (read, write, send, delete) whether the permission is there and whether its switch is on.',
+      'and for each tool group (read, write, drafts, send, delete) whether the permission is there and whether its switch is on. ' +
+      'drafts.attachFromLink says whether a SharePoint or OneDrive link can be attached as a file or only inserted as a link.',
     {},
     { readOnlyHint: true, openWorldHint: true },
     async () => {

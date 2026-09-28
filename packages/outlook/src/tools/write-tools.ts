@@ -1,6 +1,7 @@
 /**
- * Outlook write tools (OUTLOOK_ENABLE_WRITE): drafts and mailbox organising.
- * Nothing here sends mail. Registered whatever the switch says, so an agent can
+ * Outlook draft tools (OUTLOOK_ENABLE_DRAFTS, which follows OUTLOOK_ENABLE_WRITE
+ * while unset) and mailbox organising (OUTLOOK_ENABLE_WRITE). Nothing here
+ * sends mail. Registered whatever the switch says, so an agent can
  * see them and tell the user which variable turns them on.
  */
 
@@ -14,6 +15,7 @@ const fail = (what: string, error: any) => {
 };
 
 const OFF = ' Off unless OUTLOOK_ENABLE_WRITE=true.';
+const DRAFTS_OFF = ' Off unless OUTLOOK_ENABLE_DRAFTS=true (while unset, it follows OUTLOOK_ENABLE_WRITE).';
 const addresses = z.array(z.string()).describe('Email addresses, e.g. ["jdoe@example.com"]');
 const format = z.enum(['markdown', 'text', 'html']).optional().describe('Body format (default markdown). HTML is sanitised.');
 
@@ -21,7 +23,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     'mail-create-draft',
-    'Create a new draft in Drafts. Nothing is sent; review it in Outlook or send it with mail-send-draft.' + OFF,
+    'Create a new draft in Drafts. Nothing is sent; review it in Outlook or send it with mail-send-draft.' + DRAFTS_OFF,
     {
       to: addresses,
       cc: addresses.optional(),
@@ -43,7 +45,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     'mail-create-reply-draft',
-    'Create a reply (or reply-all) draft with your text above the quoted thread. Nothing is sent.' + OFF,
+    'Create a reply (or reply-all) draft with your text above the quoted thread. Nothing is sent.' + DRAFTS_OFF,
     {
       messageId: z.string().describe('Id of the message to reply to'),
       replyAll: z.boolean().optional().describe('Reply to everyone (default false)'),
@@ -62,7 +64,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     'mail-create-forward-draft',
-    'Create a forward draft to new recipients, with an optional note above the forwarded message. Nothing is sent.' + OFF,
+    'Create a forward draft to new recipients, with an optional note above the forwarded message. Nothing is sent.' + DRAFTS_OFF,
     {
       messageId: z.string().describe('Id of the message to forward'),
       to: addresses,
@@ -81,7 +83,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     'mail-update-draft',
-    'Change a draft: recipients, subject or body. A given body replaces the whole body.' + OFF,
+    'Change a draft: recipients, subject or body. A given body replaces the whole body. Nothing is sent.' + DRAFTS_OFF,
     {
       draftId: z.string(),
       to: addresses.optional(),
@@ -103,11 +105,15 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     'mail-add-draft-attachment',
-    'Attach a local file to a draft. The file must be inside your home folder; hidden folders and credential files ' +
-      '(.env, id_*, .pem, .key, .p12, .pfx) are refused. Size cap OUTLOOK_MAX_ATTACHMENT_MB (default 25).' + OFF,
+    'Attach a file to a draft: give filePath (a local file) or url (a SharePoint or OneDrive link), not both. ' +
+      'A local file must be inside your home folder; hidden folders and credential files (.env, id_*, .pem, .key, .p12, .pfx) are refused. ' +
+      'A linked file is read into memory with the Outlook sign-in and never saved to disk; if the sign-in may not read it ' +
+      '(needs Files.Read.All), a link to the file is put in the draft instead and the result says attached: false. ' +
+      'Size cap OUTLOOK_MAX_ATTACHMENT_MB (default 25). Nothing is sent.' + DRAFTS_OFF,
     {
       draftId: z.string(),
-      filePath: z.string().describe('Absolute path, or a path starting with ~/'),
+      filePath: z.string().optional().describe('Absolute path, or a path starting with ~/'),
+      url: z.string().optional().describe('SharePoint or OneDrive link, e.g. https://contoso.sharepoint.com/:w:/s/team/Abc123'),
     },
     { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async (args: any) => {

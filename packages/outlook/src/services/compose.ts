@@ -16,7 +16,7 @@ export interface ComposeInput {
   importance?: 'low' | 'normal' | 'high';
 }
 
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
@@ -68,3 +68,21 @@ export function prependToBody(existing: string, html: string): string {
   const at = bodyTag.index + bodyTag[0].length;
   return `${existing.slice(0, at)}${html}\n${existing.slice(at)}`;
 }
+
+/**
+ * Put new HTML after the user's own text but above any quoted thread: before
+ * the separator Outlook writes into a reply or forward, or at the end of the
+ * body of a new draft.
+ */
+export function insertAboveQuote(existing: string, html: string): string {
+  const quote = /<div[^>]*id="appendonsend"/i.exec(existing) ?? /<div[^>]*id="divRplyFwdMsg"/i.exec(existing);
+  if (quote) {
+    const before = existing.slice(0, quote.index);
+    const hr = before.search(/<hr[^>]*>\s*$/i);
+    const at = !/appendonsend/i.test(quote[0]) && hr !== -1 ? hr : quote.index;
+    return `${existing.slice(0, at)}${html}${existing.slice(at)}`;
+  }
+  const end = existing.search(/<\/body>/i);
+  return end === -1 ? `${existing}${html}` : `${existing.slice(0, end)}${html}${existing.slice(end)}`;
+}
+

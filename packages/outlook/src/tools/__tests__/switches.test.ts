@@ -10,14 +10,16 @@ import { MailWriteService } from '../../services/mail-write-service.js';
 import { MailSendService } from '../../services/mail-send-service.js';
 import { recordingGraph } from '../../__tests__/graph-recorder.js';
 
-const SWITCHES = ['OUTLOOK_ENABLE_WRITE', 'OUTLOOK_ENABLE_SEND', 'OUTLOOK_ENABLE_DELETE'];
+const SWITCHES = ['OUTLOOK_ENABLE_WRITE', 'OUTLOOK_ENABLE_DRAFTS', 'OUTLOOK_ENABLE_SEND', 'OUTLOOK_ENABLE_DELETE'];
 
-const WRITE_TOOLS: Record<string, object> = {
+const DRAFT_TOOLS: Record<string, object> = {
   'mail-create-draft': { to: ['jdoe@example.com'], subject: 's', body: 'b' },
   'mail-create-reply-draft': { messageId: 'M', body: 'b' },
   'mail-create-forward-draft': { messageId: 'M', to: ['jdoe@example.com'] },
   'mail-update-draft': { draftId: 'D', subject: 's' },
   'mail-add-draft-attachment': { draftId: 'D', filePath: '/nonexistent/file.txt' },
+};
+const WRITE_TOOLS: Record<string, object> = {
   'mail-mark-read': { messageId: 'M', isRead: true },
   'mail-move-message': { messageId: 'M', destinationFolder: 'archive' },
   'mail-flag-message': { messageId: 'M', flag: 'flagged' },
@@ -59,6 +61,11 @@ afterEach(() => {
 });
 
 describe('switches off', () => {
+  it('refuses every draft tool naming OUTLOOK_ENABLE_DRAFTS', async () => {
+    const { handlers, requests } = setup();
+    await expectRefused(handlers, requests, DRAFT_TOOLS, 'OUTLOOK_ENABLE_DRAFTS');
+  });
+
   it('refuses every write tool naming OUTLOOK_ENABLE_WRITE', async () => {
     const { handlers, requests } = setup();
     await expectRefused(handlers, requests, WRITE_TOOLS, 'OUTLOOK_ENABLE_WRITE');
@@ -82,10 +89,42 @@ describe('switches are independent', () => {
     await expectRefused(handlers, requests, SEND_TOOLS, 'OUTLOOK_ENABLE_SEND');
   });
 
-  it('refuses write when only send is on', async () => {
+  it('refuses write and drafts when only send is on', async () => {
     process.env.OUTLOOK_ENABLE_SEND = 'true';
     const { handlers, requests } = setup();
     await expectRefused(handlers, requests, WRITE_TOOLS, 'OUTLOOK_ENABLE_WRITE');
+    await expectRefused(handlers, requests, DRAFT_TOOLS, 'OUTLOOK_ENABLE_DRAFTS');
+  });
+
+  it('refuses send when only drafts are on', async () => {
+    process.env.OUTLOOK_ENABLE_DRAFTS = 'true';
+    const { handlers, requests } = setup();
+    await expectRefused(handlers, requests, SEND_TOOLS, 'OUTLOOK_ENABLE_SEND');
+    await expectRefused(handlers, requests, WRITE_TOOLS, 'OUTLOOK_ENABLE_WRITE');
+  });
+
+  it('refuses drafts when write is on but OUTLOOK_ENABLE_DRAFTS=false', async () => {
+    process.env.OUTLOOK_ENABLE_WRITE = 'true';
+    process.env.OUTLOOK_ENABLE_DRAFTS = 'false';
+    const { handlers, requests } = setup();
+    await expectRefused(handlers, requests, DRAFT_TOOLS, 'OUTLOOK_ENABLE_DRAFTS');
+  });
+
+  it('lets drafts through when OUTLOOK_ENABLE_DRAFTS is unset and write is on, as before the split', async () => {
+    process.env.OUTLOOK_ENABLE_WRITE = 'true';
+    const { handlers, requests } = setup();
+    const result = await handlers['mail-create-draft']({ to: ['jdoe@example.com'], subject: 's', body: 'b' });
+    expect(result.isError).toBeUndefined();
+    expect(requests).toHaveLength(1);
+  });
+
+  it('says in every draft result that nothing was sent', async () => {
+    process.env.OUTLOOK_ENABLE_DRAFTS = 'true';
+    const { handlers } = setup();
+    for (const name of ['mail-create-draft', 'mail-update-draft']) {
+      const result = await handlers[name](DRAFT_TOOLS[name]);
+      expect(JSON.parse(result.content[0].text).note, name).toMatch(/nothing was sent/i);
+    }
   });
 
   it('refuses delete when write and send are on', async () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { describeMailAccess, permissionHint } from '../permissions.js';
+import { describeMailAccess, draftsEnabled, permissionHint } from '../permissions.js';
 
-const SWITCHES = ['OUTLOOK_ENABLE_WRITE', 'OUTLOOK_ENABLE_SEND', 'OUTLOOK_ENABLE_DELETE'];
+const SWITCHES = ['OUTLOOK_ENABLE_WRITE', 'OUTLOOK_ENABLE_DRAFTS', 'OUTLOOK_ENABLE_SEND', 'OUTLOOK_ENABLE_DELETE'];
 
 afterEach(() => {
   for (const name of SWITCHES) delete process.env[name];
@@ -44,6 +44,34 @@ describe('describeMailAccess', () => {
     expect(access.write).toMatchObject({ switch: 'OUTLOOK_ENABLE_WRITE', enabled: false });
     expect(access.send).toMatchObject({ switch: 'OUTLOOK_ENABLE_SEND', enabled: true });
     expect(access.delete).toMatchObject({ switch: 'OUTLOOK_ENABLE_DELETE', enabled: false });
+  });
+});
+
+describe('drafts switch', () => {
+  it('follows OUTLOOK_ENABLE_WRITE while OUTLOOK_ENABLE_DRAFTS is unset', () => {
+    expect(draftsEnabled()).toBe(false);
+    process.env.OUTLOOK_ENABLE_WRITE = 'true';
+    expect(draftsEnabled()).toBe(true);
+    expect(describeMailAccess([]).drafts).toMatchObject({ switch: 'OUTLOOK_ENABLE_DRAFTS', enabled: true, followsWrite: true });
+  });
+
+  it('uses its own value once set, whatever write says', () => {
+    process.env.OUTLOOK_ENABLE_WRITE = 'true';
+    process.env.OUTLOOK_ENABLE_DRAFTS = 'false';
+    expect(draftsEnabled()).toBe(false);
+    delete process.env.OUTLOOK_ENABLE_WRITE;
+    process.env.OUTLOOK_ENABLE_DRAFTS = 'true';
+    expect(draftsEnabled()).toBe(true);
+    expect(describeMailAccess([]).drafts).toMatchObject({ enabled: true, followsWrite: false });
+    expect(describeMailAccess([]).write.enabled).toBe(false);
+  });
+
+  it('needs Mail.ReadWrite, and reports whether a SharePoint link can be attached as a file', () => {
+    const without = describeMailAccess(['Mail.ReadWrite']).drafts;
+    expect(without.granted).toBe(true);
+    expect(without.attachFromLink).toMatchObject({ granted: false });
+    expect(without.attachFromLink.needs).toContain('Files.Read.All');
+    expect(describeMailAccess(['Mail.ReadWrite', 'files.read.all']).drafts.attachFromLink.granted).toBe(true);
   });
 });
 
