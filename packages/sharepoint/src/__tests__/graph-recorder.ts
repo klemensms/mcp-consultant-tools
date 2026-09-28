@@ -59,7 +59,9 @@ export function recordingGraph(respond: (request: RecordedRequest) => FakeRespon
 
       context.response = status === 204 || body === undefined
         ? new Response(null, { status: status === 200 ? 204 : status })
-        : new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+        : body instanceof Uint8Array
+          ? new Response(body, { status, headers: { 'Content-Type': 'application/octet-stream' } })
+          : new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
     },
   };
 

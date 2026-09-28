@@ -6,6 +6,8 @@ import { loadSharePointConfig } from './config.js';
 import { ListService } from './services/list-service.js';
 import { FileOperationsService } from './services/file-operations-service.js';
 import { DiscoveryService } from './services/discovery-service.js';
+import { ContentService } from './services/content/content-service.js';
+import { contentAccess } from './services/content/content-access.js';
 import { resolveDownloadDir } from '@mcp-consultant-tools/m365-core';
 import type { ServiceContext } from './types.js';
 
@@ -16,6 +18,7 @@ export function createServiceContext(): ServiceContext {
   let listService: ListService | null = null;
   let fileOps: FileOperationsService | null = null;
   let discovery: DiscoveryService | null = null;
+  let content: ContentService | null = null;
 
   function getSharePointService(): SharePointService {
     if (!service) {
@@ -45,16 +48,30 @@ export function createServiceContext(): ServiceContext {
     return fileOps;
   }
 
+  function getDiscoveryService(): DiscoveryService {
+    if (!discovery) {
+      discovery = new DiscoveryService(getSharePointService());
+    }
+    return discovery;
+  }
+
+  function getContentService(): ContentService {
+    if (!content) {
+      content = new ContentService({
+        spo: getSharePointService(),
+        resolveLink: (url) => getDiscoveryService().resolveLink(url),
+        access: contentAccess(),
+      });
+    }
+    return content;
+  }
+
   return {
     get sharepoint() { return getSharePointService(); },
     get lists() { return getListService(); },
     get files() { return getFileOperationsService(); },
-    get discovery() {
-      if (!discovery) {
-        discovery = new DiscoveryService(getSharePointService());
-      }
-      return discovery;
-    },
+    get discovery() { return getDiscoveryService(); },
+    get content() { return getContentService(); },
     getPowerPlatformService() {
       throw new Error(
         'PowerPlatform integration not available in standalone SharePoint package.'
