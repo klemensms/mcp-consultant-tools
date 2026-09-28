@@ -5,7 +5,7 @@ Chain for `docs/superpowers/plans/2026-09-28-sharepoint-content-and-outlook-draf
 ### ⚑1 · Attaching a SharePoint file to an Outlook draft needs a permission the Outlook app registration lacks
 - **Kind:** deferred
 - **Hop:** origin · f0ec717
-- **State:** open (hop 2: task 9 built both paths; the live test ran the link fallback on a 403, so the grant is still missing. `mail-auth-status` now shows it as `drafts.attachFromLink.granted`)
+- **State:** open (hop 3: `mail-auth-status` on the final local config still shows `attachFromLink.granted: false`. hop 2: task 9 built both paths; the live test ran the link fallback on a 403, so the grant is still missing. `mail-auth-status` now shows it as `drafts.attachFromLink.granted`)
 - **Matters because:** without delegated `Files.Read.All` on the Outlook app registration, task 9's `url` attachment can only insert a link, never the file. The maintainer is raising the grant; task 9 builds both paths so nothing waits on it, and the live test should record which path ran.
 
 ### ⚑2 · Live test mail goes only to confirmed recipients

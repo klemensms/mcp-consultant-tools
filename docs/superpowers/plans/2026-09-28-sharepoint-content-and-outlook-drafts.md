@@ -16,7 +16,7 @@ Design: `docs/superpowers/specs/2026-09-28-sharepoint-content-and-outlook-drafts
 | 8 | `spo-upload-file` `localPath` input with the home-folder guard | done |
 | 9 | Outlook: `OUTLOOK_ENABLE_DRAFTS` split, attach from a SharePoint or OneDrive `url` | done |
 | 10 | Docs: technical docs, user docs, package CLAUDE.md, release-notes "Changes Implemented" | done (release notes deferred to `/product-releasenotes beta`, register ⚑4) |
-| 11 | Live verification, then the maintainer's local config | todo |
+| 11 | Live verification, then the maintainer's local config | done |
 
 Mark a task `done` here in the same commit that finishes it.
 
