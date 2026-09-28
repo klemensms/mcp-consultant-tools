@@ -6,6 +6,7 @@
 import { unzipSync, zipSync, strFromU8, strToU8, type Unzipped } from 'fflate';
 import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
 import type { ContentCore, ItemRef, WriteResult } from './content-core.js';
+import { countMatches, paragraphText as textOf, replaceInParagraph, type TextModel } from './ooxml-text.js';
 
 const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const XML_NS = 'http://www.w3.org/XML/1998/namespace';
@@ -105,23 +106,15 @@ class WordDocument {
   }
 }
 
-/** A paragraph's visible text as segments: editable w:t nodes, and fixed tabs and breaks. */
-function segments(p: El): Array<{ node: El | null; text: string }> {
-  const out: Array<{ node: El | null; text: string }> = [];
-  const walk = (el: El) => {
-    for (const n of Array.from(el.childNodes as ArrayLike<any>)) {
-      if (n.nodeType !== 1) continue;
-      if (isW(n, 't')) out.push({ node: n, text: n.textContent ?? '' });
-      else if (isW(n, 'tab')) out.push({ node: null, text: '\t' });
-      else if (isW(n, 'br') || isW(n, 'cr')) out.push({ node: null, text: '\n' });
-      else if (!isW(n, 'pPr') && !isW(n, 'rPr') && !isW(n, 'del') && !isW(n, 'instrText')) walk(n);
-    }
-  };
-  walk(p);
-  return out;
-}
+/** Word paragraphs: w:t is editable; tabs and breaks are fixed; properties and deleted or field-code text are skipped. */
+const WORD_TEXT: TextModel = {
+  isText: (el) => isW(el, 't'),
+  fixedText: (el) => (isW(el, 'tab') ? '\t' : isW(el, 'br') || isW(el, 'cr') ? '\n' : undefined),
+  skip: (el) => isW(el, 'pPr') || isW(el, 'rPr') || isW(el, 'del') || isW(el, 'instrText'),
+  preserveSpace: true,
+};
 
-const paragraphText = (p: El) => segments(p).map((s) => s.text).join('');
+const paragraphText = (p: El) => textOf(p, WORD_TEXT);
 
 function styleOf(p: El): string | undefined {
   const pPr = childrenW(p, 'pPr')[0];
@@ -163,61 +156,6 @@ export function wordMarkdown(word: WordDocument): string {
     .blocks()
     .map((block, i) => (isW(block, 'tbl') ? `[p${i + 1}]\n${tableMarkdown(block)}` : `[p${i + 1}] ${paragraphMarkdown(block)}`))
     .join('\n\n');
-}
-
-/** Occurrences of `find` in a paragraph that lie wholly on editable text. */
-function matchesIn(p: El, find: string): number {
-  const segs = segments(p);
-  const text = segs.map((s) => s.text).join('');
-  let count = 0;
-  for (let at = text.indexOf(find); at >= 0; at = text.indexOf(find, at + find.length)) {
-    if (editableSpan(segs, at, at + find.length)) count++;
-  }
-  return count;
-}
-
-function editableSpan(segs: Array<{ node: El | null; text: string }>, start: number, end: number): boolean {
-  let pos = 0;
-  for (const s of segs) {
-    const next = pos + s.text.length;
-    if (!s.node && next > start && pos < end) return false;
-    pos = next;
-  }
-  return true;
-}
-
-/** Replace in place. Returns how many matches spanned more than one run. */
-function replaceIn(p: El, find: string, replacement: string, limit: number): { replaced: number; spanning: number } {
-  let replaced = 0;
-  let spanning = 0;
-  let from = 0;
-  while (replaced < limit) {
-    const segs = segments(p);
-    const text = segs.map((s) => s.text).join('');
-    let at = text.indexOf(find, from);
-    while (at >= 0 && !editableSpan(segs, at, at + find.length)) at = text.indexOf(find, at + find.length);
-    if (at < 0) break;
-    const end = at + find.length;
-    let pos = 0;
-    let first = true;
-    let touched = 0;
-    for (const s of segs) {
-      const segStart = pos;
-      const segEnd = pos + s.text.length;
-      pos = segEnd;
-      if (!s.node || segEnd <= at || segStart >= end || (segStart === segEnd)) continue;
-      const keepBefore = s.text.slice(0, Math.max(0, at - segStart));
-      const keepAfter = s.text.slice(Math.max(0, end - segStart));
-      s.node.textContent = keepBefore + (first ? replacement : '') + keepAfter;
-      s.node.setAttributeNS(XML_NS, 'xml:space', 'preserve');
-      first = false;
-      touched++;
-    }
-    if (touched > 1) spanning++;
-    replaced++;
-    from = at + replacement.length;
-  }
-  return { replaced, spanning };
 }
 
 function need(op: any, field: string, i: number): string {
@@ -275,13 +213,13 @@ export class WordContent {
           const find = need(op, 'text', i);
           if (typeof op.replacement !== 'string') throw new Error(`Operation ${i + 1} (replace) needs replacement.`);
           const paragraphs = Array.from(word.body.getElementsByTagNameNS(W, 'p') as ArrayLike<any>);
-          const total = paragraphs.reduce((n, p) => n + matchesIn(p, find), 0);
+          const total = paragraphs.reduce((n, p) => n + countMatches(p, find, WORD_TEXT), 0);
           if (total === 0) throw new Error(`Operation ${i + 1}: '${find}' was not found in the document.`);
           if (total > 1 && !op.all) {
             throw new Error(`Operation ${i + 1}: '${find}' appears in ${total} places. Set all to replace every one, or give more surrounding text.`);
           }
           let spanning = 0;
-          for (const p of paragraphs) spanning += replaceIn(p, find, op.replacement, op.all ? Infinity : 1).spanning;
+          for (const p of paragraphs) spanning += replaceInParagraph(p, find, op.replacement, op.all ? Infinity : 1, WORD_TEXT).spanning;
           applied.push(`replace '${find}': ${total} ${total === 1 ? 'match' : 'matches'}`);
           if (spanning) notes.push(`${spanning} replacement(s) of '${find}' spanned differently formatted runs and took the first run's formatting.`);
           break;

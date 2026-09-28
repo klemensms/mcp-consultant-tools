@@ -150,4 +150,49 @@ export function registerContentTools(server: any, ctx: ServiceContext): void {
       }
     }
   );
+
+  server.tool(
+    'spo-read-powerpoint',
+    'Read a PowerPoint deck (.pptx): for each slide, its title, the other text on it, and its speaker notes. ' +
+      'Returns the eTag spo-edit-powerpoint needs.' + READ_NOTE,
+    { ...itemRefShape },
+    { readOnlyHint: true, openWorldHint: true },
+    async (args: any) => {
+      try {
+        return json(await ctx.content.powerpoint.read(refOf(args)));
+      } catch (error: any) {
+        return fail('read PowerPoint deck', error);
+      }
+    }
+  );
+
+  server.tool(
+    'spo-edit-powerpoint',
+    'Replace text on the slides and in the speaker notes of a PowerPoint deck, all replacements or none. ' +
+      'Formatting outside the edited text is kept; a replacement across differently formatted runs takes the first run\'s formatting, and the result says so.' +
+      WRITE_NOTE,
+    {
+      ...itemRefShape,
+      replacements: z
+        .array(
+          z.object({
+            text: z.string().describe('The text to find'),
+            replacement: z.string().describe('The new text'),
+            slide: z.number().int().positive().optional().describe('Limit to this slide number (its notes included)'),
+            all: z.boolean().optional().describe('Replace every match; without it a text found in more than one place is refused'),
+          })
+        )
+        .min(1)
+        .describe('Replacements, such as [{"text":"Q3","replacement":"Q4"},{"text":"draft","replacement":"final","slide":2}]'),
+      eTag: z.string().describe('eTag returned by spo-read-powerpoint'),
+    },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    async (args: any) => {
+      try {
+        return json(await ctx.content.powerpoint.edit(refOf(args), args.replacements, args.eTag));
+      } catch (error: any) {
+        return fail('edit PowerPoint deck', error);
+      }
+    }
+  );
 }

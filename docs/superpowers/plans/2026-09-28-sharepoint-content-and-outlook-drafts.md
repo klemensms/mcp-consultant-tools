@@ -11,7 +11,7 @@ Design: `docs/superpowers/specs/2026-09-28-sharepoint-content-and-outlook-drafts
 | 3 | Text read and write tools | done |
 | 4 | Excel read and write through `/workbook` | done |
 | 5 | Word read (Markdown with paragraph anchors) and edit operations | done |
-| 6 | PowerPoint read and text replace | todo |
+| 6 | PowerPoint read and text replace | done |
 | 7 | `spo-create-file` (blank Office files generated in memory, text with content) | todo |
 | 8 | `spo-upload-file` `localPath` input with the home-folder guard | todo |
 | 9 | Outlook: `OUTLOOK_ENABLE_DRAFTS` split, attach from a SharePoint or OneDrive `url` | todo |

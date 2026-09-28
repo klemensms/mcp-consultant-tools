@@ -153,4 +153,49 @@ export function registerContentCommands(program: Command, ctx: ServiceContext): 
         handleCliError(error);
       }
     });
+
+  // spo-read-powerpoint
+  withItemRef(content.command('read-powerpoint').description('Read each slide\'s title, text and speaker notes, with the eTag'))
+    .action(async (opts: any) => {
+      try {
+        const result = await ctx.content.powerpoint.read(refOf(opts));
+        outputResult({
+          fileName: `read-powerpoint-${result.name}`,
+          data: result,
+          summary: [
+            `${result.name} (eTag ${result.eTag}, ${result.slides.length} slides)`,
+            ...result.slides.map((s) =>
+              [`\nSlide ${s.number}: ${s.title ?? '(no title)'}`, ...s.text.map((t) => `  ${t}`), ...s.notes.map((n) => `  Notes: ${n}`)].join('\n')
+            ),
+          ].join('\n'),
+        });
+      } catch (error) {
+        handleCliError(error);
+      }
+    });
+
+  // spo-edit-powerpoint
+  withItemRef(content.command('edit-powerpoint').description('Replace text on slides and in speaker notes'))
+    .option('--replacements <json>', 'Replacements as a JSON array, such as [{"text":"Q3","replacement":"Q4"}]')
+    .option('--replacements-file <path>', 'Read the replacements JSON from a local file')
+    .requiredOption('--etag <eTag>', 'eTag returned by read-powerpoint')
+    .action(async (opts: any) => {
+      try {
+        const raw = inlineOrFile(opts.replacements, opts.replacementsFile, 'replacements');
+        let replacements: any;
+        try { replacements = JSON.parse(raw); } catch { throw new Error('--replacements must be a JSON array of replacements.'); }
+        const result = await ctx.content.powerpoint.edit(refOf(opts), replacements, opts.etag);
+        outputResult({
+          fileName: `edit-powerpoint-${result.name}`,
+          data: result,
+          summary: [
+            `Saved ${result.name}${result.version ? ` as version ${result.version}` : ''} (new eTag ${result.eTag})`,
+            ...result.applied.map((a) => `  - ${a}`),
+            ...result.notes.map((n) => `  Note: ${n}`),
+          ].join('\n'),
+        });
+      } catch (error) {
+        handleCliError(error);
+      }
+    });
 }
