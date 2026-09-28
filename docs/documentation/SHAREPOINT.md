@@ -5,7 +5,7 @@
 
 **Package:** `@mcp-consultant-tools/sharepoint`
 
-MCP server for SharePoint Online - browse sites, document libraries, files, and folders via Microsoft Graph API. Read-only by default; write and delete require explicit feature flags.
+MCP server for SharePoint Online - browse sites, document libraries, files, and folders via Microsoft Graph API, and read or edit the content of text, Excel, Word and PowerPoint files in place without a local copy. Read-only by default; file operations, content edits and delete each need their own setting.
 
 Two ways to sign in: **app-only** (a client secret is configured; the server acts as the app on configured sites) or **sign-in mode** (no secret; you sign in with a device code and the server acts as you, on any site, OneDrive or Teams library you can open).
 
@@ -33,6 +33,9 @@ Credentials are resolved at runtime via biometric authentication - no secrets st
         "SHAREPOINT_MAX_UPLOAD_SIZE_MB": "100",
         "SHAREPOINT_ENABLE_WRITE": "false",
         "SHAREPOINT_ENABLE_DELETE": "false",
+        "SHAREPOINT_CONTENT_READ": "text,excel,word,powerpoint",
+        "SHAREPOINT_CONTENT_WRITE": "none",
+        "SHAREPOINT_CONTENT_MAX_MB": "25",
         "SHAREPOINT_AUTH_MODE": "",
         "SHAREPOINT_DOWNLOAD_DIR": ""
       }
@@ -59,6 +62,9 @@ Credentials are resolved at runtime via biometric authentication - no secrets st
         "SHAREPOINT_MAX_UPLOAD_SIZE_MB": "100",
         "SHAREPOINT_ENABLE_WRITE": "false",
         "SHAREPOINT_ENABLE_DELETE": "false",
+        "SHAREPOINT_CONTENT_READ": "text,excel,word,powerpoint",
+        "SHAREPOINT_CONTENT_WRITE": "none",
+        "SHAREPOINT_CONTENT_MAX_MB": "25",
         "SHAREPOINT_AUTH_MODE": "",
         "SHAREPOINT_DOWNLOAD_DIR": ""
       }
@@ -86,7 +92,10 @@ Credentials are resolved at runtime via biometric authentication - no secrets st
         "SHAREPOINT_MAX_DOWNLOAD_SIZE_MB": "50",
         "SHAREPOINT_MAX_UPLOAD_SIZE_MB": "100",
         "SHAREPOINT_ENABLE_WRITE": "false",
-        "SHAREPOINT_ENABLE_DELETE": "false"
+        "SHAREPOINT_ENABLE_DELETE": "false",
+        "SHAREPOINT_CONTENT_READ": "text,excel,word,powerpoint",
+        "SHAREPOINT_CONTENT_WRITE": "none",
+        "SHAREPOINT_CONTENT_MAX_MB": "25"
       }
     }
   }
@@ -99,6 +108,10 @@ Credentials are resolved at runtime via biometric authentication - no secrets st
 | `SHAREPOINT_AUTH_MODE` | inferred | Optional override: `client-credentials` or `device-code`. |
 | `SHAREPOINT_SITE_URL` / `SHAREPOINT_SITES` | empty | Required in app-only mode. Optional in sign-in mode, where any site URL works and these only act as named shortcuts. |
 | `SHAREPOINT_DOWNLOAD_DIR` | `~/Downloads/mcp-sharepoint` | Where `spo-download-file` saves with `saveToDisk`. |
+| `SHAREPOINT_ENABLE_WRITE` | `false` | File operations: upload, create folder, move, copy, rename. |
+| `SHAREPOINT_CONTENT_READ` | `text,excel,word,powerpoint` | Formats the content read tools may open. `none` turns them all off. |
+| `SHAREPOINT_CONTENT_WRITE` | `none` | Formats the content tools may change or create: `all`, or a comma list of `text`, `excel`, `word`, `powerpoint`. Independent of `SHAREPOINT_ENABLE_WRITE`. |
+| `SHAREPOINT_CONTENT_MAX_MB` | `25` | Largest text, Word or PowerPoint file the content tools hold in memory. |
 
 The sign-in mode app registration needs "Allow public client flows" on, no secret, and delegated Microsoft Graph `User.Read`, `offline_access` and `Sites.ReadWrite.All` with admin consent. `Sites.ReadWrite.All` alone covers file search, OneDrive and every tool below; no `Files.*` permission is needed.
 
@@ -127,6 +140,18 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 
 In sign-in mode every existing tool that takes a `siteId` also accepts a full site URL, including your OneDrive's `siteUrl` from `spo-get-my-drive`.
 
+## Content tools
+
+Read and change what is inside a file, without downloading it. Each takes a SharePoint or OneDrive link (`url`) or a `driveId` plus `itemId`.
+
+| Tool | Description |
+|------|-------------|
+| `spo-read-text` / `spo-write-text` | Read a text file (`.txt`, `.md`, `.csv`, `.json`, `.xml`, `.yaml`, `.html`), or replace its whole content |
+| `spo-read-excel` / `spo-write-excel` | List worksheets or read a range; set values or formulas on a range. Runs on the server, so co-authors see changes live |
+| `spo-read-word` / `spo-edit-word` | Read a Word document as Markdown with a `[pN]` anchor per paragraph; replace text, insert, append or delete paragraphs |
+| `spo-read-powerpoint` / `spo-edit-powerpoint` | Read each slide's title, text and speaker notes; replace text on slides and in notes |
+| `spo-create-file` | Create a blank Word, Excel or PowerPoint file, or a text file with content. Never replaces an existing file |
+
 ## Prompts
 
 | Prompt | Description |
@@ -145,6 +170,8 @@ In sign-in mode every existing tool that takes a `siteId` also accepts a full si
 ## Notable Behavior
 
 - **Feature flags gate write and delete separately.** `SHAREPOINT_ENABLE_WRITE=true` enables upload, create-folder, move, copy, and rename. `SHAREPOINT_ENABLE_DELETE=true` enables delete independently. Delete also requires `confirm: true` at call time.
+- **Content edits are safe against a colleague's change.** Word, PowerPoint and text edits need the eTag from the read and refuse if the file changed since; read it again and retry. Every edit saves a new version, and the result names it, so the version history can roll it back. Formatting outside the edited text is kept.
+- **Build complex files locally, then upload.** `spo-upload-file` takes `localPath`, a file inside your home folder that is streamed from disk (hidden folders and credential files are refused), instead of `content`. It is governed by `SHAREPOINT_ENABLE_WRITE`, not the content settings.
 - **Download encoding is automatic.** Text MIME types (JSON, CSV, XML, plain text, etc.) are returned as UTF-8 strings. Binary files (DOCX, PDF, XLSX, etc.) are returned as base64.
 - **`spo-search-items` is filename/metadata only.** For full-text search across Word, PowerPoint, Excel, PDF and text files, use `spo-search-files` in sign-in mode. A newly uploaded file can take several minutes to appear in its results.
 - **`spo-download-file` can save to disk and convert to PDF.** `saveToDisk` writes to `SHAREPOINT_DOWNLOAD_DIR` and returns the path instead of the content; `convertToPdf` returns a PDF rendering of a Word, PowerPoint or Excel file, so an agent can read it without an Office parser.

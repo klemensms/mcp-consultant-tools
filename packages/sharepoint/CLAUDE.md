@@ -2,9 +2,9 @@
 
 ## Overview
 
-SharePoint Online integration for site, library, file access, and file management.
+SharePoint Online integration for site, library, file access, file management, and reading and editing file content in place.
 
-- **Tools:** 30 tools, all registered whatever the switches (a switched-off tool refuses and names its variable), 10 prompts
+- **Tools:** 39 tools, all registered whatever the switches (a switched-off tool refuses and names its variable), 10 prompts
 - **Authentication:** two modes, chosen by `resolveAuthMode` in `src/auth-mode.ts`: a client secret present means app-only (client credentials); no secret means sign-in mode (device code, acting as the user). `SHAREPOINT_AUTH_MODE=client-credentials|device-code` overrides the inference.
 - **Integration:** Validates PowerPlatform document locations
 
@@ -36,6 +36,11 @@ SHAREPOINT_ENABLE_WRITE=false         # Upload, create folder, move, copy, renam
 SHAREPOINT_ENABLE_DELETE=false         # Delete (separate, more dangerous)
 SHAREPOINT_MAX_DOWNLOAD_SIZE_MB=50     # Download size limit
 SHAREPOINT_MAX_UPLOAD_SIZE_MB=100      # Upload size limit
+
+# Content tools (independent of SHAREPOINT_ENABLE_WRITE)
+SHAREPOINT_CONTENT_READ=text,excel,word,powerpoint   # default all four; none turns every content read off
+SHAREPOINT_CONTENT_WRITE=none          # default none; all, or a comma list of text, excel, word, powerpoint
+SHAREPOINT_CONTENT_MAX_MB=25           # in-memory cap for text, Word and PowerPoint
 ```
 
 ## Tool Categories
@@ -59,11 +64,20 @@ SHAREPOINT_MAX_UPLOAD_SIZE_MB=100      # Upload size limit
 - `spo-download-file` - Download file content (text as UTF-8, binary as base64)
 
 ### Write Tools (5 tools, requires SHAREPOINT_ENABLE_WRITE=true)
-- `spo-upload-file` - Upload file to library
+- `spo-upload-file` - Upload file to library: `content` (a string), or `localPath` (a file inside the home folder, checked by `src/local-file-guard.ts` and streamed from disk, upload session above 4 MB). Exactly one.
 - `spo-create-folder` - Create folder
 - `spo-move-item` - Move file/folder
 - `spo-copy-item` - Copy file/folder
 - `spo-rename-item` - Rename file/folder
+
+### Content Tools (9 tools; reads need SHAREPOINT_CONTENT_READ, edits SHAREPOINT_CONTENT_WRITE, per format)
+- `spo-read-text`, `spo-write-text` - UTF-8 text files, whole-content replace
+- `spo-read-excel`, `spo-write-excel` - worksheets and ranges through `/workbook`, on the server; writes use a workbook session
+- `spo-read-word`, `spo-edit-word` - Markdown with `[pN]` anchors; operations replace, insertAfter, insertBefore, append, delete, all or none
+- `spo-read-powerpoint`, `spo-edit-powerpoint` - per-slide title, text and notes; run-aware replace
+- `spo-create-file` - blank `.docx`, `.xlsx`, `.pptx` generated in memory, or a text file with content; never replaces an existing file
+
+Every content tool takes `url` or `driveId` plus `itemId`. Word, PowerPoint and text bytes stay in memory. Writes send `If-Match` with the read's eTag (a 412 becomes "read it again") and report the new version from `/items/{id}/versions`. A switched-off format refuses and names the setting that enables it.
 
 ### Delete Tool (1 tool, requires SHAREPOINT_ENABLE_DELETE=true)
 - `spo-delete-item` - Delete file/folder (requires confirm=true)
@@ -89,6 +103,8 @@ SHAREPOINT_MAX_UPLOAD_SIZE_MB=100      # Upload size limit
 - **The Graph client does not encode `.filter()` / `.search()` values.** Encode free text yourself. This package's query strings are already encoded.
 - **Search indexing lags.** A newly uploaded file can take several minutes to appear in `spo-search-files`; an empty result right after an upload is not a permission failure.
 - **A retention policy can refuse deleting a non-empty folder** with "Request was cancelled by event received ... it's possible that it's on hold". Delete the files first, then the empty folder.
+- **Word and PowerPoint edits patch the OOXML.** `ooxml-text.ts` holds the run-aware find and replace both use; a match across runs keeps the first run's formatting and the result says so. A styled Word insert into a document whose styles part lacks that style shows as Normal in Word; the tool warns. Blank files from `spo-create-file` define Heading1-3, Title, ListParagraph, ListBullet and ListNumber.
+- **Excel worksheets are addressed as `worksheets/{encodeURIComponent(name)}`.** `If-Match` on `PUT .../content` is honoured; a stale eTag returns 412.
 - **Tests:** `src/__tests__/fake-graph.ts` drops headers and query options, so it cannot see a bad header or a missing query parameter. Tests that care about the wire request use `src/__tests__/graph-recorder.ts`, a real Graph client over a recording transport.
 
 ## Not built: recent and shared-with-me
@@ -124,13 +140,16 @@ src/
     list-service.ts                  # Items, search by name, folder tree, CRM document locations
     file-operations-service.ts       # Download, upload, create folder, move, copy, rename, delete
     discovery-service.ts             # Sign-in mode: file search, links, sites, OneDrive
+    content/                         # Content tools: settings, item locator, text, Excel, Word, PowerPoint, blank files
+  local-file-guard.ts                # Home-folder guard for spo-upload-file localPath (copied from outlook)
   tools/
     read-tools.ts                    # 16 read tools
     write-tools.ts                   # 5 write tools + 1 delete tool
     auth-tools.ts                    # 3 sign-in tools
     discovery-tools.ts               # 5 sign-in mode discovery and OneDrive tools
+    content-tools.ts                 # 9 content tools
   prompts/                           # 10 prompt registrations
-  cli/commands/                      # auth, read, write, discovery
+  cli/commands/                      # auth, read, write, discovery, content
   types/sharepoint-types.ts
   utils/                             # formatters, descWithExamples helper
 ```
@@ -153,6 +172,11 @@ mcp-spo-cli auth login
 mcp-spo-cli search-files --query "budget filetype:xlsx"
 mcp-spo-cli get-my-drive
 mcp-spo-cli download-file --site-id https://contoso.sharepoint.com/sites/example --drive-id <driveId> --item-id <itemId> --convert-to-pdf --save-to-disk
+
+# Content in place (mcp-spo-cli content <verb>)
+mcp-spo-cli content read-word --url "https://contoso.sharepoint.com/:w:/s/team/Abc123"
+mcp-spo-cli content read-excel --drive-id <driveId> --item-id <itemId> --worksheet Sheet1 --range A1:D20
+mcp-spo-cli content create --drive-id <driveId> --folder-path /Reports --file-name Plan.docx
 ```
 
 Every read prints a summary and writes the full JSON to `.context/.mcp-spo-cache/`. With the global `--json` flag, stdout carries the full JSON alone and the cache path goes to stderr. `--no-cache` is accepted but ignored: reads always write the cache.

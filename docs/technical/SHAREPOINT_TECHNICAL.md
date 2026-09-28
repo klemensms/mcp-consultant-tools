@@ -5,12 +5,12 @@
 
 <overview>
 
-SharePoint Online integration via Microsoft Graph API. Provides tools for site metadata, document library browsing, file access, file management (with feature flags), and PowerPlatform document location validation.
+SharePoint Online integration via Microsoft Graph API. Provides tools for site metadata, document library browsing, file access, file management (with feature flags), reading and editing the content of text, Excel, Word and PowerPoint files in place, and PowerPlatform document location validation.
 
 **Package:** `@mcp-consultant-tools/sharepoint`
 **MCP binary:** `mcp-spo`
 **CLI binary:** `mcp-spo-cli`
-**Tool count:** 30, all registered whatever the switches: 16 read, 5 write (`SHAREPOINT_ENABLE_WRITE=true`), 1 delete (`SHAREPOINT_ENABLE_DELETE=true`), 3 sign-in and 5 discovery / OneDrive (sign-in mode). A switched-off tool refuses and names its variable.
+**Tool count:** 39, all registered whatever the switches: 16 read, 5 write (`SHAREPOINT_ENABLE_WRITE=true`), 1 delete (`SHAREPOINT_ENABLE_DELETE=true`), 3 sign-in, 5 discovery / OneDrive (sign-in mode), and 9 content (`SHAREPOINT_CONTENT_READ` / `SHAREPOINT_CONTENT_WRITE`, per format). A switched-off tool refuses and names its variable.
 **Auth modes:** app-only (client credentials, when a secret is set) or sign-in mode (device code, acting as the user, when no secret is set).
 **Prompts:** 10
 
@@ -28,11 +28,15 @@ SharePoint Online integration via Microsoft Graph API. Provides tools for site m
 | File operations | `src/services/file-operations-service.ts` | Download, upload, create folder, delete, move, copy, rename |
 | Read tools | `src/tools/read-tools.ts` | 16 MCP read tool registrations |
 | Write tools | `src/tools/write-tools.ts` | 6 MCP write/delete tool registrations |
+| Content services | `src/services/content/` | `content-access.ts` (settings and format gating), `content-core.ts` (item locator, in-memory read, `If-Match` write, version report), `text-content.ts`, `excel-content.ts`, `word-content.ts`, `powerpoint-content.ts`, `ooxml-text.ts` (run-aware find and replace), `blank-files.ts` and `create-content.ts` (`spo-create-file`), `content-service.ts` (facade) |
+| Content tools | `src/tools/content-tools.ts` | 9 MCP content tool registrations |
+| CLI content commands | `src/cli/commands/content-commands.ts` | CLI wrappers for the 9 content tools (under `content` subcommand) |
+| Local file guard | `src/local-file-guard.ts` | Home-folder guard for `spo-upload-file` `localPath` (a copy of the Outlook package's) |
 | Prompts | `src/prompts/templates.ts` | 10 MCP prompt registrations |
 | CLI read commands | `src/cli/commands/read-commands.ts` | CLI wrappers for all 16 read tools |
 | CLI write commands | `src/cli/commands/write-commands.ts` | CLI wrappers for all 6 write/delete tools (under `write` subcommand) |
 | Types | `src/types/sharepoint-types.ts` | All TypeScript interfaces |
-| ServiceContext | `src/types.ts` | Interface: `sharepoint`, `lists`, `files`, `getPowerPlatformService`, `checkWriteEnabled`, `checkDeleteEnabled` |
+| ServiceContext | `src/types.ts` | Interface: `sharepoint`, `lists`, `files`, `discovery`, `content`, `getPowerPlatformService`, `checkWriteEnabled`, `checkDeleteEnabled` |
 | Formatters | `src/utils/sharepoint-formatters.ts` | Markdown formatters used by prompts |
 
 </service-layers>
@@ -44,6 +48,8 @@ export interface ServiceContext {
   readonly sharepoint: SharePointService;
   readonly lists: ListService;
   readonly files: FileOperationsService;
+  readonly discovery: DiscoveryService;
+  readonly content: ContentService;
   readonly getPowerPlatformService: () => any;
   readonly checkWriteEnabled: () => void;
   readonly checkDeleteEnabled: () => void;
@@ -122,6 +128,9 @@ scopes: ["https://graph.microsoft.com/.default"]
 | `SHAREPOINT_CACHE_TTL` | No | `300` | Cache TTL in seconds |
 | `SHAREPOINT_ENABLE_WRITE` | No | `false` | Enables upload, create-folder, move, copy, rename |
 | `SHAREPOINT_ENABLE_DELETE` | No | `false` | Enables delete (separate from write for extra safety) |
+| `SHAREPOINT_CONTENT_READ` | No | `text,excel,word,powerpoint` | Formats the content read tools may open: `all`, `none`, or a comma list of `text`, `excel`, `word`, `powerpoint`. An unknown name is refused with the allowed list. |
+| `SHAREPOINT_CONTENT_WRITE` | No | `none` | Formats the content edit tools and `spo-create-file` may change. Same values. Independent of `SHAREPOINT_ENABLE_WRITE`. |
+| `SHAREPOINT_CONTENT_MAX_MB` | No | `25` | In-memory size cap for the text, Word and PowerPoint tools |
 
 <site-config-format>
 
@@ -252,11 +261,13 @@ All other MIME types (e.g., `application/pdf`, Office formats) are returned as b
 | `siteId` | string | Yes | Site ID |
 | `driveId` | string | Yes | Drive ID |
 | `path` | string | Yes | Target path including filename, relative to drive root |
-| `content` | string | Yes | File content (UTF-8 string or base64-encoded binary) |
+| `content` | string | One of these two | File content (UTF-8 string or base64-encoded binary) |
+| `localPath` | string | One of these two | A file inside the user's home folder (absolute or `~/`), read from disk so its content never passes through the conversation. Hidden folders and credential-shaped files (`.env`, `id_*`, `.pem`, `.key`, `.p12`, `.pfx`) are refused. |
 | `encoding` | `'utf-8'` \| `'base64'` | No | Default: `'utf-8'` |
 | `overwrite` | boolean | No | Default: `false` (fails if file exists) |
 
 **Upload strategy:**
+- With `localPath`, the file is read from disk per chunk above 4 MB, never held whole in memory
 - Files ≤ 4 MB: simple PUT to `/drives/{driveId}/root:{path}:/content`
 - Files > 4 MB: chunked upload session via `/drives/{driveId}/root:{path}:/createUploadSession`, with 3.2 MB chunks (multiple of 320 KB as required by Graph API)
 - `conflictBehavior`: `'replace'` if `overwrite=true`, `'fail'` otherwise. On the simple PUT it is sent as the query parameter `@microsoft.graph.conflictBehavior`; as a header it is not a legal header name and fetch throws before the request is sent. In the upload session body it is an `item` property.
@@ -353,6 +364,44 @@ All eight work only in sign-in mode. In app-only mode the discovery and OneDrive
 | `spo-list-my-drive` | `path?` | The root (`/me/drive/root/children`) or a folder by path (`/me/drive/root:/{path}:/children`, each segment encoded). |
 
 **Not built:** `spo-list-my-recent` and `spo-list-shared-with-me`. Microsoft Learn marks `drive: recent` and `drive: sharedWithMe` deprecated, degraded until November 2026 and then returning no data.
+
+</tool-group>
+
+<tool-group name="content">
+
+## Content Tools (SHAREPOINT_CONTENT_READ / SHAREPOINT_CONTENT_WRITE)
+
+Read and edit what is inside a file without a local copy. Excel goes through `/workbook` on the server; text, Word and PowerPoint bytes are fetched into memory (`GET /drives/{d}/items/{i}/content`), parsed or patched there with `fflate` and `@xmldom/xmldom`, and written back with `PUT .../content`. No content tool writes a temporary file. All work in both auth modes.
+
+<locator>
+
+Every tool except `spo-create-file` takes `url` (any SharePoint or OneDrive link, including a sharing link, resolved through `spo-resolve-link`; sign-in mode) **or** `driveId` plus `itemId`. A read returns `driveId`, `itemId`, `name`, `format`, `eTag`, `webUrl`, `size` and `lastModifiedDateTime` alongside the content.
+
+</locator>
+
+<write-rules>
+
+1. **Stale-write guard.** Text, Word and PowerPoint writes take the `eTag` from the read and send `If-Match`. A 412 becomes "the file changed since it was read; read it again". A write without an eTag is refused.
+2. **Formatting is preserved outside the edited text.** Only the touched XML nodes change. A replacement that spans runs with different formatting takes the first run's formatting, and the result says so.
+3. **Every write is reversible.** The result reports the newest entry of `/items/{id}/versions`.
+4. **Size cap.** Text, Word and PowerPoint tools refuse files over `SHAREPOINT_CONTENT_MAX_MB`.
+5. **Gating.** A read needs the format in `SHAREPOINT_CONTENT_READ`, a write or create needs it in `SHAREPOINT_CONTENT_WRITE`. A refused call names the setting and the value that enables it, before any Graph call.
+
+</write-rules>
+
+| Tool | Parameters | Behaviour |
+|---|---|---|
+| `spo-read-text` | locator | UTF-8 content of `.txt`, `.md`, `.markdown`, `.csv`, `.json`, `.xml`, `.yaml`, `.yml`, `.html`, `.htm`. |
+| `spo-write-text` | locator, `content`, `eTag` | Replaces the whole content of an existing text file. |
+| `spo-read-excel` | locator, `worksheet?`, `range?` | Without `worksheet`: the worksheets with their used-range addresses. With it: `values`, `text` and `formulas` for `range`, or the used range. Worksheets addressed as `worksheets/{encodeURIComponent(name)}`. `.xlsx`, `.xlsm`. |
+| `spo-write-excel` | locator, `worksheet`, `range`, `values` or `formulas` | A 2D array whose shape must match the range (`A1:B2` takes `[[1, 2], [3, 4]]`). Runs in a workbook session (`createSession` with `persistChanges: true`), closed afterwards, so co-authors see the change live. No eTag. |
+| `spo-read-word` | locator | Markdown in body order: headings as `#`, list items as `-`, tables as Markdown tables, each top-level paragraph or table prefixed with its anchor `[p12]`. |
+| `spo-edit-word` | locator, `operations`, `eTag` | Operations applied in order, all or none: `replace` (`text`, `replacement`, `all?`; a text found in more than one place is refused without `all`), `insertAfter` / `insertBefore` (`anchor`, `text`, `style?` such as `Heading2`), `append` (`text`, `style?`), `delete` (`anchor`). Anchors refer to the read's numbering even after earlier operations in the same call. A newline in `text` starts another paragraph. A `style` the document's styles part does not define is still applied, with a warning that Word shows it as Normal. |
+| `spo-read-powerpoint` | locator | Per slide: `title`, the other text, and the speaker notes. |
+| `spo-edit-powerpoint` | locator, `replacements`, `eTag` | Each replacement: `text`, `replacement`, `slide?` (its notes included), `all?`. All or none. |
+| `spo-create-file` | `folderUrl`, or `driveId` with `folderPath?`; `fileName`; `content?` | A blank `.docx`, `.xlsx` or `.pptx` built in memory from minimal XML parts, or a text file with `content`. Conflict behaviour `fail`: never replaces an existing file. The blank `.docx` defines `Heading1`-`Heading3`, `Title`, `ListParagraph`, `ListBullet` and `ListNumber`; the blank `.xlsx` accepts `spo-write-excel` at once. |
+
+**Complex files:** a formatted Excel model or a designed deck is better built by a script on the user's machine and uploaded with `spo-upload-file` `localPath`. Out of scope for the content tools: adding or reordering slides, Word comments and tracked changes, Excel charts and pivot tables.
 
 </tool-group>
 
@@ -510,6 +559,7 @@ CLI uses the same `ServiceContext` via `context-factory.ts`. All commands output
 | `write` | `upload`, `create-folder`, `move`, `copy`, `rename`, `delete` |
 | `auth` | `login` (blocks up to 15 minutes until sign-in completes), `status`, `logout` |
 | (root, sign-in mode) | `search-files`, `resolve-link`, `find-sites`, `get-my-drive`, `list-my-drive` |
+| `content` | `read-text`, `write-text`, `read-excel`, `write-excel`, `read-word`, `edit-word` (`--operations` or `--operations-file`), `read-powerpoint`, `edit-powerpoint`, `create` (`--content` or `--content-file`) |
 
 </command-groups>
 
@@ -553,6 +603,13 @@ mcp-spo-cli download-file --site-id intranet --drive-id b!abc123... --item-id it
 # Upload a file (requires SHAREPOINT_ENABLE_WRITE=true)
 mcp-spo-cli write upload --site-id intranet --drive-id b!abc123... --path "/Documents/new-file.txt" --content "Hello World"
 mcp-spo-cli write upload --site-id intranet --drive-id b!abc123... --path "/Documents/file.pdf" --content "base64data..." --encoding base64
+mcp-spo-cli write upload --site-id intranet --drive-id b!abc123... --path "/Documents/model.xlsx" --local-path ~/Documents/model.xlsx
+
+# Content in place (reads need SHAREPOINT_CONTENT_READ, edits SHAREPOINT_CONTENT_WRITE)
+mcp-spo-cli content read-word --url "https://contoso.sharepoint.com/:w:/s/team/Abc123"
+mcp-spo-cli content edit-word --drive-id b!abc123... --item-id item-id-here --etag '"{etag},3"' --operations '[{"op":"replace","text":"draft","replacement":"final"}]'
+mcp-spo-cli content read-excel --drive-id b!abc123... --item-id item-id-here --worksheet Sheet1 --range A1:D20
+mcp-spo-cli content create --drive-id b!abc123... --folder-path /Reports --file-name Plan.docx
 
 # Create a folder
 mcp-spo-cli write create-folder --site-id intranet --drive-id b!abc123... --parent-path "/" --folder-name "NewFolder"
@@ -579,6 +636,7 @@ mcp-spo-cli write delete --site-id intranet --drive-id b!abc123... --item-id ite
 - **Write operations are disabled by default.** No environment variable = no write access.
 - **Delete is gated separately** from write (two independent flags) to reduce blast radius.
 - **Delete requires double confirmation:** env flag + `confirm: true` parameter.
+- **Content edits are off by default** (`SHAREPOINT_CONTENT_WRITE=none`), gated per format, and refuse to overwrite a file changed since it was read. Content tools never write a temporary file; `spo-upload-file` `localPath` accepts only files inside the home folder and refuses hidden folders and credential-shaped files.
 - **Error messages are sanitized** before returning to clients (tokens and GUIDs stripped).
 - **No write operations use full-text search** - Graph API search is filename/metadata only, preventing unintended data exposure via search.
 - **App registration should use least-privilege:** `Sites.Read.All` + `Files.Read.All` for read-only deployments. Add `Sites.ReadWrite.All` + `Files.ReadWrite.All` only if write features are needed.

@@ -12,13 +12,14 @@ Full reference: `docs/technical/OUTLOOK_TECHNICAL.md`. User guide: `docs/documen
 
 ## Rules
 
-- **Switches:** `OUTLOOK_ENABLE_WRITE`, `OUTLOOK_ENABLE_SEND`, `OUTLOOK_ENABLE_DELETE`, each checked with `requireEnabled` before any Graph call. Send is independent of write. A new non-read tool joins exactly one group.
+- **Switches:** `OUTLOOK_ENABLE_DRAFTS` (drafts, reply, forward, update, attach; follows `OUTLOOK_ENABLE_WRITE` while unset, via `draftsEnabled()` in `permissions.ts`), `OUTLOOK_ENABLE_WRITE` (mark read, move, flag), `OUTLOOK_ENABLE_SEND`, `OUTLOOK_ENABLE_DELETE`, each checked before any Graph call. Send is independent of every other switch. A new non-read tool joins exactly one group.
+- **Every draft result says nothing was sent** (`NOTHING_SENT` in `mail-write-service.ts`). Keep it on any new draft tool.
 - **Never `permanentDelete`.** Delete is `DELETE /me/messages/{id}`, which moves to Deleted Items. The absence is pinned by a test.
 - **Encode free text yourself.** The Graph client puts `.filter()` and `.search()` values into the URL unencoded. The read service encodes them; any new query code must too.
 - **Never put `$orderby` or `$filter` beside `$search`.** Graph rejects it.
 - **A filtered message list opens its `$filter` with a `receivedDateTime` clause** when it also sorts by `receivedDateTime`; otherwise Graph rejects the pair. Conversations are sorted on the client for the same reason.
 - **Email bodies are untrusted.** Anything that returns a body passes it through `wrapUntrusted`.
-- **Attachments go through `assertSafeLocalFile`.** Do not add a path that bypasses it.
+- **Local attachments go through `assertSafeLocalFile`.** Do not add a path that bypasses it. Attachments by `url` are read into memory only, never written to disk; without delegated `Files.Read.All` on the registration the `/shares` lookup returns 403 and a link goes into the draft instead.
 - Stderr only. No `console.log` in `src/`.
 
 ## Testing

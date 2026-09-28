@@ -10,8 +10,8 @@
 `@mcp-consultant-tools/outlook` gives an agent delegated (signed in as the user) access to that user's own Outlook mailbox through Microsoft Graph. Device code is the only sign-in mode: app-only mail access would reach every mailbox in the tenant and is out of scope.
 
 - **Binaries:** `mcp-outlook` (MCP server, stdio) and `mcp-outlook-cli` (CLI with the same capabilities).
-- **Tools:** 20, all prefixed `mail-`, in five groups: auth, read, write, send, delete.
-- **Switches:** write, send and delete are each off by default. Read is the only group that works out of the box.
+- **Tools:** 20, all prefixed `mail-`, in six groups: auth, read, drafts, write, send, delete.
+- **Switches:** drafts, write, send and delete are each off by default; drafts follows write while its own switch is unset. Read is the only group that works out of the box.
 - **Auth plumbing:** `@mcp-consultant-tools/m365-core` (shared with the SharePoint server's device-code mode).
 
 </overview>
@@ -50,11 +50,12 @@ Services are created on first use, so the server starts and lists its tools with
 |---|---|---|
 | `OUTLOOK_TENANT_ID` | required | Entra tenant id. |
 | `OUTLOOK_CLIENT_ID` | required | App registration with "Allow public client flows" on and delegated mail permissions. |
-| `OUTLOOK_ENABLE_WRITE` | `false` | Write group. |
+| `OUTLOOK_ENABLE_DRAFTS` | follows `OUTLOOK_ENABLE_WRITE` | Drafts group. While unset or empty it follows `OUTLOOK_ENABLE_WRITE`, so a configuration from before the split behaves as it did; once set, only its own value counts (`false` turns drafts off even with write on). |
+| `OUTLOOK_ENABLE_WRITE` | `false` | Write group (mark read, move, flag). |
 | `OUTLOOK_ENABLE_SEND` | `false` | Send group. Independent of write: send works with write off, and write does not unlock send. |
 | `OUTLOOK_ENABLE_DELETE` | `false` | Delete group. |
 | `OUTLOOK_DOWNLOAD_DIR` | `~/Downloads/mcp-outlook` | Attachment download folder, created with mode 0700. |
-| `OUTLOOK_MAX_ATTACHMENT_MB` | `25` | Size cap for `mail-add-draft-attachment`, checked before the file is read. |
+| `OUTLOOK_MAX_ATTACHMENT_MB` | `25` | Size cap for `mail-add-draft-attachment`, checked before a local file is read or a linked file is downloaded. |
 
 Only the exact string `true` enables a switch (`TRUE`, `1` and unset are all off).
 
@@ -86,9 +87,12 @@ Only the exact string `true` enables a switch (`TRUE`, `1` and unset are all off
 | Group | Needs any of | Switch |
 |---|---|---|
 | read | `Mail.Read`, `Mail.ReadWrite` | none |
+| drafts | `Mail.ReadWrite` | `OUTLOOK_ENABLE_DRAFTS` (follows `OUTLOOK_ENABLE_WRITE` while unset) |
 | write | `Mail.ReadWrite` | `OUTLOOK_ENABLE_WRITE` |
 | send | `Mail.Send` | `OUTLOOK_ENABLE_SEND` |
 | delete | `Mail.ReadWrite` | `OUTLOOK_ENABLE_DELETE` |
+
+The drafts entry also carries `followsWrite` (whether `OUTLOOK_ENABLE_DRAFTS` is unset) and `attachFromLink: { needs, granted }`, which says whether the sign-in carries one of `Files.Read.All`, `Files.ReadWrite.All`, `Sites.Read.All`, `Sites.ReadWrite.All` and so whether a linked file can be attached rather than only linked.
 
 </auth-status-states>
 
@@ -135,7 +139,9 @@ Only the exact string `true` enables a switch (`TRUE`, `1` and unset are all off
 
 <tool-group name="write">
 
-### Write (`OUTLOOK_ENABLE_WRITE=true`)
+### Drafts (`OUTLOOK_ENABLE_DRAFTS=true`, or `OUTLOOK_ENABLE_WRITE=true` while drafts is unset) and write (`OUTLOOK_ENABLE_WRITE=true`)
+
+The five draft tools form the drafts group; mark read, move and flag form the write group. Every draft tool's result carries `note: "Saved as a draft. Nothing was sent."`
 
 | Tool | Parameters | Behaviour |
 |---|---|---|
@@ -143,7 +149,7 @@ Only the exact string `true` enables a switch (`TRUE`, `1` and unset are all off
 | `mail-create-reply-draft` | `messageId`, `replyAll?`, `body`, `format?` | Calls `createReply` or `createReplyAll` with an empty body, reads the draft back, then sets the body to your text followed by the existing quoted thread, so the thread survives. |
 | `mail-create-forward-draft` | `messageId`, `to`, `body?`, `format?` | Forward draft with an optional note above the forwarded message. |
 | `mail-update-draft` | `draftId`, `to?`, `cc?`, `bcc?`, `subject?`, `body?`, `format?` | A given body replaces the whole body. |
-| `mail-add-draft-attachment` | `draftId`, `filePath` | Local file through the local-file guard. 3 MB or under: one `POST .../attachments` with base64 `contentBytes`. Above 3 MB: `createUploadSession`, then `PUT` chunks in multiples of 320 KiB with `Content-Range`. Above `OUTLOOK_MAX_ATTACHMENT_MB`: refused before the file is read. |
+| `mail-add-draft-attachment` | `draftId`, `filePath` or `url` (exactly one) | `filePath`: a local file through the local-file guard. `url`: an https SharePoint or OneDrive link, looked up with `GET /shares/u!{base64url}/driveItem` on the Outlook sign-in; a folder is refused; the bytes are fetched into memory from `@microsoft.graph.downloadUrl` (no Authorization header) and never written to disk. On a 403 from `/shares` the link is put into the draft body instead, before Outlook's `appendonsend` / `divRplyFwdMsg` separator so it sits under the user's text and above any quoted thread, and the result is `{ attached: false, linkInserted: true, url, reason }` naming `Files.Read.All`. Either source: 3 MB or under, one `POST .../attachments` with base64 `contentBytes`; above 3 MB, `createUploadSession`, then `PUT` chunks in multiples of 320 KiB with `Content-Range`; above `OUTLOOK_MAX_ATTACHMENT_MB`, refused before the bytes are read. A real attachment returns `{ attached: true, attachmentId?, name, size }`. |
 | `mail-mark-read` | `messageId`, `isRead` | Sets the read state. |
 | `mail-move-message` | `messageId`, `destinationFolder` | Well-known name (`archive`, `deleteditems`, `inbox`, `drafts`) or a folder id. The message gets a new id, which is returned. |
 | `mail-flag-message` | `messageId`, `flag` | `flagged`, `complete` or `notFlagged`. |
@@ -190,6 +196,7 @@ Only the exact string `true` enables a switch (`TRUE`, `1` and unset are all off
 ## Security Controls
 
 - **Off by default.** A switched-off tool stays registered, makes no Graph call and throws `<Capability> is disabled. Set <VAR>=true to enable.`, so the agent can tell the user what to turn on.
+- **Drafts cannot send.** The drafts switch and the send switch are independent; a draft-only configuration (`OUTLOOK_ENABLE_DRAFTS=true`, send off) prepares mail that only a person can send.
 - **Local-file guard (`assertSafeLocalFile`).** Resolves the real path, following symlinks, and refuses anything outside the home directory, any path with a segment starting with `.` (so `~/.ssh`, `~/.aws` and similar), and credential-shaped names: `.env*`, `id_*`, `*.pem`, `*.key`, `*.p12`, `*.pfx`. A symlink inside home that points outside it is refused.
 - **Downloads stay in one folder.** Attachment names are sanitised so `../` or `/` cannot escape `OUTLOOK_DOWNLOAD_DIR`; an existing file is never overwritten (`name (1).ext`, `name (2).ext`, ...). Embedded Outlook items (`itemAttachment`) and cloud-file links (`referenceAttachment`) are refused with a message naming the type.
 - **No standing credential.** No client secret or certificate; the server can only do what the signed-in user can do, in that user's own mailbox.
@@ -221,7 +228,8 @@ Other Graph errors are passed through with their message.
 |---|---|
 | `auth login` / `auth status` / `auth logout` | `mail-authenticate` (blocks up to 15 minutes until sign-in completes) / `mail-auth-status` / `mail-logout` |
 | `folders`, `list`, `search`, `get`, `thread`, `attachment` | the six read tools |
-| `draft`, `reply`, `forward`, `update-draft`, `attach`, `mark-read`, `move`, `flag` | the eight write tools |
+| `draft`, `reply`, `forward`, `update-draft`, `attach` (`--file` or `--url`) | the five draft tools |
+| `mark-read`, `move`, `flag` | the three write tools |
 | `send-draft`, `send` | the two send tools |
 | `delete` (needs `--confirm`) | `mail-delete-message` |
 

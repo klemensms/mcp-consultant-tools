@@ -19,3 +19,9 @@ Chain for `docs/superpowers/plans/2026-09-28-sharepoint-content-and-outlook-draf
 - **Hop:** 1 · 2504569
 - **State:** partly closed (hop 1): blank Word files from spo-create-file define the heading and list styles; adding a missing style to an existing document stays deferred
 - **Matters because:** a live test document had no `Heading2` in its styles part, so `spo-edit-word` inserted the paragraph with the style reference and warned that Word shows it as Normal. Task 7's blank `.docx` must define the common heading and list styles so styled inserts work in files the tools create. Adding a missing built-in style definition on insert is a possible later improvement.
+
+### ⚑4 · Release notes for this chain wait for the next beta
+- **Kind:** deferred
+- **Hop:** 2 · task 10
+- **State:** open
+- **Matters because:** the newest per-iteration file (beta.23) is already published, and release notes are written only by `/product-releasenotes beta`, never by hand. The SharePoint content tools, `spo-upload-file` `localPath`, and the Outlook drafts switch with attach-by-link have no release-notes entry until that runs at the next beta. `OUTLOOK_ENABLE_DRAFTS` is not breaking (unset follows `OUTLOOK_ENABLE_WRITE`), so no upgrade block is needed for it.
