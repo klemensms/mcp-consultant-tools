@@ -106,4 +106,48 @@ export function registerContentTools(server: any, ctx: ServiceContext): void {
       }
     }
   );
+
+  server.tool(
+    'spo-read-word',
+    'Read a Word document (.docx) as Markdown: headings as #, list items as -, tables as Markdown tables. ' +
+      'Each paragraph or table starts with its anchor, such as [p12], which spo-edit-word uses. Returns the eTag spo-edit-word needs.' + READ_NOTE,
+    { ...itemRefShape },
+    { readOnlyHint: true, openWorldHint: true },
+    async (args: any) => {
+      try {
+        return json(await ctx.content.word.read(refOf(args)));
+      } catch (error: any) {
+        return fail('read Word document', error);
+      }
+    }
+  );
+
+  const wordOp = z.object({
+    op: z.enum(['replace', 'insertAfter', 'insertBefore', 'append', 'delete']).describe('What to do'),
+    text: z.string().optional().describe('replace: the text to find. insert and append: the new paragraph text (a newline starts another paragraph)'),
+    replacement: z.string().optional().describe('replace: the new text'),
+    all: z.boolean().optional().describe('replace: replace every match; without it a text found in more than one place is refused'),
+    anchor: z.string().optional().describe('insertAfter, insertBefore, delete: the block anchor from spo-read-word, such as p12'),
+    style: z.string().optional().describe('insert and append: paragraph style ID such as Heading2 or ListBullet; leave out for Normal'),
+  });
+
+  server.tool(
+    'spo-edit-word',
+    'Edit a Word document with a list of operations, applied in order, all or none. Anchors refer to the numbering from spo-read-word, ' +
+      'even after earlier operations in the same call. Formatting outside the edited text is kept; a replacement across differently ' +
+      'formatted runs takes the first run\'s formatting, and the result says so.' + WRITE_NOTE,
+    {
+      ...itemRefShape,
+      operations: z.array(wordOp).min(1).describe('Operations, such as [{"op":"replace","text":"draft","replacement":"final"},{"op":"insertAfter","anchor":"p3","text":"New paragraph"}]'),
+      eTag: z.string().describe('eTag returned by spo-read-word'),
+    },
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    async (args: any) => {
+      try {
+        return json(await ctx.content.word.edit(refOf(args), args.operations, args.eTag));
+      } catch (error: any) {
+        return fail('edit Word document', error);
+      }
+    }
+  );
 }

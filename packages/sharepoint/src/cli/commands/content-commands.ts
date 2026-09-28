@@ -113,4 +113,44 @@ export function registerContentCommands(program: Command, ctx: ServiceContext): 
         handleCliError(error);
       }
     });
+
+  // spo-read-word
+  withItemRef(content.command('read-word').description('Read a Word document as Markdown with [pN] anchors, with its eTag'))
+    .action(async (opts: any) => {
+      try {
+        const result = await ctx.content.word.read(refOf(opts));
+        outputResult({
+          fileName: `read-word-${result.name}`,
+          data: result,
+          summary: `${result.name} (eTag ${result.eTag}, ${result.blockCount} blocks)\n\n${result.markdown}`,
+        });
+      } catch (error) {
+        handleCliError(error);
+      }
+    });
+
+  // spo-edit-word
+  withItemRef(content.command('edit-word').description('Apply edit operations to a Word document'))
+    .option('--operations <json>', 'Operations as a JSON array, such as [{"op":"append","text":"Done"}]')
+    .option('--operations-file <path>', 'Read the operations JSON from a local file')
+    .requiredOption('--etag <eTag>', 'eTag returned by read-word')
+    .action(async (opts: any) => {
+      try {
+        const raw = inlineOrFile(opts.operations, opts.operationsFile, 'operations');
+        let operations: any;
+        try { operations = JSON.parse(raw); } catch { throw new Error('--operations must be a JSON array of operations.'); }
+        const result = await ctx.content.word.edit(refOf(opts), operations, opts.etag);
+        outputResult({
+          fileName: `edit-word-${result.name}`,
+          data: result,
+          summary: [
+            `Saved ${result.name}${result.version ? ` as version ${result.version}` : ''} (new eTag ${result.eTag})`,
+            ...result.applied.map((a) => `  - ${a}`),
+            ...result.notes.map((n) => `  Note: ${n}`),
+          ].join('\n'),
+        });
+      } catch (error) {
+        handleCliError(error);
+      }
+    });
 }
