@@ -1,5 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { describeMailAccess, draftsEnabled, permissionHint } from '../permissions.js';
+import {
+  CALENDAR_SWITCHES, describeCalendarAccess, describeMailAccess, draftsEnabled, permissionHint, requireCalendarSwitch,
+} from '../permissions.js';
 
 const SWITCHES = ['OUTLOOK_ENABLE_WRITE', 'OUTLOOK_ENABLE_DRAFTS', 'OUTLOOK_ENABLE_SEND', 'OUTLOOK_ENABLE_DELETE'];
 
@@ -85,5 +87,61 @@ describe('permissionHint', () => {
   it('leaves any other error as it was', () => {
     const original = Object.assign(new Error('Not found'), { statusCode: 404 });
     expect(permissionHint(original, 'read')).toBe(original);
+  });
+});
+
+describe('describeCalendarAccess', () => {
+  afterEach(() => { for (const name of CALENDAR_SWITCHES) delete process.env[name]; });
+
+  it('reports every calendar group missing without a calendar permission', () => {
+    const access = describeCalendarAccess(['Mail.ReadWrite']);
+    for (const group of Object.values(access)) expect(group.granted).toBe(false);
+  });
+
+  it('treats Calendars.ReadWrite as own calendar and Calendars.ReadWrite.Shared as shared and delegate', () => {
+    const access = describeCalendarAccess(['Calendars.ReadWrite', 'Calendars.ReadWrite.Shared']);
+    expect(access['calendar-read'].granted).toBe(true);
+    expect(access['calendar-write'].granted).toBe(true);
+    expect(access['calendar-invite'].granted).toBe(true);
+    expect(access['calendar-shared'].granted).toBe(true);
+    expect(access['calendar-delegate'].granted).toBe(true);
+    expect(access['calendar-recording'].granted).toBe(false);
+  });
+
+  it('names each switch and reports it off by default; read and recording have none', () => {
+    const access = describeCalendarAccess([]);
+    expect(access['calendar-read'].switch).toBeUndefined();
+    expect(access['calendar-recording'].switch).toBeUndefined();
+    expect(access['calendar-shared']).toMatchObject({ switch: 'OUTLOOK_ENABLE_CALENDAR_SHARED', enabled: false });
+    expect(access['calendar-write']).toMatchObject({ switch: 'OUTLOOK_ENABLE_CALENDAR_WRITE', enabled: false });
+    expect(access['calendar-invite']).toMatchObject({ switch: 'OUTLOOK_ENABLE_CALENDAR_INVITE', enabled: false });
+    expect(access['calendar-delegate']).toMatchObject({ switch: 'OUTLOOK_ENABLE_CALENDAR_DELEGATE', enabled: false });
+    process.env.OUTLOOK_ENABLE_CALENDAR_INVITE = 'true';
+    expect(describeCalendarAccess([])['calendar-invite'].enabled).toBe(true);
+  });
+});
+
+describe('requireCalendarSwitch', () => {
+  afterEach(() => { for (const name of CALENDAR_SWITCHES) delete process.env[name]; });
+
+  it('throws naming the variable while off, and passes when exactly "true"', () => {
+    expect(() => requireCalendarSwitch('calendar-invite')).toThrow('Set OUTLOOK_ENABLE_CALENDAR_INVITE=true to enable');
+    process.env.OUTLOOK_ENABLE_CALENDAR_INVITE = '1';
+    expect(() => requireCalendarSwitch('calendar-invite')).toThrow();
+    process.env.OUTLOOK_ENABLE_CALENDAR_INVITE = 'true';
+    expect(() => requireCalendarSwitch('calendar-invite')).not.toThrow();
+  });
+
+  it('never throws for groups without a switch', () => {
+    expect(() => requireCalendarSwitch('calendar-read')).not.toThrow();
+    expect(() => requireCalendarSwitch('calendar-recording')).not.toThrow();
+  });
+});
+
+describe('calendar permissionHint', () => {
+  it('names the calendar permission on a 403', () => {
+    const hint = permissionHint({ statusCode: 403 }, 'calendar-shared');
+    expect(hint.message).toContain('Calendars.Read.Shared or Calendars.ReadWrite.Shared');
+    expect(permissionHint({ statusCode: 403 }, 'calendar-recording').message).toContain('OnlineMeetings.ReadWrite');
   });
 });

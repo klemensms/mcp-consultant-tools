@@ -4,7 +4,7 @@
  * whatever the app registration has admin consent for; a missing permission
  * breaks only the tools that need it, and signing in again cannot add it.
  */
-import { isEnabled } from '@mcp-consultant-tools/m365-core';
+import { isEnabled, requireEnabled } from '@mcp-consultant-tools/m365-core';
 
 export type MailGroup = 'read' | 'write' | 'drafts' | 'send' | 'delete';
 
@@ -21,6 +21,51 @@ const RULES: Record<MailGroup, GroupRule> = {
   send: { needs: ['Mail.Send'], switch: 'OUTLOOK_ENABLE_SEND' },
   delete: { needs: ['Mail.ReadWrite'], switch: 'OUTLOOK_ENABLE_DELETE' },
 };
+
+export type CalendarGroup =
+  | 'calendar-read' | 'calendar-shared' | 'calendar-write' | 'calendar-invite' | 'calendar-delegate' | 'calendar-recording';
+
+/**
+ * Calendar groups. Read and recording have no switch: read is the user's own
+ * calendar, like mail read, and recording is a per-meeting option on a write
+ * that its own switch already gates.
+ */
+const CALENDAR_RULES: Record<CalendarGroup, GroupRule & { capability: string }> = {
+  'calendar-read': { needs: ['Calendars.Read', 'Calendars.ReadWrite'], capability: 'Calendar read' },
+  'calendar-shared': {
+    needs: ['Calendars.Read.Shared', 'Calendars.ReadWrite.Shared'],
+    switch: 'OUTLOOK_ENABLE_CALENDAR_SHARED',
+    capability: "Reading colleagues' shared calendars",
+  },
+  'calendar-write': {
+    needs: ['Calendars.ReadWrite'],
+    switch: 'OUTLOOK_ENABLE_CALENDAR_WRITE',
+    capability: 'Calendar write (appointments on your own calendar that notify nobody)',
+  },
+  'calendar-invite': {
+    needs: ['Calendars.ReadWrite'],
+    switch: 'OUTLOOK_ENABLE_CALENDAR_INVITE',
+    capability: 'Calendar invitations (anything that notifies another person)',
+  },
+  'calendar-delegate': {
+    needs: ['Calendars.ReadWrite.Shared'],
+    switch: 'OUTLOOK_ENABLE_CALENDAR_DELEGATE',
+    capability: 'Changing a calendar you are a delegate on',
+  },
+  'calendar-recording': { needs: ['OnlineMeetings.ReadWrite'], capability: 'Automatic recording' },
+};
+
+export const CALENDAR_SWITCHES = [
+  'OUTLOOK_ENABLE_CALENDAR_SHARED', 'OUTLOOK_ENABLE_CALENDAR_WRITE', 'OUTLOOK_ENABLE_CALENDAR_INVITE', 'OUTLOOK_ENABLE_CALENDAR_DELEGATE',
+];
+
+/** Throw, naming the variable, when a calendar group's switch is off. Groups without a switch always pass. */
+export function requireCalendarSwitch(group: CalendarGroup): void {
+  const rule = CALENDAR_RULES[group];
+  if (rule.switch) {
+    requireEnabled(rule.switch, rule.capability);
+  }
+}
 
 const WRITE = 'OUTLOOK_ENABLE_WRITE';
 const DRAFTS = 'OUTLOOK_ENABLE_DRAFTS';
@@ -82,16 +127,32 @@ export function describeMailAccess(grantedScopes: string[]): Record<Exclude<Mail
   };
 }
 
+export function describeCalendarAccess(grantedScopes: string[]): Record<CalendarGroup, GroupAccess> {
+  const granted = new Set(grantedScopes.map((scope) => scope.toLowerCase()));
+  const entries = (Object.keys(CALENDAR_RULES) as CalendarGroup[]).map((group) => {
+    const rule = CALENDAR_RULES[group];
+    const access: GroupAccess = {
+      needs: rule.needs,
+      granted: rule.needs.some((need) => granted.has(need.toLowerCase())),
+      ...(rule.switch ? { switch: rule.switch } : {}),
+      enabled: rule.switch ? isEnabled(rule.switch) : true,
+    };
+    return [group, access] as const;
+  });
+  return Object.fromEntries(entries) as Record<CalendarGroup, GroupAccess>;
+}
+
 /**
- * Explain a 403 from Graph as the missing delegated permission for a tool
- * group. Any other error is returned unchanged.
+ * Explain a 403 from Graph as the missing delegated permission for a mail or
+ * calendar tool group. Any other error is returned unchanged.
  */
-export function permissionHint(error: unknown, group: MailGroup): Error {
+export function permissionHint(error: unknown, group: MailGroup | CalendarGroup): Error {
   const statusCode = (error as { statusCode?: number } | null)?.statusCode;
   if (statusCode !== 403) {
     return error instanceof Error ? error : new Error(String(error));
   }
-  const needs = RULES[group].needs.join(' or ');
+  const rule = group in CALENDAR_RULES ? CALENDAR_RULES[group as CalendarGroup] : RULES[group as MailGroup];
+  const needs = rule.needs.join(' or ');
   return new Error(
     `Microsoft Graph refused this request (403 Forbidden). The sign-in does not carry the delegated ${needs} ` +
       'permission this needs. An administrator grants it on the app registration, with admin consent; ' +

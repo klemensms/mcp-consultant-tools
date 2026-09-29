@@ -3,7 +3,7 @@
  */
 
 import type { ServiceContext } from '../types.js';
-import { describeMailAccess } from '../permissions.js';
+import { describeCalendarAccess, describeMailAccess } from '../permissions.js';
 
 const json = (value: unknown) => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
 const fail = (what: string, error: any) => {
@@ -16,7 +16,9 @@ export async function mailAuthStatus(ctx: ServiceContext) {
   const status = await ctx.auth.getStatus();
   return {
     ...status,
-    access: status.state === 'authenticated' ? describeMailAccess(status.grantedScopes ?? []) : undefined,
+    access: status.state === 'authenticated'
+      ? { ...describeMailAccess(status.grantedScopes ?? []), calendar: describeCalendarAccess(status.grantedScopes ?? []) }
+      : undefined,
   };
 }
 
@@ -52,7 +54,8 @@ export function registerAuthTools(server: any, ctx: ServiceContext): void {
     'mail-auth-status',
     'Show the Outlook sign-in state, the signed-in account, the delegated permissions the sign-in carries, ' +
       'and for each tool group (read, write, drafts, send, delete) whether the permission is there and whether its switch is on. ' +
-      'drafts.attachFromLink says whether a SharePoint or OneDrive link can be attached as a file or only inserted as a link.',
+      'drafts.attachFromLink says whether a SharePoint or OneDrive link can be attached as a file or only inserted as a link. ' +
+      'access.calendar reports the calendar groups (read, shared, write, invite, delegate, recording) the same way.',
     {},
     { readOnlyHint: true, openWorldHint: true },
     async () => {
