@@ -8,6 +8,7 @@ import { registerWriteTools } from './write-tools.js';
 import { registerSendTools } from './send-tools.js';
 import { registerDeleteTools } from './delete-tools.js';
 import { registerCalendarReadTools } from './calendar-read-tools.js';
+import { registerCalendarWriteTools } from './calendar-write-tools.js';
 
 export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerAuthTools(server, ctx);
@@ -16,6 +17,7 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerSendTools(server, ctx);
   registerDeleteTools(server, ctx);
   registerCalendarReadTools(server, ctx);
+  registerCalendarWriteTools(server, ctx);
 }
 
 export { registerAuthTools } from './auth-tools.js';
@@ -24,3 +26,4 @@ export { registerWriteTools } from './write-tools.js';
 export { registerSendTools } from './send-tools.js';
 export { registerDeleteTools } from './delete-tools.js';
 export { registerCalendarReadTools } from './calendar-read-tools.js';
+export { registerCalendarWriteTools } from './calendar-write-tools.js';

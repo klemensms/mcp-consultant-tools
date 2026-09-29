@@ -1,10 +1,10 @@
 /**
  * Outlook calendar CLI commands: `calendar calendars|events|event|schedule|find-times`.
- * Maps the calendar-* read tools; the write commands are added by registerCalendarWriteCommands.
+ * Maps the calendar-* tools: reads here, changes in registerCalendarWriteCommands.
  */
 import type { Command } from 'commander';
 import type { ServiceContext } from '../../context-factory.js';
-import type { EventSummary } from '../../types.js';
+import type { EventChangeResult, EventSummary } from '../../types.js';
 import { outputResult, handleCliError } from '../output.js';
 
 const int = (value: string) => parseInt(value, 10);
@@ -85,4 +85,78 @@ export function registerCalendarCommands(program: Command, ctx: ServiceContext):
     });
 
   return calendar;
+}
+
+function changeSummary(r: EventChangeResult): string {
+  return [`  ${r.message}`, r.recording ? `  ${r.recording}` : '', `  id: ${r.eventId}`].filter(Boolean).join('\n');
+}
+
+export function registerCalendarWriteCommands(calendar: Command, ctx: ServiceContext): void {
+  // calendar-create-event
+  calendar.command('create').description('Create an appointment, or a meeting with attendees (invitations go out at once)')
+    .requiredOption('--subject <text>', 'Subject')
+    .requiredOption('--start <when>', 'Start')
+    .requiredOption('--end <when>', 'End')
+    .option('--attendees <emails>', 'Required attendees, comma-separated', list)
+    .option('--optional <emails>', 'Optional attendees, comma-separated', list)
+    .option('--location <text>', 'Location')
+    .option('--body <text>', 'Invitation text')
+    .option('--no-teams', 'No Teams link')
+    .option('--record', 'Record automatically')
+    .option('--show-as <status>', 'free, tentative, busy, oof or workingElsewhere')
+    .option('--owner <email>', 'Act on this calendar as its delegate')
+    .action(async (opts) => {
+      try {
+        const result = await ctx.calendarWrite.createEvent({
+          subject: opts.subject, start: opts.start, end: opts.end, attendees: opts.attendees, optionalAttendees: opts.optional,
+          location: opts.location, body: opts.body, teamsMeeting: opts.teams === false ? false : undefined,
+          recordAutomatically: opts.record, showAs: opts.showAs, calendarOwner: opts.owner,
+        });
+        outputResult({ fileName: 'event-created', data: result, summary: changeSummary(result) });
+      } catch (error) { handleCliError(error); }
+    });
+
+  // calendar-update-event
+  calendar.command('update <eventId>').description('Change an event you organise')
+    .option('--subject <text>', 'Subject')
+    .option('--start <when>', 'New start')
+    .option('--end <when>', 'New end')
+    .option('--location <text>', 'Location')
+    .option('--body <text>', 'Text')
+    .option('--attendees <emails>', 'Replace required attendees', list)
+    .option('--optional <emails>', 'Replace optional attendees', list)
+    .option('--record', 'Record automatically')
+    .option('--no-record', 'Stop automatic recording')
+    .option('--owner <email>', 'Act on this calendar as its delegate')
+    .action(async (eventId: string, opts) => {
+      try {
+        const result = await ctx.calendarWrite.updateEvent({
+          eventId, subject: opts.subject, start: opts.start, end: opts.end, location: opts.location, body: opts.body,
+          attendees: opts.attendees, optionalAttendees: opts.optional, recordAutomatically: opts.record, calendarOwner: opts.owner,
+        });
+        outputResult({ fileName: 'event-updated', data: result, summary: changeSummary(result) });
+      } catch (error) { handleCliError(error); }
+    });
+
+  // calendar-cancel-event
+  calendar.command('cancel <eventId>').description('Cancel a meeting you organise, or delete your own appointment')
+    .option('--comment <text>', 'Message to attendees')
+    .option('--owner <email>', 'Act on this calendar as its delegate')
+    .action(async (eventId: string, opts) => {
+      try {
+        const result = await ctx.calendarWrite.cancelEvent({ eventId, comment: opts.comment, calendarOwner: opts.owner });
+        outputResult({ fileName: 'event-cancelled', data: result, summary: changeSummary(result) });
+      } catch (error) { handleCliError(error); }
+    });
+
+  // calendar-respond-to-event
+  calendar.command('respond <eventId> <response>').description('accept, tentativelyAccept or decline an invitation')
+    .option('--comment <text>', 'Comment to the organiser')
+    .option('--owner <email>', 'Act on this calendar as its delegate')
+    .action(async (eventId: string, response: any, opts) => {
+      try {
+        const result = await ctx.calendarWrite.respondToEvent({ eventId, response, comment: opts.comment, calendarOwner: opts.owner });
+        outputResult({ fileName: 'event-response', data: result, summary: changeSummary(result) });
+      } catch (error) { handleCliError(error); }
+    });
 }

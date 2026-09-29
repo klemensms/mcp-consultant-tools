@@ -8,18 +8,19 @@ import { registerAuthCommands } from './auth-commands.js';
 import { registerReadCommands } from './read-commands.js';
 import { registerWriteCommands } from './write-commands.js';
 import { registerSendCommands } from './send-commands.js';
-import { registerCalendarCommands } from './calendar-commands.js';
+import { registerCalendarCommands, registerCalendarWriteCommands } from './calendar-commands.js';
 
 export function registerAllCommands(program: Command, ctx: ServiceContext): void {
   registerAuthCommands(program, ctx);
   registerReadCommands(program, ctx);
   registerWriteCommands(program, ctx);
   registerSendCommands(program, ctx);
-  registerCalendarCommands(program, ctx);
+  const calendar = registerCalendarCommands(program, ctx);
+  registerCalendarWriteCommands(calendar, ctx);
 }
 
 export { registerAuthCommands } from './auth-commands.js';
 export { registerReadCommands } from './read-commands.js';
 export { registerWriteCommands } from './write-commands.js';
 export { registerSendCommands } from './send-commands.js';
-export { registerCalendarCommands } from './calendar-commands.js';
+export { registerCalendarCommands, registerCalendarWriteCommands } from './calendar-commands.js';

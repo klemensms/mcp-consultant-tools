@@ -9,6 +9,7 @@ import { MailReadService } from '../../services/mail-read-service.js';
 import { MailWriteService } from '../../services/mail-write-service.js';
 import { MailSendService } from '../../services/mail-send-service.js';
 import { CalendarReadService } from '../../services/calendar-read-service.js';
+import { CalendarWriteService } from '../../services/calendar-write-service.js';
 import { recordingGraph } from '../../__tests__/graph-recorder.js';
 
 const SWITCHES = ['OUTLOOK_ENABLE_WRITE', 'OUTLOOK_ENABLE_DRAFTS', 'OUTLOOK_ENABLE_SEND', 'OUTLOOK_ENABLE_DELETE'];
@@ -42,6 +43,7 @@ function setup() {
     write: new MailWriteService(provider, { maxAttachmentMB: 25 }),
     send: new MailSendService(provider),
     calendar: new CalendarReadService(provider),
+    calendarWrite: new CalendarWriteService(provider),
   };
   const handlers: Record<string, (args: any) => Promise<any>> = {};
   registerAllTools({ tool: (name: string, ...rest: any[]) => { handlers[name] = rest[rest.length - 1]; } }, ctx);

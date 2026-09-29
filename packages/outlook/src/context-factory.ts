@@ -9,6 +9,7 @@ import { MailReadService } from './services/mail-read-service.js';
 import { MailWriteService } from './services/mail-write-service.js';
 import { MailSendService } from './services/mail-send-service.js';
 import { CalendarReadService } from './services/calendar-read-service.js';
+import { CalendarWriteService } from './services/calendar-write-service.js';
 import type { ServiceContext } from './types.js';
 
 export type { ServiceContext } from './types.js';
@@ -27,6 +28,7 @@ export function createServiceContext(): ServiceContext {
   let write: MailWriteService | null = null;
   let send: MailSendService | null = null;
   let calendar: CalendarReadService | null = null;
+  let calendarWrite: CalendarWriteService | null = null;
 
   function getAuth(): DelegatedGraphAuth {
     if (!auth) {
@@ -75,6 +77,12 @@ export function createServiceContext(): ServiceContext {
         calendar = new CalendarReadService(getAuth());
       }
       return calendar;
+    },
+    get calendarWrite() {
+      if (!calendarWrite) {
+        calendarWrite = new CalendarWriteService(getAuth());
+      }
+      return calendarWrite;
     },
   };
 }
