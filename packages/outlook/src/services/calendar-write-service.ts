@@ -100,7 +100,7 @@ export class CalendarWriteService {
   private async readEvent(eventId: string, owner?: string): Promise<any> {
     try {
       return await this.graph.api(this.eventPath(eventId, owner))
-        .select(['id', 'subject', 'isOrganizer', 'attendees', 'organizer', 'onlineMeeting', 'isOnlineMeeting', 'webLink'])
+        .select(['id', 'subject', 'isOrganizer', 'attendees', 'organizer', 'onlineMeeting', 'isOnlineMeeting', 'allowNewTimeProposals', 'webLink'])
         .get();
     } catch (error) {
       throw permissionHint(error, owner ? 'calendar-delegate' : 'calendar-read');
@@ -236,20 +236,36 @@ export class CalendarWriteService {
 
   async respondToEvent(input: {
     eventId: string; response: 'accept' | 'tentativelyAccept' | 'decline'; comment?: string; calendarOwner?: string;
+    /** Suggest another time; Graph takes it only with tentativelyAccept or decline. */
+    proposedStart?: string; proposedEnd?: string;
   }): Promise<EventChangeResult> {
     gate(input.calendarOwner, true);
+    const proposing = Boolean(input.proposedStart || input.proposedEnd);
+    if (proposing && !(input.proposedStart && input.proposedEnd)) {
+      throw new Error('Give both proposedStart and proposedEnd to propose a new time.');
+    }
+    if (proposing && input.response === 'accept') {
+      throw new Error('A new time can only be proposed with tentativelyAccept or decline, not accept.');
+    }
+    const proposedNewTime = proposing
+      ? { start: graphTime(input.proposedStart!, 'proposedStart'), end: graphTime(input.proposedEnd!, 'proposedEnd') }
+      : undefined;
     const existing = await this.readEvent(input.eventId, input.calendarOwner);
     if (existing.isOrganizer) {
       throw new Error('You organise this meeting, so there is no invitation to answer. Use calendar-update-event or calendar-cancel-event.');
     }
+    if (proposing && existing.allowNewTimeProposals === false) {
+      throw new Error('The organiser does not allow new time proposals on this meeting. Decline or tentatively accept with a comment instead.');
+    }
     try {
       await this.graph.api(`${this.eventPath(input.eventId, input.calendarOwner)}/${input.response}`)
-        .post({ ...(input.comment ? { comment: input.comment } : {}), sendResponse: true });
+        .post({ ...(input.comment ? { comment: input.comment } : {}), sendResponse: true, ...(proposedNewTime ? { proposedNewTime } : {}) });
     } catch (error) {
       throw permissionHint(error, hintGroup(input.calendarOwner, true));
     }
     const organiser = existing.organizer?.emailAddress?.address;
     const notified = organiser ? [organiser] : [];
-    return { eventId: input.eventId, webLink: existing.webLink ?? '', notified, message: notifiedLine(notified) };
+    const proposed = proposedNewTime ? `Proposed ${input.proposedStart} to ${input.proposedEnd}. ` : '';
+    return { eventId: input.eventId, webLink: existing.webLink ?? '', notified, message: proposed + notifiedLine(notified) };
   }
 }

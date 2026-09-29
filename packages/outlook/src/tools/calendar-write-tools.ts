@@ -92,11 +92,15 @@ export function registerCalendarWriteTools(server: any, ctx: ServiceContext): vo
   server.tool(
     'calendar-respond-to-event',
     'Accept, tentatively accept or decline an invitation, with an optional comment. The organiser is told at once. ' +
+      'To suggest another time, give proposedStart and proposedEnd with tentativelyAccept or decline (not accept); ' +
+      'the organiser gets a new-time proposal they can accept. ' +
       'Needs OUTLOOK_ENABLE_CALENDAR_INVITE=true.',
     {
       eventId: z.string(),
       response: z.enum(['accept', 'tentativelyAccept', 'decline']),
       comment: z.string().optional(),
+      proposedStart: z.string().optional().describe('Proposed new start: ISO date-time, e.g. 2026-10-01T16:00, read in OUTLOOK_TIME_ZONE unless it ends in Z or an offset.'),
+      proposedEnd: z.string().optional().describe('Proposed new end, same format as proposedStart.'),
       calendarOwner: owner,
     },
     CHANGE,

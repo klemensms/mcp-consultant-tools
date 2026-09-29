@@ -152,10 +152,15 @@ export function registerCalendarWriteCommands(calendar: Command, ctx: ServiceCon
   // calendar-respond-to-event
   calendar.command('respond <eventId> <response>').description('accept, tentativelyAccept or decline an invitation')
     .option('--comment <text>', 'Comment to the organiser')
+    .option('--propose-start <datetime>', 'Propose a new start (with tentativelyAccept or decline)')
+    .option('--propose-end <datetime>', 'Propose a new end (with tentativelyAccept or decline)')
     .option('--owner <email>', 'Act on this calendar as its delegate')
     .action(async (eventId: string, response: any, opts) => {
       try {
-        const result = await ctx.calendarWrite.respondToEvent({ eventId, response, comment: opts.comment, calendarOwner: opts.owner });
+        const result = await ctx.calendarWrite.respondToEvent({
+          eventId, response, comment: opts.comment, calendarOwner: opts.owner,
+          proposedStart: opts.proposeStart, proposedEnd: opts.proposeEnd,
+        });
         outputResult({ fileName: 'event-response', data: result, summary: changeSummary(result) });
       } catch (error) { handleCliError(error); }
     });

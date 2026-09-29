@@ -165,6 +165,52 @@ describe('respondToEvent', () => {
     expect(result.notified).toEqual(['jdoe@example.com']);
   });
 
+  it('proposes a new time with a tentative accept, in UTC', async () => {
+    on('INVITE');
+    const { svc, requests } = service((r) => (r.method === 'GET' ? { ...MEETING, isOrganizer: false } : undefined));
+    const result = await svc.respondToEvent({
+      eventId: 'EVT1', response: 'tentativelyAccept', comment: 'Could we do 4pm?',
+      proposedStart: '2026-10-01T16:00:00Z', proposedEnd: '2026-10-01T16:30:00Z',
+    });
+    expect(requests[1]).toMatchObject({
+      method: 'POST', path: '/me/events/EVT1/tentativelyAccept',
+      body: {
+        comment: 'Could we do 4pm?', sendResponse: true,
+        proposedNewTime: {
+          start: { dateTime: '2026-10-01T16:00:00', timeZone: 'UTC' },
+          end: { dateTime: '2026-10-01T16:30:00', timeZone: 'UTC' },
+        },
+      },
+    });
+    expect(result.message).toContain('Proposed');
+  });
+
+  it('refuses a proposed time with accept, before any request', async () => {
+    on('INVITE');
+    const { svc, requests } = service();
+    await expect(svc.respondToEvent({
+      eventId: 'EVT1', response: 'accept', proposedStart: '2026-10-01T16:00:00Z', proposedEnd: '2026-10-01T16:30:00Z',
+    })).rejects.toThrow('tentativelyAccept or decline');
+    expect(requests).toHaveLength(0);
+  });
+
+  it('refuses a proposed start without an end', async () => {
+    on('INVITE');
+    const { svc, requests } = service();
+    await expect(svc.respondToEvent({ eventId: 'EVT1', response: 'decline', proposedStart: '2026-10-01T16:00:00Z' }))
+      .rejects.toThrow('proposedStart and proposedEnd');
+    expect(requests).toHaveLength(0);
+  });
+
+  it('refuses when the organiser does not allow new time proposals', async () => {
+    on('INVITE');
+    const { svc, requests } = service((r) => (r.method === 'GET' ? { ...MEETING, isOrganizer: false, allowNewTimeProposals: false } : undefined));
+    await expect(svc.respondToEvent({
+      eventId: 'EVT1', response: 'decline', proposedStart: '2026-10-01T16:00:00Z', proposedEnd: '2026-10-01T16:30:00Z',
+    })).rejects.toThrow('does not allow new time proposals');
+    expect(requests).toHaveLength(1);
+  });
+
   it('refuses to respond to a meeting you organise', async () => {
     on('INVITE');
     const { svc } = service(() => MEETING);
