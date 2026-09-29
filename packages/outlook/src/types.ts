@@ -62,6 +62,90 @@ export interface SavedAttachment {
   contentType: string;
 }
 
+export interface CalendarInfo {
+  id: string;
+  name: string;
+  owner: string;
+  canEdit: boolean;
+  isDefault: boolean;
+}
+
+export interface EventAttendee {
+  address: string;
+  name: string;
+  /** required, optional or resource */
+  type: string;
+  /** none, accepted, tentativelyAccepted, declined, notResponded, organizer */
+  response: string;
+}
+
+export interface EventSummary {
+  id: string;
+  /** Set on an occurrence of a repeating meeting: pass it instead of id to change the whole series. */
+  seriesMasterId?: string;
+  /** singleInstance, occurrence, exception or seriesMaster */
+  type: string;
+  subject: string;
+  start: string;
+  end: string;
+  /** The zone start and end are expressed in, as Graph returned it. */
+  timeZone: string;
+  isAllDay: boolean;
+  location: string;
+  organizer: string;
+  isOrganizer: boolean;
+  attendees: string[];
+  /** free, tentative, busy, oof, workingElsewhere, unknown */
+  showAs: string;
+  /** normal, personal, private, confidential */
+  sensitivity: string;
+  isCancelled: boolean;
+  /** Your own response. */
+  response: string;
+  teamsJoinUrl?: string;
+  webLink: string;
+}
+
+export interface EventDetail extends EventSummary {
+  attendeeDetails: EventAttendee[];
+  /** Plain text, wrapped as untrusted content. */
+  bodyText: string;
+}
+
+export interface ScheduleItem {
+  status: string;
+  start: string;
+  end: string;
+  subject?: string;
+  location?: string;
+}
+
+export interface PersonSchedule {
+  person: string;
+  /** One digit per interval: 0 free, 1 tentative, 2 busy, 3 out of office, 4 working elsewhere. */
+  availabilityView: string;
+  items: ScheduleItem[];
+  error?: string;
+}
+
+export interface MeetingTimeSuggestion {
+  start: string;
+  end: string;
+  timeZone: string;
+  confidence: number;
+  attendeeAvailability: { attendee: string; availability: string }[];
+}
+
+export interface EventChangeResult {
+  eventId: string;
+  webLink: string;
+  /** Everyone Graph notified; empty when no one was. */
+  notified: string[];
+  message: string;
+  /** Only when recordAutomatically was asked for. */
+  recording?: string;
+}
+
 export interface ServiceContext {
   readonly auth: DelegatedGraphAuth;
   readonly mail: MailReadService;
