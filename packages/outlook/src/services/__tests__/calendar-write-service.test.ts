@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { CalendarWriteService, NO_ONE_NOTIFIED } from '../calendar-write-service.js';
-import { recordingGraph } from '../../__tests__/graph-recorder.js';
+import { recordingGraph, graphError } from '../../__tests__/graph-recorder.js';
 import { CALENDAR_SWITCHES } from '../../permissions.js';
 
 const MEETING = {
@@ -169,5 +169,58 @@ describe('respondToEvent', () => {
     on('INVITE');
     const { svc } = service(() => MEETING);
     await expect(svc.respondToEvent({ eventId: 'EVT1', response: 'accept' })).rejects.toThrow('You organise this meeting');
+  });
+});
+
+describe('recordAutomatically', () => {
+  const JOIN = 'https://teams.example.com/l/meetup-join/abc';
+
+  it('finds the online meeting by join URL and turns recording on', async () => {
+    on('INVITE');
+    const { svc, requests } = service((r) => {
+      if (r.method === 'POST') return { id: 'EVT1', webLink: 'w', onlineMeeting: { joinUrl: JOIN } };
+      if (r.method === 'GET') return { value: [{ id: 'OM1' }] };
+      return { id: 'OM1' };
+    });
+    const result = await svc.createEvent({
+      subject: 's', start: '2026-07-01T09:00Z', end: '2026-07-01T10:00Z', attendees: ['jdoe@example.com'], recordAutomatically: true,
+    });
+    expect(requests[1]).toMatchObject({ method: 'GET', path: '/me/onlineMeetings', query: { $filter: `JoinWebUrl eq '${JOIN}'` } });
+    expect(requests[2]).toMatchObject({ method: 'PATCH', path: '/me/onlineMeetings/OM1', body: { recordAutomatically: true } });
+    expect(Object.keys(requests[2].body)).toEqual(['recordAutomatically']);
+    expect(result.recording).toBe('Recording will start automatically when the meeting starts.');
+  });
+
+  it('keeps the invitation result when the recording step fails, and says why', async () => {
+    on('INVITE');
+    const { svc } = service((r) => {
+      if (r.method === 'POST') return { id: 'EVT1', webLink: 'w', onlineMeeting: { joinUrl: JOIN } };
+      return graphError(403, 'Forbidden', 'denied');
+    });
+    const result = await svc.createEvent({
+      subject: 's', start: '2026-07-01T09:00Z', end: '2026-07-01T10:00Z', attendees: ['jdoe@example.com'], recordAutomatically: true,
+    });
+    expect(result.notified).toEqual(['jdoe@example.com']);
+    expect(result.recording).toContain('Recording was not set');
+    expect(result.recording).toContain('OnlineMeetings.ReadWrite');
+  });
+
+  it('skips recording on a delegate calendar, with a message', async () => {
+    on('INVITE', 'DELEGATE');
+    const { svc, requests } = service(() => ({ id: 'EVT1', onlineMeeting: { joinUrl: JOIN } }));
+    const result = await svc.createEvent({
+      subject: 's', start: '2026-07-01T09:00Z', end: '2026-07-01T10:00Z', attendees: ['jdoe@example.com'],
+      calendarOwner: 'jdoe@example.com', recordAutomatically: true,
+    });
+    expect(requests).toHaveLength(1);
+    expect(result.recording).toContain('delegate calendar');
+  });
+
+  it('says so when the event is not a Teams meeting', async () => {
+    on('WRITE');
+    const { svc, requests } = service(() => ({ id: 'EVT1' }));
+    const result = await svc.createEvent({ subject: 's', start: '2026-07-01T09:00Z', end: '2026-07-01T10:00Z', recordAutomatically: true });
+    expect(requests).toHaveLength(1);
+    expect(result.recording).toContain('not a Teams meeting');
   });
 });

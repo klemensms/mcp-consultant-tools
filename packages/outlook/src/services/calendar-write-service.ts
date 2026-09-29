@@ -107,6 +107,34 @@ export class CalendarWriteService {
     }
   }
 
+  /**
+   * Set recordAutomatically on the Teams meeting behind an event. It only
+   * takes effect before the meeting starts. Never touches transcription: Graph
+   * has no setting that starts transcription alone.
+   */
+  private async setRecording(event: any, owner: string | undefined, record: boolean): Promise<string> {
+    if (owner) {
+      return 'Recording was not set: Microsoft does not support changing it for a meeting on a delegate calendar.';
+    }
+    const joinUrl = event?.onlineMeeting?.joinUrl;
+    if (!joinUrl) {
+      return 'Recording was not set: this is not a Teams meeting.';
+    }
+    try {
+      const found = await this.graph.api('/me/onlineMeetings')
+        .filter(encodeURIComponent(`JoinWebUrl eq '${joinUrl.replace(/'/g, "''")}'`))
+        .get();
+      const meetingId = found.value?.[0]?.id;
+      if (!meetingId) {
+        return 'Recording was not set: the Teams meeting behind this event was not found.';
+      }
+      await this.graph.api(`/me/onlineMeetings/${encodeURIComponent(meetingId)}`).patch({ recordAutomatically: record });
+      return record ? 'Recording will start automatically when the meeting starts.' : 'Automatic recording is off.';
+    } catch (error) {
+      return `Recording was not set: ${permissionHint(error, 'calendar-recording').message}`;
+    }
+  }
+
   async createEvent(input: CreateEventInput): Promise<EventChangeResult> {
     if (!input.subject?.trim()) throw new Error('subject is required.');
     const attendees = attendeeList(input.attendees, input.optionalAttendees);
@@ -132,7 +160,11 @@ export class CalendarWriteService {
       throw permissionHint(error, hintGroup(input.calendarOwner, notifies));
     }
     const notified = attendees.map((a) => a.emailAddress.address);
-    return { eventId: created.id, webLink: created.webLink ?? '', notified, message: notifiedLine(notified) };
+    const result: EventChangeResult = { eventId: created.id, webLink: created.webLink ?? '', notified, message: notifiedLine(notified) };
+    if (input.recordAutomatically) {
+      result.recording = await this.setRecording(created, input.calendarOwner, true);
+    }
+    return result;
   }
 
   async updateEvent(input: UpdateEventInput): Promise<EventChangeResult> {
@@ -164,7 +196,13 @@ export class CalendarWriteService {
       }
     }
     const sent = Object.keys(patch).length > 0 ? notified : [];
-    return { eventId: input.eventId, webLink: updated?.webLink ?? existing.webLink ?? '', notified: sent, message: notifiedLine(sent) };
+    const result: EventChangeResult = {
+      eventId: input.eventId, webLink: updated?.webLink ?? existing.webLink ?? '', notified: sent, message: notifiedLine(sent),
+    };
+    if (input.recordAutomatically !== undefined) {
+      result.recording = await this.setRecording(existing, input.calendarOwner, input.recordAutomatically);
+    }
+    return result;
   }
 
   async cancelEvent(input: { eventId: string; comment?: string; calendarOwner?: string }): Promise<EventChangeResult> {
