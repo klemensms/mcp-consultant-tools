@@ -64,7 +64,7 @@ Every tool has a matching `mcp-outlook-cli calendar ...` command.
 2. **Event bodies are untrusted.** Any tool that returns a body passes it through `wrapUntrusted`, as the mail tools do.
 3. **Only meetings the user organises can be changed or cancelled**, or on a delegate calendar, meetings the calendar owner organises. For a meeting someone else organises, update and cancel refuse and point to `calendar-respond-to-event`; a change there would alter only the user's own copy and mislead them.
 4. **Delete moves to Deleted Items.** Never `permanentDelete`. The absence is pinned by a test.
-5. **Times are in the mailbox time zone.** Reads send `Prefer: outlook.timezone` with the mailbox setting; a time given without a zone is read in that zone.
+5. **Times are in the user's time zone:** `OUTLOOK_TIME_ZONE` (an IANA name such as `Europe/London`), defaulting to the machine's zone. Reads send `Prefer: outlook.timezone` with it; a time given without a zone is read in it and sent to Graph as UTC. The mailbox's own zone setting would need `MailboxSettings.Read`, which the registration does not carry.
 6. **Private appointments on a colleague's calendar show as busy with no details.** The server returns what Graph returns and does not try to get around it.
 7. **Recording on a delegate calendar is skipped with a message.** The organiser there is the calendar owner, and Microsoft does not document a delegate updating the owner's online meeting.
 8. **Free text in queries is encoded by the service**, as the mail read service already does.
