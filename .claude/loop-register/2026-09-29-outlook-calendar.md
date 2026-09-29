@@ -11,19 +11,19 @@ Chain: `docs/superpowers/plans/2026-09-29-outlook-calendar.md`. Origin session b
 ### ⚑2 · Graph may not honour an IANA zone in `Prefer: outlook.timezone`
 - **Kind:** assumption
 - **Hop:** origin · 28de93c
-- **State:** open (settles on measurement): check written into plan Task 10 Step 2 (closing hop)
+- **State:** closed, live test 2026-09-29: reads came back in Europe/London; no mapping needed
 - **Matters because:** reads would come back in UTC instead of UK time. Inputs are unaffected (always sent as UTC). Each event returns the zone it is in, so the agent is not misled either way; the fix, if needed, is mapping IANA to a Windows zone name in `preferZone`. Settled by the first live read in Task 10.
 
 ### ⚑3 · The create response may not carry the Teams join URL yet
 - **Kind:** assumption
 - **Hop:** origin · 28de93c
-- **State:** open (settles on measurement): check written into plan Task 10 Step 4 (closing hop)
+- **State:** open, narrowed: a read seconds after create carried the join URL, but the POST response itself and the recording path were not exercised; settles on the first real `recordAutomatically` use
 - **Matters because:** `setRecording` in `calendar-write-service.ts` reads `onlineMeeting.joinUrl` from the `POST /me/events` response and reports "not a Teams meeting" when it is missing. If Graph fills it in only moments later, recording would silently not be set on new meetings. Fix if seen live: one `GET` of the event before giving up. Only matters when `recordAutomatically` is asked for.
 
 ### ⚑4 · Live test waits for four delegated permissions on the Outlook app registration
 - **Kind:** deferred
 - **Hop:** origin · 28de93c
-- **State:** open: `mail-auth-status` in the closing hop on 2026-09-29 still showed no calendar permission granted; action sits with IT (closing hop)
+- **State:** closed, 2026-09-29: all four granted; `access.calendar` shows every group granted; Task 10 run
 - **Matters because:** nothing calendar-related has run against Graph. `mail-auth-status` at 07:48 on 2026-09-29 showed only Mail.ReadWrite, Mail.Send and User.ReadWrite. Calendars.ReadWrite, Calendars.ReadWrite.Shared, OnlineMeetings.ReadWrite and Files.Read.All were requested from IT the same morning. Task 10 cannot start until `access.calendar` shows them granted.
 
 ### ⚑5 · Changing only the recording option on a meeting needs the invite switch
