@@ -25,7 +25,7 @@ Full reference: `docs/technical/OUTLOOK_TECHNICAL.md`. User guide: `docs/documen
 - **Never set a transcription property.** Graph has none that starts transcription alone; `recordAutomatically` is the only meeting option, off by default.
 - **Update and cancel refuse meetings the user does not organise**, pointing to `calendar-respond-to-event`.
 - **A proposed new time goes only with `tentativelyAccept` or `decline`.** Graph has no accept-with-proposal; the service refuses the pair before any request, and refuses when the organiser has `allowNewTimeProposals: false`.
-- **Calendar times go to Graph as UTC.** `toUtc` in `calendar-shared.ts` reads a zone-less time in `OUTLOOK_TIME_ZONE`; reads send `Prefer: outlook.timezone`. `Calendars.ReadWrite.Shared` does not cover the user's own calendar, so both calendar permissions are needed. Verified live 2026-09-29 (create, move, cancel, invite, schedule, shared read); IANA zones are honoured in reads. Not yet live: recording, delegate, respond.
+- **Calendar times go to Graph as UTC.** `toUtc` in `calendar-shared.ts` reads a zone-less time in `OUTLOOK_TIME_ZONE`; reads send `Prefer: outlook.timezone`. `Calendars.ReadWrite.Shared` does not cover the user's own calendar, so both calendar permissions are needed. Verified live 2026-09-29 (create, move, cancel, invite, schedule, shared read); IANA zones are honoured in reads. Respond (accept, and tentative with a proposed time) verified live the same day. Not yet live: recording, delegate.
 - Stderr only. No `console.log` in `src/`.
 
 ## Testing
