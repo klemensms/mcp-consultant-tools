@@ -20,9 +20,9 @@ status: open
 - [x] AV-6 no permanent delete and no transcription property - `grep -rniE "permanentDelete|transcri" packages/outlook/src/services/calendar-*.ts` prints only comments
 - [x] AV-7 no stdout writes outside the CLI printer - `grep -rn "console.log" packages/outlook/src` prints only `cli/output.ts`
 - [x] AV-8 no dashes in changed files - `git diff --name-only 8827a71 | xargs grep -lP "\x{2014}|\x{2013}"` prints nothing
-- [ ] AV-9 local MCP server lists 29 tools and reports `access.calendar` - mcp-test-runner with `MCP_TEST_TOOL=mail-auth-status`
-- [ ] AV-10 global config points at the local build with the confirmed calendar switches - `node -e` read of `~/.claude.json` `mcpServers.outlook`
-- [ ] AV-11 send guard covers the invite tools - sample PreToolUse JSON for `mcp__outlook__calendar-create-event` with attendees is denied
+- [x] AV-9 local MCP server lists 29 tools and reports `access.calendar` - mcp-test-runner with `MCP_TEST_TOOL=mail-auth-status`. Evidence 2026-09-29 08:39: "Server has 29 tools", TEST PASSED, `access.calendar` lists six groups, none granted yet.
+- [x] AV-10 global config points at the local build with the confirmed calendar switches - `node -e` read of `~/.claude.json` `mcpServers.outlook`. Evidence 2026-09-29 08:47: args point at `packages/outlook/build/index.js`; SHARED, WRITE, INVITE true, DELEGATE false, zone Europe/London; `auth status` under that env reports those five groups enabled as set.
+- [x] AV-11 send guard covers the invite tools - sample PreToolUse JSON for `mcp__outlook__calendar-create-event` with attendees is denied. Evidence 2026-09-29: create with attendees or optional attendees DENY then ALLOW on the identical retry; create without attendees ALLOW; update (even with no attendees in the input), cancel and respond DENY; list-events ALLOW; mail-send still DENY. A settings matcher for the four calendar write tools was added, since the existing send/reply matcher never fired for them.
 - [ ] AV-12 live read and own-calendar write pass once permissions exist - Task 10 steps 1 to 3 results recorded
 
 ## User-verifiable (handoff required)

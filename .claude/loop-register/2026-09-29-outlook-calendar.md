@@ -5,7 +5,7 @@ Chain: `docs/superpowers/plans/2026-09-29-outlook-calendar.md`. Origin session b
 ### ⚑1 · The maintainer's own calendar switch values are not confirmed
 - **Kind:** decision
 - **Hop:** origin · 28de93c
-- **State:** open
+- **State:** closed, hop 1: the maintainer chose the recommended set on 2026-09-29; applied to the global config and verified with `auth status`
 - **Matters because:** Task 9 writes them into the maintainer's global MCP config. Recommended: SHARED on, WRITE on, INVITE on (every invite, update, cancel and respond guarded per message by the send guard, extended in the same task), DELEGATE off, `OUTLOOK_TIME_ZONE=Europe/London`. Ask once before editing; the plan's Task 9 Step 2 says so.
 
 ### ⚑2 · Graph may not honour an IANA zone in `Prefer: outlook.timezone`
@@ -37,3 +37,15 @@ Chain: `docs/superpowers/plans/2026-09-29-outlook-calendar.md`. Origin session b
 - **Hop:** origin · 28de93c
 - **State:** open
 - **Matters because:** the next beta's master release notes must list the calendar tools, the five new variables and the three permissions. The maintainer asked for no beta yet; run `/product-releasenotes beta` when one is cut.
+
+### ⚑7 · The send guard gates every calendar update, not only ones naming attendees
+- **Kind:** gotcha
+- **Hop:** 1
+- **State:** open
+- **Matters because:** the plan said to gate `calendar-update-event` only when the input carries attendees, but moving an existing meeting notifies everyone already on it and the hook cannot see the event. So every update needs the maintainer's yes, including a move of his own appointment. If that proves noisy, the fix belongs in the server (report who would be notified) rather than loosening the hook.
+
+### ⚑8 · The calendar CLI run through Bash is not gated by the send guard
+- **Kind:** gotcha
+- **Hop:** 1
+- **State:** open
+- **Matters because:** `node packages/outlook/build/cli.js calendar create|update|cancel|respond` sends invites with no per-message approval, the same as the mail CLI's send today. Only the MCP tools are gated. The server switches still apply. Add a Bash pattern to the hook if agents start using the CLI for scheduling.
