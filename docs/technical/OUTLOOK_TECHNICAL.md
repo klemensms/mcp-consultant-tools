@@ -7,10 +7,10 @@
 
 ## Overview
 
-`@mcp-consultant-tools/outlook` gives an agent delegated (signed in as the user) access to that user's own Outlook mailbox through Microsoft Graph. Device code is the only sign-in mode: app-only mail access would reach every mailbox in the tenant and is out of scope.
+`@mcp-consultant-tools/outlook` gives an agent delegated (signed in as the user) access to that user's own Outlook mailbox and calendar, and to colleagues' calendars shared with them, through Microsoft Graph. Device code is the only sign-in mode: app-only mail access would reach every mailbox in the tenant and is out of scope.
 
 - **Binaries:** `mcp-outlook` (MCP server, stdio) and `mcp-outlook-cli` (CLI with the same capabilities).
-- **Tools:** 20, all prefixed `mail-`, in six groups: auth, read, drafts, write, send, delete.
+- **Tools:** 29. Twenty prefixed `mail-` in six groups (auth, read, drafts, write, send, delete) and nine prefixed `calendar-` (five reads, four changes).
 - **Switches:** drafts, write, send and delete are each off by default; drafts follows write while its own switch is unset. Read is the only group that works out of the box.
 - **Auth plumbing:** `@mcp-consultant-tools/m365-core` (shared with the SharePoint server's device-code mode).
 
@@ -56,6 +56,11 @@ Services are created on first use, so the server starts and lists its tools with
 | `OUTLOOK_ENABLE_DELETE` | `false` | Delete group. |
 | `OUTLOOK_DOWNLOAD_DIR` | `~/Downloads/mcp-outlook` | Attachment download folder, created with mode 0700. |
 | `OUTLOOK_MAX_ATTACHMENT_MB` | `25` | Size cap for `mail-add-draft-attachment`, checked before a local file is read or a linked file is downloaded. |
+| `OUTLOOK_ENABLE_CALENDAR_SHARED` | `false` | Reading colleagues' calendars shared with the user. |
+| `OUTLOOK_ENABLE_CALENDAR_WRITE` | `false` | Calendar changes on the user's own calendar that notify nobody. |
+| `OUTLOOK_ENABLE_CALENDAR_INVITE` | `false` | Any calendar change that notifies another person: invitations, updates, cancellations, responses. |
+| `OUTLOOK_ENABLE_CALENDAR_DELEGATE` | `false` | Any change on a calendar the user is a delegate on (plus invite when it notifies). |
+| `OUTLOOK_TIME_ZONE` | the machine's zone | IANA zone (e.g. `Europe/London`) that times without a zone are read in, and that reads ask Graph to return times in. |
 
 Only the exact string `true` enables a switch (`TRUE`, `1` and unset are all off).
 
@@ -179,6 +184,32 @@ The five draft tools form the drafts group; mark read, move and flag form the wr
 
 </tool-group>
 
+<tool-group name="calendar">
+
+### Calendar
+
+**Permissions.** `Calendars.ReadWrite` covers the user's own calendar and `getSchedule`. `Calendars.ReadWrite.Shared` covers colleagues' shared calendars, delegate calendars and `findMeetingTimes`; it does not cover the user's own calendar, so both are needed. `OnlineMeetings.ReadWrite` is needed only for `recordAutomatically`. `mail-auth-status` reports each calendar group under `access.calendar`.
+
+**Switches depend on what a call does, not on which tool it is.** On the user's own calendar, a change that notifies nobody needs `OUTLOOK_ENABLE_CALENDAR_WRITE` and a change that notifies anyone needs `OUTLOOK_ENABLE_CALENDAR_INVITE`. On a calendar the user is a delegate on (`calendarOwner` set), every change needs `OUTLOOK_ENABLE_CALENDAR_DELEGATE`, plus invite when it notifies. Graph sends invitations, updates and cancellations the moment the call is made; there is no draft meeting. Update and cancel first refuse when no switch could allow the change, then read the event (one `GET`) to learn whether it has attendees, then check the exact switch before changing anything. Every change result says who was notified, or `No one was notified.`
+
+**Times.** A time without `Z` or an offset is read in `OUTLOOK_TIME_ZONE` and sent to Graph as UTC (`{ dateTime, timeZone: 'UTC' }`). Reads send `Prefer: outlook.timezone="<zone>"`; each event returns the zone its times are in.
+
+| Tool | Parameters | Switch | Behaviour |
+|---|---|---|---|
+| `calendar-list-calendars` | none | none | `GET /me/calendars`. |
+| `calendar-list-events` | `start`, `end`, `user?`, `top?` (default 50, max 200) | shared when `user` is set | `GET /me/calendarView` or `/users/{user}/calendarView`, oldest first. Each occurrence is listed; `seriesMasterId` names its series. |
+| `calendar-get-event` | `eventId`, `user?` | shared when `user` is set | One event with attendee responses; the body is wrapped as untrusted content. |
+| `calendar-get-schedule` | `people`, `start`, `end`, `intervalMinutes?` (default 30) | none | `POST /me/calendar/getSchedule`. Works for anyone in the organisation; subjects only where their settings allow. |
+| `calendar-find-meeting-times` | `attendees`, `durationMinutes`, `start`, `end`, `maxCandidates?` | none | `POST /me/findMeetingTimes`, working hours, every attendee required. Needs `Calendars.ReadWrite.Shared`. |
+| `calendar-create-event` | `subject`, `start`, `end`, `attendees?`, `optionalAttendees?`, `location?`, `body?`, `teamsMeeting?`, `recordAutomatically?`, `showAs?`, `calendarOwner?` | write, or invite with attendees | `POST .../events`. A meeting with attendees gets a Teams link unless `teamsMeeting` is false. |
+| `calendar-update-event` | `eventId` plus any field to change; `attendees` replaces the list | write, or invite when the event has or gets attendees | `PATCH .../events/{id}` with only the fields given. An occurrence id changes one occurrence; a `seriesMasterId` changes the series. Refuses meetings the user does not organise. |
+| `calendar-cancel-event` | `eventId`, `comment?` | invite with attendees, else write | With attendees: `POST .../events/{id}/cancel` with the comment. Without: `DELETE .../events/{id}`, which moves it to Deleted Items. `permanentDelete` is never called. Refuses meetings the user does not organise. |
+| `calendar-respond-to-event` | `eventId`, `response` (`accept`, `tentativelyAccept`, `decline`), `comment?` | invite | `POST .../events/{id}/{response}` with `sendResponse: true`. Refuses meetings the user organises. |
+
+**Recording.** `recordAutomatically` is off by default. When true, after the event exists the server finds its Teams meeting (`GET /me/onlineMeetings?$filter=JoinWebUrl eq '...'`) and patches `recordAutomatically` on it; it takes effect only before the meeting starts. A failed recording step never hides a sent invitation: the result still says who was notified, then why recording was not set. On a delegate calendar it is skipped with a message. The server never sets any transcription property: Graph has none that starts transcription alone.
+
+</tool-group>
+
 </tool-reference>
 
 <content-handling>
@@ -186,7 +217,7 @@ The five draft tools form the drafts group; mark read, move and flag form the wr
 ## Content Handling
 
 - **Inbound HTML to text (`htmlToText`):** links become `[label](href)` unless the label is the URL itself; `<style>`, `<script>`, `<head>` and `display:none` elements are dropped; paragraphs and `<br>` become line breaks; table rows become one line each; images become `[image]`.
-- **Untrusted wrapper (`wrapUntrusted`):** `mail-get-message` and `mail-get-conversation` wrap each body in a labelled block stating that it came from an email and is data, not instructions. An incoming email can carry text aimed at the agent; the wrapper is what tells the agent not to act on it.
+- **Untrusted wrapper (`wrapUntrusted`):** `mail-get-message`, `mail-get-conversation` and `calendar-get-event` wrap each body in a labelled block stating that it came from an email and is data, not instructions. An incoming email can carry text aimed at the agent; the wrapper is what tells the agent not to act on it.
 - **Outbound (`markdownToHtml`):** `marked` then `dompurify` over `jsdom`.
 
 </content-handling>
@@ -200,6 +231,7 @@ The five draft tools form the drafts group; mark read, move and flag form the wr
 - **Local-file guard (`assertSafeLocalFile`).** Resolves the real path, following symlinks, and refuses anything outside the home directory, any path with a segment starting with `.` (so `~/.ssh`, `~/.aws` and similar), and credential-shaped names: `.env*`, `id_*`, `*.pem`, `*.key`, `*.p12`, `*.pfx`. A symlink inside home that points outside it is refused.
 - **Downloads stay in one folder.** Attachment names are sanitised so `../` or `/` cannot escape `OUTLOOK_DOWNLOAD_DIR`; an existing file is never overwritten (`name (1).ext`, `name (2).ext`, ...). Embedded Outlook items (`itemAttachment`) and cloud-file links (`referenceAttachment`) are refused with a message naming the type.
 - **No standing credential.** No client secret or certificate; the server can only do what the signed-in user can do, in that user's own mailbox.
+- **Invitations are gated separately from calendar writes.** `OUTLOOK_ENABLE_CALENDAR_WRITE` alone can never notify another person, and no mail switch opens any calendar tool.
 - **No MCP stdout.** All logging goes to stderr.
 
 </security>
@@ -232,6 +264,8 @@ Other Graph errors are passed through with their message.
 | `mark-read`, `move`, `flag` | the three write tools |
 | `send-draft`, `send` | the two send tools |
 | `delete` (needs `--confirm`) | `mail-delete-message` |
+| `calendar calendars`, `events`, `event`, `schedule`, `find-times` | the five calendar read tools |
+| `calendar create`, `update`, `cancel`, `respond` | the four calendar change tools |
 
 With the global `--json` flag, stdout carries the full JSON alone and the cache path goes to stderr; `--env-file` loads the environment from a file. `--no-cache` is accepted but ignored: reads always write the cache.
 
@@ -243,6 +277,7 @@ With the global `--json` flag, stdout carries the full JSON alone and the cache 
 
 - `npm test --workspace=packages/outlook`.
 - Service tests drive a **real Graph client over a recording transport** (`src/__tests__/graph-recorder.ts`), so they assert on the request that would go on the wire: path, decoded query options, headers and body. That is what lets a test pin an absence, such as no `$orderby` beside `$search`, and what caught the unencoded `$filter` values.
+- **Calendar not yet live-verified:** everything waits for the calendar permissions on the registration. Once they land, delegate calendars and responding to an invitation stay unit-tested only, and whether Graph honours an IANA zone in `Prefer: outlook.timezone` is checked in the first live read.
 - **Not yet live-verified** (they follow the documented shape and wait for a registration with mail permissions): `$expand=attachments($select=id,name,size,contentType,isInline)` on message and conversation reads, and the backslash escape of a double quote inside `$search`. If `$expand` is rejected beside `$filter` on a conversation, the fallback is one attachments call per message.
 
 </testing>

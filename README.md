@@ -36,7 +36,7 @@ MCP Consultant Tools is a **modular monorepo** with **22 independently published
 | **message-center** | Microsoft 365 Service Health & Message Center (health overviews, issues, incident reports, posts) | 7 | `mcp-message-center-cli` | [Setup & Usage](docs/documentation/MESSAGE_CENTER.md) |
 | **code-review** | Repository review across Azure DevOps / GitHub Enterprise (.NET EOL scan, NuGet audit, complexity estimate, GitHub Packages) | 10 | `mcp-code-review-cli` | [Setup & Usage](docs/documentation/CODE_REVIEW.md) |
 | **sharepoint** | SharePoint Online and OneDrive: app-only, or signed in as you with full-text file search | 30 | `mcp-spo-cli` | [Setup & Usage](docs/documentation/SHAREPOINT.md) |
-| **outlook** | Outlook mail, signed in as you (read; drafts, send and delete each behind a switch) | 20 | `mcp-outlook-cli` | [Setup & Usage](docs/documentation/OUTLOOK.md) |
+| **outlook** | Outlook mail and calendar, signed in as you (read; drafts, send, delete and calendar changes each behind a switch) | 29 | `mcp-outlook-cli` | [Setup & Usage](docs/documentation/OUTLOOK.md) |
 | **github-enterprise** | GitHub Enterprise | 22 | `mcp-ghe-cli` | [Setup & Usage](docs/documentation/GITHUB_ENTERPRISE.md) |
 | **figma** | Figma Design Extraction | 4 | `mcp-figma-cli` | [Setup & Usage](docs/documentation/FIGMA.md) |
 | **application-insights** | Application Insights | 10 | `mcp-appins-cli` | [Setup & Usage](docs/documentation/APPLICATION_INSIGHTS.md) |

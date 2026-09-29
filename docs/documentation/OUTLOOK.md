@@ -5,7 +5,7 @@
 
 **Package:** `@mcp-consultant-tools/outlook`
 
-Read and act on your own Outlook mailbox through Microsoft Graph, signed in as you (device code). Reading works out of the box; drafts, sending and deleting each sit behind their own switch, and every switch is off by default.
+Read and act on your own Outlook mailbox and calendar through Microsoft Graph, signed in as you (device code). Reading your mail and calendar works out of the box; drafts, sending, deleting, colleagues' calendars and every calendar change each sit behind their own switch, and every switch is off by default.
 
 ## Tools
 
@@ -31,6 +31,15 @@ Read and act on your own Outlook mailbox through Microsoft Graph, signed in as y
 | `mail-send-draft` | `OUTLOOK_ENABLE_SEND` | Send an existing draft (real mail, cannot be undone) |
 | `mail-send` | `OUTLOOK_ENABLE_SEND` | Compose and send in one step (real mail, cannot be undone) |
 | `mail-delete-message` | `OUTLOOK_ENABLE_DELETE` | Move a message to Deleted Items (recoverable); needs `confirm: true` |
+| `calendar-list-calendars` | always on | Your calendars and the shared ones you have added |
+| `calendar-list-events` | always on (`OUTLOOK_ENABLE_CALENDAR_SHARED` for a colleague's) | Events in a date range |
+| `calendar-get-event` | always on (`OUTLOOK_ENABLE_CALENDAR_SHARED` for a colleague's) | One event in full |
+| `calendar-get-schedule` | always on | Free/busy for several people, even if they share nothing |
+| `calendar-find-meeting-times` | always on | Suggested slots when everyone is free |
+| `calendar-create-event` | `OUTLOOK_ENABLE_CALENDAR_WRITE`, or `_INVITE` with attendees | An appointment, or a meeting (invitations go out at once) |
+| `calendar-update-event` | `OUTLOOK_ENABLE_CALENDAR_WRITE`, or `_INVITE` with attendees | Change an event you organise |
+| `calendar-cancel-event` | `OUTLOOK_ENABLE_CALENDAR_WRITE`, or `_INVITE` with attendees | Cancel a meeting you organise, or delete your own appointment |
+| `calendar-respond-to-event` | `OUTLOOK_ENABLE_CALENDAR_INVITE` | Accept, tentatively accept or decline an invitation |
 
 ## Configuration
 
@@ -50,7 +59,12 @@ Read and act on your own Outlook mailbox through Microsoft Graph, signed in as y
         "OUTLOOK_ENABLE_SEND": "false",
         "OUTLOOK_ENABLE_DELETE": "false",
         "OUTLOOK_DOWNLOAD_DIR": "",
-        "OUTLOOK_MAX_ATTACHMENT_MB": "25"
+        "OUTLOOK_MAX_ATTACHMENT_MB": "25",
+        "OUTLOOK_ENABLE_CALENDAR_SHARED": "false",
+        "OUTLOOK_ENABLE_CALENDAR_WRITE": "false",
+        "OUTLOOK_ENABLE_CALENDAR_INVITE": "false",
+        "OUTLOOK_ENABLE_CALENDAR_DELEGATE": "false",
+        "OUTLOOK_TIME_ZONE": ""
       }
     }
   }
@@ -67,12 +81,17 @@ Read and act on your own Outlook mailbox through Microsoft Graph, signed in as y
 | `OUTLOOK_ENABLE_DELETE` | `false` | Deleting to Deleted Items |
 | `OUTLOOK_DOWNLOAD_DIR` | `~/Downloads/mcp-outlook` | Where attachments are saved |
 | `OUTLOOK_MAX_ATTACHMENT_MB` | `25` | Largest file `mail-add-draft-attachment` accepts |
+| `OUTLOOK_ENABLE_CALENDAR_SHARED` | `false` | Reading colleagues' calendars that are shared with you |
+| `OUTLOOK_ENABLE_CALENDAR_WRITE` | `false` | Appointments on your own calendar that notify nobody |
+| `OUTLOOK_ENABLE_CALENDAR_INVITE` | `false` | Anything that notifies another person: invitations, updates, cancellations, replies |
+| `OUTLOOK_ENABLE_CALENDAR_DELEGATE` | `false` | Changing a calendar you are a delegate on |
+| `OUTLOOK_TIME_ZONE` | your machine's zone | Time zone (e.g. `Europe/London`) for times you give without one |
 
 Only the exact string `true` turns a switch on. A switched-off tool still appears and, when called, says which variable enables it.
 
 ## App registration
 
-Ask your administrator for a single-tenant app registration with **Allow public client flows** set to Yes, no client secret, and these **delegated** Microsoft Graph permissions with admin consent: `User.Read`, `offline_access`, `Mail.ReadWrite`, `Mail.Send`. Delegated permissions mean the server can only ever reach your own mailbox. Add `Files.Read.All` if drafts should carry SharePoint or OneDrive files as real attachments; without it, attaching by link puts a link to the file in the draft instead.
+Ask your administrator for a single-tenant app registration with **Allow public client flows** set to Yes, no client secret, and these **delegated** Microsoft Graph permissions with admin consent: `User.Read`, `offline_access`, `Mail.ReadWrite`, `Mail.Send`, and for the calendar `Calendars.ReadWrite` and `Calendars.ReadWrite.Shared` (both are needed: the second covers colleagues' calendars, not your own). Delegated permissions mean the server can only ever reach your own mailbox. Add `Files.Read.All` if drafts should carry SharePoint or OneDrive files as real attachments; without it, attaching by link puts a link to the file in the draft instead. Add `OnlineMeetings.ReadWrite` if the agent should be able to switch on automatic recording for a meeting.
 
 ## Signing in
 
@@ -86,4 +105,6 @@ Call `mail-authenticate` (or run `mcp-outlook-cli auth login`), open the URL, en
 - **A SharePoint or OneDrive file is attached without touching your disk.** Its content is read into memory and attached. If your sign-in may not read it, a link goes into the draft, above any quoted thread, and the result says so.
 - **Downloads never overwrite.** A second file with the same name is saved as `name (1).ext`.
 - **Delete is never permanent.** `mail-delete-message` moves the message to Deleted Items.
+- **Meeting invitations go out immediately.** There is no draft meeting in Microsoft Graph, so anything that would notify another person needs `OUTLOOK_ENABLE_CALENDAR_INVITE`; `OUTLOOK_ENABLE_CALENDAR_WRITE` alone can only change appointments nobody else sees. Every calendar change says who was notified.
+- **Recording is off unless asked for.** A meeting records automatically only when the agent is told to; the server never changes transcription settings.
 - **A missing permission is reported per tool.** If the registration lacks a mail permission, sign-in still works and the affected tools say which permission to ask your administrator for.
