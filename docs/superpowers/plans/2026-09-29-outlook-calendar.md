@@ -52,7 +52,7 @@
 **Interfaces:**
 - Produces: `type CalendarGroup = 'calendar-read' | 'calendar-shared' | 'calendar-write' | 'calendar-invite' | 'calendar-delegate' | 'calendar-recording'`; `describeCalendarAccess(grantedScopes: string[]): Record<CalendarGroup, GroupAccess>`; `requireCalendarSwitch(group: CalendarGroup): void`; `permissionHint(error: unknown, group: MailGroup | CalendarGroup): Error`; constants `CALENDAR_SWITCHES` (array of the four variable names).
 
-- [ ] **Step 1: Write the failing tests** (append to `permissions.test.ts`; import the new names at the top)
+- [x] **Step 1: Write the failing tests** (append to `permissions.test.ts`; import the new names at the top)
 
 ```ts
 describe('describeCalendarAccess', () => {
@@ -112,12 +112,12 @@ describe('calendar permissionHint', () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npm test --workspace=packages/outlook -- permissions`
 Expected: FAIL, `describeCalendarAccess` is not exported.
 
-- [ ] **Step 3: Implement in `permissions.ts`**
+- [x] **Step 3: Implement in `permissions.ts`**
 
 Add below `RULES`:
 
@@ -202,12 +202,12 @@ access: status.state === 'authenticated'
 
 Update the `mail-auth-status` description: append `' access.calendar reports the calendar groups (read, shared, write, invite, delegate, recording) the same way.'`
 
-- [ ] **Step 4: Run tests and build**
+- [x] **Step 4: Run tests and build**
 
 Run: `npm test --workspace=packages/outlook -- permissions && npm run build --workspace=packages/outlook`
 Expected: PASS, build clean.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/outlook/src/permissions.ts packages/outlook/src/tools/auth-tools.ts packages/outlook/src/__tests__/permissions.test.ts
@@ -227,7 +227,7 @@ git commit -m "feat(outlook): calendar permission groups and switches"
 - Produces: `userTimeZone(): string`; `toUtc(value: string, parameter: string, zone?: string): string` (returns `YYYY-MM-DDTHH:mm:ss` in UTC, no `Z`); `graphTime(value, parameter, zone?)` returning `{ dateTime, timeZone: 'UTC' }`; `preferZone(zone?: string): string`; `calendarRoot(owner?: string): string`; `formatPerson(p): string`; `toEventSummary(e): EventSummary`; `toEventDetail(e): EventDetail`; `EVENT_SUMMARY_FIELDS`, `EVENT_DETAIL_FIELDS`.
 - Types added to `types.ts`: `CalendarInfo`, `EventAttendee`, `EventSummary`, `EventDetail`, `ScheduleItem`, `PersonSchedule`, `MeetingTimeSuggestion`, `EventChangeResult`.
 
-- [ ] **Step 1: Add the types to `types.ts`**
+- [x] **Step 1: Add the types to `types.ts`**
 
 ```ts
 export interface CalendarInfo {
@@ -315,7 +315,7 @@ export interface EventChangeResult {
 }
 ```
 
-- [ ] **Step 2: Write the failing tests** (`calendar-shared.test.ts`)
+- [x] **Step 2: Write the failing tests** (`calendar-shared.test.ts`)
 
 ```ts
 import { describe, it, expect, afterEach } from 'vitest';
@@ -382,12 +382,12 @@ describe('toEventSummary', () => {
 });
 ```
 
-- [ ] **Step 3: Run to verify they fail**
+- [x] **Step 3: Run to verify they fail**
 
 Run: `npm test --workspace=packages/outlook -- calendar-shared`
 Expected: FAIL, module not found.
 
-- [ ] **Step 4: Implement `calendar-shared.ts`**
+- [x] **Step 4: Implement `calendar-shared.ts`**
 
 ```ts
 /**
@@ -520,12 +520,12 @@ export function toEventDetail(event: any): EventDetail {
 }
 ```
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 Run: `npm test --workspace=packages/outlook -- calendar-shared`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/outlook/src/services/calendar-shared.ts packages/outlook/src/types.ts packages/outlook/src/services/__tests__/calendar-shared.test.ts
@@ -544,7 +544,7 @@ git commit -m "feat(outlook): calendar time zone and event mapping helpers"
 - Consumes: Task 1 `requireCalendarSwitch`, `permissionHint`; Task 2 helpers and types; `GraphClientProvider` from `mail-read-service.ts`.
 - Produces: `class CalendarReadService { constructor(auth: GraphClientProvider); listCalendars(): Promise<CalendarInfo[]>; listEvents(o: { start: string; end: string; user?: string; top?: number }): Promise<EventSummary[]>; getEvent(eventId: string, user?: string): Promise<EventDetail>; getSchedule(o: { people: string[]; start: string; end: string; intervalMinutes?: number }): Promise<PersonSchedule[]>; findMeetingTimes(o: { attendees: string[]; durationMinutes: number; start: string; end: string; maxCandidates?: number }): Promise<{ suggestions: MeetingTimeSuggestion[]; emptySuggestionsReason?: string }> }`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, it, expect, afterEach } from 'vitest';
@@ -643,12 +643,12 @@ describe('findMeetingTimes', () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npm test --workspace=packages/outlook -- calendar-read-service`
 Expected: FAIL, module not found.
 
-- [ ] **Step 3: Implement `calendar-read-service.ts`**
+- [x] **Step 3: Implement `calendar-read-service.ts`**
 
 ```ts
 /**
@@ -807,12 +807,12 @@ export class CalendarReadService {
 
 If the recorder shows `startDateTime` URL-encoded differently from the expectation, keep the expectation on the decoded value; the recorder decodes query values.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `npm test --workspace=packages/outlook -- calendar-read-service`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/outlook/src/services/calendar-read-service.ts packages/outlook/src/services/__tests__/calendar-read-service.test.ts
@@ -832,7 +832,7 @@ git commit -m "feat(outlook): calendar read service"
 - Consumes: `CalendarReadService` (Task 3).
 - Produces: `registerCalendarReadTools(server, ctx)`; `registerCalendarCommands(program, ctx)` creating a `calendar` command group that Task 7 extends with write subcommands via `registerCalendarWriteCommands(calendar: Command, ctx)`; `ServiceContext.calendar: CalendarReadService`.
 
-- [ ] **Step 1: Write the failing test** (`calendar-switches.test.ts`; Task 7 extends this file)
+- [x] **Step 1: Write the failing test** (`calendar-switches.test.ts`; Task 7 extends this file)
 
 ```ts
 import { describe, it, expect, afterEach } from 'vitest';
@@ -884,12 +884,12 @@ describe('calendar read tools', () => {
 
 Registering all tools with a ctx lacking `mail`, `write` and `send` is fine because every context member is read lazily inside handlers.
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `npm test --workspace=packages/outlook -- calendar-switches`
 Expected: FAIL, tools not registered.
 
-- [ ] **Step 3: Implement `tools/calendar-read-tools.ts`**
+- [x] **Step 3: Implement `tools/calendar-read-tools.ts`**
 
 ```ts
 /**
@@ -980,7 +980,7 @@ export function registerCalendarReadTools(server: any, ctx: ServiceContext): voi
 }
 ```
 
-- [ ] **Step 4: Wire it up**
+- [x] **Step 4: Wire it up**
 
 In `types.ts`: `import type { CalendarReadService } from './services/calendar-read-service.js';` and add `readonly calendar: CalendarReadService;` to `ServiceContext`.
 
@@ -1001,7 +1001,7 @@ In `tools/index.ts`: import and call `registerCalendarReadTools(server, ctx);` a
 
 In `tools/__tests__/switches.test.ts` `setup()`: add `calendar: new CalendarReadService(provider),` to `ctx` (with its import).
 
-- [ ] **Step 5: Implement `cli/commands/calendar-commands.ts`**
+- [x] **Step 5: Implement `cli/commands/calendar-commands.ts`**
 
 ```ts
 /**
@@ -1096,12 +1096,12 @@ export function registerCalendarCommands(program: Command, ctx: ServiceContext):
 
 In `cli/commands/index.ts`: import and call `registerCalendarCommands(program, ctx);` last, and re-export it.
 
-- [ ] **Step 6: Run the whole package suite and build**
+- [x] **Step 6: Run the whole package suite and build**
 
 Run: `npm test --workspace=packages/outlook && npm run build --workspace=packages/outlook`
 Expected: all PASS, build clean. Then `node packages/outlook/build/cli.js calendar --help` lists the five subcommands.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add packages/outlook/src/tools/calendar-read-tools.ts packages/outlook/src/cli/commands/calendar-commands.ts packages/outlook/src/types.ts packages/outlook/src/context-factory.ts packages/outlook/src/tools/index.ts packages/outlook/src/cli/commands/index.ts packages/outlook/src/tools/__tests__/switches.test.ts packages/outlook/src/tools/__tests__/calendar-switches.test.ts
@@ -1152,7 +1152,7 @@ export class CalendarWriteService {
 
 Switch rule, used by every method (`gate(owner, notifies)`): on a delegate calendar, `calendar-delegate` plus `calendar-invite` when it notifies; on the user's own calendar, `calendar-invite` when it notifies, else `calendar-write`. Update and cancel need the event to know whether it notifies, so they first call `pregate(owner)`: on a delegate calendar `calendar-delegate`; on the own calendar, refuse unless write or invite is on, naming both. Then one GET, then `gate`, then the change.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, it, expect, afterEach } from 'vitest';
@@ -1330,12 +1330,12 @@ describe('respondToEvent', () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npm test --workspace=packages/outlook -- calendar-write-service`
 Expected: FAIL, module not found.
 
-- [ ] **Step 3: Implement `calendar-write-service.ts`**
+- [x] **Step 3: Implement `calendar-write-service.ts`**
 
 ```ts
 /**
@@ -1540,12 +1540,12 @@ export class CalendarWriteService {
 
 Paste the two input interfaces from the Interfaces block where the comment says so, with `export`.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `npm test --workspace=packages/outlook -- calendar-write-service`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/outlook/src/services/calendar-write-service.ts packages/outlook/src/services/__tests__/calendar-write-service.test.ts
@@ -1564,7 +1564,7 @@ git commit -m "feat(outlook): calendar write service with notify-aware switches"
 - Consumes: Task 5.
 - Produces: `EventChangeResult.recording` set whenever `recordAutomatically` is given.
 
-- [ ] **Step 1: Write the failing tests** (append)
+- [x] **Step 1: Write the failing tests** (append)
 
 ```ts
 describe('recordAutomatically', () => {
@@ -1623,12 +1623,12 @@ describe('recordAutomatically', () => {
 
 Add `graphError` to the recorder import at the top of the file.
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npm test --workspace=packages/outlook -- calendar-write-service`
 Expected: the four new tests FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add to the class:
 
@@ -1676,12 +1676,12 @@ In `updateEvent`, before returning, when `input.recordAutomatically !== undefine
 
 If the recorder shows the `$filter` still percent-encoded, check how `mail-read-service.ts` line 217 is asserted in its test and match it.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `npm test --workspace=packages/outlook`
 Expected: all PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/outlook/src/services/calendar-write-service.ts packages/outlook/src/services/__tests__/calendar-write-service.test.ts
@@ -1700,7 +1700,7 @@ git commit -m "feat(outlook): optional automatic recording on meetings, off by d
 - Consumes: `CalendarWriteService` (Tasks 5, 6); `setupCalendar` in `calendar-switches.test.ts` (Task 4).
 - Produces: tools `calendar-create-event`, `calendar-update-event`, `calendar-cancel-event`, `calendar-respond-to-event`; CLI `calendar create|update|cancel|respond`.
 
-- [ ] **Step 1: Write the failing tests** (in `calendar-switches.test.ts`, change `setupCalendar` so `ctx` also has `calendarWrite: new CalendarWriteService(provider)`, then append)
+- [x] **Step 1: Write the failing tests** (in `calendar-switches.test.ts`, change `setupCalendar` so `ctx` also has `calendarWrite: new CalendarWriteService(provider)`, then append)
 
 ```ts
 const WRITE_TOOLS: Record<string, object> = {
@@ -1756,12 +1756,12 @@ describe('calendar write tools, switches off', () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npm test --workspace=packages/outlook -- calendar-switches`
 Expected: FAIL, tools not registered.
 
-- [ ] **Step 3: Implement `tools/calendar-write-tools.ts`**
+- [x] **Step 3: Implement `tools/calendar-write-tools.ts`**
 
 ```ts
 /**
@@ -1875,7 +1875,7 @@ export function registerCalendarWriteTools(server: any, ctx: ServiceContext): vo
 
 Wire `calendarWrite` exactly as Task 4 wired `calendar`: `types.ts` (`readonly calendarWrite: CalendarWriteService;`), `context-factory.ts` (lazy getter `new CalendarWriteService(getAuth())`), `tools/index.ts` (register and re-export `registerCalendarWriteTools`), and `switches.test.ts` ctx.
 
-- [ ] **Step 4: Add the CLI write commands**
+- [x] **Step 4: Add the CLI write commands**
 
 In `calendar-commands.ts`, add and export:
 
@@ -1957,12 +1957,12 @@ export function registerCalendarWriteCommands(calendar: Command, ctx: ServiceCon
 
 Import `EventChangeResult` from `../../types.js`. Commander sets `opts.record` to `undefined` when neither flag is given only if no default is declared; check with a quick `--help` run and a unit call. In `cli/commands/index.ts`: `const calendar = registerCalendarCommands(program, ctx); registerCalendarWriteCommands(calendar, ctx);`.
 
-- [ ] **Step 5: Run everything and build**
+- [x] **Step 5: Run everything and build**
 
 Run: `npm test --workspace=packages/outlook && npm run build --workspace=packages/outlook && node packages/outlook/build/cli.js calendar --help`
 Expected: all PASS; help lists nine subcommands.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/outlook/src/tools/calendar-write-tools.ts packages/outlook/src/types.ts packages/outlook/src/context-factory.ts packages/outlook/src/tools/index.ts packages/outlook/src/cli/commands/calendar-commands.ts packages/outlook/src/cli/commands/index.ts packages/outlook/src/tools/__tests__/calendar-switches.test.ts packages/outlook/src/tools/__tests__/switches.test.ts
