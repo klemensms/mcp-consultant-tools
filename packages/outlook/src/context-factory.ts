@@ -8,6 +8,7 @@ import { DelegatedGraphAuth, resolveDownloadDir } from '@mcp-consultant-tools/m3
 import { MailReadService } from './services/mail-read-service.js';
 import { MailWriteService } from './services/mail-write-service.js';
 import { MailSendService } from './services/mail-send-service.js';
+import { CalendarReadService } from './services/calendar-read-service.js';
 import type { ServiceContext } from './types.js';
 
 export type { ServiceContext } from './types.js';
@@ -25,6 +26,7 @@ export function createServiceContext(): ServiceContext {
   let mail: MailReadService | null = null;
   let write: MailWriteService | null = null;
   let send: MailSendService | null = null;
+  let calendar: CalendarReadService | null = null;
 
   function getAuth(): DelegatedGraphAuth {
     if (!auth) {
@@ -32,7 +34,7 @@ export function createServiceContext(): ServiceContext {
       const clientId = requireEnv(
         'OUTLOOK_CLIENT_ID',
         "Set it to the application (client) id of an app registration with 'Allow public client flows' on " +
-          'and delegated Microsoft Graph mail permissions (Mail.ReadWrite, Mail.Send) with admin consent.'
+          'and delegated Microsoft Graph permissions (Mail.ReadWrite, Mail.Send, Calendars.ReadWrite, Calendars.ReadWrite.Shared, OnlineMeetings.ReadWrite) with admin consent.'
       );
       auth = new DelegatedGraphAuth({
         serverName: 'outlook',
@@ -67,6 +69,12 @@ export function createServiceContext(): ServiceContext {
         send = new MailSendService(getAuth());
       }
       return send;
+    },
+    get calendar() {
+      if (!calendar) {
+        calendar = new CalendarReadService(getAuth());
+      }
+      return calendar;
     },
   };
 }

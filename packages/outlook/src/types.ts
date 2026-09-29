@@ -5,6 +5,7 @@ import type { DelegatedGraphAuth } from '@mcp-consultant-tools/m365-core';
 import type { MailReadService } from './services/mail-read-service.js';
 import type { MailWriteService } from './services/mail-write-service.js';
 import type { MailSendService } from './services/mail-send-service.js';
+import type { CalendarReadService } from './services/calendar-read-service.js';
 
 export interface MailSummary {
   id: string;
@@ -151,4 +152,5 @@ export interface ServiceContext {
   readonly mail: MailReadService;
   readonly write: MailWriteService;
   readonly send: MailSendService;
+  readonly calendar: CalendarReadService;
 }
