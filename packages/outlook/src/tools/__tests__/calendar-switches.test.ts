@@ -37,7 +37,7 @@ describe('calendar read tools', () => {
     expect(requests).toHaveLength(0);
   });
 
-  it('reads the own calendar with no switch', async () => {
+  it('reads the own calendar while OUTLOOK_ENABLE_CALENDAR_READ is unset', async () => {
     const { handlers, requests } = setupCalendar();
     const result = await handlers['calendar-list-events']({ start: '2026-07-01', end: '2026-07-02' });
     expect(result.isError).toBeUndefined();

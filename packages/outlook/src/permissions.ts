@@ -12,10 +12,36 @@ interface GroupRule {
   /** Any one of these covers the group. */
   needs: string[];
   switch?: string;
+  /** A read switch: on while unset, so a configuration from before it existed keeps reading. */
+  onWhenUnset?: boolean;
 }
 
+/**
+ * Whether a switch is on. Write switches need the exact string `true`. Read
+ * switches (onWhenUnset) are on while unset or empty and off for any other
+ * value than `true`, so `false` turns them off.
+ */
+function switchOn(rule: GroupRule): boolean {
+  if (!rule.switch) return true;
+  if (rule.onWhenUnset && (process.env[rule.switch] ?? '').trim() === '') return true;
+  return isEnabled(rule.switch);
+}
+
+function requireSwitch(rule: GroupRule, capability: string): void {
+  if (!rule.onWhenUnset) {
+    if (rule.switch) requireEnabled(rule.switch, capability);
+    return;
+  }
+  if (!switchOn(rule)) {
+    throw new Error(`${capability} is disabled. Set ${rule.switch}=true, or remove the variable, to enable.`);
+  }
+}
+
+export const MAIL_READ = 'OUTLOOK_ENABLE_MAIL_READ';
+export const CALENDAR_READ = 'OUTLOOK_ENABLE_CALENDAR_READ';
+
 const RULES: Record<MailGroup, GroupRule> = {
-  read: { needs: ['Mail.Read', 'Mail.ReadWrite'] },
+  read: { needs: ['Mail.Read', 'Mail.ReadWrite'], switch: MAIL_READ, onWhenUnset: true },
   write: { needs: ['Mail.ReadWrite'], switch: 'OUTLOOK_ENABLE_WRITE' },
   drafts: { needs: ['Mail.ReadWrite'], switch: 'OUTLOOK_ENABLE_DRAFTS' },
   categories: { needs: ['Mail.ReadWrite'], switch: 'OUTLOOK_ENABLE_CATEGORIES' },
@@ -27,12 +53,17 @@ export type CalendarGroup =
   | 'calendar-read' | 'calendar-shared' | 'calendar-write' | 'calendar-invite' | 'calendar-delegate' | 'calendar-recording';
 
 /**
- * Calendar groups. Read and recording have no switch: read is the user's own
- * calendar, like mail read, and recording is a per-meeting option on a write
- * that its own switch already gates.
+ * Calendar groups. Read is on while its switch is unset, like mail read.
+ * Recording has no switch: it is a per-meeting option on a write that its own
+ * switch already gates.
  */
 const CALENDAR_RULES: Record<CalendarGroup, GroupRule & { capability: string }> = {
-  'calendar-read': { needs: ['Calendars.Read', 'Calendars.ReadWrite'], capability: 'Calendar read' },
+  'calendar-read': {
+    needs: ['Calendars.Read', 'Calendars.ReadWrite'],
+    switch: CALENDAR_READ,
+    onWhenUnset: true,
+    capability: 'Calendar read (your own calendar, free/busy and meeting-time suggestions)',
+  },
   'calendar-shared': {
     needs: ['Calendars.Read.Shared', 'Calendars.ReadWrite.Shared'],
     switch: 'OUTLOOK_ENABLE_CALENDAR_SHARED',
@@ -57,15 +88,18 @@ const CALENDAR_RULES: Record<CalendarGroup, GroupRule & { capability: string }> 
 };
 
 export const CALENDAR_SWITCHES = [
-  'OUTLOOK_ENABLE_CALENDAR_SHARED', 'OUTLOOK_ENABLE_CALENDAR_WRITE', 'OUTLOOK_ENABLE_CALENDAR_INVITE', 'OUTLOOK_ENABLE_CALENDAR_DELEGATE',
+  CALENDAR_READ, 'OUTLOOK_ENABLE_CALENDAR_SHARED', 'OUTLOOK_ENABLE_CALENDAR_WRITE', 'OUTLOOK_ENABLE_CALENDAR_INVITE', 'OUTLOOK_ENABLE_CALENDAR_DELEGATE',
 ];
 
 /** Throw, naming the variable, when a calendar group's switch is off. Groups without a switch always pass. */
 export function requireCalendarSwitch(group: CalendarGroup): void {
   const rule = CALENDAR_RULES[group];
-  if (rule.switch) {
-    requireEnabled(rule.switch, rule.capability);
-  }
+  requireSwitch(rule, rule.capability);
+}
+
+/** Throw, naming the variable, when OUTLOOK_ENABLE_MAIL_READ turns mail reading off. */
+export function requireMailRead(): void {
+  requireSwitch(RULES.read, 'Mail read (folders, messages, search, conversations, attachments, categories)');
 }
 
 const WRITE = 'OUTLOOK_ENABLE_WRITE';
@@ -92,9 +126,9 @@ export interface GroupAccess {
   needs: string[];
   /** Whether the signed-in token carries one of them. */
   granted: boolean;
-  /** The switch that turns the group on; read has none. */
+  /** The switch that turns the group on. */
   switch?: string;
-  /** Whether the switch is on (always true for read). */
+  /** Whether the switch is on. The read switches are on while unset. */
   enabled: boolean;
 }
 
@@ -111,7 +145,7 @@ export function describeMailAccess(grantedScopes: string[]): Record<Exclude<Mail
     needs: rule.needs,
     granted: rule.needs.some((need) => granted.has(need.toLowerCase())),
     ...(rule.switch ? { switch: rule.switch } : {}),
-    enabled: rule.switch ? isEnabled(rule.switch) : true,
+    enabled: switchOn(rule),
   });
   const hasAny = (needs: string[]) => needs.some((need) => granted.has(need.toLowerCase()));
   return {
@@ -137,7 +171,7 @@ export function describeCalendarAccess(grantedScopes: string[]): Record<Calendar
       needs: rule.needs,
       granted: rule.needs.some((need) => granted.has(need.toLowerCase())),
       ...(rule.switch ? { switch: rule.switch } : {}),
-      enabled: rule.switch ? isEnabled(rule.switch) : true,
+      enabled: switchOn(rule),
     };
     return [group, access] as const;
   });

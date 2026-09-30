@@ -4,7 +4,7 @@
  */
 import type { Client } from '@microsoft/microsoft-graph-client';
 import { htmlToText, wrapUntrusted } from '../mail-content.js';
-import { permissionHint } from '../permissions.js';
+import { permissionHint, requireMailRead } from '../permissions.js';
 import { saveFileAttachment } from '../download.js';
 import type { GraphAttachment } from '../download.js';
 import type {
@@ -130,6 +130,7 @@ export class MailReadService {
   }
 
   async listFolders(): Promise<MailFolder[]> {
+    requireMailRead();
     try {
       const response = await this.graph
         .api('/me/mailFolders')
@@ -149,6 +150,7 @@ export class MailReadService {
 
   /** The categories defined in the mailbox (Outlook's master category list), so callers use real names. */
   async listCategories(): Promise<MailCategory[]> {
+    requireMailRead();
     try {
       const response = await this.graph.api('/me/outlook/masterCategories').get();
       return (response.value ?? []).map((c: any) => ({ displayName: c.displayName ?? '', color: c.color ?? 'none' }));
@@ -158,6 +160,7 @@ export class MailReadService {
   }
 
   async listMessages(options: ListMessagesOptions): Promise<MailSummary[]> {
+    requireMailRead();
     const dates: string[] = [];
     if (options.since) dates.push(`receivedDateTime ge ${isoDate(options.since, 'since')}`);
     if (options.until) dates.push(`receivedDateTime le ${isoDate(options.until, 'until')}`);
@@ -191,6 +194,7 @@ export class MailReadService {
    * $orderby or $filter on messages, so results come in Graph's relevance order.
    */
   async searchMessages(query: string, top?: number): Promise<MailSummary[]> {
+    requireMailRead();
     const text = query.trim();
     if (!text) {
       throw new Error('query must not be empty.');
@@ -209,6 +213,7 @@ export class MailReadService {
   }
 
   async getMessage(id: string): Promise<MailDetail> {
+    requireMailRead();
     try {
       const message = await this.graph
         .api(`/me/messages/${encodeURIComponent(id)}`)
@@ -223,6 +228,7 @@ export class MailReadService {
 
   /** Every message in a conversation, oldest first. Sorted here: see OPEN_DATE_CLAUSE. */
   async getConversation(conversationId: string): Promise<MailDetail[]> {
+    requireMailRead();
     try {
       const response = await this.graph
         .api('/me/messages')
@@ -240,6 +246,7 @@ export class MailReadService {
   }
 
   async downloadAttachment(messageId: string, attachmentId: string): Promise<SavedAttachment> {
+    requireMailRead();
     let attachment: GraphAttachment;
     try {
       attachment = await this.graph

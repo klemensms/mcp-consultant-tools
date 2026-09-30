@@ -29,6 +29,8 @@ npx -y --package=@mcp-consultant-tools/outlook mcp-outlook
       "env": {
         "OUTLOOK_TENANT_ID": "your-azure-tenant-id",
         "OUTLOOK_CLIENT_ID": "your-app-client-id",
+        "OUTLOOK_ENABLE_MAIL_READ": "true",
+        "OUTLOOK_ENABLE_CALENDAR_READ": "true",
         "OUTLOOK_ENABLE_DRAFTS": "false",
         "OUTLOOK_ENABLE_WRITE": "false",
         "OUTLOOK_ENABLE_CATEGORIES": "false",
@@ -59,13 +61,13 @@ Open the URL, enter the code and sign in. Or call the `mail-authenticate` tool f
 
 ## Tools
 
-31 tools. 22 prefixed `mail-`: 3 auth, 7 read, 5 drafts (`OUTLOOK_ENABLE_DRAFTS`), 3 write (`OUTLOOK_ENABLE_WRITE`), 1 categories (`OUTLOOK_ENABLE_CATEGORIES`), 2 send (`OUTLOOK_ENABLE_SEND`), 1 delete (`OUTLOOK_ENABLE_DELETE`). 9 prefixed `calendar-`: 5 reads and 4 changes (`OUTLOOK_ENABLE_CALENDAR_WRITE`, `_INVITE`, `_SHARED`, `_DELEGATE`). Every tool has a matching `mcp-outlook-cli` command.
+31 tools. 22 prefixed `mail-`: 3 auth (no switch), 7 read (`OUTLOOK_ENABLE_MAIL_READ`), 5 drafts (`OUTLOOK_ENABLE_DRAFTS`), 3 write (`OUTLOOK_ENABLE_WRITE`), 1 categories (`OUTLOOK_ENABLE_CATEGORIES`), 2 send (`OUTLOOK_ENABLE_SEND`), 1 delete (`OUTLOOK_ENABLE_DELETE`). 9 prefixed `calendar-`: 5 reads (`OUTLOOK_ENABLE_CALENDAR_READ`) and 4 changes (`OUTLOOK_ENABLE_CALENDAR_WRITE`, `_INVITE`, `_SHARED`, `_DELEGATE`). Every tool has a matching `mcp-outlook-cli` command.
 
 Guide: `docs/documentation/OUTLOOK.md`. Full reference: `docs/technical/OUTLOOK_TECHNICAL.md`.
 
 ## Safety
 
-- Every switch is off by default; only the exact string `true` turns one on.
+- Every change switch is off by default; only the exact string `true` turns one on. The two read switches, mail and calendar, are on while unset and off for any other value, so `OUTLOOK_ENABLE_MAIL_READ=false` gives a calendar-only server.
 - Email bodies are returned wrapped as untrusted content, so an instruction inside an email is not mistaken for yours.
 - Attachments you add must be inside your home folder; hidden folders and credential files are refused.
 - The server holds no secret and can only reach your own mailbox, and the calendars you can already open.

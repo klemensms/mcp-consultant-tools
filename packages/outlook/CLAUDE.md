@@ -12,6 +12,7 @@ Full reference: `docs/technical/OUTLOOK_TECHNICAL.md`. User guide: `docs/documen
 
 ## Rules
 
+- **Read switches:** `OUTLOOK_ENABLE_MAIL_READ` and `OUTLOOK_ENABLE_CALENDAR_READ` are on while unset (so configurations from before them keep reading) and off for any value but `true`. Checked in the read services before any Graph call (`requireMailRead`, `requireCalendarSwitch('calendar-read')` in `permissions.ts`). Every tool except the three auth tools belongs to a switch; keep it that way.
 - **Switches:** `OUTLOOK_ENABLE_DRAFTS` (drafts, reply, forward, update, attach; follows `OUTLOOK_ENABLE_WRITE` while unset, via `draftsEnabled()` in `permissions.ts`), `OUTLOOK_ENABLE_WRITE` (mark read, move, flag), `OUTLOOK_ENABLE_CATEGORIES` (set categories; independent of write, so it can be on while write is off), `OUTLOOK_ENABLE_SEND`, `OUTLOOK_ENABLE_DELETE`, each checked before any Graph call. Send is independent of every other switch. A new non-read mail tool joins exactly one group; a calendar tool takes its group from what the call does (below).
 - **Every draft result says nothing was sent** (`NOTHING_SENT` in `mail-write-service.ts`). Keep it on any new draft tool.
 - **Categories are read, merged, then patched.** Graph's `PATCH` with `categories` replaces the whole list, so `setCategories` never writes a list it did not first read; a category the caller did not name must survive. Pinned by tests.

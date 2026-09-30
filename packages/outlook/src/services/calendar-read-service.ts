@@ -37,6 +37,7 @@ export class CalendarReadService {
   }
 
   async listCalendars(): Promise<CalendarInfo[]> {
+    requireCalendarSwitch('calendar-read');
     try {
       const response = await this.graph.api('/me/calendars')
         .select(['id', 'name', 'owner', 'canEdit', 'isDefaultCalendar'])
@@ -55,7 +56,7 @@ export class CalendarReadService {
   }
 
   async listEvents(options: { start: string; end: string; user?: string; top?: number }): Promise<EventSummary[]> {
-    if (options.user) requireCalendarSwitch('calendar-shared');
+    requireCalendarSwitch(options.user ? 'calendar-shared' : 'calendar-read');
     const { from, to } = window(options.start, options.end);
     try {
       const response = await this.graph.api(`${calendarRoot(options.user)}/calendarView`)
@@ -72,7 +73,7 @@ export class CalendarReadService {
   }
 
   async getEvent(eventId: string, user?: string): Promise<EventDetail> {
-    if (user) requireCalendarSwitch('calendar-shared');
+    requireCalendarSwitch(user ? 'calendar-shared' : 'calendar-read');
     try {
       const event = await this.graph.api(`${calendarRoot(user)}/events/${encodeURIComponent(eventId)}`)
         .select(EVENT_DETAIL_FIELDS)
@@ -85,6 +86,7 @@ export class CalendarReadService {
   }
 
   async getSchedule(options: { people: string[]; start: string; end: string; intervalMinutes?: number }): Promise<PersonSchedule[]> {
+    requireCalendarSwitch('calendar-read');
     if (!options.people?.length) throw new Error('people needs at least one email address.');
     const { from, to } = window(options.start, options.end);
     try {
@@ -116,6 +118,7 @@ export class CalendarReadService {
   async findMeetingTimes(options: {
     attendees: string[]; durationMinutes: number; start: string; end: string; maxCandidates?: number;
   }): Promise<{ suggestions: MeetingTimeSuggestion[]; emptySuggestionsReason?: string }> {
+    requireCalendarSwitch('calendar-read');
     if (!options.attendees?.length) throw new Error('attendees needs at least one email address.');
     window(options.start, options.end);
     try {

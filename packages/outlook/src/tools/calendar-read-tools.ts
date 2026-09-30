@@ -1,6 +1,7 @@
 /**
  * Calendar read tools. The user's own calendar, free/busy and suggested
- * times need no switch; a colleague's calendar needs OUTLOOK_ENABLE_CALENDAR_SHARED.
+ * times need OUTLOOK_ENABLE_CALENDAR_READ, which is on while unset; a
+ * colleague's calendar needs OUTLOOK_ENABLE_CALENDAR_SHARED.
  */
 import { z } from 'zod';
 import type { ServiceContext } from '../types.js';

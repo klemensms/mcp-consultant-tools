@@ -1,6 +1,7 @@
 /**
- * Outlook read tools. Everything read from the mailbox is untrusted: message
- * bodies are wrapped by the service, and list and search output here.
+ * Outlook read tools (OUTLOOK_ENABLE_MAIL_READ, on while unset; the service
+ * checks it). Everything read from the mailbox is untrusted: message bodies
+ * are wrapped by the service, and list and search output here.
  */
 
 import { z } from 'zod';

@@ -38,11 +38,11 @@ describe('describeMailAccess', () => {
     expect(describeMailAccess(['mail.readwrite']).write.granted).toBe(true);
   });
 
-  it('reports each switch and its variable; read has no switch', () => {
+  it('reports each switch and its variable; read is on while its switch is unset', () => {
     process.env.OUTLOOK_ENABLE_SEND = 'true';
     const access = describeMailAccess([]);
     expect(access.read.enabled).toBe(true);
-    expect(access.read.switch).toBeUndefined();
+    expect(access.read.switch).toBe('OUTLOOK_ENABLE_MAIL_READ');
     expect(access.write).toMatchObject({ switch: 'OUTLOOK_ENABLE_WRITE', enabled: false });
     expect(access.send).toMatchObject({ switch: 'OUTLOOK_ENABLE_SEND', enabled: true });
     expect(access.delete).toMatchObject({ switch: 'OUTLOOK_ENABLE_DELETE', enabled: false });
@@ -109,9 +109,9 @@ describe('describeCalendarAccess', () => {
     expect(access['calendar-recording'].granted).toBe(false);
   });
 
-  it('names each switch and reports it off by default; read and recording have none', () => {
+  it('names each switch and reports the write ones off by default; read is on while unset and recording has none', () => {
     const access = describeCalendarAccess([]);
-    expect(access['calendar-read'].switch).toBeUndefined();
+    expect(access['calendar-read']).toMatchObject({ switch: 'OUTLOOK_ENABLE_CALENDAR_READ', enabled: true });
     expect(access['calendar-recording'].switch).toBeUndefined();
     expect(access['calendar-shared']).toMatchObject({ switch: 'OUTLOOK_ENABLE_CALENDAR_SHARED', enabled: false });
     expect(access['calendar-write']).toMatchObject({ switch: 'OUTLOOK_ENABLE_CALENDAR_WRITE', enabled: false });

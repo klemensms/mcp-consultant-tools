@@ -5,7 +5,7 @@
 
 **Package:** `@mcp-consultant-tools/outlook`
 
-Read and act on your own Outlook mailbox and calendar through Microsoft Graph, signed in as you (device code). Reading your mail and calendar works out of the box; drafts, sending, deleting, colleagues' calendars and every calendar change each sit behind their own switch, and every switch is off by default.
+Read and act on your own Outlook mailbox and calendar through Microsoft Graph, signed in as you (device code). Every tool group has its own switch. Reading your mail and reading your calendar are on unless you set their switch to `false`; drafts, sending, deleting, colleagues' calendars and every calendar change are off unless you set theirs to `true`. Only the three sign-in tools have no switch.
 
 ## Tools
 
@@ -14,13 +14,13 @@ Read and act on your own Outlook mailbox and calendar through Microsoft Graph, s
 | `mail-authenticate` | always on | Start sign-in: returns a URL and a one-time code |
 | `mail-auth-status` | always on | Sign-in state, granted permissions, and what each tool group can do |
 | `mail-logout` | always on | Sign out and delete the cached sign-in |
-| `mail-list-folders` | always on | Top-level folders with unread and total counts |
-| `mail-list-categories` | always on | The categories defined in your mailbox, with their colours |
-| `mail-list-messages` | always on | Messages in a folder, newest first, with filters (unread, sender, dates, attachments) |
-| `mail-search-messages` | always on | Search the whole mailbox (text or KQL) |
-| `mail-get-message` | always on | One message with its body as text and its attachment list |
-| `mail-get-conversation` | always on | Every message in a thread, oldest first |
-| `mail-download-attachment` | always on | Save an attachment to the download folder |
+| `mail-list-folders` | `OUTLOOK_ENABLE_MAIL_READ` (on unless `false`) | Top-level folders with unread and total counts |
+| `mail-list-categories` | `OUTLOOK_ENABLE_MAIL_READ` (on unless `false`) | The categories defined in your mailbox, with their colours |
+| `mail-list-messages` | `OUTLOOK_ENABLE_MAIL_READ` (on unless `false`) | Messages in a folder, newest first, with filters (unread, sender, dates, attachments) |
+| `mail-search-messages` | `OUTLOOK_ENABLE_MAIL_READ` (on unless `false`) | Search the whole mailbox (text or KQL) |
+| `mail-get-message` | `OUTLOOK_ENABLE_MAIL_READ` (on unless `false`) | One message with its body as text and its attachment list |
+| `mail-get-conversation` | `OUTLOOK_ENABLE_MAIL_READ` (on unless `false`) | Every message in a thread, oldest first |
+| `mail-download-attachment` | `OUTLOOK_ENABLE_MAIL_READ` (on unless `false`) | Save an attachment to the download folder |
 | `mail-create-draft` | `OUTLOOK_ENABLE_DRAFTS` | New draft (nothing is sent) |
 | `mail-create-reply-draft` | `OUTLOOK_ENABLE_DRAFTS` | Reply or reply-all draft, your text above the quoted thread |
 | `mail-create-forward-draft` | `OUTLOOK_ENABLE_DRAFTS` | Forward draft with an optional note |
@@ -33,11 +33,11 @@ Read and act on your own Outlook mailbox and calendar through Microsoft Graph, s
 | `mail-send-draft` | `OUTLOOK_ENABLE_SEND` | Send an existing draft (real mail, cannot be undone) |
 | `mail-send` | `OUTLOOK_ENABLE_SEND` | Compose and send in one step (real mail, cannot be undone) |
 | `mail-delete-message` | `OUTLOOK_ENABLE_DELETE` | Move a message to Deleted Items (recoverable); needs `confirm: true` |
-| `calendar-list-calendars` | always on | Your calendars and the shared ones you have added |
-| `calendar-list-events` | always on (`OUTLOOK_ENABLE_CALENDAR_SHARED` for a colleague's) | Events in a date range |
-| `calendar-get-event` | always on (`OUTLOOK_ENABLE_CALENDAR_SHARED` for a colleague's) | One event in full |
-| `calendar-get-schedule` | always on | Free/busy for several people, even if they share nothing |
-| `calendar-find-meeting-times` | always on | Suggested slots when everyone is free |
+| `calendar-list-calendars` | `OUTLOOK_ENABLE_CALENDAR_READ` (on unless `false`) | Your calendars and the shared ones you have added |
+| `calendar-list-events` | `OUTLOOK_ENABLE_CALENDAR_READ` (on unless `false`); `OUTLOOK_ENABLE_CALENDAR_SHARED` for a colleague's | Events in a date range |
+| `calendar-get-event` | `OUTLOOK_ENABLE_CALENDAR_READ` (on unless `false`); `OUTLOOK_ENABLE_CALENDAR_SHARED` for a colleague's | One event in full |
+| `calendar-get-schedule` | `OUTLOOK_ENABLE_CALENDAR_READ` (on unless `false`) | Free/busy for several people, even if they share nothing |
+| `calendar-find-meeting-times` | `OUTLOOK_ENABLE_CALENDAR_READ` (on unless `false`) | Suggested slots when everyone is free |
 | `calendar-create-event` | `OUTLOOK_ENABLE_CALENDAR_WRITE`, or `_INVITE` with attendees | An appointment, or a meeting (invitations go out at once) |
 | `calendar-update-event` | `OUTLOOK_ENABLE_CALENDAR_WRITE`, or `_INVITE` with attendees | Change an event you organise |
 | `calendar-cancel-event` | `OUTLOOK_ENABLE_CALENDAR_WRITE`, or `_INVITE` with attendees | Cancel a meeting you organise, or delete your own appointment |
@@ -56,6 +56,8 @@ Read and act on your own Outlook mailbox and calendar through Microsoft Graph, s
       "env": {
         "OUTLOOK_TENANT_ID": "your-azure-tenant-id",
         "OUTLOOK_CLIENT_ID": "your-app-client-id",
+        "OUTLOOK_ENABLE_MAIL_READ": "true",
+        "OUTLOOK_ENABLE_CALENDAR_READ": "true",
         "OUTLOOK_ENABLE_DRAFTS": "false",
         "OUTLOOK_ENABLE_WRITE": "false",
         "OUTLOOK_ENABLE_CATEGORIES": "false",
@@ -78,6 +80,8 @@ Read and act on your own Outlook mailbox and calendar through Microsoft Graph, s
 |---|---|---|
 | `OUTLOOK_TENANT_ID` | required | Your Microsoft Entra tenant id |
 | `OUTLOOK_CLIENT_ID` | required | Application (client) id of the Outlook app registration |
+| `OUTLOOK_ENABLE_MAIL_READ` | on | Reading mail: folders, messages, search, conversations, attachments, categories. On while unset; set `false` for a calendar-only setup |
+| `OUTLOOK_ENABLE_CALENDAR_READ` | on | Reading your own calendar, free/busy and meeting-time suggestions. On while unset; set `false` for a mail-only setup |
 | `OUTLOOK_ENABLE_DRAFTS` | follows `OUTLOOK_ENABLE_WRITE` | Creating, changing and attaching to drafts. While unset it follows `OUTLOOK_ENABLE_WRITE`, so older configurations behave as before. Set `true` with send off for an agent that prepares mail but cannot send it |
 | `OUTLOOK_ENABLE_WRITE` | `false` | Mark read, move, flag |
 | `OUTLOOK_ENABLE_CATEGORIES` | `false` | Adding and removing categories on messages; independent of write, so it can be on while mark read, move and flag stay off |
@@ -91,7 +95,7 @@ Read and act on your own Outlook mailbox and calendar through Microsoft Graph, s
 | `OUTLOOK_ENABLE_CALENDAR_DELEGATE` | `false` | Changing a calendar you are a delegate on |
 | `OUTLOOK_TIME_ZONE` | your machine's zone | Time zone (e.g. `Europe/London`) for times you give without one |
 
-Only the exact string `true` turns a switch on. A switched-off tool still appears and, when called, says which variable enables it.
+Only the exact string `true` turns a switch on. The two read switches are the exception in one direction: they are also on while unset, and any other value, such as `false`, turns them off. A switched-off tool still appears and, when called, says which variable enables it.
 
 ## App registration
 

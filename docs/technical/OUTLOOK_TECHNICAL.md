@@ -50,6 +50,8 @@ Services are created on first use, so the server starts and lists its tools with
 |---|---|---|
 | `OUTLOOK_TENANT_ID` | required | Entra tenant id. |
 | `OUTLOOK_CLIENT_ID` | required | App registration with "Allow public client flows" on and delegated mail permissions. |
+| `OUTLOOK_ENABLE_MAIL_READ` | on while unset | Mail read group. Unset, empty or `true` is on; any other value is off. |
+| `OUTLOOK_ENABLE_CALENDAR_READ` | on while unset | Calendar read group (own calendar, `getSchedule`, `findMeetingTimes`). Same rule as mail read. Independent of `OUTLOOK_ENABLE_CALENDAR_SHARED`. |
 | `OUTLOOK_ENABLE_DRAFTS` | follows `OUTLOOK_ENABLE_WRITE` | Drafts group. While unset or empty it follows `OUTLOOK_ENABLE_WRITE`, so a configuration from before the split behaves as it did; once set, only its own value counts (`false` turns drafts off even with write on). |
 | `OUTLOOK_ENABLE_WRITE` | `false` | Write group (mark read, move, flag). |
 | `OUTLOOK_ENABLE_CATEGORIES` | `false` | Categories group (`mail-set-categories`). Independent of write in both directions. |
@@ -92,7 +94,7 @@ Only the exact string `true` enables a switch (`TRUE`, `1` and unset are all off
 
 | Group | Needs any of | Switch |
 |---|---|---|
-| read | `Mail.Read`, `Mail.ReadWrite` | none |
+| read | `Mail.Read`, `Mail.ReadWrite` | `OUTLOOK_ENABLE_MAIL_READ` (on while unset) |
 | drafts | `Mail.ReadWrite` | `OUTLOOK_ENABLE_DRAFTS` (follows `OUTLOOK_ENABLE_WRITE` while unset) |
 | write | `Mail.ReadWrite` | `OUTLOOK_ENABLE_WRITE` |
 | categories | `Mail.ReadWrite` | `OUTLOOK_ENABLE_CATEGORIES` |
@@ -123,7 +125,9 @@ The drafts entry also carries `followsWrite` (whether `OUTLOOK_ENABLE_DRAFTS` is
 
 <tool-group name="read">
 
-### Read (always on)
+### Read (`OUTLOOK_ENABLE_MAIL_READ`, on unless set to anything but `true`)
+
+Each read method checks the switch before any Graph call, so the CLI is held to it too. Draft tools are not affected: a reply draft reads the quoted thread under the drafts switch.
 
 | Tool | Parameters | Behaviour |
 |---|---|---|
@@ -201,17 +205,19 @@ The five draft tools form the drafts group; mark read, move and flag form the wr
 
 **Permissions.** `Calendars.ReadWrite` covers the user's own calendar and `getSchedule`. `Calendars.ReadWrite.Shared` covers colleagues' shared calendars, delegate calendars and `findMeetingTimes`; it does not cover the user's own calendar, so both are needed. `OnlineMeetings.ReadWrite` is needed only for `recordAutomatically`. `mail-auth-status` reports each calendar group under `access.calendar`.
 
+**Reads.** Every read of the user's own calendar, `getSchedule` and `findMeetingTimes` needs `OUTLOOK_ENABLE_CALENDAR_READ`, which is on while unset ("read" in the Switch column below). A colleague's calendar needs `OUTLOOK_ENABLE_CALENDAR_SHARED` instead.
+
 **Switches depend on what a call does, not on which tool it is.** On the user's own calendar, a change that notifies nobody needs `OUTLOOK_ENABLE_CALENDAR_WRITE` and a change that notifies anyone needs `OUTLOOK_ENABLE_CALENDAR_INVITE`. On a calendar the user is a delegate on (`calendarOwner` set), every change needs `OUTLOOK_ENABLE_CALENDAR_DELEGATE`, plus invite when it notifies. Graph sends invitations, updates and cancellations the moment the call is made; there is no draft meeting. Update and cancel first refuse when no switch could allow the change, then read the event (one `GET`) to learn whether it has attendees, then check the exact switch before changing anything. Every change result says who was notified, or `No one was notified.` The attendee check is on the event, not on the fields changed: setting only `recordAutomatically` on a meeting with attendees still needs `OUTLOOK_ENABLE_CALENDAR_INVITE`, although Graph notifies nobody for that change. This is deliberate; do not loosen it.
 
 **Times.** A time without `Z` or an offset is read in `OUTLOOK_TIME_ZONE` and sent to Graph as UTC (`{ dateTime, timeZone: 'UTC' }`). Reads send `Prefer: outlook.timezone="<zone>"`; each event returns the zone its times are in. **Verified live on 2026-09-29:** create, read, move and delete of an own appointment (no one notified); invite, move and cancel of a one-attendee Teams meeting (the attendee notified each time); `getSchedule`, `findMeetingTimes`, `calendar-list-calendars` and reading a colleague's shared calendar. Reads came back in the IANA zone requested (`Europe/London`), so `Prefer: outlook.timezone` accepts IANA names. A read seconds after create already carried the Teams join URL. Accept and a `tentativelyAccept` with `proposedNewTime` were verified the same day; Outlook sent the organiser a "New Time Proposed" message carrying the comment. Not yet exercised live: `recordAutomatically`, delegate calendars.
 
 | Tool | Parameters | Switch | Behaviour |
 |---|---|---|---|
-| `calendar-list-calendars` | none | none | `GET /me/calendars`. |
-| `calendar-list-events` | `start`, `end`, `user?`, `top?` (default 50, max 200) | shared when `user` is set | `GET /me/calendarView` or `/users/{user}/calendarView`, oldest first. Each occurrence is listed; `seriesMasterId` names its series. |
-| `calendar-get-event` | `eventId`, `user?` | shared when `user` is set | One event with attendee responses; the body is wrapped as untrusted content. |
-| `calendar-get-schedule` | `people`, `start`, `end`, `intervalMinutes?` (default 30) | none | `POST /me/calendar/getSchedule`. Works for anyone in the organisation; subjects only where their settings allow. |
-| `calendar-find-meeting-times` | `attendees`, `durationMinutes`, `start`, `end`, `maxCandidates?` | none | `POST /me/findMeetingTimes`, working hours, every attendee required. Needs `Calendars.ReadWrite.Shared`. |
+| `calendar-list-calendars` | none | read | `GET /me/calendars`. |
+| `calendar-list-events` | `start`, `end`, `user?`, `top?` (default 50, max 200) | read; shared when `user` is set | `GET /me/calendarView` or `/users/{user}/calendarView`, oldest first. Each occurrence is listed; `seriesMasterId` names its series. |
+| `calendar-get-event` | `eventId`, `user?` | read; shared when `user` is set | One event with attendee responses; the body is wrapped as untrusted content. |
+| `calendar-get-schedule` | `people`, `start`, `end`, `intervalMinutes?` (default 30) | read | `POST /me/calendar/getSchedule`. Works for anyone in the organisation; subjects only where their settings allow. |
+| `calendar-find-meeting-times` | `attendees`, `durationMinutes`, `start`, `end`, `maxCandidates?` | read | `POST /me/findMeetingTimes`, working hours, every attendee required. Needs `Calendars.ReadWrite.Shared`. |
 | `calendar-create-event` | `subject`, `start`, `end`, `attendees?`, `optionalAttendees?`, `location?`, `body?`, `teamsMeeting?`, `recordAutomatically?`, `showAs?`, `calendarOwner?` | write, or invite with attendees | `POST .../events`. A meeting with attendees gets a Teams link unless `teamsMeeting` is false. |
 | `calendar-update-event` | `eventId` plus any field to change; `attendees` replaces the list | write, or invite when the event has or gets attendees | `PATCH .../events/{id}` with only the fields given. An occurrence id changes one occurrence; a `seriesMasterId` changes the series. Refuses meetings the user does not organise. |
 | `calendar-cancel-event` | `eventId`, `comment?` | invite with attendees, else write | With attendees: `POST .../events/{id}/cancel` with the comment. Without: `DELETE .../events/{id}`, which moves it to Deleted Items. `permanentDelete` is never called. Refuses meetings the user does not organise. |
