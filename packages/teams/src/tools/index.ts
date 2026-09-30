@@ -32,6 +32,8 @@ import {
   registerSearchMessagesTool,
   registerGetChannelMessagesDeltaTool,
 } from './search.js';
+import { registerDownloadMessageAttachmentsTool } from './attachments.js';
+import { registerSendGroupMessageTool, registerAddChatMemberTool } from './group-chats.js';
 
 export function registerAllTools(server: any, ctx: ServiceContext): void {
   // Authentication tools
@@ -70,11 +72,18 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerFindUserTool(server, ctx);
   registerSendDirectMessageTool(server, ctx);
 
+  // Group chat tools
+  registerSendGroupMessageTool(server, ctx);
+  registerAddChatMemberTool(server, ctx);
+
   // Search and delta tools
   registerSearchMessagesTool(server, ctx);
   registerGetChannelMessagesDeltaTool(server, ctx);
 
-  console.error("teams tools registered: 26 tools");
+  // Attachment tools
+  registerDownloadMessageAttachmentsTool(server, ctx);
+
+  console.error("teams tools registered: 29 tools");
 }
 
 export { registerAuthenticateTool, registerAuthStatusTool, registerLogoutTool } from './authenticate.js';
@@ -107,3 +116,5 @@ export {
   registerSearchMessagesTool,
   registerGetChannelMessagesDeltaTool,
 } from './search.js';
+export { registerDownloadMessageAttachmentsTool } from './attachments.js';
+export { registerSendGroupMessageTool, registerAddChatMemberTool } from './group-chats.js';

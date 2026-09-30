@@ -5,6 +5,8 @@ import { TeamsService } from './services/teams-service.js';
 import { MessageService } from './services/message-service.js';
 import { PeopleService } from './services/people-service.js';
 import { SearchService } from './services/search-service.js';
+import { AttachmentService } from './services/attachment-service.js';
+import { GroupChatService } from './services/group-chat-service.js';
 import type { TeamsConfig } from './types.js';
 import type { ServiceContext } from './types.js';
 
@@ -15,6 +17,8 @@ export function createServiceContext(): ServiceContext {
   let messageService: MessageService | null = null;
   let peopleService: PeopleService | null = null;
   let searchService: SearchService | null = null;
+  let attachmentService: AttachmentService | null = null;
+  let groupChatService: GroupChatService | null = null;
 
   function getService(): TeamsService {
     if (!service) {
@@ -87,10 +91,26 @@ export function createServiceContext(): ServiceContext {
     return searchService;
   }
 
+  function getAttachmentService(): AttachmentService {
+    if (!attachmentService) {
+      attachmentService = new AttachmentService(getService());
+    }
+    return attachmentService;
+  }
+
+  function getGroupChatService(): GroupChatService {
+    if (!groupChatService) {
+      groupChatService = new GroupChatService(getService());
+    }
+    return groupChatService;
+  }
+
   return {
     get teams() { return getService(); },
     get messages() { return getMessageService(); },
     get people() { return getPeopleService(); },
     get search() { return getSearchService(); },
+    get attachments() { return getAttachmentService(); },
+    get groupChats() { return getGroupChatService(); },
   };
 }

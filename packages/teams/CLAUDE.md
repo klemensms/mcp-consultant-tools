@@ -4,9 +4,9 @@
 
 Microsoft Teams integration for reading, sending and managing channel messages and chats. Originally built for automated release announcements; extended in v35 so an agent can read and act on Teams on the user's behalf.
 
-- **Tools:** 26 tools
+- **Tools:** 29 tools
 - **Authentication:** Device Code (default, personal credentials) or Client Credentials (app-only)
-- **Services:** `TeamsService` (auth, discovery, channel sends), `MessageService` (message reads, replies, chats, channel delta), `PeopleService` (directory lookup, direct messaging) and `SearchService` (keyword search). All three share `TeamsService`'s authenticated Graph client rather than owning auth, so there is one token cache and one sign-in for the package.
+- **Services:** `TeamsService` (auth, discovery, channel sends), `MessageService` (message reads, replies, chats, channel delta), `PeopleService` (directory lookup, direct messaging), `SearchService` (keyword search), `AttachmentService` (saving a message's images and files) and `GroupChatService` (group messages, adding chat members). All five share `TeamsService`'s authenticated Graph client rather than owning auth, so there is one token cache and one sign-in for the package.
 
 ## Scope Boundary (HARD RULE)
 
@@ -57,6 +57,11 @@ Verified against the Graph v1.0 permission tables, these are reachable on the se
 | `POST /chats` (create one-on-one) | `Chat.Create` (`Chat.ReadWrite` is higher) |
 | `GET .../messages/delta` | `ChannelMessage.Read.All` |
 | `POST /search/query` (`chatMessage`) | see the search note below |
+| `GET /chats/{c}/messages/{m}/hostedContents/{id}/$value` | `Chat.Read` (`Chat.ReadWrite` is higher) |
+| `GET /teams/{t}/channels/{c}/messages/{m}/hostedContents/{id}/$value` | `ChannelMessage.Read.All` |
+| `POST /chats` (create group) | `Chat.Create` (`Chat.ReadWrite` is higher) |
+| `POST /chats/{c}/members` | `ChatMember.ReadWrite` (`Chat.ReadWrite` is higher) |
+| `GET /shares/{u!id}/driveItem` | `Files.ReadWrite` (no read-only form; not requested - see the files note below) |
 
 Deliberately **not** implemented, and why:
 
@@ -64,6 +69,8 @@ Deliberately **not** implemented, and why:
 - **Team/channel administration** - out of scope entirely: no creating channels, no managing members, no changing team settings.
 
 **Search permission note.** The Graph reference lists `Chat.Read` for `entityTypes: ["chatMessage"]`, which is *not* consented. Graph does not enforce that list literally - live testing on 2026-08-12 returned 200 with real hits on `Chat.ReadWrite` alone. `search-messages` is built on that observed behaviour rather than the documented table, so if Graph ever tightens enforcement this is the first tool to break, and the fix is a scope request, not a code change.
+
+**Files note.** `download-message-attachments` reaches a shared file through `/shares`, which Graph documents as needing `Files.ReadWrite`, `Files.ReadWrite.All` or `Sites.ReadWrite.All` - there is no read-only form. It is **not** in `DEVICE_CODE_SCOPES` and must not be added, for exactly the `ChannelMessage.ReadWrite` reason above. Where a registration has one consented it arrives in `scp` anyway and the file downloads work; where it has none, images still download and each file fails with a message naming the scope. Verified live 2026-09-29 on `Sites.ReadWrite.All`. The tool only makes GETs, but the grant itself is broad, so treat it as write access to every site the user can reach when deciding whether to consent it.
 
 **Channel `delta` behaviour**, confirmed the same day: `/beta/` also works and adds `hasReplies`. Pages via `@odata.nextLink`. `$deltatoken=latest` is **not** honoured, so a cold start must page to the end of history before Graph issues a `deltaLink` - which is why `get-channel-messages-delta` bounds the walk with `maxPages` and returns **no** deltaLink when it stops early. The v1.0 response is undocumented but real, so it is read defensively.
 
@@ -392,6 +399,36 @@ Searches display name, `mail` and `userPrincipalName`. Returns each match's name
 
 **Two guards against duplicate chats, not one.** The lookup (`/me/chats?$filter=chatType eq 'oneOnOne'&$expand=members`, matched on member `userId`) runs first so the result can honestly report `chatExisted` - whether the message landed in your existing thread or opened a new one. The backstop is Graph itself: it documents that only one one-on-one chat can exist between two people and that `POST /chats` **returns the existing chat rather than creating a second one**. So a missed lookup costs an inaccurate `chatExisted` label, never a duplicate thread. The lookup is bounded at 5 pages for that reason - `CHAT_LOOKUP_MAX_PAGES` (5) × `CHAT_PAGE_SIZE` (50) = **250 chats**, past which `chatExisted` starts reading `false` for threads that exist.
 
+### Group Chat Tools
+
+`GroupChatService` (`src/services/group-chat-service.ts`). People are resolved through the same `resolveDirectoryUser()` as `send-direct-message` and @-mentions, so the ambiguity refusal and the guest-by-exact-address rule apply to every name here too.
+
+#### send-group-message
+
+```typescript
+{ to: string[], message: string, topic?: string, format?: "text" | "markdown" }   // to: 2-20 people
+```
+
+One message to several people, by name or email. You are added automatically; naming yourself or the same person twice is ignored, and fewer than two other people is refused with a pointer to `send-direct-message`.
+
+**Everything resolves before anything happens.** Every recipient and every @-mention in the body is resolved first; if any name fails - no match, several matches, a guest named by name - nothing is created or sent, and the error lists each failure. A half-built chat, or a message that reached some of the people and not the rest, is the outcome this prevents.
+
+**A group chat is not deduplicated by Graph, so the lookup is the only guard.** Unlike a one-on-one chat, `POST /chats` with `chatType: group` creates a new chat on every call, even for the same people. The service walks `/me/chats?$filter=chatType eq 'group'&$expand=members,lastMessagePreview&$orderby=lastMessagePreview/createdDateTime desc` and reuses the most recently active chat whose members are **exactly** you plus the recipients - a chat with one extra or one missing person is a different audience and never matches. Graph applies the filter after paging, so each 50-chat page covers every chat type; `GROUP_LOOKUP_MAX_PAGES` (10) means the 500 most recent chats are searched, and a miss past that creates a second chat with the same people. Expanded members are capped at 25, which is one reason `to` is capped at 20. Verified live 2026-09-29 against three real group chats: each was found from its own member list, a topic match worked, and the same list minus one person matched none of them.
+
+**Topic rule:** without a `topic`, any group chat with exactly these people is reused, named or not. With one, only a chat of that name (case-insensitive) is reused; otherwise a new chat is created with that name.
+
+**Roles:** an in-tenant guest (`#EXT#` UPN) must be given the `guest` role - Graph's rule - and everyone else is an `owner`, as the Teams client does.
+
+#### add-chat-member
+
+```typescript
+{ chatId: string, person: string, shareHistory?: "none" | "all" | number }   // number: days, 1-365
+```
+
+`POST /chats/{c}/members`. Reads the chat first: **a one-on-one chat is refused** with nothing changed, because it cannot take a third person (Teams starts a new group chat instead) - the error points at `send-group-message`. Someone already in the chat is reported as such, with no call made. **No history is shared by default**: `visibleHistoryStartDateTime` is omitted, which Graph documents as sharing none; `"all"` sends `0001-01-01T00:00:00Z`, and a number sends that many days back.
+
+**If you run a hook that asks for approval before outbound sends, gate both.** `send-group-message` is caught by any rule keyed on `send` in the tool name; `add-chat-member` is not, and needs its own matcher, because adding a person notifies them and, with `shareHistory`, lets them read earlier messages. Gate the CLI forms too.
+
 ### Search and Delta Tools
 
 #### search-messages
@@ -449,15 +486,42 @@ Both post as the signed-in user and return `204 No Content`. `reactionType` is r
 { chatId: string, messageId: string, reactionType?: ..., action?: ... }
 ```
 
+### Attachment Tools
+
+#### download-message-attachments
+
+```typescript
+{
+  messageId: string,
+  chatId?: string,     // a chat message; omit for a channel message
+  teamId?: string,     // channel message (optional if default set)
+  channelId?: string,  // channel message (optional if default set)
+  replyId?: string,    // a reply inside a channel thread; refused with chatId
+  outputDir?: string   // default: {os.tmpdir()}/mcp-teams-attachments/{messageId}/
+}
+```
+
+Saves every pasted image and shared file of one message and returns each absolute path. Reads render these as `[image: ...]` and `[attachment: name - url]`; this is the tool that fetches the content.
+
+**Two routes, because the two kinds live in unrelated places.** An image is a Graph `hostedContents` item referenced by `<img src>` in the body, fetched with the Graph client on the message's own scope. A file is a `reference` entry in `attachments[]` pointing at the sender's OneDrive or the team's SharePoint, resolved through `/shares/u!{base64url(contentUrl)}/driveItem` and then downloaded from the item's pre-authenticated `@microsoft.graph.downloadUrl`. See the files note under Scope Boundary for what that needs.
+
+**The token only goes to `graph.microsoft.com`**, compared exactly, so a lookalike host never receives it; an image hosted anywhere else is skipped. File bytes come from the pre-authenticated URL with **no** `Authorization` header. `/shares` is only called for a `sharepoint.com` URL.
+
+**`responseType(ResponseType.RAW)` does not throw on an error status.** It returns the `Response` whatever happened, so a 404 image arrives as `ok: false`; the service checks `ok` itself. Confirmed live - an unchecked raw response would write a Graph error body to disk as `image-1.png`.
+
+**Per item: downloaded, skipped (not a file - quoted reply, forwarded message, card, link, folder) or failed**, and one failure never stops the rest. A 403 from `/shares` cannot say whether the user lacks access to the file or the registration lacks the scope, so the reason names both rather than the package's usual re-authenticate advice. Seen live: a colleague's personal-OneDrive file linked into a channel came back 403 `accessDenied` while files beside it downloaded.
+
+**Files are treated as confidential.** The default folder is under the system temp directory, outside every repo and synced folder; it is created `0700` and each file `0600`. An existing file is never overwritten - a clash becomes `Report (2).pdf`, written with the `wx` flag - and sender-supplied names lose any directory component, so `../../x` saves as `x`. The folder is created only when the first item is saved.
+
 ## Typical Usage Flow
 
 ### Device Code (Personal Credentials)
 
 1. **First time:** Call `authenticate` → get URL/code → sign in browser
 2. **Discover:** `list-teams` → `list-channels`, or `list-chats`; `find-user` to identify a person
-3. **Read:** `get-channel-messages` / `get-chat-messages`, then `get-message-replies` on any thread worth expanding
+3. **Read:** `get-channel-messages` / `get-chat-messages`, then `get-message-replies` on any thread worth expanding, and `download-message-attachments` for a message's images or files
 4. **Find:** `search-messages` when you don't know where something was said; `get-channel-messages-delta` to catch up on a channel you already have a deltaLink for
-5. **Act:** `send-direct-message` to DM by name, `reply-to-message`, `send-channel-message`, `send-chat-message`, `mark-chat-read`
+5. **Act:** `send-direct-message` to DM by name, `send-group-message` to message several people, `add-chat-member`, `reply-to-message`, `send-channel-message`, `send-chat-message`, `mark-chat-read`
 6. **Token expired:** nothing to do - it renews silently from the cached refresh token
 7. **Refresh token expired or revoked:** `auth-status` reports `expired`; call `authenticate` again
 
@@ -490,7 +554,7 @@ Callers write `@[Name or email]` inline in the message. `src/mentions.ts` resolv
 
 **Both halves or neither.** Graph needs an `<at id="N">` element in the body AND a `mentions[]` entry with the same `id` carrying the resolved AAD user id. An `<at>` with no matching entry renders as a literal tag in the Teams client; an entry with no `<at>` notifies nobody. `buildOutboundMessage()` is the only thing that builds either, so they cannot drift.
 
-**All four outbound paths go through it** - `send-channel-message`, `reply-to-message`, `send-chat-message`, `send-direct-message`. This is why `TeamsService.sendChannelMessage()` now takes raw content plus `format` instead of pre-converted HTML: the MCP tool and the CLI were each calling `markdownToHtml` themselves, so wiring mentions in one and not the other was the likely bug. `src/services/__tests__/outbound-mentions.test.ts` enumerates the four paths in a `describe.each` table for exactly that reason - **if a fifth send path is added, add it there**, because a per-service test cannot catch "works everywhere except reply-to-message".
+**All five outbound paths go through it** - `send-channel-message`, `reply-to-message`, `send-chat-message`, `send-direct-message`, `send-group-message`. This is why `TeamsService.sendChannelMessage()` now takes raw content plus `format` instead of pre-converted HTML: the MCP tool and the CLI were each calling `markdownToHtml` themselves, so wiring mentions in one and not the other was the likely bug. `src/services/__tests__/outbound-mentions.test.ts` enumerates the five paths in a `describe.each` table for exactly that reason - **if a sixth send path is added, add it there**, because a per-service test cannot catch "works everywhere except reply-to-message".
 
 **Resolution is the same code as `send-direct-message`** - `resolveDirectoryUser()`, module-level in `people-service.ts` rather than a method, because `PeopleService` depends on `TeamsService` and `TeamsService` owns one of the four send paths; a method would be a cycle. So an ambiguous mention behaves like an ambiguous DM recipient: reported with candidates, **message not sent**. An unresolvable marker names itself in the error (`Could not resolve the mention @[Ghost Person]`).
 
@@ -587,6 +651,15 @@ mcp-teams-cli react-to-channel-message <messageId> --type heart
 mcp-teams-cli react-to-channel-message <messageId> -r <replyId>
 mcp-teams-cli react-to-chat-message <chatId> <messageId> --remove
 mcp-teams-cli react-to-chat-message <chatId> <messageId> --action remove   # same thing, MCP spelling
+
+# Group chats
+mcp-teams-cli send-group-message "Agenda attached" --to "Jane Doe" jsmith@example.com
+mcp-teams-cli send-group-message "Kick-off" --to "Jane Doe" "John Smith" --topic "Project kick-off"
+mcp-teams-cli add-chat-member <chatId> "Jane Doe" --history 7     # none (default), all, or days
+
+# Attachments
+mcp-teams-cli download-message-attachments <messageId> --chat-id <chatId>
+mcp-teams-cli download-message-attachments <messageId> -t <teamId> -c <channelId> -r <replyId> -o ~/Downloads/teams
 ```
 
 Add `--json` for raw JSON. **Read** responses are also written to `.context/.mcp-teams-cache/` under the current working directory, because an agent greps that instead of re-running the call.

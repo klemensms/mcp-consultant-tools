@@ -122,3 +122,8 @@ export const CHAT_ID_EXAMPLES = [
   { label: "Group or meeting chat", value: "19:561082c0f3f847a58069deb8eb300807@thread.v2" },
   { label: "One-on-one chat", value: "19:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee_11111111-2222-3333-4444-555555555555@unq.gbl.spaces" },
 ];
+
+export const OUTPUT_DIR_EXAMPLES = [
+  { label: "A folder the user will open", value: "/Users/jdoe/Downloads/teams" },
+  { label: "Project scratch folder", value: "/Users/jdoe/repo/my-project/.context/attachments" },
+];

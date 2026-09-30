@@ -1,8 +1,8 @@
 /**
  * @-mention coverage across every outbound path
  *
- * The failure this file exists to prevent is a MISSED PATH. There are four ways to
- * send a message from this package, they live on three different services, and
+ * The failure this file exists to prevent is a MISSED PATH. There are five ways to
+ * send a message from this package, they live on four different services, and
  * three of them were wired for mentions in one change - so the realistic bug is
  * not "mentions are broken" but "mentions work everywhere except reply-to-message".
  * A per-service test would not catch that; enumerating the paths in one table does.
@@ -14,6 +14,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { TeamsService } from '../teams-service.js';
 import { MessageService } from '../message-service.js';
 import { PeopleService } from '../people-service.js';
+import { GroupChatService } from '../group-chat-service.js';
 
 const TENANT_ID = '11111111-2222-3333-4444-555555555555';
 const CLIENT_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
@@ -22,6 +23,7 @@ const CHANNEL_ID = '19:4a95f7d8db4c4e7fae857bcebe0623e6@thread.tacv2';
 const CHAT_ID = '19:561082c0f3f847a58069deb8eb300807@thread.v2';
 const MY_USER_ID = '99999999-8888-7777-6666-555555555555';
 const JANE_ID = 'aaaaaaaa-1111-2222-3333-444444444444';
+const JOHN_ID = 'bbbbbbbb-1111-2222-3333-444444444444';
 
 vi.mock('node:os', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:os')>();
@@ -44,6 +46,13 @@ const JANE = {
   userPrincipalName: 'jdoe@example.com',
 };
 
+const JOHN = {
+  id: JOHN_ID,
+  displayName: 'John Smith',
+  mail: 'jsmith@example.com',
+  userPrincipalName: 'jsmith@example.com',
+};
+
 /**
  * Graph stub that answers the directory lookup, the one-on-one chat lookup, and
  * records every POST so the message payload can be inspected.
@@ -58,16 +67,18 @@ function createStub() {
         header: () => chain,
         count: () => chain,
         select: () => chain,
-        // Term-aware: only Jane exists. The directory must answer per-term rather
+        // Term-aware: only Jane (and John, the second group recipient) exist. The directory must answer per-term rather
         // than always returning her, because send-direct-message resolves the
         // RECIPIENT before it resolves any mention in the body - a stub that says
         // yes to everything cannot tell those two lookups apart.
         search: (s: string) => { term = (/displayName:([^"]+)"/.exec(s)?.[1] ?? '').toLowerCase(); return chain; },
         top: () => chain,
+        orderby: () => chain,
         filter: () => chain,
         expand: () => chain,
         get: async () => {
           if (path === '/users') {
+            if (term === 'john smith') return { value: [JOHN] };
             return { value: term === 'jane doe' || term === 'jdoe@example.com' ? [JANE] : [] };
           }
           if (path === '/me/chats') {
@@ -112,7 +123,7 @@ function createTeamsService(client: any): TeamsService {
   return service;
 }
 
-/** The four ways a message leaves this package. */
+/** The five ways a message leaves this package. */
 const OUTBOUND_PATHS: Array<{
   name: string;
   send: (teams: TeamsService, content: string) => Promise<unknown>;
@@ -133,6 +144,10 @@ const OUTBOUND_PATHS: Array<{
     name: 'send-direct-message',
     send: (teams, content) => new PeopleService(teams).sendDirectMessage('Jane Doe', content, {}),
   },
+  {
+    name: 'send-group-message',
+    send: (teams, content) => new GroupChatService(teams).sendGroupMessage(['Jane Doe', 'John Smith'], content, {}),
+  },
 ];
 
 describe.each(OUTBOUND_PATHS)('$name', ({ send }) => {
@@ -142,7 +157,7 @@ describe.each(OUTBOUND_PATHS)('$name', ({ send }) => {
 
     await send(teams, '@[Jane Doe] please review');
 
-    // The message POST is the last one - send-direct-message may POST a chat first.
+    // The message POST is the last one - the direct and group sends may POST a chat first.
     const message = stub.posts[stub.posts.length - 1];
 
     expect(message.body.body.contentType).toBe('html');

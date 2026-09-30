@@ -6,6 +6,8 @@ import type { TeamsService } from './services/teams-service.js';
 import type { MessageService } from './services/message-service.js';
 import type { PeopleService } from './services/people-service.js';
 import type { SearchService } from './services/search-service.js';
+import type { AttachmentService } from './services/attachment-service.js';
+import type { GroupChatService, ShareHistory } from './services/group-chat-service.js';
 
 /**
  * Service context shared between MCP server entry points.
@@ -16,6 +18,8 @@ export interface ServiceContext {
   readonly messages: MessageService;
   readonly people: PeopleService;
   readonly search: SearchService;
+  readonly attachments: AttachmentService;
+  readonly groupChats: GroupChatService;
 }
 
 /**
@@ -283,6 +287,28 @@ export interface DirectMessageResult extends SendMessageResult {
 }
 
 /**
+ * Result of a message sent to several people at once.
+ */
+export interface GroupMessageResult extends SendMessageResult {
+  chatId: string;
+  /** False when a new group chat was created for this message. */
+  chatExisted: boolean;
+  recipients: UserInfo[];
+  topic?: string;
+}
+
+/**
+ * Result of adding a person to a chat.
+ */
+export interface AddChatMemberResult {
+  chatId: string;
+  member: UserInfo;
+  added: boolean;
+  alreadyMember: boolean;
+  history: ShareHistory;
+}
+
+/**
  * One hit from a message search.
  *
  * Search hits do NOT carry the `from.user.displayName` shape the message
@@ -362,4 +388,37 @@ export interface AuthResult {
   status: "authenticated" | "failed" | "timeout";
   message: string;
   expiresAt?: string;
+}
+
+/**
+ * One image or file saved to disk from a message.
+ */
+export interface DownloadedAttachment {
+  kind: "image" | "file";
+  name: string;
+  /** Absolute path of the saved file. */
+  path: string;
+  size: number;
+  contentType?: string;
+}
+
+/**
+ * An attachment that was left alone on purpose, or that could not be saved.
+ */
+export interface UndownloadedAttachment {
+  name: string;
+  reason: string;
+}
+
+/**
+ * Result of downloading every image and file a message carries.
+ */
+export interface AttachmentDownloadResult {
+  messageId: string;
+  outputDir: string;
+  downloaded: DownloadedAttachment[];
+  /** Not files - quoted replies, cards, links, folders. Nothing went wrong. */
+  skipped: UndownloadedAttachment[];
+  /** Files or images that should have downloaded and did not. */
+  failed: UndownloadedAttachment[];
 }
