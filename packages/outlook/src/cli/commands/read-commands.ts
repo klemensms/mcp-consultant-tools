@@ -1,7 +1,7 @@
 /**
  * Outlook read CLI commands.
  *
- * Maps mail-list-folders, mail-list-messages, mail-search-messages,
+ * Maps mail-list-folders, mail-list-categories, mail-list-messages, mail-search-messages,
  * mail-get-message, mail-get-conversation and mail-download-attachment.
  */
 
@@ -14,7 +14,7 @@ const int = (value: string) => parseInt(value, 10);
 
 function summaryLines(messages: MailSummary[]): string {
   return messages
-    .map((m) => `  ${m.isRead ? ' ' : '*'} ${m.receivedDateTime}  ${m.from}  ${m.subject}${m.hasAttachments ? '  [att]' : ''}\n      id: ${m.id}`)
+    .map((m) => `  ${m.isRead ? ' ' : '*'} ${m.receivedDateTime}  ${m.from}  ${m.subject}${m.hasAttachments ? '  [att]' : ''}${m.categories.length ? `  [${m.categories.join(', ')}]` : ''}\n      id: ${m.id}`)
     .join('\n');
 }
 
@@ -31,6 +31,23 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
           fileName: 'folders',
           data: folders,
           summary: folders.map((f) => `  ${f.displayName}  (${f.unreadItemCount} unread / ${f.totalItemCount})  id: ${f.id}`).join('\n'),
+        });
+      } catch (error) {
+        handleCliError(error);
+      }
+    });
+
+  // mail-list-categories
+  program
+    .command('categories')
+    .description('List the categories defined in the mailbox, with their colours')
+    .action(async () => {
+      try {
+        const categories = await ctx.mail.listCategories();
+        outputResult({
+          fileName: 'categories',
+          data: categories,
+          summary: categories.map((c) => `  ${c.displayName}  (${c.color})`).join('\n'),
         });
       } catch (error) {
         handleCliError(error);

@@ -3,7 +3,7 @@ import {
   CALENDAR_SWITCHES, describeCalendarAccess, describeMailAccess, draftsEnabled, permissionHint, requireCalendarSwitch,
 } from '../permissions.js';
 
-const SWITCHES = ['OUTLOOK_ENABLE_WRITE', 'OUTLOOK_ENABLE_DRAFTS', 'OUTLOOK_ENABLE_SEND', 'OUTLOOK_ENABLE_DELETE'];
+const SWITCHES = ['OUTLOOK_ENABLE_WRITE', 'OUTLOOK_ENABLE_DRAFTS', 'OUTLOOK_ENABLE_SEND', 'OUTLOOK_ENABLE_DELETE', 'OUTLOOK_ENABLE_CATEGORIES'];
 
 afterEach(() => {
   for (const name of SWITCHES) delete process.env[name];
@@ -46,6 +46,7 @@ describe('describeMailAccess', () => {
     expect(access.write).toMatchObject({ switch: 'OUTLOOK_ENABLE_WRITE', enabled: false });
     expect(access.send).toMatchObject({ switch: 'OUTLOOK_ENABLE_SEND', enabled: true });
     expect(access.delete).toMatchObject({ switch: 'OUTLOOK_ENABLE_DELETE', enabled: false });
+    expect(access.categories).toMatchObject({ switch: 'OUTLOOK_ENABLE_CATEGORIES', enabled: false, needs: ['Mail.ReadWrite'] });
   });
 });
 

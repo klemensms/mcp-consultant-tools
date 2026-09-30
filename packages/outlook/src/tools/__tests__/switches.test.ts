@@ -12,7 +12,7 @@ import { CalendarReadService } from '../../services/calendar-read-service.js';
 import { CalendarWriteService } from '../../services/calendar-write-service.js';
 import { recordingGraph } from '../../__tests__/graph-recorder.js';
 
-const SWITCHES = ['OUTLOOK_ENABLE_WRITE', 'OUTLOOK_ENABLE_DRAFTS', 'OUTLOOK_ENABLE_SEND', 'OUTLOOK_ENABLE_DELETE'];
+const SWITCHES = ['OUTLOOK_ENABLE_WRITE', 'OUTLOOK_ENABLE_DRAFTS', 'OUTLOOK_ENABLE_SEND', 'OUTLOOK_ENABLE_DELETE', 'OUTLOOK_ENABLE_CATEGORIES'];
 
 const DRAFT_TOOLS: Record<string, object> = {
   'mail-create-draft': { to: ['jdoe@example.com'], subject: 's', body: 'b' },
@@ -25,6 +25,9 @@ const WRITE_TOOLS: Record<string, object> = {
   'mail-mark-read': { messageId: 'M', isRead: true },
   'mail-move-message': { messageId: 'M', destinationFolder: 'archive' },
   'mail-flag-message': { messageId: 'M', flag: 'flagged' },
+};
+const CATEGORY_TOOLS: Record<string, object> = {
+  'mail-set-categories': { messageId: 'M', add: ['Contoso'] },
 };
 const SEND_TOOLS: Record<string, object> = {
   'mail-send-draft': { draftId: 'D' },
@@ -73,6 +76,12 @@ describe('switches off', () => {
   it('refuses every write tool naming OUTLOOK_ENABLE_WRITE', async () => {
     const { handlers, requests } = setup();
     await expectRefused(handlers, requests, WRITE_TOOLS, 'OUTLOOK_ENABLE_WRITE');
+  });
+
+  it('refuses the category tool naming OUTLOOK_ENABLE_CATEGORIES, even with OUTLOOK_ENABLE_WRITE on', async () => {
+    process.env.OUTLOOK_ENABLE_WRITE = 'true';
+    const { handlers, requests } = setup();
+    await expectRefused(handlers, requests, CATEGORY_TOOLS, 'OUTLOOK_ENABLE_CATEGORIES');
   });
 
   it('refuses every send tool naming OUTLOOK_ENABLE_SEND', async () => {

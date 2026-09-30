@@ -10,6 +10,7 @@ import type { GraphAttachment } from '../download.js';
 import type {
   ListMessagesOptions,
   MailAttachmentInfo,
+  MailCategory,
   MailDetail,
   MailFolder,
   MailSummary,
@@ -17,7 +18,7 @@ import type {
 } from '../types.js';
 
 const SUMMARY_FIELDS = [
-  'id', 'conversationId', 'subject', 'from', 'receivedDateTime', 'isRead', 'hasAttachments', 'bodyPreview', 'webLink',
+  'id', 'conversationId', 'subject', 'from', 'receivedDateTime', 'isRead', 'hasAttachments', 'bodyPreview', 'webLink', 'categories',
 ];
 const DETAIL_FIELDS = [...SUMMARY_FIELDS, 'toRecipients', 'ccRecipients', 'body'];
 const ATTACHMENT_EXPAND = 'attachments($select=id,name,size,contentType,isInline)';
@@ -94,6 +95,7 @@ function toSummary(message: any): MailSummary {
     hasAttachments: Boolean(message.hasAttachments),
     preview: message.bodyPreview ?? '',
     webLink: message.webLink ?? '',
+    categories: Array.isArray(message.categories) ? message.categories : [],
   };
 }
 
@@ -140,6 +142,16 @@ export class MailReadService {
         unreadItemCount: f.unreadItemCount ?? 0,
         totalItemCount: f.totalItemCount ?? 0,
       }));
+    } catch (error) {
+      throw permissionHint(error, 'read');
+    }
+  }
+
+  /** The categories defined in the mailbox (Outlook's master category list), so callers use real names. */
+  async listCategories(): Promise<MailCategory[]> {
+    try {
+      const response = await this.graph.api('/me/outlook/masterCategories').get();
+      return (response.value ?? []).map((c: any) => ({ displayName: c.displayName ?? '', color: c.color ?? 'none' }));
     } catch (error) {
       throw permissionHint(error, 'read');
     }

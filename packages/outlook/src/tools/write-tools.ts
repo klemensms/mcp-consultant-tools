@@ -1,6 +1,7 @@
 /**
  * Outlook draft tools (OUTLOOK_ENABLE_DRAFTS, which follows OUTLOOK_ENABLE_WRITE
- * while unset) and mailbox organising (OUTLOOK_ENABLE_WRITE). Nothing here
+ * while unset), mailbox organising (OUTLOOK_ENABLE_WRITE) and categories
+ * (OUTLOOK_ENABLE_CATEGORIES). Nothing here
  * sends mail. Registered whatever the switch says, so an agent can
  * see them and tell the user which variable turns them on.
  */
@@ -174,6 +175,27 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
         return json({ messageId, flag });
       } catch (error: any) {
         return fail('flag message', error);
+      }
+    }
+  );
+
+  server.tool(
+    'mail-set-categories',
+    'Add and remove named categories on one message. Categories you do not name are kept: the current list is read and merged ' +
+      'before it is written back. Names match without regard to case. Use a name from mail-list-categories; a new name is ' +
+      'set on the message but gets no colour. Returns the categories before and after.' +
+      ' Off unless OUTLOOK_ENABLE_CATEGORIES=true (independent of OUTLOOK_ENABLE_WRITE).',
+    {
+      messageId: z.string(),
+      add: z.array(z.string()).optional().describe('Category names to add, e.g. ["Follow-up"]'),
+      remove: z.array(z.string()).optional().describe('Category names to remove, e.g. ["Contoso"]'),
+    },
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    async (args: any) => {
+      try {
+        return json(await ctx.write.setCategories(args));
+      } catch (error: any) {
+        return fail('set categories', error);
       }
     }
   );

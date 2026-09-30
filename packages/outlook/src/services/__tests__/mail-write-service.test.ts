@@ -14,7 +14,7 @@ import { MailWriteService } from '../mail-write-service.js';
 import { graphError, recordingGraph } from '../../__tests__/graph-recorder.js';
 import type { RecordedRequest } from '../../__tests__/graph-recorder.js';
 
-const SWITCHES = ['OUTLOOK_ENABLE_WRITE', 'OUTLOOK_ENABLE_DRAFTS', 'OUTLOOK_ENABLE_SEND', 'OUTLOOK_ENABLE_DELETE'];
+const SWITCHES = ['OUTLOOK_ENABLE_WRITE', 'OUTLOOK_ENABLE_DRAFTS', 'OUTLOOK_ENABLE_SEND', 'OUTLOOK_ENABLE_DELETE', 'OUTLOOK_ENABLE_CATEGORIES'];
 const NOTE = expect.stringMatching(/nothing was sent/i);
 const OUTLOOK_REPLY = '<html><body><p>My reply</p><div id="appendonsend"></div><hr><div id="divRplyFwdMsg">From: Jane Doe</div><div>Original text</div></body></html>';
 const QUOTED = '<html><body><div id="quoted">From: Jane Doe<br>Original text</div></body></html>';
@@ -319,6 +319,88 @@ describe('organising', () => {
     const { svc, requests } = service();
     await svc.flagMessage('MSG1', 'complete');
     expect(requests[0].body).toEqual({ flag: { flagStatus: 'complete' } });
+  });
+});
+
+describe('setCategories', () => {
+  beforeEach(() => {
+    process.env.OUTLOOK_ENABLE_CATEGORIES = 'true';
+  });
+
+  /** Answers the read of the current categories; the PATCH gets an empty 200. */
+  const withCurrent = (current: string[]) => (r: RecordedRequest) =>
+    r.method === 'GET' ? { id: 'MSG1', categories: current } : undefined;
+
+  it('reads the current categories, then patches them with the new one added and the existing ones kept', async () => {
+    const { svc, requests } = service(withCurrent(['Blue category', 'Contoso']));
+    const result = await svc.setCategories({ messageId: 'MSG1', add: ['Follow-up'] });
+    expect(requests).toHaveLength(2);
+    expect(requests[0]).toMatchObject({ method: 'GET', path: '/me/messages/MSG1', query: { $select: 'categories' } });
+    expect(requests[1]).toMatchObject({ method: 'PATCH', path: '/me/messages/MSG1' });
+    expect(requests[1].body).toEqual({ categories: ['Blue category', 'Contoso', 'Follow-up'] });
+    expect(result).toEqual({
+      messageId: 'MSG1',
+      before: ['Blue category', 'Contoso'],
+      categories: ['Blue category', 'Contoso', 'Follow-up'],
+      changed: true,
+    });
+  });
+
+  it('removes only the named category and leaves the others untouched', async () => {
+    const { svc, requests } = service(withCurrent(['Blue category', 'Contoso', 'Follow-up']));
+    const result = await svc.setCategories({ messageId: 'MSG1', remove: ['Contoso'] });
+    expect(requests[1].body).toEqual({ categories: ['Blue category', 'Follow-up'] });
+    expect(result.categories).toEqual(['Blue category', 'Follow-up']);
+  });
+
+  it('adds and removes in one call', async () => {
+    const { svc, requests } = service(withCurrent(['Blue category', 'Contoso']));
+    await svc.setCategories({ messageId: 'MSG1', add: ['Follow-up'], remove: ['Blue category'] });
+    expect(requests[1].body).toEqual({ categories: ['Contoso', 'Follow-up'] });
+  });
+
+  it('matches names without regard to case and keeps the existing spelling', async () => {
+    const { svc, requests } = service(withCurrent(['Contoso']));
+    const result = await svc.setCategories({ messageId: 'MSG1', add: ['contoso'] });
+    expect(result).toMatchObject({ categories: ['Contoso'], changed: false });
+    expect(requests).toHaveLength(1);
+    const removed = service(withCurrent(['Contoso', 'Follow-up']));
+    await removed.svc.setCategories({ messageId: 'MSG1', remove: ['CONTOSO'] });
+    expect(removed.requests[1].body).toEqual({ categories: ['Follow-up'] });
+  });
+
+  it('sends no PATCH when nothing would change', async () => {
+    const { svc, requests } = service(withCurrent(['Contoso']));
+    const result = await svc.setCategories({ messageId: 'MSG1', remove: ['Follow-up'] });
+    expect(result).toEqual({ messageId: 'MSG1', before: ['Contoso'], categories: ['Contoso'], changed: false });
+    expect(requests).toHaveLength(1);
+  });
+
+  it('treats a message with no categories as an empty list', async () => {
+    const { svc, requests } = service((r) => (r.method === 'GET' ? { id: 'MSG1' } : undefined));
+    await svc.setCategories({ messageId: 'MSG1', add: ['Contoso'] });
+    expect(requests[1].body).toEqual({ categories: ['Contoso'] });
+  });
+
+  it('refuses with nothing to add or remove, and a name in both lists, before any Graph call', async () => {
+    const { svc, requests } = service(withCurrent([]));
+    await expect(svc.setCategories({ messageId: 'MSG1' })).rejects.toThrow(/add or remove/);
+    await expect(svc.setCategories({ messageId: 'MSG1', add: [' '], remove: [] })).rejects.toThrow(/add or remove/);
+    await expect(svc.setCategories({ messageId: 'MSG1', add: ['Contoso'], remove: ['contoso'] })).rejects.toThrow(/both/);
+    expect(requests).toHaveLength(0);
+  });
+
+  it('refuses while OUTLOOK_ENABLE_CATEGORIES is off, and is not opened by OUTLOOK_ENABLE_WRITE', async () => {
+    delete process.env.OUTLOOK_ENABLE_CATEGORIES;
+    const { svc, requests } = service(withCurrent([]));
+    await expect(svc.setCategories({ messageId: 'MSG1', add: ['Contoso'] })).rejects.toThrow(/Set OUTLOOK_ENABLE_CATEGORIES=true/);
+    expect(requests).toHaveLength(0);
+  });
+
+  it('explains a 403 as the missing Mail.ReadWrite permission', async () => {
+    const { svc } = service(() => graphError(403, 'ErrorAccessDenied', 'Access is denied.'));
+    const error = await svc.setCategories({ messageId: 'MSG1', add: ['Contoso'] }).catch((e) => e);
+    expect(error.message).toMatch(/Mail\.ReadWrite/);
   });
 });
 

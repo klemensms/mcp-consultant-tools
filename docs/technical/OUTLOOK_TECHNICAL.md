@@ -10,7 +10,7 @@
 `@mcp-consultant-tools/outlook` gives an agent delegated (signed in as the user) access to that user's own Outlook mailbox and calendar, and to colleagues' calendars shared with them, through Microsoft Graph. Device code is the only sign-in mode: app-only mail access would reach every mailbox in the tenant and is out of scope.
 
 - **Binaries:** `mcp-outlook` (MCP server, stdio) and `mcp-outlook-cli` (CLI with the same capabilities).
-- **Tools:** 29. Twenty prefixed `mail-` in six groups (auth, read, drafts, write, send, delete) and nine prefixed `calendar-` (five reads, four changes).
+- **Tools:** 31. Twenty-two prefixed `mail-` in seven groups (auth, read, drafts, write, categories, send, delete) and nine prefixed `calendar-` (five reads, four changes).
 - **Switches:** drafts, write, send and delete are each off by default; drafts follows write while its own switch is unset. Read is the only group that works out of the box.
 - **Auth plumbing:** `@mcp-consultant-tools/m365-core` (shared with the SharePoint server's device-code mode).
 
@@ -32,7 +32,7 @@ packages/outlook/src/
 ├── download.ts               # saveFileAttachment (file attachments only)
 ├── services/
 │   ├── mail-read-service.ts  # folders, list, search, get, conversation, attachment
-│   ├── mail-write-service.ts # drafts, attachments, mark read, move, flag, delete
+│   ├── mail-write-service.ts # drafts, attachments, mark read, move, flag, categories, delete
 │   └── mail-send-service.ts  # send draft, send new
 ├── tools/                    # Thin MCP wrappers: auth, read, write, send, delete
 └── cli/commands/             # Thin Commander wrappers: auth, read, write, send
@@ -52,6 +52,7 @@ Services are created on first use, so the server starts and lists its tools with
 | `OUTLOOK_CLIENT_ID` | required | App registration with "Allow public client flows" on and delegated mail permissions. |
 | `OUTLOOK_ENABLE_DRAFTS` | follows `OUTLOOK_ENABLE_WRITE` | Drafts group. While unset or empty it follows `OUTLOOK_ENABLE_WRITE`, so a configuration from before the split behaves as it did; once set, only its own value counts (`false` turns drafts off even with write on). |
 | `OUTLOOK_ENABLE_WRITE` | `false` | Write group (mark read, move, flag). |
+| `OUTLOOK_ENABLE_CATEGORIES` | `false` | Categories group (`mail-set-categories`). Independent of write in both directions. |
 | `OUTLOOK_ENABLE_SEND` | `false` | Send group. Independent of write: send works with write off, and write does not unlock send. |
 | `OUTLOOK_ENABLE_DELETE` | `false` | Delete group. |
 | `OUTLOOK_DOWNLOAD_DIR` | `~/Downloads/mcp-outlook` | Attachment download folder, created with mode 0700. |
@@ -94,6 +95,7 @@ Only the exact string `true` enables a switch (`TRUE`, `1` and unset are all off
 | read | `Mail.Read`, `Mail.ReadWrite` | none |
 | drafts | `Mail.ReadWrite` | `OUTLOOK_ENABLE_DRAFTS` (follows `OUTLOOK_ENABLE_WRITE` while unset) |
 | write | `Mail.ReadWrite` | `OUTLOOK_ENABLE_WRITE` |
+| categories | `Mail.ReadWrite` | `OUTLOOK_ENABLE_CATEGORIES` |
 | send | `Mail.Send` | `OUTLOOK_ENABLE_SEND` |
 | delete | `Mail.ReadWrite` | `OUTLOOK_ENABLE_DELETE` |
 
@@ -126,11 +128,14 @@ The drafts entry also carries `followsWrite` (whether `OUTLOOK_ENABLE_DRAFTS` is
 | Tool | Parameters | Behaviour |
 |---|---|---|
 | `mail-list-folders` | none | Top-level folders with `unreadItemCount` and `totalItemCount`. |
+| `mail-list-categories` | none | `GET /me/outlook/masterCategories`: the mailbox's defined categories as `{ displayName, color }`. Microsoft documents `MailboxSettings.Read` for this call; verified live 2026-09-29 to succeed on a sign-in carrying `Mail.ReadWrite` and no `MailboxSettings` permission. A 403 gets the read-group hint. |
 | `mail-list-messages` | `folder?`, `top?`, `unreadOnly?`, `from?`, `since?`, `until?`, `hasAttachments?` | `GET /me/mailFolders/{folder}/messages`, folder default `inbox` (well-known name or id). `top` default 20, capped at 50. Filters combine into one `$filter`, ordered `receivedDateTime desc`. Returns summaries. |
 | `mail-search-messages` | `query`, `top?` | `$search="<query>"` across the mailbox, relevance order. Supports KQL (`from:`, `subject:`, `hasattachments:true`, `received>=2026-09-01`). |
 | `mail-get-message` | `id` | Sender, recipients, body as text, attachment list with ids. Body wrapped as untrusted content. |
 | `mail-get-conversation` | `conversationId` | Every message in the thread, oldest first, each with body and attachments. |
 | `mail-download-attachment` | `messageId`, `attachmentId` | Saves a file attachment to `OUTLOOK_DOWNLOAD_DIR` and returns the absolute path, size and type. |
+
+Every summary (list, search, get, conversation) carries `categories`, the category names on the message, `[]` when it has none.
 
 **Graph query rules the read service follows** (each is pinned by a unit test):
 
@@ -158,6 +163,12 @@ The five draft tools form the drafts group; mark read, move and flag form the wr
 | `mail-mark-read` | `messageId`, `isRead` | Sets the read state. |
 | `mail-move-message` | `messageId`, `destinationFolder` | Well-known name (`archive`, `deleteditems`, `inbox`, `drafts`) or a folder id. The message gets a new id, which is returned. |
 | `mail-flag-message` | `messageId`, `flag` | `flagged`, `complete` or `notFlagged`. |
+
+### Categories (`OUTLOOK_ENABLE_CATEGORIES=true`)
+
+| Tool | Parameters | Behaviour |
+|---|---|---|
+| `mail-set-categories` | `messageId`, `add?`, `remove?` | Graph's `PATCH /me/messages/{id}` with `categories` replaces the whole list, so the service reads the current list (`$select=categories`), removes the names in `remove`, appends the names in `add` that are not already there, and patches the merged list. Categories the caller did not name are always kept. Names match without regard to case and an existing name keeps its spelling. No `PATCH` is sent when nothing would change. Refused before any call with nothing to add or remove, or with a name in both lists. Returns `{ messageId, before, categories, changed }`. A name not in `mail-list-categories` is set on the message but has no colour. Verified live 2026-09-29: added an existing category to a message that had one, read it back, removed it, and the message ended with exactly its original category. |
 
 `format` is `markdown` (default), `text` or `html`. Markdown and HTML are converted to sanitised HTML with the same allowlist as the Teams server; a `<script>` never reaches the posted body. Recipients are email addresses, validated before any call; there is no directory lookup, because the registration carries no directory permission.
 
@@ -259,9 +270,10 @@ Other Graph errors are passed through with their message.
 | CLI | MCP tool |
 |---|---|
 | `auth login` / `auth status` / `auth logout` | `mail-authenticate` (blocks up to 15 minutes until sign-in completes) / `mail-auth-status` / `mail-logout` |
-| `folders`, `list`, `search`, `get`, `thread`, `attachment` | the six read tools |
+| `folders`, `categories`, `list`, `search`, `get`, `thread`, `attachment` | the seven read tools |
 | `draft`, `reply`, `forward`, `update-draft`, `attach` (`--file` or `--url`) | the five draft tools |
 | `mark-read`, `move`, `flag` | the three write tools |
+| `set-categories` (`--add`, `--remove`, comma-separated) | `mail-set-categories` |
 | `send-draft`, `send` | the two send tools |
 | `delete` (needs `--confirm`) | `mail-delete-message` |
 | `calendar calendars`, `events`, `event`, `schedule`, `find-times` | the five calendar read tools |

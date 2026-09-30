@@ -1,7 +1,8 @@
 /**
  * Changing the mailbox without sending anything: drafts and draft attachments
  * (OUTLOOK_ENABLE_DRAFTS, which follows OUTLOOK_ENABLE_WRITE while unset),
- * mark read, move, flag (OUTLOOK_ENABLE_WRITE), and delete to Deleted Items
+ * mark read, move, flag (OUTLOOK_ENABLE_WRITE), categories
+ * (OUTLOOK_ENABLE_CATEGORIES), and delete to Deleted Items
  * (OUTLOOK_ENABLE_DELETE). The switches are checked here, not in the tool
  * layer, so the CLI is held to them as well.
  */
@@ -14,10 +15,12 @@ import { assertSafeLocalFile } from '../local-file-guard.js';
 import { escapeHtml, insertAboveQuote, prependToBody, toGraphMessage, toHtml, toRecipients } from './compose.js';
 import type { BodyFormat, ComposeInput } from './compose.js';
 import type { GraphClientProvider } from './mail-read-service.js';
+import type { CategoryChange } from '../types.js';
 
 const WRITE = 'OUTLOOK_ENABLE_WRITE';
 const DRAFTS = 'OUTLOOK_ENABLE_DRAFTS';
 const DELETE = 'OUTLOOK_ENABLE_DELETE';
+const CATEGORIES = 'OUTLOOK_ENABLE_CATEGORIES';
 
 /** Graph takes a file attachment inline up to 3 MB; above that it needs an upload session. */
 const INLINE_ATTACHMENT_LIMIT = 3 * 1024 * 1024;
@@ -72,7 +75,7 @@ export class MailWriteService {
     }
   }
 
-  private async call<T>(group: 'write' | 'drafts' | 'delete', run: () => Promise<T>): Promise<T> {
+  private async call<T>(group: 'write' | 'drafts' | 'categories' | 'delete', run: () => Promise<T>): Promise<T> {
     try {
       return await run();
     } catch (error) {
@@ -301,6 +304,45 @@ export class MailWriteService {
   async flagMessage(messageId: string, flag: 'flagged' | 'complete' | 'notFlagged'): Promise<void> {
     this.requireWrite();
     await this.call('write', () => this.graph.api(messagePath(messageId)).patch({ flag: { flagStatus: flag } }));
+  }
+
+  /**
+   * Add and remove named categories on one message. Graph's PATCH replaces the
+   * whole list, so the current list is read first and merged: categories the
+   * caller did not name are always kept. Names match without regard to case,
+   * as Outlook matches them, and an existing name keeps its spelling.
+   */
+  async setCategories(input: { messageId: string; add?: string[]; remove?: string[] }): Promise<CategoryChange> {
+    requireEnabled(CATEGORIES, 'Mail categories (add and remove)');
+    const clean = (names?: string[]) => (names ?? []).map((n) => n.trim()).filter(Boolean);
+    const add = clean(input.add);
+    const remove = clean(input.remove);
+    if (add.length === 0 && remove.length === 0) {
+      throw new Error('Give at least one category name to add or remove.');
+    }
+    const key = (name: string) => name.toLowerCase();
+    const removing = new Set(remove.map(key));
+    const both = add.filter((name) => removing.has(key(name)));
+    if (both.length > 0) {
+      throw new Error(`A category cannot be added and removed at once: ${both.join(', ')}. Name it in add or remove, not both.`);
+    }
+    return this.call('categories', async () => {
+      const current = await this.graph.api(messagePath(input.messageId)).select(['categories']).get();
+      const before: string[] = Array.isArray(current?.categories) ? current.categories : [];
+      const kept = before.filter((name) => !removing.has(key(name)));
+      const present = new Set(kept.map(key));
+      const added = add.filter((name) => {
+        if (present.has(key(name))) return false;
+        present.add(key(name));
+        return true;
+      });
+      const categories = [...kept, ...added];
+      const changed = categories.length !== before.length || categories.some((name, i) => name !== before[i]);
+      if (changed) {
+        await this.graph.api(messagePath(input.messageId)).patch({ categories });
+      }
+      return { messageId: input.messageId, before, categories, changed };
+    });
   }
 
   /**

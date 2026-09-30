@@ -15,6 +15,7 @@ Read and act on your own Outlook mailbox and calendar through Microsoft Graph, s
 | `mail-auth-status` | always on | Sign-in state, granted permissions, and what each tool group can do |
 | `mail-logout` | always on | Sign out and delete the cached sign-in |
 | `mail-list-folders` | always on | Top-level folders with unread and total counts |
+| `mail-list-categories` | always on | The categories defined in your mailbox, with their colours |
 | `mail-list-messages` | always on | Messages in a folder, newest first, with filters (unread, sender, dates, attachments) |
 | `mail-search-messages` | always on | Search the whole mailbox (text or KQL) |
 | `mail-get-message` | always on | One message with its body as text and its attachment list |
@@ -28,6 +29,7 @@ Read and act on your own Outlook mailbox and calendar through Microsoft Graph, s
 | `mail-mark-read` | `OUTLOOK_ENABLE_WRITE` | Mark a message read or unread |
 | `mail-move-message` | `OUTLOOK_ENABLE_WRITE` | Move a message to another folder |
 | `mail-flag-message` | `OUTLOOK_ENABLE_WRITE` | Flag, complete or clear a follow-up flag |
+| `mail-set-categories` | `OUTLOOK_ENABLE_CATEGORIES` | Add and remove categories on a message; categories you do not name are kept |
 | `mail-send-draft` | `OUTLOOK_ENABLE_SEND` | Send an existing draft (real mail, cannot be undone) |
 | `mail-send` | `OUTLOOK_ENABLE_SEND` | Compose and send in one step (real mail, cannot be undone) |
 | `mail-delete-message` | `OUTLOOK_ENABLE_DELETE` | Move a message to Deleted Items (recoverable); needs `confirm: true` |
@@ -56,6 +58,7 @@ Read and act on your own Outlook mailbox and calendar through Microsoft Graph, s
         "OUTLOOK_CLIENT_ID": "your-app-client-id",
         "OUTLOOK_ENABLE_DRAFTS": "false",
         "OUTLOOK_ENABLE_WRITE": "false",
+        "OUTLOOK_ENABLE_CATEGORIES": "false",
         "OUTLOOK_ENABLE_SEND": "false",
         "OUTLOOK_ENABLE_DELETE": "false",
         "OUTLOOK_DOWNLOAD_DIR": "",
@@ -77,6 +80,7 @@ Read and act on your own Outlook mailbox and calendar through Microsoft Graph, s
 | `OUTLOOK_CLIENT_ID` | required | Application (client) id of the Outlook app registration |
 | `OUTLOOK_ENABLE_DRAFTS` | follows `OUTLOOK_ENABLE_WRITE` | Creating, changing and attaching to drafts. While unset it follows `OUTLOOK_ENABLE_WRITE`, so older configurations behave as before. Set `true` with send off for an agent that prepares mail but cannot send it |
 | `OUTLOOK_ENABLE_WRITE` | `false` | Mark read, move, flag |
+| `OUTLOOK_ENABLE_CATEGORIES` | `false` | Adding and removing categories on messages; independent of write, so it can be on while mark read, move and flag stay off |
 | `OUTLOOK_ENABLE_SEND` | `false` | Sending; independent of write |
 | `OUTLOOK_ENABLE_DELETE` | `false` | Deleting to Deleted Items |
 | `OUTLOOK_DOWNLOAD_DIR` | `~/Downloads/mcp-outlook` | Where attachments are saved |

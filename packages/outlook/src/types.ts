@@ -18,6 +18,8 @@ export interface MailSummary {
   hasAttachments: boolean;
   preview: string;
   webLink: string;
+  /** Category names on the message, as Outlook shows them. */
+  categories: string[];
 }
 
 export interface MailAttachmentInfo {
@@ -34,6 +36,22 @@ export interface MailDetail extends MailSummary {
   /** Plain text, wrapped as untrusted email content. */
   bodyText: string;
   attachments: MailAttachmentInfo[];
+}
+
+export interface MailCategory {
+  displayName: string;
+  /** Graph colour preset, e.g. preset0; none when the category has no colour. */
+  color: string;
+}
+
+export interface CategoryChange {
+  messageId: string;
+  /** The categories the message had before the change. */
+  before: string[];
+  /** The categories it has now. */
+  categories: string[];
+  /** False when nothing needed changing, so no PATCH was sent. */
+  changed: boolean;
 }
 
 export interface MailFolder {

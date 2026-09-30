@@ -6,7 +6,7 @@
  */
 import { isEnabled, requireEnabled } from '@mcp-consultant-tools/m365-core';
 
-export type MailGroup = 'read' | 'write' | 'drafts' | 'send' | 'delete';
+export type MailGroup = 'read' | 'write' | 'drafts' | 'categories' | 'send' | 'delete';
 
 interface GroupRule {
   /** Any one of these covers the group. */
@@ -18,6 +18,7 @@ const RULES: Record<MailGroup, GroupRule> = {
   read: { needs: ['Mail.Read', 'Mail.ReadWrite'] },
   write: { needs: ['Mail.ReadWrite'], switch: 'OUTLOOK_ENABLE_WRITE' },
   drafts: { needs: ['Mail.ReadWrite'], switch: 'OUTLOOK_ENABLE_DRAFTS' },
+  categories: { needs: ['Mail.ReadWrite'], switch: 'OUTLOOK_ENABLE_CATEGORIES' },
   send: { needs: ['Mail.Send'], switch: 'OUTLOOK_ENABLE_SEND' },
   delete: { needs: ['Mail.ReadWrite'], switch: 'OUTLOOK_ENABLE_DELETE' },
 };
@@ -122,6 +123,7 @@ export function describeMailAccess(grantedScopes: string[]): Record<Exclude<Mail
       followsWrite: draftsFollowWrite(),
       attachFromLink: { needs: ATTACH_FROM_LINK_NEEDS, granted: hasAny(ATTACH_FROM_LINK_NEEDS) },
     },
+    categories: describe(RULES.categories),
     send: describe(RULES.send),
     delete: describe(RULES.delete),
   };

@@ -1,10 +1,11 @@
 /**
  * Outlook draft, write and delete CLI commands (OUTLOOK_ENABLE_DRAFTS,
- * OUTLOOK_ENABLE_WRITE, OUTLOOK_ENABLE_DELETE).
+ * OUTLOOK_ENABLE_WRITE, OUTLOOK_ENABLE_CATEGORIES, OUTLOOK_ENABLE_DELETE).
  *
  * Maps mail-create-draft, mail-create-reply-draft, mail-create-forward-draft,
  * mail-update-draft, mail-add-draft-attachment, mail-mark-read,
- * mail-move-message, mail-flag-message and mail-delete-message.
+ * mail-move-message, mail-flag-message, mail-set-categories and
+ * mail-delete-message.
  */
 
 import type { Command } from 'commander';
@@ -155,6 +156,23 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
       try {
         await ctx.write.flagMessage(opts.messageId, opts.flag);
         done(`Flag set to ${opts.flag}: ${opts.messageId}`, { messageId: opts.messageId, flag: opts.flag });
+      } catch (error) {
+        handleCliError(error);
+      }
+    });
+
+  // mail-set-categories
+  program
+    .command('set-categories')
+    .description('Add and remove categories on a message; categories not named are kept')
+    .requiredOption('--message-id <id>', 'Message id')
+    .option('--add <names>', 'Comma-separated category names to add', list)
+    .option('--remove <names>', 'Comma-separated category names to remove', list)
+    .action(async (opts: any) => {
+      try {
+        const result = await ctx.write.setCategories({ messageId: opts.messageId, add: opts.add, remove: opts.remove });
+        const now = result.categories.length ? result.categories.join(', ') : '(none)';
+        done(`${result.changed ? 'Categories now' : 'Unchanged'}: ${now}`, result);
       } catch (error) {
         handleCliError(error);
       }

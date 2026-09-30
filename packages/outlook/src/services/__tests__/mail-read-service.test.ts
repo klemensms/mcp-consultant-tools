@@ -19,7 +19,7 @@ import { MailReadService } from '../mail-read-service.js';
 import { recordingGraph, graphError } from '../../__tests__/graph-recorder.js';
 import type { RecordedRequest } from '../../__tests__/graph-recorder.js';
 
-const SUMMARY_SELECT = 'id,conversationId,subject,from,receivedDateTime,isRead,hasAttachments,bodyPreview,webLink';
+const SUMMARY_SELECT = 'id,conversationId,subject,from,receivedDateTime,isRead,hasAttachments,bodyPreview,webLink,categories';
 
 const MESSAGE = {
   id: 'AAMkAGI2TG93AAA=',
@@ -31,6 +31,7 @@ const MESSAGE = {
   hasAttachments: true,
   bodyPreview: 'Please see the attached budget.',
   webLink: 'https://outlook.office365.com/owa/?ItemID=AAMkAGI2TG93AAA%3D',
+  categories: ['Blue category', 'Contoso'],
 };
 
 function service(respond: (r: RecordedRequest) => unknown = () => ({ value: [MESSAGE] })) {
@@ -114,7 +115,15 @@ describe('listMessages', () => {
       hasAttachments: true,
       preview: 'Please see the attached budget.',
       webLink: MESSAGE.webLink,
+      categories: ['Blue category', 'Contoso'],
     });
+  });
+
+  it('gives a message without categories an empty list', async () => {
+    const { categories: _unused, ...plain } = MESSAGE;
+    const { svc } = service(() => ({ value: [plain] }));
+    const [summary] = await svc.listMessages({});
+    expect(summary.categories).toEqual([]);
   });
 
   it('turns a 403 into a message naming the permission and saying an administrator grants it', async () => {
@@ -220,5 +229,27 @@ describe('listFolders', () => {
     expect(requests[0].path).toBe('/me/mailFolders');
     expect(requests[0].query.$select).toBe('id,displayName,unreadItemCount,totalItemCount');
     expect(folders).toEqual([{ id: 'F1', displayName: 'Inbox', unreadItemCount: 3, totalItemCount: 40 }]);
+  });
+});
+
+describe('listCategories', () => {
+  it('reads the mailbox master category list and returns name and colour', async () => {
+    const { svc, requests } = service(() => ({
+      value: [
+        { id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', displayName: 'Contoso', color: 'preset0' },
+        { id: 'aaaaaaaa-bbbb-cccc-dddd-ffffffffffff', displayName: 'Follow-up', color: 'preset7' },
+      ],
+    }));
+    expect(await svc.listCategories()).toEqual([
+      { displayName: 'Contoso', color: 'preset0' },
+      { displayName: 'Follow-up', color: 'preset7' },
+    ]);
+    expect(requests[0]).toMatchObject({ method: 'GET', path: '/me/outlook/masterCategories' });
+  });
+
+  it('explains a 403 as a missing permission', async () => {
+    const { svc } = service(() => graphError(403, 'ErrorAccessDenied', 'Access is denied.'));
+    const error = await svc.listCategories().catch((e) => e);
+    expect(error.message).toMatch(/403 Forbidden/);
   });
 });

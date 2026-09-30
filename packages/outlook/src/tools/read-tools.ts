@@ -34,6 +34,21 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
   );
 
   server.tool(
+    'mail-list-categories',
+    'List the categories defined in the mailbox (name and colour), so mail-set-categories can use a name that already exists. ' +
+      'Every message summary also carries the categories set on that message.',
+    {},
+    { readOnlyHint: true, openWorldHint: true },
+    async () => {
+      try {
+        return json(await ctx.mail.listCategories());
+      } catch (error: any) {
+        return fail('list categories', error);
+      }
+    }
+  );
+
+  server.tool(
     'mail-list-messages',
     'List messages in a folder, newest first, as summaries (subject, sender, received time, read state, preview, id). ' +
       'Filters combine: unread only, sender, received since/until, has attachments.',

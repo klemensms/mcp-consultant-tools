@@ -12,8 +12,9 @@ Full reference: `docs/technical/OUTLOOK_TECHNICAL.md`. User guide: `docs/documen
 
 ## Rules
 
-- **Switches:** `OUTLOOK_ENABLE_DRAFTS` (drafts, reply, forward, update, attach; follows `OUTLOOK_ENABLE_WRITE` while unset, via `draftsEnabled()` in `permissions.ts`), `OUTLOOK_ENABLE_WRITE` (mark read, move, flag), `OUTLOOK_ENABLE_SEND`, `OUTLOOK_ENABLE_DELETE`, each checked before any Graph call. Send is independent of every other switch. A new non-read mail tool joins exactly one group; a calendar tool takes its group from what the call does (below).
+- **Switches:** `OUTLOOK_ENABLE_DRAFTS` (drafts, reply, forward, update, attach; follows `OUTLOOK_ENABLE_WRITE` while unset, via `draftsEnabled()` in `permissions.ts`), `OUTLOOK_ENABLE_WRITE` (mark read, move, flag), `OUTLOOK_ENABLE_CATEGORIES` (set categories; independent of write, so it can be on while write is off), `OUTLOOK_ENABLE_SEND`, `OUTLOOK_ENABLE_DELETE`, each checked before any Graph call. Send is independent of every other switch. A new non-read mail tool joins exactly one group; a calendar tool takes its group from what the call does (below).
 - **Every draft result says nothing was sent** (`NOTHING_SENT` in `mail-write-service.ts`). Keep it on any new draft tool.
+- **Categories are read, merged, then patched.** Graph's `PATCH` with `categories` replaces the whole list, so `setCategories` never writes a list it did not first read; a category the caller did not name must survive. Pinned by tests.
 - **Never `permanentDelete`.** Delete is `DELETE /me/messages/{id}`, which moves to Deleted Items. The absence is pinned by a test.
 - **Encode free text yourself.** The Graph client puts `.filter()` and `.search()` values into the URL unencoded. The read service encodes them; any new query code must too.
 - **Never put `$orderby` or `$filter` beside `$search`.** Graph rejects it.

@@ -31,6 +31,7 @@ npx -y --package=@mcp-consultant-tools/outlook mcp-outlook
         "OUTLOOK_CLIENT_ID": "your-app-client-id",
         "OUTLOOK_ENABLE_DRAFTS": "false",
         "OUTLOOK_ENABLE_WRITE": "false",
+        "OUTLOOK_ENABLE_CATEGORIES": "false",
         "OUTLOOK_ENABLE_SEND": "false",
         "OUTLOOK_ENABLE_DELETE": "false",
         "OUTLOOK_DOWNLOAD_DIR": "",
@@ -58,7 +59,7 @@ Open the URL, enter the code and sign in. Or call the `mail-authenticate` tool f
 
 ## Tools
 
-29 tools. 20 prefixed `mail-`: 3 auth, 6 read, 5 drafts (`OUTLOOK_ENABLE_DRAFTS`), 3 write (`OUTLOOK_ENABLE_WRITE`), 2 send (`OUTLOOK_ENABLE_SEND`), 1 delete (`OUTLOOK_ENABLE_DELETE`). 9 prefixed `calendar-`: 5 reads and 4 changes (`OUTLOOK_ENABLE_CALENDAR_WRITE`, `_INVITE`, `_SHARED`, `_DELEGATE`). Every tool has a matching `mcp-outlook-cli` command.
+31 tools. 22 prefixed `mail-`: 3 auth, 7 read, 5 drafts (`OUTLOOK_ENABLE_DRAFTS`), 3 write (`OUTLOOK_ENABLE_WRITE`), 1 categories (`OUTLOOK_ENABLE_CATEGORIES`), 2 send (`OUTLOOK_ENABLE_SEND`), 1 delete (`OUTLOOK_ENABLE_DELETE`). 9 prefixed `calendar-`: 5 reads and 4 changes (`OUTLOOK_ENABLE_CALENDAR_WRITE`, `_INVITE`, `_SHARED`, `_DELEGATE`). Every tool has a matching `mcp-outlook-cli` command.
 
 Guide: `docs/documentation/OUTLOOK.md`. Full reference: `docs/technical/OUTLOOK_TECHNICAL.md`.
 
