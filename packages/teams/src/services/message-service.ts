@@ -692,9 +692,10 @@ export function wrapGraphError(error: unknown, action: string): Error {
   if (statusCode === 403) {
     return new Error(
       `Failed to ${action}: ${message}\n\n` +
-        `This is a permissions failure. If you authenticated before this version was installed, ` +
-        `the cached token carries a narrower scope set - run 'logout' then 'authenticate' to get one ` +
-        `with the current scopes.`
+        `This is a permissions failure: the signed-in account, or the app registration, may not reach ` +
+        `this resource. Do not log out to fix it - logging out deletes the refresh token, and a silent ` +
+        `refresh already picks up any newly consented permission. Run 'auth-status', and check the user ` +
+        `can open the same chat or channel in Teams.`
     );
   }
 

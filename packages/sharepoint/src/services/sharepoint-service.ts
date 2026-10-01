@@ -45,7 +45,8 @@ export interface SharePointAuthStatus {
   mode: SharePointAuthMode;
   state: AuthStatus['state'] | 'not_needed';
   account?: string;
-  expiresAt?: string;
+  accessTokenExpiresAt?: string;
+  renewsAutomatically?: boolean;
   grantedScopes?: string[];
   capabilities?: { read: string; writeAndDelete: string };
   message: string;

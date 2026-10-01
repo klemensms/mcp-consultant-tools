@@ -180,3 +180,7 @@ mcp-spo-cli content create --drive-id <driveId> --folder-path /Reports --file-na
 ```
 
 Every read prints a summary and writes the full JSON to `.context/.mcp-spo-cache/`. With the global `--json` flag, stdout carries the full JSON alone and the cache path goes to stderr. `--no-cache` is accepted but ignored: reads always write the cache.
+
+## Sign-in
+
+- **Never let an agent sign out to renew.** Status reports `accessTokenExpiresAt` plus `renewsAutomatically`, never a bare `expiresAt`, and logout refuses without `confirm: true`. An agent once read the hourly access-token time as the sign-in deadline and logged out to renew, deleting the refresh token and forcing a new device code every hour. Keep both guards on any new sign-in tool, and never write an error hint that says to log out and sign in again.

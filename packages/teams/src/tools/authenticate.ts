@@ -7,6 +7,7 @@
  * - logout: Clear stored authentication
  */
 
+import { z } from "zod";
 import type { ServiceContext } from "../types.js";
 
 /**
@@ -94,7 +95,7 @@ export function registerAuthStatusTool(
 ): void {
   server.tool(
     "auth-status",
-    "Check the current Teams authentication status. Shows whether you're authenticated, the auth mode (client-credentials or device-code), and token expiration.",
+    "Check the current Teams authentication status: whether you are authenticated and the auth mode. A device-code sign-in renews itself automatically; the access-token time shown is not when the sign-in ends, and needs no action.",
     {
       // No parameters needed
     },
@@ -120,7 +121,7 @@ export function registerAuthStatusTool(
               text:
                 `${emoji} **Authentication Status: ${status.status}**\n\n` +
                 `**Mode:** ${status.authMode}\n` +
-                (status.expiresAt ? `**Expires:** ${status.expiresAt}\n` : "") +
+                (status.renewsAutomatically ? `**Sign-in:** renews automatically, no action needed\n` : "") +
                 `\n${status.message}`,
             },
           ],
@@ -150,13 +151,25 @@ export function registerLogoutTool(
 ): void {
   server.tool(
     "logout",
-    "Clear Teams authentication. Removes cached tokens. Use the 'authenticate' tool to sign in again.",
+    "Sign out of Teams completely: deletes the cached refresh token, so the next use needs a new device-code sign-in. " +
+      "Never use it to refresh or extend a sign-in; renewal is automatic. Needs confirm: true.",
     {
-      // No parameters needed
+      confirm: z.boolean().optional().describe("Must be true to sign out"),
     },
-    // Clears the local token cache (reversible via re-auth, no user/remote data destroyed); local-only.
-    { readOnlyHint: false, destructiveHint: false },
-    async () => {
+    // Deletes the cached refresh token: only a fresh device-code sign-in undoes it.
+    { readOnlyHint: false, destructiveHint: true },
+    async ({ confirm }: any = {}) => {
+      if (confirm !== true) {
+        return {
+          content: [{
+            type: "text",
+            text:
+              "Not logged out: logout needs confirm: true. You do not need to log out to renew the sign-in; it renews itself automatically. " +
+              "Log out only to switch accounts or remove the cached sign-in.",
+          }],
+          isError: true,
+        };
+      }
       try {
         await ctx.teams.logout();
 

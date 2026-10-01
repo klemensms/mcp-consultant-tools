@@ -13,7 +13,7 @@ Read and act on your own Outlook mailbox and calendar through Microsoft Graph, s
 |------|--------|-------------|
 | `mail-authenticate` | always on | Start sign-in: returns a URL and a one-time code |
 | `mail-auth-status` | always on | Sign-in state, granted permissions, and what each tool group can do |
-| `mail-logout` | always on | Sign out and delete the cached sign-in |
+| `mail-logout` | always on | Sign out and delete the cached sign-in; needs `confirm: true`. Never needed to renew: the sign-in renews itself |
 | `mail-list-folders` | `OUTLOOK_ENABLE_MAIL_READ` (on unless `false`) | Top-level folders with unread and total counts |
 | `mail-list-categories` | `OUTLOOK_ENABLE_MAIL_READ` (on unless `false`) | The categories defined in your mailbox, with their colours |
 | `mail-list-messages` | `OUTLOOK_ENABLE_MAIL_READ` (on unless `false`) | Messages in a folder, newest first, with filters (unread, sender, dates, attachments) |

@@ -149,6 +149,20 @@ describe('DelegatedGraphAuth', () => {
     expect(status.grantedScopes).toEqual(['User.Read', 'Mail.Read']);
   });
 
+  it('a signed-in status says the sign-in renews itself, and names no bare expiry an agent could read as a deadline', async () => {
+    const { auth, pca } = makeAuth();
+    const flow = stubDeviceCode(pca, jwt('User.Read'));
+    await auth.startDeviceCode();
+    const waiting = auth.waitForCompletion(5000);
+    flow.release();
+    const status = await waiting;
+    expect(status.renewsAutomatically).toBe(true);
+    expect(status.accessTokenExpiresAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(status).not.toHaveProperty('expiresAt');
+    expect(status.message).toMatch(/renews itself automatically/);
+    expect(status.message).toMatch(/must not sign out/);
+  });
+
   it('waitForCompletion reports a failed sign-in as not authenticated with the reason', async () => {
     const { auth, pca } = makeAuth();
     const flow = stubDeviceCode(pca);
@@ -232,5 +246,16 @@ describe('DelegatedGraphAuth', () => {
     } finally {
       fetchSpy.mockRestore();
     }
+  });
+});
+
+describe('logoutRefusal', () => {
+  it('refuses unless confirm is exactly true, and says signing out is never needed to renew', async () => {
+    const { logoutRefusal } = await import('../delegated-auth.js');
+    for (const value of [undefined, false, 'true', 1]) {
+      expect(logoutRefusal(value)).toMatch(/confirm: true/);
+      expect(logoutRefusal(value)).toMatch(/renews itself automatically/);
+    }
+    expect(logoutRefusal(true)).toBeNull();
   });
 });

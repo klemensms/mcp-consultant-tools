@@ -118,8 +118,8 @@ The drafts entry also carries `followsWrite` (whether `OUTLOOK_ENABLE_DRAFTS` is
 | Tool | Parameters | Behaviour |
 |---|---|---|
 | `mail-authenticate` | none | Starts a device-code sign-in and returns the URL and code at once; completion runs in the background. A second call while one is pending returns the same code. |
-| `mail-auth-status` | none | State, account, expiry, granted permissions and the per-group access table above. |
-| `mail-logout` | none | Removes the account and deletes the cache file. Signs the CLI out too. |
+| `mail-auth-status` | none | State, account, `accessTokenExpiresAt` with `renewsAutomatically: true`, granted permissions and the per-group access table above. The access-token time is when the hourly token is replaced silently, not when the sign-in ends. |
+| `mail-logout` | `confirm` | Refuses unless `confirm: true` (CLI: `--confirm`). Removes the account and deletes the cache file, refresh token included; signs the CLI out too. Never call it to renew or extend a sign-in: it deletes the refresh token, so the next use needs a new device code. |
 
 </tool-group>
 

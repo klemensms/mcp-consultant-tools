@@ -366,7 +366,14 @@ export type AuthStatus =
 export interface AuthStatusResponse {
   status: AuthStatus;
   authMode: AuthMode;
-  expiresAt?: string;
+  /**
+   * When the current access token lapses. It renews silently from the cached
+   * refresh token, so this is NOT when the sign-in ends. Deliberately not
+   * expiresAt, which agents read as a deadline and "renewed" by logging out.
+   */
+  accessTokenExpiresAt?: string;
+  /** True while a device-code sign-in is live: it renews itself and needs no action. */
+  renewsAutomatically?: boolean;
   message: string;
 }
 

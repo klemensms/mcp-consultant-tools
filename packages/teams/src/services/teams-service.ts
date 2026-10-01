@@ -77,6 +77,18 @@ const DEVICE_CODE_SCOPES = [
   "offline_access",
 ];
 
+/**
+ * Said on every signed-in status. An agent once read the hourly access-token
+ * time as the sign-in deadline and logged out to "renew", which deletes the
+ * refresh token and forces a new device code.
+ */
+function renewalNote(tokenExpirationTime: number): string {
+  return (
+    "The sign-in renews itself automatically from the cached refresh token, so nothing needs doing and you must not log out to renew it. " +
+    "The current access token is valid until " + new Date(tokenExpirationTime).toISOString() + " and is replaced silently."
+  );
+}
+
 /** Treat a token as expired this long before its real expiry. */
 const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
@@ -320,8 +332,9 @@ export class TeamsService {
       return {
         status: "authenticated",
         authMode: "device-code",
-        expiresAt: new Date(this.tokenExpirationTime).toISOString(),
-        message: "Authenticated. Token valid until " + new Date(this.tokenExpirationTime).toLocaleString(),
+        accessTokenExpiresAt: new Date(this.tokenExpirationTime).toISOString(),
+        renewsAutomatically: true,
+        message: "Authenticated. " + renewalNote(this.tokenExpirationTime),
       };
     }
 
@@ -339,10 +352,9 @@ export class TeamsService {
       return {
         status: "authenticated",
         authMode: "device-code",
-        expiresAt: new Date(this.tokenExpirationTime).toISOString(),
-        message:
-          "Authenticated (renewed silently from cached refresh token). Token valid until " +
-          new Date(this.tokenExpirationTime).toLocaleString(),
+        accessTokenExpiresAt: new Date(this.tokenExpirationTime).toISOString(),
+        renewsAutomatically: true,
+        message: "Authenticated (renewed silently from the cached refresh token). " + renewalNote(this.tokenExpirationTime),
       };
     }
 
@@ -391,7 +403,7 @@ export class TeamsService {
     if (this.accessToken && this.tokenExpirationTime > Date.now()) {
       return {
         status: "authenticated",
-        message: "Already authenticated. Token valid until " + new Date(this.tokenExpirationTime).toLocaleString(),
+        message: "Already authenticated. " + renewalNote(this.tokenExpirationTime),
         expiresAt: new Date(this.tokenExpirationTime).toISOString(),
       };
     }
@@ -400,9 +412,7 @@ export class TeamsService {
     if (await this.acquireTokenSilentIfPossible()) {
       return {
         status: "authenticated",
-        message:
-          "Already authenticated (renewed silently from cached refresh token). Token valid until " +
-          new Date(this.tokenExpirationTime).toLocaleString(),
+        message: "Already authenticated (renewed silently from the cached refresh token). " + renewalNote(this.tokenExpirationTime),
         expiresAt: new Date(this.tokenExpirationTime).toISOString(),
       };
     }

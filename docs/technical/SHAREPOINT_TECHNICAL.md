@@ -355,8 +355,8 @@ All eight work only in sign-in mode. In app-only mode the discovery and OneDrive
 | Tool | Parameters | Behaviour |
 |---|---|---|
 | `spo-authenticate` | none | Starts a device-code sign-in; returns the URL and code at once and completes in the background. |
-| `spo-auth-status` | none | Mode, state, account, expiry, granted scopes and what each capability needs. |
-| `spo-logout` | none | Removes the account and the cache file. |
+| `spo-auth-status` | none | Mode, state, account, `accessTokenExpiresAt` with `renewsAutomatically: true`, granted scopes and what each capability needs. The access-token time is not when the sign-in ends. |
+| `spo-logout` | `confirm` | Refuses unless `confirm: true` (CLI: `--confirm`). Removes the account and the cache file, refresh token included. Never call it to renew or extend a sign-in: it deletes the refresh token, so the next use needs a new device code. |
 | `spo-search-files` | `query`, `top?` (default 25, max 100), `from?` | `POST /search/query` with `entityTypes: ["driveItem"]`. Full-text across every site, OneDrive and Teams file the user can open; KQL supported. Returns `{ total, moreResultsAvailable, hits }`, each hit with `name`, `webUrl`, `location`, `siteId`, `driveId`, `itemId`, `lastModifiedDateTime`, `lastModifiedBy`, `size` and a plain `summary`. Page with `from`. New files can take several minutes to be indexed. |
 | `spo-resolve-link` | `url` | `GET /shares/u!{base64url}/driveItem`: any SharePoint or OneDrive URL, including a sharing link, to `{ name, itemId, driveId, siteId, webUrl, isFolder, mimeType, size, lastModifiedDateTime, parentPath }`. |
 | `spo-find-sites` | `query` | A site URL resolves through `/sites/{host}:/{path}`; a keyword searches `/sites?search=`. |

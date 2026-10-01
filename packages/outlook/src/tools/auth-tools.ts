@@ -2,6 +2,8 @@
  * Outlook sign-in tools (device code).
  */
 
+import { z } from 'zod';
+import { LOGOUT_WARNING, logoutRefusal } from '@mcp-consultant-tools/m365-core';
 import type { ServiceContext } from '../types.js';
 import { describeCalendarAccess, describeMailAccess } from '../permissions.js';
 
@@ -69,10 +71,12 @@ export function registerAuthTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     'mail-logout',
-    'Sign out of Outlook and delete the cached sign-in. The CLI is signed out too.',
-    {},
-    { readOnlyHint: false, destructiveHint: false },
-    async () => {
+    'Sign out of Outlook (the CLI too). ' + LOGOUT_WARNING,
+    { confirm: z.boolean().optional().describe('Must be true to sign out') },
+    { readOnlyHint: false, destructiveHint: true },
+    async ({ confirm }: any = {}) => {
+      const refusal = logoutRefusal(confirm);
+      if (refusal) return { content: [{ type: 'text', text: refusal }], isError: true };
       try {
         await ctx.auth.logout();
         return { content: [{ type: 'text', text: 'Signed out of Outlook; the cached sign-in was deleted.' }] };

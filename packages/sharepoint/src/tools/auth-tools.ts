@@ -5,6 +5,8 @@
  * sign-in is needed rather than failing.
  */
 
+import { z } from 'zod';
+import { LOGOUT_WARNING, logoutRefusal } from '@mcp-consultant-tools/m365-core';
 import type { ServiceContext } from '../types.js';
 
 const json = (value: unknown) => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
@@ -56,10 +58,12 @@ export function registerAuthTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     'spo-logout',
-    'Sign out of SharePoint and delete the cached sign-in (device-code mode). The CLI is signed out too.',
-    {},
-    { readOnlyHint: false, destructiveHint: false },
-    async () => {
+    'Sign out of SharePoint (device-code mode; the CLI too). ' + LOGOUT_WARNING,
+    { confirm: z.boolean().optional().describe('Must be true to sign out') },
+    { readOnlyHint: false, destructiveHint: true },
+    async ({ confirm }: any = {}) => {
+      const refusal = logoutRefusal(confirm);
+      if (refusal) return { content: [{ type: 'text', text: refusal }], isError: true };
       try {
         const result = await ctx.sharepoint.logout();
         return { content: [{ type: 'text', text: result.message }] };

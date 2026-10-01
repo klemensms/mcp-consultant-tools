@@ -28,6 +28,7 @@ Full reference: `docs/technical/OUTLOOK_TECHNICAL.md`. User guide: `docs/documen
 - **Update and cancel refuse meetings the user does not organise**, pointing to `calendar-respond-to-event`.
 - **A proposed new time goes only with `tentativelyAccept` or `decline`.** Graph has no accept-with-proposal; the service refuses the pair before any request, and refuses when the organiser has `allowNewTimeProposals: false`.
 - **Calendar times go to Graph as UTC.** `toUtc` in `calendar-shared.ts` reads a zone-less time in `OUTLOOK_TIME_ZONE`; reads send `Prefer: outlook.timezone`. `Calendars.ReadWrite.Shared` does not cover the user's own calendar, so both calendar permissions are needed. Verified live 2026-09-29 (create, move, cancel, invite, schedule, shared read); IANA zones are honoured in reads. Respond (accept, and tentative with a proposed time) verified live the same day. Not yet live: recording, delegate.
+- **Never let an agent sign out to renew.** Status reports `accessTokenExpiresAt` plus `renewsAutomatically`, never a bare `expiresAt`, and logout refuses without `confirm: true`. An agent once read the hourly access-token time as the sign-in deadline and logged out to renew, deleting the refresh token and forcing a new device code every hour. Keep both guards on any new sign-in tool, and never write an error hint that says to log out and sign in again.
 - Stderr only. No `console.log` in `src/`.
 
 ## Testing

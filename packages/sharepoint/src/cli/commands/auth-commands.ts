@@ -7,6 +7,7 @@
  */
 
 import type { Command } from 'commander';
+import { logoutRefusal } from '@mcp-consultant-tools/m365-core';
 import type { ServiceContext } from '../../context-factory.js';
 import { handleCliError } from '../output.js';
 
@@ -53,8 +54,11 @@ export function registerAuthCommands(program: Command, ctx: ServiceContext): voi
   // spo-logout
   auth
     .command('logout')
-    .description('Sign out and delete the cached sign-in')
-    .action(async () => {
+    .description('Sign out and delete the cached sign-in, refresh token included (never needed to renew; needs --confirm)')
+    .option('--confirm', 'Confirm signing out')
+    .action(async (opts: any) => {
+      const refusal = logoutRefusal(opts.confirm === true);
+      if (refusal) handleCliError(new Error(refusal));
       try {
         console.log((await ctx.sharepoint.logout()).message);
       } catch (error) {

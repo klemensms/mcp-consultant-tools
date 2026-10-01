@@ -242,7 +242,7 @@ describe('MessageService.getChannelMessages', () => {
     stub.setThrow(Object.assign(new Error('Forbidden'), { statusCode: 403 }));
     const service = createService(stub);
 
-    await expect(service.getChannelMessages()).rejects.toThrow(/logout.*authenticate/s);
+    await expect(service.getChannelMessages()).rejects.toThrow(/Do not log out to fix it/);
   });
 });
 
@@ -505,7 +505,7 @@ describe('MessageService reactions', () => {
     const service = createService(stub);
 
     await expect(service.reactToChatMessage(CHAT_ID, '1616991463150')).rejects.toThrow(
-      /logout' then 'authenticate/
+      /Do not log out to fix it/
     );
   });
 });
@@ -752,7 +752,7 @@ describe('wrapGraphError 403 disambiguation', () => {
     );
     // The generic advice would send the reader after a consent problem that is not there.
     await expect(service.updateChatMessage(CHAT_ID, '1600000000000', 'x')).rejects.not.toThrow(
-      /run 'logout' then 'authenticate'/
+      /Do not log out to fix it/
     );
   });
 
@@ -777,7 +777,7 @@ describe('wrapGraphError 403 disambiguation', () => {
       /Teams administrator has to change the messaging policy/
     );
     await expect(service.deleteChatMessage(CHAT_ID, '1616990032035')).rejects.not.toThrow(
-      /run 'logout' then 'authenticate'/
+      /Do not log out to fix it/
     );
   });
 
@@ -786,7 +786,7 @@ describe('wrapGraphError 403 disambiguation', () => {
     const service = createService(stub);
 
     await expect(service.updateChatMessage(CHAT_ID, '1616990032035', 'x')).rejects.toThrow(
-      /run 'logout' then 'authenticate'/
+      /Do not log out to fix it/
     );
   });
 });

@@ -7,6 +7,7 @@
  */
 
 import type { Command } from 'commander';
+import { logoutRefusal } from '@mcp-consultant-tools/m365-core';
 import type { ServiceContext } from '../../context-factory.js';
 import { mailAuthStatus } from '../../tools/auth-tools.js';
 import { handleCliError } from '../output.js';
@@ -54,8 +55,11 @@ export function registerAuthCommands(program: Command, ctx: ServiceContext): voi
   // mail-logout
   auth
     .command('logout')
-    .description('Sign out and delete the cached sign-in')
-    .action(async () => {
+    .description('Sign out and delete the cached sign-in, refresh token included (never needed to renew; needs --confirm)')
+    .option('--confirm', 'Confirm signing out')
+    .action(async (opts: any) => {
+      const refusal = logoutRefusal(opts.confirm === true);
+      if (refusal) handleCliError(new Error(refusal));
       try {
         await ctx.auth.logout();
         console.log('Signed out of Outlook; the cached sign-in was deleted.');

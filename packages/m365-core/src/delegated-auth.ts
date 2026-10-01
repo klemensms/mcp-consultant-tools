@@ -42,9 +42,36 @@ export type AuthState = 'authenticated' | 'pending' | 'expired' | 'not_authentic
 export interface AuthStatus {
   state: AuthState;
   account?: string;
-  expiresAt?: string;
+  /**
+   * When the current access token lapses. It is renewed silently from the cached
+   * refresh token, so this is NOT when the sign-in ends; deliberately not named
+   * expiresAt, which agents read as a deadline and "renewed" by signing out.
+   */
+  accessTokenExpiresAt?: string;
+  /** True while signed in: the sign-in renews itself and needs no action. */
+  renewsAutomatically?: boolean;
   grantedScopes?: string[];
   message: string;
+}
+
+/**
+ * Said on every signed-in status. Agents have signed out to "renew" an hourly
+ * access token, which deletes the refresh token and forces a new device code.
+ */
+export const RENEWS_AUTOMATICALLY =
+  'The sign-in renews itself automatically from the cached refresh token, so nothing needs doing and you must not sign out to renew it.';
+
+/** Description shared by every delegated server's logout tool. */
+export const LOGOUT_WARNING =
+  'Signs out completely: deletes the cached refresh token, so the next use needs a new device-code sign-in. ' +
+  'Never use it to refresh or extend a sign-in; renewal is automatic. Needs confirm: true.';
+
+/** Refused unless the caller confirms; returns the refusal text, or null to proceed. */
+export function logoutRefusal(confirm: unknown): string | null {
+  return confirm === true
+    ? null
+    : 'Not signed out: logout needs confirm: true. You do not need to sign out to renew the sign-in; it renews itself automatically. ' +
+        'Sign out only to switch accounts or remove the cached sign-in.';
 }
 
 export interface DeviceCodeStart {
@@ -185,13 +212,14 @@ export class DelegatedGraphAuth {
   }
 
   private authenticatedStatus(prefix: string): AuthStatus {
-    const expiresAt = new Date(this.tokenExpirationTime).toISOString();
+    const accessTokenExpiresAt = new Date(this.tokenExpirationTime).toISOString();
     return {
       state: 'authenticated',
       account: this.account,
-      expiresAt,
+      accessTokenExpiresAt,
+      renewsAutomatically: true,
       grantedScopes: decodeTokenScopes(this.accessToken!),
-      message: `${prefix} Token valid until ${expiresAt}.`,
+      message: `${prefix} ${RENEWS_AUTOMATICALLY} The current access token is valid until ${accessTokenExpiresAt} and is replaced silently.`,
     };
   }
 
@@ -227,7 +255,7 @@ export class DelegatedGraphAuth {
     if (this.hasValidToken() || (await this.acquireTokenSilentIfPossible())) {
       return {
         state: 'authenticated',
-        message: `Already signed in. Token valid until ${new Date(this.tokenExpirationTime).toISOString()}.`,
+        message: `Already signed in. ${RENEWS_AUTOMATICALLY}`,
       };
     }
 

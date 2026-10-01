@@ -669,3 +669,7 @@ Add `--json` for raw JSON. **Read** responses are also written to `.context/.mcp
 This convention is now repo-wide - see [`.claude/refs/cli-architecture.md`](../../.claude/refs/cli-architecture.md) for the full list of packages and the classification rule.
 
 `--type` is validated in the CLI too. An unknown reaction name has no emoji mapping, so it reached Graph as an empty `reactionType` and came back as *"ReactionType cannot be null or whitespace"* - an error pointing at the wrong thing, since the user typed a word rather than leaving it blank. The MCP tools were never affected: their zod enum rejects it first.
+
+## Sign-in
+
+- **Never let an agent sign out to renew.** Status reports `accessTokenExpiresAt` plus `renewsAutomatically`, never a bare `expiresAt`, and logout refuses without `confirm: true`. An agent once read the hourly access-token time as the sign-in deadline and logged out to renew, deleting the refresh token and forcing a new device code every hour. Keep both guards on any new sign-in tool, and never write an error hint that says to log out and sign in again.

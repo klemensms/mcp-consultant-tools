@@ -131,7 +131,7 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 |------|-------------|
 | `spo-authenticate` | Start sign-in: returns a URL and a one-time code (the CLI's `auth login` waits for it) |
 | `spo-auth-status` | Sign-in state and granted permissions; in app-only mode reports that no sign-in is needed |
-| `spo-logout` | Sign out and delete the cached sign-in |
+| `spo-logout` | Sign out and delete the cached sign-in; needs `confirm: true`. Never needed to renew: the sign-in renews itself |
 | `spo-search-files` | Full-text Microsoft Search across every site, OneDrive and Teams file you can open (KQL supported) |
 | `spo-resolve-link` | Turn any SharePoint or OneDrive URL, including a sharing link, into a drive and item id |
 | `spo-find-sites` | Find sites by keyword, or resolve one from its URL |

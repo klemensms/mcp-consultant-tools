@@ -171,7 +171,9 @@ A 5-minute expiry buffer is applied via `applyToken()`: `tokenExpirationTime = e
 
 The pre-v35 format was a plaintext `~/.mcp-consultant-tools/teams-auth.json` holding a bare access token with five scopes and no refresh token. `discardLegacyToken()` deletes it on construction rather than migrating it - a narrower token reused silently 403s on every read tool with no visible cause. `logout()` also removes the MSAL account from the in-memory cache, so a logout followed by an `auth-status` in the same process reports `not_authenticated` instead of resurrecting the cached account.
 
-**403 diagnosis.** `MessageService` wraps 403 responses with an explicit instruction to run `logout` then `authenticate`, because a stale narrow scope set is indistinguishable from a genuine authorization failure in the raw Graph error text.
+**403 diagnosis.** `MessageService` wraps 403 responses with a note that this is a permissions failure and that logging out will not fix it: a silent refresh already picks up any newly consented permission, and logging out only deletes the refresh token.
+
+**How long a sign-in lasts.** As long as the refresh token: Entra keeps it valid on a rolling basis while it is used, unless it is revoked or a Conditional Access sign-in frequency applies. The hourly access token renews silently. In practice, one device-code sign-in lasts weeks, and only `logout` (or a revocation) ends it early.
 
 </auth-mode>
 
@@ -259,7 +261,7 @@ Returns the current authentication state. Reads the in-memory token, then `pendi
 
 **Parameters:** None
 
-**Response fields:** `status`, `authMode`, `expiresAt` (when authenticated), `message`
+**Response fields:** `status`, `authMode`, `accessTokenExpiresAt` and `renewsAutomatically: true` (when authenticated), `message`. The access-token time is when the current hourly token lapses and is replaced silently, not when the sign-in ends; the field is deliberately not called `expiresAt`, because an agent read that as a deadline and logged out to renew.
 
 </tool>
 
@@ -267,7 +269,7 @@ Returns the current authentication state. Reads the in-memory token, then `pendi
 
 #### logout
 
-Clears all authentication state. Async as of v35, because removing the MSAL account is an async cache operation:
+Clears all authentication state. **Refuses unless `confirm: true`**, and the CLI's `auth logout` needs `--confirm`. Never call it to renew or extend a sign-in: it deletes the refresh token, so the next use needs a new device code. Async as of v35, because removing the MSAL account is an async cache operation:
 - Sets `accessToken = null`, `tokenExpirationTime = 0`, `pendingAuth = null`, `me = null`
 - Calls `removeAccount()` for every account in the MSAL token cache - without this, a logout followed by an `auth-status` in the same process would silently resurrect the cached account via silent refresh
 - Deletes the encrypted cache file `~/.mcp-consultant-tools/teams-token-cache-{clientId}.enc`

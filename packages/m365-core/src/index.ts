@@ -1,4 +1,4 @@
-export { DelegatedGraphAuth, GRAPH_DEFAULT_SCOPE } from './delegated-auth.js';
+export { DelegatedGraphAuth, GRAPH_DEFAULT_SCOPE, LOGOUT_WARNING, RENEWS_AUTOMATICALLY, logoutRefusal } from './delegated-auth.js';
 export type { AuthState, AuthStatus, DelegatedAuthConfig, DeviceCodeStart } from './delegated-auth.js';
 export { TokenCache, DEFAULT_TOKEN_DIR } from './token-cache.js';
 export { decodeTokenScopes } from './token-scopes.js';

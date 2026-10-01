@@ -55,7 +55,7 @@ describe('auth tools', () => {
   it.each(['spo-authenticate', 'spo-auth-status', 'spo-logout'])(
     'app-only: %s reports that no sign-in is needed rather than failing',
     async (name) => {
-      const result = await register('client-credentials')[name]({});
+      const result = await register('client-credentials')[name](name === 'spo-logout' ? { confirm: true } : {});
       expect(result.isError).toBeFalsy();
       expect(text(result)).toMatch(/no sign-in (is )?needed/i);
     }
@@ -101,9 +101,16 @@ describe('auth tools', () => {
     expect(status.capabilities.writeAndDelete).toMatch(/^missing/);
   });
 
+  it('device code: spo-logout refuses without confirm: true and signs nothing out', async () => {
+    const result = await register('device-code')['spo-logout']({});
+    expect(result.isError).toBe(true);
+    expect(text(result)).toMatch(/confirm: true/);
+    expect(auth.logout).not.toHaveBeenCalled();
+  });
+
   it('device code: spo-logout clears the sign-in', async () => {
     auth.logout.mockResolvedValue(undefined);
-    const result = await register('device-code')['spo-logout']({});
+    const result = await register('device-code')['spo-logout']({ confirm: true });
     expect(auth.logout).toHaveBeenCalledOnce();
     expect(text(result)).toMatch(/signed out/i);
   });

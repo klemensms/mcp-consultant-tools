@@ -56,8 +56,13 @@ export function registerAuthCommands(program: Command, ctx: ServiceContext): voi
 
   auth
     .command('logout')
-    .description('Clear cached Teams authentication tokens')
-    .action(async () => {
+    .description('Sign out and delete the cached refresh token (never needed to renew; needs --confirm)')
+    .option('--confirm', 'Confirm signing out')
+    .action(async (opts: any) => {
+      if (opts.confirm !== true) {
+        handleCliError(new Error('Not logged out: logout needs --confirm. You do not need to log out to renew the sign-in; it renews itself automatically.'), 'logout');
+        return;
+      }
       try {
         await ctx.teams.logout();
         outputResult(
