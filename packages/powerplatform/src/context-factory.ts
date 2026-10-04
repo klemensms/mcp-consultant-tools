@@ -3,6 +3,8 @@
  * Used by both MCP server (index.ts) and CLI (cli.ts).
  */
 
+import { createAuditConfigFromEnv, captureOperator, AuditPipeline, probeAuditStorage } from '@mcp-consultant-tools/core';
+import type { AuditAuth } from '@mcp-consultant-tools/core';
 import { PowerPlatformService, type PowerPlatformConfig } from './PowerPlatformService.js';
 import type { ServiceContext } from './types.js';
 
@@ -42,7 +44,42 @@ export function createServiceContext(service?: PowerPlatformService): ServiceCon
     return ppService;
   }
 
+  const audit = buildAuditPipeline();
+
   return {
-    get pp() { return getPowerPlatformService(); }
+    get pp() { return getPowerPlatformService(); },
+    audit,
   };
+}
+
+/**
+ * The audit log, configured exactly as in powerplatform-data. Off, and null,
+ * while MCP_AUDIT_LEVEL is unset, so a configuration without it starts as
+ * before. With a level set, MCP_AUDIT_CLIENT is required (refuse to start).
+ */
+function buildAuditPipeline(): AuditPipeline | null {
+  const cfg = createAuditConfigFromEnv();
+  if (cfg.level === 'off') return null;
+  probeAuditStorage(cfg);
+  return new AuditPipeline(cfg, {
+    operator: captureOperator(),
+    auth: detectAuthPrincipal(),
+    environment: {
+      type: cfg.environmentType,
+      url: process.env.POWERPLATFORM_URL,
+      auditLevel: cfg.level,
+    },
+  });
+}
+
+function detectAuthPrincipal(): AuditAuth {
+  const clientId = process.env.POWERPLATFORM_CLIENT_ID?.trim();
+  const hasSecret = !!process.env.POWERPLATFORM_CLIENT_SECRET?.trim();
+  if (clientId && hasSecret) {
+    return { principalId: clientId, principalType: 'service-principal', userId: null };
+  }
+  if (clientId) {
+    return { principalId: clientId, principalType: 'user-interactive', userId: null };
+  }
+  return { principalId: null, principalType: 'unknown', userId: null };
 }

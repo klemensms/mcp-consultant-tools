@@ -11,6 +11,8 @@ Production-safe MCP server providing read-only access to Dynamics 365 / Datavers
 
 Add the server to your MCP client. **VS Code** uses `.vscode/mcp.json` with a top-level `servers` key; **Claude Desktop** uses `claude_desktop_config.json` with a top-level `mcpServers` key. The `command`, `args`, and `env` are identical in both - only the wrapper key and the file differ.
 
+> **Audit logging (opt-in):** off while `MCP_AUDIT_LEVEL` is empty or unset. Set it to `lean` or `full` (plus `MCP_AUDIT_CLIENT`) to record every `get-flow-runs` and `get-flow-run-details` call; call `set-audit-engagement` first, or those two tools refuse. See [audit-logging.md](audit-logging.md).
+
 ### VS Code - recommended (1Password)
 
 Credentials are resolved at runtime via biometric authentication - no secrets stored in config files. Requires the [1Password desktop app](https://1password.com/downloads) with CLI integration enabled (Settings > Developer > "Integrate with 1Password CLI"). See [1Password Secret Resolution](ONEPASSWORD_SECRET_RESOLUTION.md) for full setup guide.
@@ -25,7 +27,12 @@ Credentials are resolved at runtime via biometric authentication - no secrets st
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "op://Work/PP-App-Registration/username",
         "POWERPLATFORM_TENANT_ID": "op://Work/PP-App-Registration/tenantid",
-        "POWERPLATFORM_CLIENT_SECRET": "op://Work/PP-App-Registration/password"
+        "POWERPLATFORM_CLIENT_SECRET": "op://Work/PP-App-Registration/password",
+        "MCP_AUDIT_LEVEL": "",
+        "MCP_AUDIT_CLIENT": "",
+        "MCP_AUDIT_OPERATOR": "",
+        "MCP_AUDIT_PATH": "~/.mcp-audit",
+        "MCP_AUDIT_ROTATION": "monthly"
       }
     }
   }
@@ -44,7 +51,12 @@ Credentials are resolved at runtime via biometric authentication - no secrets st
         "POWERPLATFORM_URL": "https://yourenvironment.crm.dynamics.com",
         "POWERPLATFORM_CLIENT_ID": "your-client-id",
         "POWERPLATFORM_TENANT_ID": "your-tenant-id",
-        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret"
+        "POWERPLATFORM_CLIENT_SECRET": "your-client-secret",
+        "MCP_AUDIT_LEVEL": "",
+        "MCP_AUDIT_CLIENT": "",
+        "MCP_AUDIT_OPERATOR": "",
+        "MCP_AUDIT_PATH": "~/.mcp-audit",
+        "MCP_AUDIT_ROTATION": "monthly"
       }
     }
   }
@@ -84,6 +96,7 @@ Use the same `env` block, but wrap it in `mcpServers` instead of `servers`, in `
 
 - **`get-flows` filters by default:** Excludes Customer Insights (CXP_ prefix), SYSTEM-modified flows, and Copilot for Sales flows. Use `excludeCustomerInsights: false` etc. to include them. Response includes exclusion statistics.
 - **`scan-flow-health` needs Organization-scope Read on FlowRun:** It reads run history from the Dataverse `flowrun` table (app-only friendly, no management API). Because `flowrun` records are user-owned, the app registration's Dataverse security role must grant **Organization-scope Read on FlowRun** - otherwise the scan sees no runs and reports each flow with `scanError` rather than a false all-healthy. Success rates are honest about sampling: a flow with more runs than `maxRunsPerFlow` is flagged `sampleTruncated`, and a flow with no runs reports `successRate: null` (not `0`).
+- **Flow run history lives here:** `get-flow-runs` and `get-flow-run-details` (moved from `powerplatform-data` in v35.0.0-beta.26) read a flow's run history and per-action results. `get-flow-run-details` uses the Power Automate Management API and needs Environment Maker or flow co-owner rights.
 - **`get-flow-inventory` vs `get-flows`:** `get-flow-inventory` paginates to a guaranteed-complete list of every cloud flow (for deployment audits); `get-flows` returns a single filtered page (for interactive investigation).
 - **`validate-dataverse` validates publisher prefix compliance:** Pass your `publisherPrefix` (e.g., `"contoso_"`) to check naming conventions, lookup naming, option set scope, required columns, and entity icons across a solution or specific entities.
 - **`gen-integration-audit` is the top-level audit tool:** Aggregates service endpoints, webhooks, flow complexity, environment variables, and plugin inventory into a single Markdown report. Use `outputFormat: "summary"` to surface only flagged items.

@@ -11,8 +11,8 @@ export function registerAllTools(server: any, ctx: ServiceContext): void {
   registerWriteTools(server, ctx);
   registerAuditTools(server, ctx);
 
-  // 7 read + 6 write + 1 audit = 14 tools
-  console.error(`powerplatform-data tools registered: 14 tools`);
+  // 5 read + 6 write + 1 audit = 12 tools
+  console.error(`powerplatform-data tools registered: 12 tools`);
 }
 
 export { registerReadTools } from './read-tools.js';

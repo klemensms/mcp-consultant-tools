@@ -25,7 +25,6 @@ POWERPLATFORM_ENABLE_DELETE=false   # Enable record deletion (most dangerous)
 - `get-record` - Get specific record by ID (read-only, always enabled)
 - `get-entity-metadata` - Entity metadata for CRUD operations
 - `get-lookup-target` - Lookup field target info
-- `get-flow-runs` - Power Automate flow run history (read-only, always enabled)
 - `create-record` - Create new records (requires ENABLE_CREATE=true)
 - `update-record` - Update existing records (requires ENABLE_UPDATE=true)
 - `delete-record` - Delete records (requires ENABLE_DELETE=true, confirm: true)

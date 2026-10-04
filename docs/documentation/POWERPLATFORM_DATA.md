@@ -102,7 +102,7 @@ All write operations are **disabled by default**. Enable only the operations you
 | `POWERPLATFORM_ENABLE_DELETE` | `false` | `delete-record`, `disassociate-records` |
 | `POWERPLATFORM_ENABLE_ACTIONS` | `false` | `execute-action` |
 
-Read-only tools (`query-records`, `get-record`, `get-entity-metadata`, `get-lookup-target`, `get-flow-runs`, `get-flow-run-details`) are always available regardless of flags.
+Read-only tools (`query-records`, `get-record`, `get-entity-metadata`, `get-lookup-target`) are always available regardless of flags. Flow run history (`get-flow-runs`, `get-flow-run-details`) moved to the read-only `powerplatform` server in v35.0.0-beta.26.
 
 ## PII Protection (v31+)
 

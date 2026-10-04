@@ -252,6 +252,8 @@ Honesty guarantees (each addresses a defect in the original source):
 
 <flow-run-details-architecture>
 
+**Audit logging on the flow-run tools.** `get-flow-runs` and `get-flow-run-details` moved here from `powerplatform-data` in v35.0.0-beta.26 with their audit logging. It is off while `MCP_AUDIT_LEVEL` is unset, so an existing configuration starts unchanged. With `lean` or `full` set, `MCP_AUDIT_CLIENT` is required (the server refuses to start without it), each call is recorded, and both tools refuse until `set-audit-engagement` has been called. The other read tools in this package are not audited.
+
 **`get-flow-run-details` uses the Power Automate Management API**, not Dataverse:
 
 - Token scope: `https://management.azure.com/.default` (acquired separately via `getFlowManagementToken()`)
@@ -746,7 +748,7 @@ Source-control-friendly tooling for form XML. Mirrors the `deploy-web-resource-f
 | `create-flow-from-def` | Create flow directly from clientdata JSON definition |
 | `get-flow-def-template` | Get pre-built clientdata JSON template for common flow patterns |
 | `update-flow-definition` | Update an existing flow's definition |
-| `get-flow-runs` | Get flow run history (same as read-only package) |
+| `get-flow-runs` | Get flow run history (also in the read-only package, which has `get-flow-run-details` too) |
 | `cancel-flow-run` | Cancel a running flow instance |
 | `resubmit-flow-run` | Resubmit a failed or cancelled flow run |
 
@@ -879,7 +881,7 @@ Checks are implemented via `ServiceContext.checkCreateEnabled()` etc. in `types.
 
 <tool-reference name="read-tools">
 
-## Read-Only Tools (6 - always available regardless of flags)
+## Read-Only Tools (4 - always available regardless of flags)
 
 | Tool | Key Parameters | Returns |
 |------|---------------|---------|
@@ -887,8 +889,8 @@ Checks are implemented via `ServiceContext.checkCreateEnabled()` etc. in `types.
 | `get-record` | `entityNamePlural`, `recordId` | Complete record; 404 error if not found |
 | `get-entity-metadata` | `entityName` | EntitySetName (plural name for API), PrimaryIdAttribute, PrimaryNameAttribute |
 | `get-lookup-target` | `entityName`, `fieldName` | Target entity's EntitySetName + `@odata.bind` syntax example |
-| `get-flow-runs` | `flowId`, `status?`, `startedAfter?`, `startedBefore?`, `maxRecords?` (default: 50, max: 250) | Run history: status, timestamps, trigger, error details |
-| `get-flow-run-details` | `flowId`, `runId` | Action-level execution details |
+
+Flow run history (`get-flow-runs`, `get-flow-run-details`) moved to the read-only `powerplatform` server in v35.0.0-beta.26, with its audit logging; see that package's flow tools.
 
 **`get-entity-metadata` is essential** before CRUD on unfamiliar entities - Dataverse API requires the plural entity name (`entityNamePlural`), not the logical name.
 

@@ -23,7 +23,8 @@
     "build": "tsc",
     "clean": "rm -rf build *.tsbuildinfo",
     "prepublishOnly": "npm run build",
-    "start:http": "node build/http-server.js"
+    "start:http": "node build/http-server.js",
+    "test": "vitest run"
   },
   "keywords": [
     "mcp",
@@ -54,7 +55,8 @@
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^22.10.5",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^3.2.7"
   },
   "bin": {
     "mcp-consultant-tools-powerplatform": "build/index.js",

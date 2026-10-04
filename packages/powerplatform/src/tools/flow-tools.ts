@@ -2,9 +2,31 @@
  * Flow Tools - 11 tools for flow/workflow/business rule inspection
  */
 import { z } from 'zod';
-import { UNCAPPED, truncationSuffix } from '@mcp-consultant-tools/core';
+import { UNCAPPED, truncationSuffix, auditEmit } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../types.js';
 import { descWithExamples, ENTITY_NAME_EXAMPLES, FLOW_CATEGORY_EXAMPLES, STATECODE_EXAMPLES, FLOW_RUN_STATUS_EXAMPLES } from '../tool-examples.js';
+
+/**
+ * Run a flow-run read through the audit log when one is configured. The inputs
+ * are GUIDs, statuses and dates, so they are recorded as given.
+ */
+function audited<T>(
+  ctx: ServiceContext,
+  tool: string,
+  params: Record<string, unknown>,
+  recordCount: (result: T) => number | undefined,
+  operation: () => Promise<T>
+): Promise<T> {
+  const audit = ctx.audit;
+  if (!audit) return operation();
+  return auditEmit(audit, {
+    tool,
+    params,
+    payloadInput: params,
+    inputRedaction: null,
+    resultExtractor: (r: any) => ({ recordCount: recordCount(r), outputRedaction: null }),
+  }, operation) as Promise<T>;
+}
 
 export function registerFlowTools(server: any, ctx: ServiceContext): void {
   server.tool(
@@ -205,12 +227,18 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
     async ({ flowId, status, startedAfter, startedBefore, maxRecords }: any) => {
       try {
         const service = ctx.pp;
-        const result = await service.getFlowRuns(flowId, {
-          status,
-          startedAfter,
-          startedBefore,
-          maxRecords: maxRecords || 50,
-        });
+        const result: any = await audited(
+          ctx,
+          'get-flow-runs',
+          { flowId, status, startedAfter, startedBefore, maxRecords },
+          (r: any) => r?.runs?.length,
+          () => service.getFlowRuns(flowId, {
+            status,
+            startedAfter,
+            startedBefore,
+            maxRecords: maxRecords || 50,
+          })
+        );
 
         const stats = (result.runs || []).reduce((acc: any, run: any) => {
           if (run.status === 'Succeeded') acc.succeeded++;
@@ -264,7 +292,13 @@ export function registerFlowTools(server: any, ctx: ServiceContext): void {
     async ({ flowId, runId }: any) => {
       try {
         const service = ctx.pp;
-        const result = await service.getFlowRunDetails(flowId, runId);
+        const result = await audited(
+          ctx,
+          'get-flow-run-details',
+          { flowId, runId },
+          () => 1,
+          () => service.getFlowRunDetails(flowId, runId)
+        );
         const resultStr = JSON.stringify(result, null, 2);
 
         const r = result as any;
