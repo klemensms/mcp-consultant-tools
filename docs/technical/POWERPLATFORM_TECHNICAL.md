@@ -137,6 +137,8 @@ App registration requirements for interactive auth (all 4 steps required):
 3. **Admin consent**: Click "Grant admin consent for [Your Org]" - requires Global Administrator or Privileged Role Administrator. Without this, users see "Approval required" on first login
 4. **Application user**: In PowerPlatform Admin Center → Settings → Users + permissions → Application users → New app user → assign Basic User role (read-only) or appropriate CRUD role for data package
 
+**Callback hardening** (`powerplatform-core/src/auth/interactive-auth.ts`). The browser sign-in sends a PKCE challenge (S256) and redeems the code with its verifier, generates a random `state` per sign-in and answers any callback whose `state` does not match with `400 invalid_state` without redeeming its code, and binds the callback server to `127.0.0.1` only. The redirect URI stays `http://localhost:<port>`, so no app-registration change is needed. Pinned by `src/auth/__tests__/interactive-auth.test.ts`.
+
 </app-registration-interactive>
 
 <management-api-permissions>

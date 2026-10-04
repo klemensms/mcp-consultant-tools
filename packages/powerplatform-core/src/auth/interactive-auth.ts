@@ -14,9 +14,15 @@
  * 4. Receive authorization code via localhost redirect
  * 5. Exchange code for tokens
  * 6. Cache tokens for future use
+ *
+ * The callback is hardened three ways: PKCE (S256) binds the code to this
+ * sign-in, a random `state` lets the callback reject any response this sign-in
+ * did not start, and the callback server listens on 127.0.0.1 only, so nothing
+ * else on the network can reach it.
  */
 
 import {
+  CryptoProvider,
   PublicClientApplication,
   InteractionRequiredAuthError,
   type AccountInfo,
@@ -25,6 +31,9 @@ import {
 import http from 'node:http';
 import open from 'open';
 import type { AuthProvider } from './index.js';
+
+/** The callback server binds here only: a loopback address, never every interface. */
+export const CALLBACK_HOST = '127.0.0.1';
 import { TokenCache } from './token-cache.js';
 
 export interface InteractiveAuthConfig {
@@ -113,6 +122,13 @@ export class InteractiveAuth implements AuthProvider {
     const port = await this.findFreePort();
     const redirectUri = `http://localhost:${port}`;
 
+    // PKCE binds the authorization code to this sign-in, and `state` lets the
+    // callback reject any response this sign-in did not start, such as a code
+    // for another account sent to the local port.
+    const cryptoProvider = new CryptoProvider();
+    const { verifier, challenge } = await cryptoProvider.generatePkceCodes();
+    const state = cryptoProvider.createNewGuid();
+
     return new Promise((resolve, reject) => {
       let serverClosed = false;
 
@@ -123,6 +139,15 @@ export class InteractiveAuth implements AuthProvider {
           const url = new URL(req.url!, `http://localhost:${port}`);
 
           if (url.pathname === '/') {
+            if (
+              (url.searchParams.has('code') || url.searchParams.has('error')) &&
+              url.searchParams.get('state') !== state
+            ) {
+              res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+              res.end(this.getErrorHtml('invalid_state', 'This sign-in response was not started by this server and was ignored.'));
+              return;
+            }
+
             const code = url.searchParams.get('code');
             const error = url.searchParams.get('error');
             const errorDescription = url.searchParams.get('error_description');
@@ -142,6 +167,8 @@ export class InteractiveAuth implements AuthProvider {
                   code,
                   scopes: [`${resource}/.default`, 'offline_access'],
                   redirectUri,
+                  codeVerifier: verifier,
+                  state,
                 });
 
                 this.cachedAccount = result.account;
@@ -180,11 +207,14 @@ export class InteractiveAuth implements AuthProvider {
         reject(new Error(`Failed to start callback server: ${err.message}`));
       });
 
-      server.listen(port, async () => {
+      server.listen(port, CALLBACK_HOST, async () => {
         try {
           const authUrl = await this.pca.getAuthCodeUrl({
             scopes: [`${resource}/.default`, 'offline_access', 'openid'],
             redirectUri,
+            codeChallenge: challenge,
+            codeChallengeMethod: 'S256',
+            state,
           });
 
           console.error('');
@@ -223,7 +253,7 @@ export class InteractiveAuth implements AuthProvider {
     return new Promise((resolve, reject) => {
       const server = http.createServer();
       server.on('error', reject);
-      server.listen(0, () => {
+      server.listen(0, CALLBACK_HOST, () => {
         const address = server.address();
         if (address && typeof address === 'object') {
           const port = address.port;
