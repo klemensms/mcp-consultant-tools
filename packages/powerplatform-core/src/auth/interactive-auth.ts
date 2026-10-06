@@ -222,6 +222,11 @@ export class InteractiveAuth implements AuthProvider {
             // No code or error, show waiting page
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
             res.end(this.getWaitingHtml());
+          } else {
+            // Any other path, such as /favicon.ico, gets an answer rather than
+            // hanging until the sign-in ends or times out.
+            res.writeHead(404);
+            res.end();
           }
         } catch (err) {
           console.error('Error handling callback:', err);

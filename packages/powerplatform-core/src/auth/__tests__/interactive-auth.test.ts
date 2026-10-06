@@ -168,3 +168,31 @@ describe('callback binding', () => {
     expect(address && typeof address === 'object' ? address.address : address).toBe('127.0.0.1');
   });
 });
+
+describe('other paths', () => {
+  it.each(['/favicon.ico', '/other', '/callback'])(
+    'answers %s with 404 at once and keeps waiting for the sign-in',
+    async (path) => {
+      started = await startSignIn();
+      const { request, port, signIn } = started;
+      const status = await new Promise<number>((resolve, reject) => {
+        http
+          .get({ host: '127.0.0.1', port, path }, (res) => {
+            res.resume();
+            resolve(res.statusCode ?? 0);
+          })
+          .on('error', reject);
+      });
+      expect(status).toBe(404);
+
+      await callback(port, `code=CODE&state=${encodeURIComponent(request.state)}`);
+      await expect(signIn).resolves.toBe('TOKEN');
+    }
+  );
+
+  it('keeps the redirect URI on http://localhost', async () => {
+    started = await startSignIn();
+    expect(new URL(started.request.redirectUri).hostname).toBe('localhost');
+    expect(new URL(started.request.redirectUri).protocol).toBe('http:');
+  });
+});
