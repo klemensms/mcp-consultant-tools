@@ -55,11 +55,20 @@ fs.writeFileSync(process.argv[2], JSON.stringify(p, null, 2) + "\n");
 ' "$ABS_PKG/package.json" "$TMP/package.json"
 
 echo "🔒 Resolving $PKG outside the workspace ..."
-(cd "$TMP" && npm install --package-lock-only --ignore-scripts --no-audit --no-fund >"$TMP/install.log" 2>&1) || {
+# A dependency published seconds ago can take a few minutes to appear on the
+# registry (npm answers "notarget"), so retry that case for up to 5 minutes.
+attempt=0
+until (cd "$TMP" && npm install --package-lock-only --ignore-scripts --no-audit --no-fund --prefer-online >"$TMP/install.log" 2>&1); do
+    attempt=$((attempt + 1))
+    if grep -q 'notarget' "$TMP/install.log" && [ "$attempt" -lt 15 ]; then
+        echo "⏳ A dependency of $PKG is not on the registry yet; retrying in 20s ($attempt/15) ..." >&2
+        sleep 20
+        continue
+    fi
     echo "❌ npm install --package-lock-only failed for $PKG (is every internal dependency already on npm?):" >&2
     cat "$TMP/install.log" >&2
     exit 1
-}
+done
 
 cp "$TMP/package-lock.json" "$ABS_PKG/npm-shrinkwrap.json"
 
