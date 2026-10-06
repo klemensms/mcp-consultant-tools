@@ -214,8 +214,11 @@ export class PowerPlatformService {
     return this.data.executeAction(actionName, parameters, boundTo);
   }
 
-  async trackEmail(input: TrackEmailInput): Promise<TrackEmailResult> {
-    return this.emailTracking.trackEmail(input);
+  async trackEmail(
+    input: TrackEmailInput,
+    options?: { allowRegardingChange?: boolean }
+  ): Promise<TrackEmailResult> {
+    return this.emailTracking.trackEmail(input, options);
   }
 
   async countRecords(

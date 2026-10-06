@@ -126,7 +126,14 @@ export class EmailTrackingService {
     this.homeDir = options.homeDir ?? os.homedir();
   }
 
-  async trackEmail(input: TrackEmailInput): Promise<TrackEmailResult> {
+  /**
+   * @param options.allowRegardingChange - setting Regarding on an email that is
+   *   already tracked is an update, so the caller passes whether updates are enabled.
+   */
+  async trackEmail(
+    input: TrackEmailInput,
+    options: { allowRegardingChange?: boolean } = {}
+  ): Promise<TrackEmailResult> {
     if (!input.internetMessageId?.trim()) {
       throw new Error('internetMessageId is required: it is how a tracked email is recognised.');
     }
@@ -154,6 +161,12 @@ export class EmailTrackingService {
     if (existing) {
       const activityId = existing.activityid as string;
       if (regarding) {
+        if (!options.allowRegardingChange) {
+          throw new Error(
+            `This email is already tracked (activity ${activityId}). Changing its Regarding is an update: ` +
+              'set POWERPLATFORM_ENABLE_UPDATE=true to allow it.'
+          );
+        }
         await this.client.makeRequestNoContent(`${API}/emails(${activityId})`, 'PATCH', regardingBind);
       }
       return {

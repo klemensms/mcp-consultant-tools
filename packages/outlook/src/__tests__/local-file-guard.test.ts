@@ -50,6 +50,9 @@ describe('assertSafeLocalFile', () => {
     'x.pfx',
     'keys/id_rsa',
     '.config/tool/settings.json',
+    'Library/Keychains/login.keychain-db',
+    'Library/Application Support/Browser/Default/Cookies',
+    'AppData/Roaming/tool/token.json',
   ])('refuses %s', (relative) => {
     const file = touch(relative);
     expect(() => assertSafeLocalFile(file, home)).toThrow(/refused/i);

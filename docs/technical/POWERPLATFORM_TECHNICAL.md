@@ -1006,7 +1006,7 @@ If the relationship already exists: `Error: A record with matching key values al
 Request sequence:
 1. Validate the regarding table name (`^[a-z_][a-z0-9_]*$`) and record GUID, and every attachment path (`assertSafeLocalFile`: inside the home folder, no hidden segment, no credential-shaped name; 25 MB cap each). Nothing is written if any check fails.
 2. With `regarding`: `GET EntityDefinitions(LogicalName='<name>')?$select=EntitySetName,HasActivities`; refuse when `HasActivities` is false. The bind name comes from the table's `OneToManyRelationships` where `ReferencingEntity eq 'email' and ReferencingAttribute eq 'regardingobjectid'`, falling back to `regardingobjectid_<name>_email`.
-3. `GET emails?$filter=messageid eq '<id>'`. If found, the email is reused: Regarding is set by `PATCH` when given, the previous Regarding is reported, and nothing else changes.
+3. `GET emails?$filter=messageid eq '<id>'`. If found, the email is reused: Regarding is set by `PATCH` when given (this needs `POWERPLATFORM_ENABLE_UPDATE=true` as well, since it changes an existing record), the previous Regarding is reported, and nothing else changes.
 4. Each address is resolved in order against `systemusers.internalemailaddress`, `contacts.emailaddress1`, `accounts.emailaddress1`, `leads.emailaddress1`; the first match is bound (`partyid_<table>@odata.bind`), otherwise the party keeps `addressused`. Participation masks: 1 From, 2 To, 3 Cc, 4 Bcc.
 5. `POST emails` with the parties in `email_activity_parties` and the regarding bind.
 6. One `POST activitymimeattachments` per attachment (`objectid_activitypointer@odata.bind`, `objecttypecode: 'email'`, base64 `body`), before closing.

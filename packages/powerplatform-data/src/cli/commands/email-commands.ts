@@ -48,7 +48,7 @@ export function registerEmailCommands(program: Command, ctx: ServiceContext): vo
             ? { entityLogicalName: opts.regardingEntity, recordId: opts.regardingId }
             : undefined,
           attachments: opts.attach?.map((p: string) => ({ path: p })),
-        });
+        }, { allowRegardingChange: process.env.POWERPLATFORM_ENABLE_UPDATE === 'true' });
         outputResult(
           {
             persist: false,

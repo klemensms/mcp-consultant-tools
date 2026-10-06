@@ -25,7 +25,7 @@ export function registerEmailTools(server: any, ctx: ServiceContext): void {
     'track-email',
     'Track an Outlook email in Dynamics 365 as a completed email activity, optionally regarding a record. ' +
       'Read the email first with the Outlook server\'s mail-get-message and pass its fields. ' +
-      'Keyed on the internet message id: if the email is already tracked, it is reused and only Regarding is set. ' +
+      'Keyed on the internet message id: if the email is already tracked, it is reused and only Regarding is set (that change also needs POWERPLATFORM_ENABLE_UPDATE=true). ' +
       'Sender and recipients are matched to users, contacts, accounts and leads by email address; unmatched addresses are kept as plain addresses. ' +
       'Attachments are only added when you pass local file paths. Requires POWERPLATFORM_ENABLE_CREATE=true.',
     {
@@ -66,7 +66,8 @@ export function registerEmailTools(server: any, ctx: ServiceContext): void {
         ctx.checkCreateEnabled();
         const service = ctx.pp;
         const audit = ctx.audit;
-        const operation = async () => service.trackEmail(input);
+        const allowRegardingChange = process.env.POWERPLATFORM_ENABLE_UPDATE === 'true';
+        const operation = async () => service.trackEmail(input, { allowRegardingChange });
 
         let params: unknown = input;
         let inputRedaction = null;

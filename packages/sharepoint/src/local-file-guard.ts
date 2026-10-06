@@ -4,7 +4,7 @@
  * Content the agent reads can carry an instruction to upload a key file and
  * share it. So the real path (symlinks followed) must sit inside the
  * user's home folder, no segment of it below home may start with "." (which
- * covers ~/.ssh, ~/.aws, ~/.config and every dotfile), and credential-shaped
+ * covers ~/.ssh, ~/.aws, ~/.config and every dotfile), ~/Library and ~/AppData are refused, and credential-shaped
  * names are refused wherever they are.
  */
 import fs from 'node:fs';
@@ -12,6 +12,8 @@ import os from 'node:os';
 import path from 'node:path';
 
 const CREDENTIAL_NAME = /^(\.env.*|id_.*|.*\.(pem|key|p12|pfx))$/i;
+/** Top-level home folders that hold keychains, browser cookies and app tokens without a leading dot. */
+const SETTINGS_FOLDER = /^(library|appdata)$/i;
 
 export function assertSafeLocalFile(filePath: string, homeDir: string = os.homedir()): string {
   const home = fs.realpathSync(homeDir);
@@ -32,6 +34,9 @@ export function assertSafeLocalFile(filePath: string, homeDir: string = os.homed
   const segments = relative.split(path.sep);
   if (segments.some((segment) => segment.startsWith('.'))) {
     throw new Error(`Refused: ${filePath} is inside a hidden folder or is a hidden file, where keys and settings live.`);
+  }
+  if (SETTINGS_FOLDER.test(segments[0])) {
+    throw new Error(`Refused: ${filePath} is inside ${segments[0]}, where keychains, cookies and app settings live.`);
   }
   if (CREDENTIAL_NAME.test(segments[segments.length - 1])) {
     throw new Error(`Refused: ${filePath} looks like a credential file (.env, id_*, .pem, .key, .p12, .pfx).`);

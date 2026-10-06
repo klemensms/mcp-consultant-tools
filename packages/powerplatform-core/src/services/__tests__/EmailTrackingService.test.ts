@@ -212,10 +212,10 @@ describe('EmailTrackingService.trackEmail', () => {
         '_regardingobjectid_value@OData.Community.Display.V1.FormattedValue': 'Jane Doe',
       },
     });
-    const result = await new EmailTrackingService(client).trackEmail({
-      ...BASE_INPUT,
-      regarding: { entityLogicalName: 'opportunity', recordId: OPP },
-    });
+    const result = await new EmailTrackingService(client).trackEmail(
+      { ...BASE_INPUT, regarding: { entityLogicalName: 'opportunity', recordId: OPP } },
+      { allowRegardingChange: true }
+    );
     expect(calls.some((c) => c.method === 'POST')).toBe(false);
     const patch = calls.find((c) => c.method === 'PATCH')!;
     expect(patch.endpoint).toBe(`api/data/v9.2/emails(${EXISTING_EMAIL})`);
@@ -223,6 +223,17 @@ describe('EmailTrackingService.trackEmail', () => {
     expect(result.created).toBe(false);
     expect(result.activityId).toBe(EXISTING_EMAIL);
     expect(result.previousRegarding).toEqual({ entityLogicalName: 'contact', recordId: CONTACT, name: 'Jane Doe' });
+  });
+
+  it('refuses to change Regarding on an already-tracked email unless updates are allowed', async () => {
+    const { client, calls } = fakeClient({ existing: { activityid: EXISTING_EMAIL } });
+    await expect(
+      new EmailTrackingService(client).trackEmail({
+        ...BASE_INPUT,
+        regarding: { entityLogicalName: 'opportunity', recordId: OPP },
+      })
+    ).rejects.toThrow(new RegExp(`${EXISTING_EMAIL}.*POWERPLATFORM_ENABLE_UPDATE`));
+    expect(calls.some((c) => c.method !== 'GET')).toBe(false);
   });
 
   it('changes nothing when the email is already tracked and no Regarding is given', async () => {
