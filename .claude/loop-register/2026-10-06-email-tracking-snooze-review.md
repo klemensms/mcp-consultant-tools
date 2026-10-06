@@ -25,3 +25,9 @@ Chain started 2026-10-06 by the origin session (hop 0). Tasks: T1 track-email in
 - **Hop:** origin · d04db39
 - **State:** open
 - **Matters because:** the beta.26 publish confirmation (sign-in hardening plus flow tools move) never reached the hosting monitor, because the session that asked had closed. The current hosting monitor also asked for a reply listing which of the nine findings applied, with commits. Without them, the other copy's owner works from stale information.
+
+### ⚑5 · track-email has not run against any real Dataverse yet
+- **Kind:** deferred
+- **Hop:** 1 · f6670da
+- **State:** open
+- **Matters because:** the request shapes are proven only against a fake client. Three behaviours need a real environment: setting Regarding with PATCH on an email that is already Completed (the reuse path), adding attachments before closing, and PATCHing statuscode 3 Sent without Dynamics trying to send. The safe environment's credentials are not on disk (the test configs hold `<from 1Password>` placeholders and the item name is not recorded), so this needs either the maintainer to name the 1Password item or a run in the safe environment from a machine that has it. Do this before ⚑2's production test.
