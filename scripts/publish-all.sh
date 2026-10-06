@@ -238,7 +238,7 @@ publish_package() {
 
   if [ "$DRY_RUN" = true ]; then
     log_info "[DRY RUN] Would publish: $pkg_name@$version with tag '$TAG'"
-    npm publish --access public --tag "$TAG" --dry-run
+    npm publish --ignore-scripts --access public --tag "$TAG" --dry-run
   else
     # PowerPlatform packages ship a pinned dependency tree (see scripts/make-shrinkwrap.sh)
     case "$pkg" in powerplatform-core|powerplatform|powerplatform-customization|powerplatform-data)
@@ -248,7 +248,7 @@ publish_package() {
         return
       fi ;;
     esac
-    npm publish --access public --tag "$TAG"
+    npm publish --ignore-scripts --access public --tag "$TAG"
     rm -f npm-shrinkwrap.json
 
     # Verify publication (retry up to 5 times with increasing delay)

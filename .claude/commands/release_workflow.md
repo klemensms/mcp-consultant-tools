@@ -109,6 +109,14 @@ Any hit ABORTS the release - fix the source, rebuild clean (`npm run build:relea
 
 ### 6b. Authenticate without 2FA prompts (1Password automation token)
 
+**Keep the token away from build code.** The token is fetched only after the clean build (3a) and the tarball scan (6a) have finished, and every `npm publish` runs with `--ignore-scripts`, so no package's `prepublishOnly` build (or any dependency's install script) runs while the token file is on disk. Immediately before fetching the token, run:
+
+```bash
+./scripts/prepublish-check.sh   # refuses unless on release/X.Y, tracked files clean, and HEAD == origin/<branch>
+```
+
+If it refuses, fix that first (usually: push). Never publish code that is not on the remote.
+
 npm requires a one-time password per publish (`npm publish` fails with `EOTP`). To publish non-interactively, use the npm **automation token** (it bypasses 2FA), stored in 1Password. **Never write the token into the repo** - fetch it at runtime, stage it in a temp `.npmrc` under `$HOME` (outside any git tree), pass it via `--userconfig`, and delete it afterward.
 
 The exact 1Password item / vault / account and the token-fetch snippet live in the untracked **`.claude/publish-auth.local.md`** (recreate from 1Password if missing). This is a **standing rule** (also in the root `CLAUDE.md` → Publishing → npm Authentication): use the token automatically, do NOT prompt for an OTP and do NOT ask the user. If `op read` errors with a sign-in prompt, run `op signin`. If the token 401s, it has been rotated - ask the user to refresh the 1Password item.
@@ -127,7 +135,7 @@ for pkg in $ORDER; do
   case "$pkg" in powerplatform-core|powerplatform|powerplatform-customization|powerplatform-data)
     ./scripts/make-shrinkwrap.sh "packages/$pkg" || { echo "❌ $pkg (no shrinkwrap, NOT published)"; continue; } ;;
   esac
-  (cd "packages/$pkg" && npm publish --access public --userconfig="$TMPNPMRC") \
+  (cd "packages/$pkg" && npm publish --ignore-scripts --access public --userconfig="$TMPNPMRC") \
     && echo "✅ $pkg" || echo "❌ $pkg"
   rm -f "packages/$pkg/npm-shrinkwrap.json"
 done
@@ -236,7 +244,7 @@ npm dist-tag ls @mcp-consultant-tools/powerplatform
 
 # Single-package promotion to latest (PowerPlatform packages: shrinkwrap first, see 6c)
 ./scripts/make-shrinkwrap.sh packages/powerplatform \
-  && (cd packages/powerplatform && npm publish --access public)
+  && (cd packages/powerplatform && npm publish --ignore-scripts --access public)
 ./scripts/make-shrinkwrap.sh --remove packages/powerplatform
 
 # Tag and push
