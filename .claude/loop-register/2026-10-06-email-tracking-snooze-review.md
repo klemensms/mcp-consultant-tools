@@ -42,3 +42,9 @@ Chain started 2026-10-06 by the origin session (hop 0). Tasks: T1 track-email in
   3. **Imitate Outlook's own snooze** by moving into the "Scheduled" folder and setting the properties Exchange uses. Reverse-engineered and unsupported; could break silently on any Exchange change.
   4. **Do not build.** Snooze stays a one-click action in Outlook itself.
 - Sources: https://learn.microsoft.com/graph/api/resources/mail-api-overview , https://learn.microsoft.com/en-us/graph/api/event-snoozereminder?view=graph-rest-1.0
+
+### ⚑7 · A third background security note on the local-file guard has no detail
+- **Kind:** deferred
+- **Hop:** 1 · acd015d
+- **State:** open
+- **Matters because:** after `acd015d`, the commit reviewer reported "path-validation-bypass" in `packages/powerplatform-core/src/utils/local-file-guard.ts` with no description. Plausible candidates, none confirmed: the check-then-read gap (a path component swapped for a symlink between `realpathSync` and `readFileSync`), a hard link inside the home folder to a credential file elsewhere, or a sensitive non-dot folder other than Library and AppData. All need a local attacker who can already write to the home folder. Review the guard against these, decide whether any is worth closing, and apply the same change to the outlook and sharepoint copies.
