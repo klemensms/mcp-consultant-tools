@@ -67,30 +67,60 @@ export class InteractiveAuth implements AuthProvider {
     return 'interactive';
   }
 
-  async getAccessToken(resource: string): Promise<string> {
-    // Try silent auth first (uses cached tokens)
-    const accounts = await this.pca.getTokenCache().getAllAccounts();
+  /**
+   * The browser sign-in in progress, if any. Tools run in parallel, so calls
+   * that need a sign-in while one is open wait for it instead of each opening
+   * their own callback server and browser tab. Cleared when the sign-in ends.
+   */
+  private signInInProgress: Promise<string> | null = null;
 
-    if (accounts.length > 0) {
-      try {
-        const result = await this.pca.acquireTokenSilent({
-          account: accounts[0],
-          scopes: [`${resource}/.default`],
-          authenticationScheme: 'Bearer',
-        });
-        this.cachedAccount = accounts[0];
-        return result.accessToken;
-      } catch (error) {
-        if (!(error instanceof InteractionRequiredAuthError)) {
-          throw error;
-        }
-        // Token expired or revoked, need interactive auth
-        console.error('Cached token expired, re-authenticating...');
-      }
+  async getAccessToken(resource: string): Promise<string> {
+    let token = await this.acquireTokenSilentFor(resource);
+    if (token) return token;
+
+    // Another call's sign-in is open: wait for it, then repeat the silent lookup
+    // for THIS call's resource. Its token is for its own resource and must never
+    // be handed to a call for a different one.
+    while (this.signInInProgress) {
+      await this.signInInProgress;
+      token = await this.acquireTokenSilentFor(resource);
+      if (token) return token;
     }
 
     // Interactive auth required
-    return this.acquireTokenInteractive(resource);
+    const signIn = this.acquireTokenInteractive(resource);
+    this.signInInProgress = signIn;
+    try {
+      return await signIn;
+    } finally {
+      if (this.signInInProgress === signIn) {
+        this.signInInProgress = null;
+      }
+    }
+  }
+
+  /** The cached-token lookup for one resource; null when a sign-in is needed. */
+  private async acquireTokenSilentFor(resource: string): Promise<string | null> {
+    const accounts = await this.pca.getTokenCache().getAllAccounts();
+    if (accounts.length === 0) {
+      return null;
+    }
+    try {
+      const result = await this.pca.acquireTokenSilent({
+        account: accounts[0],
+        scopes: [`${resource}/.default`],
+        authenticationScheme: 'Bearer',
+      });
+      this.cachedAccount = accounts[0];
+      return result.accessToken;
+    } catch (error) {
+      if (!(error instanceof InteractionRequiredAuthError)) {
+        throw error;
+      }
+      // Token expired or revoked, need interactive auth
+      console.error('Cached token expired, re-authenticating...');
+      return null;
+    }
   }
 
   async getUserInfo(): Promise<{ name: string; email: string; oid: string } | null> {
