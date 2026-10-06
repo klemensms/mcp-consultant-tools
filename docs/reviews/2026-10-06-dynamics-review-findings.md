@@ -4,7 +4,7 @@ A review of a separate copy of our PowerPlatform (Dataverse) MCP server produced
 
 **Rule applied throughout:** our servers stay unlocked. Bugs and security holes are fixed; no table or column allow-lists, no row caps, no feature removed.
 
-**Status:** items 2, 4, 5, 6 and 7 are fixed (`ae3e692`, `3b08f4c`, `7405ea8`, `6fd5f90`, `ad0788b`); item 6 still needs one check against a live environment. Item 9's library upgrade (msal-node 3 to 7, Node 20) is decided for the next major release. Item 3 is approved for the four PowerPlatform packages (exact versions plus a shrinkwrap generated at release) and being built. The other items wait for the maintainer's decision.
+**Status:** items 2, 4, 5, 6 and 7 are fixed (`ae3e692`, `3b08f4c`, `7405ea8`, `6fd5f90`, `ad0788b`); item 6 still needs one check against a live environment. Item 9's library upgrade (msal-node 3 to 7, Node 20) is decided for the next major release. Item 3 is approved for the four PowerPlatform packages (exact versions plus a shrinkwrap generated at release) and being built. Item 10 is fixed in all three guard copies (hard-linked files and `.ppk`/`.kdbx` refused). The other items wait for the maintainer's decision.
 
 Paths are relative to `packages/powerplatform-core/src/` unless stated.
 

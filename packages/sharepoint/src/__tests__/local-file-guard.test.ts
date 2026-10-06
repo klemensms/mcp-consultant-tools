@@ -48,6 +48,8 @@ describe('assertSafeLocalFile', () => {
     'x.key',
     'x.p12',
     'x.pfx',
+    'x.ppk',
+    'vault.kdbx',
     'keys/id_rsa',
     '.config/tool/settings.json',
     'Library/Keychains/login.keychain-db',
@@ -70,6 +72,14 @@ describe('assertSafeLocalFile', () => {
     const link = path.join(home, 'Documents', 'notes.txt');
     fs.symlinkSync(target, link);
     expect(() => assertSafeLocalFile(link, home)).toThrow(/refused/i);
+  });
+
+  it('refuses a hard link inside home to a file elsewhere', () => {
+    const target = touch('server-key.txt', outside);
+    const link = path.join(home, 'Documents', 'notes-hardlink.txt');
+    fs.mkdirSync(path.dirname(link), { recursive: true });
+    fs.linkSync(target, link);
+    expect(() => assertSafeLocalFile(link, home)).toThrow(/hard link/i);
   });
 
   it('refuses a folder and a missing file', () => {

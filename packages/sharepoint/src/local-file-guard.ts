@@ -5,13 +5,15 @@
  * share it. So the real path (symlinks followed) must sit inside the
  * user's home folder, no segment of it below home may start with "." (which
  * covers ~/.ssh, ~/.aws, ~/.config and every dotfile), ~/Library and ~/AppData are refused, and credential-shaped
- * names are refused wherever they are.
+ * names are refused wherever they are. A file with more than one hard link is
+ * refused too, because a hard link in home can point at a key file elsewhere
+ * and realpath cannot see through it.
  */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const CREDENTIAL_NAME = /^(\.env.*|id_.*|.*\.(pem|key|p12|pfx))$/i;
+const CREDENTIAL_NAME = /^(\.env.*|id_.*|.*\.(pem|key|p12|pfx|ppk|kdbx))$/i;
 /** Top-level home folders that hold keychains, browser cookies and app tokens without a leading dot. */
 const SETTINGS_FOLDER = /^(library|appdata)$/i;
 
@@ -39,11 +41,15 @@ export function assertSafeLocalFile(filePath: string, homeDir: string = os.homed
     throw new Error(`Refused: ${filePath} is inside ${segments[0]}, where keychains, cookies and app settings live.`);
   }
   if (CREDENTIAL_NAME.test(segments[segments.length - 1])) {
-    throw new Error(`Refused: ${filePath} looks like a credential file (.env, id_*, .pem, .key, .p12, .pfx).`);
+    throw new Error(`Refused: ${filePath} looks like a credential file (.env, id_*, .pem, .key, .p12, .pfx, .ppk, .kdbx).`);
   }
 
-  if (!fs.statSync(real).isFile()) {
+  const stat = fs.statSync(real);
+  if (!stat.isFile()) {
     throw new Error(`Not a file: ${filePath}`);
+  }
+  if (stat.nlink > 1) {
+    throw new Error(`Refused: ${filePath} has more than one hard link, so it may be another file under a different name.`);
   }
   return real;
 }

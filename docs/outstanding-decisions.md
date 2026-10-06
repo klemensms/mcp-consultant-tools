@@ -28,12 +28,6 @@ Not a send decision. Our release commands publish from this machine, and `npm pu
 - **B.** Hold.
 - **Recommended: A.** Small change to the two release commands, no effect on what ships.
 
-### D-007 · Item 10: tighten the local-file guard used for attachments
-Not a send decision. An email the agent reads could ask it to attach a key file. The guard already refuses hidden folders, Library/AppData and key-shaped names. A hard link inside the home folder pointing at a key file elsewhere would still pass. Proposal: refuse files with more than one hard link, and add `.ppk` and `.kdbx` to the refused names, in all three copies (Dataverse, Outlook, SharePoint). The remaining timing gap needs something already able to write to the home folder and is left alone.
-- **A.** Approve.
-- **B.** Hold.
-- **Recommended: A.** Small, and hard-linked user documents are rare.
-
 ## Email tracking and snooze
 
 ### D-008 · Email snooze: which approach, if any
