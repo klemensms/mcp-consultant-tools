@@ -18,6 +18,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Never raise a GitHub issue against this repo.** We build, maintain, fix and deploy every MCP consultant tool on this machine, so a defect or feature idea is reported in chat and fixed here, in the same session. An issue would only be a note to ourselves in a slower place.
 
+## Pending decisions: one file, `docs/outstanding-decisions.md`
+
+**Every decision waiting on the maintainer goes in `docs/outstanding-decisions.md` and nowhere else**, so he has one place to review and answer them in a single pass. This covers review proposals, design choices, live-test permissions and send decisions (with the whole message text in a fence). Follow the entry format in the file's header: a `D-NNN` number that is never reused, what is decided, why it matters, lettered options, a recommendation, and whether it is a send decision. When he answers, act on it, record the answer in the owning plan or review, and remove the entry in the same commit. Loop registers, handoffs and plan files may point at an entry but never hold an open decision of their own. In chat, point him at the file and list the entry numbers; do not ask the same questions one by one in the tab.
+
 ## Staging: name explicit paths, never `git add -A`
 
 Several Claude sessions run against this repo at once, and they edit shared files - the root `CLAUDE.md`, `docs/KNOWN_ISSUES.md`, `.claude/log.md`. `git add -A` sweeps another session's in-flight edit into your commit, where the message does not explain it and a later reader finds a change nobody can account for. This has happened: commit `023dd49` carries a `CLAUDE.md` section written by a different session. **Stage the paths you actually changed**, and read `git diff --cached --name-status` before committing. `.claude/log.md` is written by the `/log` hook from every session and is never yours to stage by hand.
