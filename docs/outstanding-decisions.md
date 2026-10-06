@@ -22,13 +22,6 @@ Not a send decision. Tokens are saved in an encrypted file, but the key is built
 - **C.** Hold.
 - **Recommended: A.** It is the one finding where a stolen file means a stolen login.
 
-### D-005 · Finding #3: lock exact dependency versions in published packages
-Not a send decision. Our published packages accept any compatible newer version of their outside dependencies, so a compromised update to one of them reaches users on their next install without a release from us. Proposal: exact versions plus a lock file shipped inside each package, generated during release. Cost: one more release step; every dependency update becomes a deliberate change.
-- **A.** Approve for the four Dataverse packages first.
-- **B.** Approve for every package.
-- **C.** Hold.
-- **Recommended: A.** Proves the release step on four packages before rolling it out to all.
-
 ### D-006 · Finding #8: keep the publish token away from build scripts, and publish only pushed code
 Not a send decision. Our release commands publish from this machine, and `npm publish` re-runs each package's build while the publish token file is on disk, so a compromised build tool could read it. Proposal: publish with build scripts switched off (the clean build has already run), fetch the token only after build and scan, and refuse to publish unless the branch is `release/*`, the working tree is clean and the code matches what is pushed. The reviewer's "release from main only" does not fit our beta flow, so this is the equivalent.
 - **A.** Approve.
