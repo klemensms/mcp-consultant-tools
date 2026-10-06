@@ -166,7 +166,7 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
     'Flag a message for follow-up, mark the flag complete, or clear it. With flag "flagged" it can also set a due date and ' +
       'a reminder. This is how to "snooze" an email or "remind me about this later": Outlook mail has no true snooze, so the ' +
       'message stays in the Inbox, flagged, and a reminder pops up at the chosen time. Times without Z or an offset are read ' +
-      'in timeZone. notFlagged also switches the reminder off and takes no dates.' + OFF,
+      'in timeZone. notFlagged and complete also switch the reminder off and take no dates.' + OFF,
     {
       messageId: z.string(),
       flag: z.enum(['flagged', 'complete', 'notFlagged']),

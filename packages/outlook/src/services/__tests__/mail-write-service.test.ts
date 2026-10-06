@@ -318,7 +318,10 @@ describe('organising', () => {
   it('flags a message', async () => {
     const { svc, requests } = service();
     await svc.flagMessage('MSG1', 'complete');
-    expect(requests[0].body).toEqual({ flag: { flagStatus: 'complete' } });
+    expect(requests[0].body).toEqual({
+      flag: { flagStatus: 'complete' },
+      singleValueExtendedProperties: [{ id: 'Boolean {00062008-0000-0000-C000-000000000046} Id 0x8503', value: 'false' }],
+    });
   });
 });
 

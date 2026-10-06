@@ -134,7 +134,11 @@ export function buildFlagPatch(
     if (given.length > 0) {
       throw new Error(`Dates and reminders go only with flag 'flagged', not 'complete' (got ${given.join(', ')}).`);
     }
-    return { patch: { flag: { flagStatus: flag } }, summary: {} };
+    // Outlook switches the reminder off when a follow-up is marked complete; do the same.
+    return {
+      patch: { flag: { flagStatus: flag }, singleValueExtendedProperties: [{ id: REMINDER_SET_ID, value: 'false' }] },
+      summary: { reminderCleared: true },
+    };
   }
 
   if (startDateTime && !dueDateTime) {
@@ -457,7 +461,8 @@ export class MailWriteService {
    * carry a start and due date and a reminder: Graph has no snooze for mail,
    * so "remind me about this later" is a flagged message that stays in the
    * Inbox with a reminder at the chosen time. Clearing the flag (notFlagged)
-   * also switches the reminder off; 'complete' is sent exactly as before.
+   * and marking it complete
+   * both switch the reminder off, as Outlook does.
    */
   async flagMessage(
     messageId: string,
