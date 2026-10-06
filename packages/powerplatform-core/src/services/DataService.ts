@@ -125,7 +125,9 @@ export class DataService {
 
       const next: string | undefined = page['@odata.nextLink'];
       if (rows.length >= maxRecords) {
-        hasMore = Boolean(next);
+        // More exists if the server has another page OR this page brought rows
+        // the trim below drops.
+        hasMore = rows.length > maxRecords || Boolean(next);
         break;
       }
       endpoint = next ? nextRelativeUrl(next, this.client.getOrganizationUrl()) : null;

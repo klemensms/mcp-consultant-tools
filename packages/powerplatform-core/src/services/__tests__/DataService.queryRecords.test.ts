@@ -103,6 +103,28 @@ describe('DataService.queryRecords', () => {
     expect(result.hasMore).toBe(true);
   });
 
+  it('reports hasMore when the last page fetched rows the trim then drops', async () => {
+    // 6,000 of 8,323: the second page brings the remaining 3,323 rows and no
+    // next link, so only the trim knows that 2,323 fetched rows were dropped.
+    const { client } = stubClient(8323);
+    const svc = new DataService(client);
+
+    const result = await svc.queryRecords('contacts', FILTER, 6000);
+
+    expect(result.returnedCount).toBe(6000);
+    expect(result.hasMore).toBe(true);
+  });
+
+  it('reports hasMore false when the rows fetched equal maxRecords exactly', async () => {
+    const { client } = stubClient(6000);
+    const svc = new DataService(client);
+
+    const result = await svc.queryRecords('contacts', FILTER, 6000);
+
+    expect(result.returnedCount).toBe(6000);
+    expect(result.hasMore).toBe(false);
+  });
+
   it('pages with odata.maxpagesize and keeps annotations on every request', async () => {
     const { client, calls } = stubClient(12000);
     const svc = new DataService(client);
