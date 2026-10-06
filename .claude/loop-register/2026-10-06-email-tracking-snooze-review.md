@@ -35,7 +35,7 @@ Chain started 2026-10-06 by the origin session (hop 0). Tasks: T1 track-email in
 ### ⚑6 · Email snooze has no faithful API, so nothing was built
 - **Kind:** decision
 - **Hop:** 1 · 6ff07d8
-- **State:** moved to D-008 by L2
+- **State:** closed-by-L2 · D-008 answered: no snooze; mail-flag-message gains due date, start date and reminder so the agent can offer it instead
 - **Matters because:** Microsoft Graph v1.0 documents no snooze for messages; `snoozeReminder` exists only for calendar events. Outlook's snooze (Outlook on the web and new Outlook only) moves the message to a server-side "Scheduled" folder and Exchange returns it to the Inbox as unread at the chosen time, with no public API. The options, for the maintainer:
   1. **Follow-up flag with a due date (recommended).** Graph's `flag` on a message takes `flagStatus`, `startDateTime` and `dueDateTime`; a reminder can be added through the standard MAPI reminder properties as extended properties. Supported and durable, but the email stays in the Inbox, so it is "remind me", not "hide until".
   2. **Move to a folder now, move back later.** Faithful to "hide until", but this server only runs while a client is connected, so it needs a separate scheduler (a local launchd job or a cloud job) holding the user's sign-in. A missed run leaves the email hidden.

@@ -30,14 +30,6 @@ Not a send decision. Our release commands publish from this machine, and `npm pu
 
 ## Email tracking and snooze
 
-### D-008 · Email snooze: which approach, if any
-Not a send decision. Microsoft's API has no snooze for email; Outlook's own snooze has no public interface. Options:
-- **A.** Follow-up flag with a due date and reminder. Supported and durable; the email stays in the Inbox, so it is "remind me", not "hide until".
-- **B.** Move to a folder now and back later. Needs a separate scheduler holding your sign-in; a missed run leaves the email hidden.
-- **C.** Imitate Outlook's snooze folder. Unsupported; could break silently.
-- **D.** Do not build; snooze stays a click in Outlook.
-- **Recommended: A.**
-
 ### D-009 · Live test of track-email
 Not a send decision. track-email (records an Outlook email in Dynamics) is proven only against a fake client. Three behaviours need a real environment, then one needs production: whether Outlook then shows the email as tracked. Production is read-only by default, so that test needs your explicit go for that one test.
 - **A.** Name the 1Password item for the safe test environment; test there first, then ask again about production.
