@@ -19,6 +19,9 @@ export {
   type ValidationResult,
 } from './bestPractices.js';
 
+// Record count labels
+export { snapshotCountLabel, batchSnapshotNote } from './count-labels.js';
+
 // Best practices formatters
 export {
   formatBestPracticesReport,

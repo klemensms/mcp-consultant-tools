@@ -90,7 +90,7 @@ export type {
 } from './services/IntegrationAuditService.js';
 
 // Data services
-export { DataService } from './services/DataService.js';
+export { DataService, type CountBatchResult } from './services/DataService.js';
 export { EmailTrackingService } from './services/EmailTrackingService.js';
 export type {
   TrackEmailInput,
@@ -209,4 +209,7 @@ export {
   // Audit report formatter
   generateAuditMarkdownReport,
   type AuditReportData,
+  // Record count labels
+  snapshotCountLabel,
+  batchSnapshotNote,
 } from './utils/index.js';

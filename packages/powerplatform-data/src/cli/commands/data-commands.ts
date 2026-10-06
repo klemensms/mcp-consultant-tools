@@ -4,6 +4,7 @@
 
 import type { Command } from 'commander';
 import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
+import { snapshotCountLabel, batchSnapshotNote } from '@mcp-consultant-tools/powerplatform-core';
 import type { ServiceContext } from '../../types.js';
 import { outputResult } from '../output.js';
 
@@ -50,22 +51,23 @@ export function registerDataCommands(program: Command, ctx: ServiceContext): voi
           const results = await ctx.pp.countRecordsBatch(batch);
           const successful = results.filter(r => !r.error);
           const totalCount = successful.reduce((sum, r) => sum + r.count, 0);
+          const snapshotNote = batchSnapshotNote(results);
           outputResult(
             {
               fileName: `count-batch`,
               data: results,
-              summary: `Counted ${successful.length}/${results.length} entities (total: ${totalCount} records)`,
+              summary: `Counted ${successful.length}/${results.length} entities (total: ${totalCount} records)${snapshotNote ? `; ${snapshotNote}` : ''}`,
             },
             getGlobalFlags(program)
           );
         } else {
           // Single mode
-          const count = await ctx.pp.countRecords(entityNamePlural, opts.filter);
+          const { count, snapshot } = await ctx.pp.countRecordsWithSource(entityNamePlural, opts.filter);
           outputResult(
             {
               fileName: `count-${entityNamePlural}`,
-              data: { entityNamePlural, filter: opts.filter || null, count },
-              summary: `${entityNamePlural}: ${count} records${opts.filter ? ` (filter: ${opts.filter})` : ''}`,
+              data: { entityNamePlural, filter: opts.filter || null, count, snapshot },
+              summary: `${entityNamePlural}: ${count} records${snapshotCountLabel(snapshot)}${opts.filter ? ` (filter: ${opts.filter})` : ''}`,
             },
             getGlobalFlags(program)
           );

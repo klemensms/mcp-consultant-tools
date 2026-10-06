@@ -17,6 +17,7 @@ import {
   type FlowRunsResult,
   // Services for data operations
   DataService,
+  type CountBatchResult,
   EmailTrackingService,
   type TrackEmailInput,
   type TrackEmailResult,
@@ -228,9 +229,17 @@ export class PowerPlatformService {
     return this.data.countRecords(entityNamePlural, filter);
   }
 
+  /** As countRecords, plus whether the count is the snapshot (up to 24 hours old). */
+  async countRecordsWithSource(
+    entityNamePlural: string,
+    filter?: string
+  ): Promise<{ count: number; snapshot: boolean }> {
+    return this.data.countRecordsWithSource(entityNamePlural, filter);
+  }
+
   async countRecordsBatch(
     entities: Array<{ entityNamePlural: string; filter?: string }>
-  ): Promise<Array<{ entityNamePlural: string; filter?: string; count: number; error?: string }>> {
+  ): Promise<CountBatchResult[]> {
     return this.data.countRecordsBatch(entities);
   }
 

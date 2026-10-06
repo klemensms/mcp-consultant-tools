@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { auditEmit, formatSummaryFooter } from '@mcp-consultant-tools/core';
 import type { PipelineReport } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../types.js';
+import { snapshotCountLabel, batchSnapshotNote } from '@mcp-consultant-tools/powerplatform-core';
 import {
   descWithExamples,
   ODATA_FILTER_EXAMPLES,
@@ -127,6 +128,8 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "count-records",
     "Count Dataverse records matching an optional OData filter. Returns a single integer count instead of record data. " +
     "Much faster and lighter than query-records when you only need the count. " +
+    "Without a filter the count is Dataverse's stored snapshot, up to 24 hours old, and is labelled as such; " +
+    "with a filter it is a live count, which Dataverse refuses above 50,000 matching records. " +
     "Supports batch mode: pass an array of entities to count multiple tables in one call (executed in parallel chunks of 10).",
     {
       entityNamePlural: z
@@ -203,6 +206,10 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
           if (failed.length > 0) {
             message += `\n⚠️ ${failed.length} entities failed`;
           }
+          const snapshotNote = batchSnapshotNote(results);
+          if (snapshotNote) {
+            message += `\nℹ️ ${snapshotNote}`;
+          }
 
           const resultStr = JSON.stringify(results, null, 2);
           return {
@@ -214,19 +221,19 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
         }
 
         // Single entity mode
-        const singleOperation = async () => service.countRecords(entityNamePlural, filter);
+        const singleOperation = async () => service.countRecordsWithSource(entityNamePlural, filter);
         const singleInput = { entityNamePlural, filter };
         const singleRedacted = audit
           ? redactInput(ctx, entityNamePlural ?? '_input', singleInput)
           : { data: singleInput, report: null };
-        const count = audit
+        const { count, snapshot } = audit
           ? await auditEmit(audit, {
               tool: 'count-records',
               params: singleRedacted.data,
               payloadInput: singleRedacted.data,
               inputRedaction: singleRedacted.report,
               resultExtractor: (r: any) => ({
-                recordCount: typeof r === 'number' ? r : undefined,
+                recordCount: typeof r?.count === 'number' ? r.count : undefined,
                 outputRedaction: null,
               }),
             }, singleOperation)
@@ -236,7 +243,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
         if (filter) {
           message += ` where ${filter}`;
         }
-        message += `: **${count.toLocaleString()}** records`;
+        message += `: **${count.toLocaleString()}** records${snapshotCountLabel(snapshot)}`;
 
         return {
           content: [{

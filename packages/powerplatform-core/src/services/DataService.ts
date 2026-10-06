@@ -18,6 +18,22 @@ import { nextRelativeUrl } from './flow-health.js';
 /** Dataverse never returns more than 5,000 rows in a single response, whatever `$top` asks for. */
 const DATAVERSE_MAX_PAGE_SIZE = 5000;
 
+/**
+ * Dataverse's refusal to aggregate over 50,000 rows (error 0x8004E023). Matched
+ * on the code and its known message texts, never on a bare number, which a
+ * filter echoed back in an error could carry.
+ */
+const AGGREGATE_LIMIT_ERROR = /AggregateQueryRecordLimit|0x8004e023|maximum record limit is exceeded/i;
+
+/** One entry of a batch count. `snapshot` is true for a stored count up to 24 hours old. */
+export interface CountBatchResult {
+  entityNamePlural: string;
+  filter?: string;
+  count: number;
+  snapshot?: boolean;
+  error?: string;
+}
+
 /** Resolved N:N intersect entity metadata */
 interface IntersectEntityInfo {
   intersectEntityName: string;
@@ -30,6 +46,8 @@ interface IntersectEntityInfo {
 export class DataService {
   /** Cache: entity set name (plural) → logical name (singular) */
   private entityNameCache = new Map<string, string>();
+  /** Cache: entity set name (plural) → primary key column, which is not always `<logicalname>id` */
+  private primaryIdCache = new Map<string, string>();
   /** Cache: intersect entity name → resolved info (or null if not an intersect entity) */
   private intersectEntityCache = new Map<string, IntersectEntityInfo | null>();
 
@@ -407,31 +425,47 @@ export class DataService {
     const cached = this.entityNameCache.get(entitySetName);
     if (cached) return cached;
 
-    const url = `api/data/v9.2/EntityDefinitions?$filter=EntitySetName eq '${entitySetName}'&$select=LogicalName`;
-    const result = await this.client.makeRequest<ApiCollectionResponse<{ LogicalName: string }>>(url);
+    const url = `api/data/v9.2/EntityDefinitions?$filter=EntitySetName eq '${entitySetName}'&$select=LogicalName,PrimaryIdAttribute`;
+    const result = await this.client.makeRequest<
+      ApiCollectionResponse<{ LogicalName: string; PrimaryIdAttribute?: string }>
+    >(url);
 
     if (!result.value || result.value.length === 0) {
       throw new Error(`Cannot resolve entity set name '${entitySetName}' - no matching EntityDefinition found`);
     }
 
-    const logicalName = result.value[0].LogicalName;
+    const { LogicalName: logicalName, PrimaryIdAttribute: primaryId } = result.value[0];
     this.entityNameCache.set(entitySetName, logicalName);
+    if (primaryId) this.primaryIdCache.set(entitySetName, primaryId);
     return logicalName;
   }
 
   /**
    * Count records matching an optional OData filter.
    *
-   * - Without filter: uses RetrieveTotalRecordCount (no 5,000 paging cap).
-   * - With filter: uses FetchXML aggregate count (no 5,000 paging cap).
+   * - Without filter: uses RetrieveTotalRecordCount, Dataverse's stored snapshot,
+   *   which can be up to 24 hours old.
+   * - With filter: uses a live OData aggregate, which Dataverse limits to 50,000 rows.
    *
    * Both approaches bypass the Dataverse /$count and $count=true endpoints
-   * which silently cap results at 5,000.
+   * which silently cap results at 5,000. Use countRecordsWithSource to know
+   * which of the two answered.
    */
   async countRecords(
     entityNamePlural: string,
     filter?: string
   ): Promise<number> {
+    return (await this.countRecordsWithSource(entityNamePlural, filter)).count;
+  }
+
+  /**
+   * Count records as countRecords does, and say whether the number is the
+   * snapshot (`snapshot: true`, up to 24 hours old) or a live count.
+   */
+  async countRecordsWithSource(
+    entityNamePlural: string,
+    filter?: string
+  ): Promise<{ count: number; snapshot: boolean }> {
     let logicalName: string;
     try {
       logicalName = await this.resolveLogicalName(entityNamePlural);
@@ -445,7 +479,7 @@ export class DataService {
             `Only unfiltered counts are available for intersect entities.`
           );
         }
-        return this.countIntersectRecords(intersectInfo);
+        return { count: await this.countIntersectRecords(intersectInfo), snapshot: false };
       }
       throw new Error(
         `Cannot resolve entity '${entityNamePlural}' - not found in EntityDefinitions or ManyToManyRelationshipMetadata`
@@ -453,15 +487,19 @@ export class DataService {
     }
 
     if (filter) {
-      return this.countWithFetchXmlAggregate(entityNamePlural, logicalName, filter);
+      return {
+        count: await this.countWithAggregate(entityNamePlural, logicalName, filter),
+        snapshot: false,
+      };
     }
 
-    return this.retrieveTotalRecordCount(logicalName);
+    return { count: await this.retrieveTotalRecordCount(logicalName), snapshot: true };
   }
 
   /**
-   * Use the RetrieveTotalRecordCount function for exact unfiltered counts.
-   * This function returns organisation-level counts not subject to paging limits.
+   * Use the RetrieveTotalRecordCount function for unfiltered counts.
+   * It returns Dataverse's stored snapshot, not subject to paging limits but
+   * up to 24 hours old, so callers label it as such.
    * Accepts logical names (singular), not entity set names.
    */
   private async retrieveTotalRecordCount(logicalName: string): Promise<number> {
@@ -481,30 +519,36 @@ export class DataService {
   }
 
   /**
-   * Use FetchXML aggregate to count filtered records without the 5,000 cap.
-   * Converts the OData $filter to a FetchXML condition-free aggregate and
-   * applies the filter via the collection endpoint's $filter parameter.
+   * Count filtered records with an OData `$apply` aggregate, so Dataverse applies
+   * the filter itself and there is no 5,000-row paging cap. (A `$filter` placed
+   * beside an aggregate query is not combined with it.) The key column comes from
+   * metadata, because activity tables such as emails key on `activityid`.
+   * Dataverse refuses aggregates over 50,000 rows; that is reported plainly.
    */
-  private async countWithFetchXmlAggregate(
+  private async countWithAggregate(
     entityNamePlural: string,
     logicalName: string,
     filter: string
   ): Promise<number> {
-    // Build a FetchXML aggregate query (no filter in FetchXML itself)
-    // The OData $filter is applied on the URL alongside the fetchXml parameter
-    const fetchXml = [
-      '<fetch aggregate="true">',
-      `  <entity name="${logicalName}">`,
-      `    <attribute name="${logicalName}id" alias="count" aggregate="count"/>`,
-      '  </entity>',
-      '</fetch>',
-    ].join('');
+    const primaryId = this.primaryIdCache.get(entityNamePlural) ?? `${logicalName}id`;
+    const apply = `filter(${filter})/aggregate(${primaryId} with countdistinct as count)`;
+    const url = `api/data/v9.2/${entityNamePlural}?$apply=${encodeURIComponent(apply)}`;
 
-    const url = `api/data/v9.2/${entityNamePlural}?fetchXml=${encodeURIComponent(fetchXml)}&$filter=${encodeURIComponent(filter)}`;
-    const result = await this.client.makeRequest<ApiCollectionResponse<{ count: number }>>(url);
+    let result: ApiCollectionResponse<{ count: number }>;
+    try {
+      result = await this.client.makeRequest<ApiCollectionResponse<{ count: number }>>(url);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (AGGREGATE_LIMIT_ERROR.test(message)) {
+        throw new Error(
+          `More than 50,000 '${entityNamePlural}' records match this filter, and Dataverse does not count beyond 50,000 in one aggregate. Narrow the filter, for example by a date range, and add the parts together.`
+        );
+      }
+      throw error;
+    }
 
     if (!result.value || result.value.length === 0) {
-      throw new Error('FetchXML aggregate count returned no results');
+      throw new Error('Aggregate count returned no results');
     }
     return result.value[0].count;
   }
@@ -512,18 +556,19 @@ export class DataService {
   /**
    * Count records for multiple entities in parallel.
    * Optimises unfiltered counts by batching them into a single
-   * RetrieveTotalRecordCount call. Filtered counts use individual
-   * FetchXML aggregate queries in parallel chunks.
+   * RetrieveTotalRecordCount call (a snapshot, up to 24 hours old, flagged
+   * `snapshot: true`). Filtered counts use individual live aggregate queries
+   * in parallel chunks.
    */
   async countRecordsBatch(
     entities: Array<{ entityNamePlural: string; filter?: string }>
-  ): Promise<Array<{ entityNamePlural: string; filter?: string; count: number; error?: string }>> {
+  ): Promise<CountBatchResult[]> {
     // Split into unfiltered and filtered
     const unfiltered = entities.filter(e => !e.filter);
     const filtered = entities.filter(e => e.filter);
 
     // --- Unfiltered: batch via RetrieveTotalRecordCount (1-2 API calls) ---
-    const unfilteredResults = new Map<string, { count: number; error?: string }>();
+    const unfilteredResults = new Map<string, { count: number; snapshot?: boolean; error?: string }>();
     if (unfiltered.length > 0) {
       try {
         // Resolve all entity set names → logical names
@@ -538,7 +583,7 @@ export class DataService {
             if (intersectInfo) {
               try {
                 const count = await this.countIntersectRecords(intersectInfo);
-                unfilteredResults.set(entityNamePlural, { count });
+                unfilteredResults.set(entityNamePlural, { count, snapshot: false });
               } catch (intError: any) {
                 unfilteredResults.set(entityNamePlural, { count: -1, error: intError.message });
               }
@@ -569,7 +614,7 @@ export class DataService {
           for (let i = 0; i < keys.length; i++) {
             const entitySetName = nameMap.get(keys[i]);
             if (entitySetName) {
-              unfilteredResults.set(entitySetName, { count: values[i] });
+              unfilteredResults.set(entitySetName, { count: values[i], snapshot: true });
             }
           }
 
@@ -593,16 +638,16 @@ export class DataService {
       }
     }
 
-    // --- Filtered: parallel FetchXML aggregate in chunks ---
+    // --- Filtered: parallel live aggregate queries in chunks ---
     const CHUNK_SIZE = 10;
-    const filteredResults: Array<{ entityNamePlural: string; filter?: string; count: number; error?: string }> = [];
+    const filteredResults: CountBatchResult[] = [];
     for (let i = 0; i < filtered.length; i += CHUNK_SIZE) {
       const chunk = filtered.slice(i, i + CHUNK_SIZE);
       const chunkResults = await Promise.all(
         chunk.map(async ({ entityNamePlural, filter }) => {
           try {
-            const count = await this.countRecords(entityNamePlural, filter);
-            return { entityNamePlural, filter, count };
+            const { count, snapshot } = await this.countRecordsWithSource(entityNamePlural, filter);
+            return { entityNamePlural, filter, count, snapshot };
           } catch (error: any) {
             return { entityNamePlural, filter, count: -1, error: error.message };
           }
