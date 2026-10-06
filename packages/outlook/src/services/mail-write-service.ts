@@ -16,6 +16,7 @@ import { escapeHtml, insertAboveQuote, prependToBody, toGraphMessage, toHtml, to
 import type { BodyFormat, ComposeInput } from './compose.js';
 import type { GraphClientProvider } from './mail-read-service.js';
 import type { CategoryChange } from '../types.js';
+import { graphTime, toUtc, userTimeZone } from './calendar-shared.js';
 
 const WRITE = 'OUTLOOK_ENABLE_WRITE';
 const DRAFTS = 'OUTLOOK_ENABLE_DRAFTS';
@@ -53,6 +54,156 @@ export type AttachResult =
 const shareId = (url: string) => `u!${Buffer.from(url).toString('base64url')}`;
 
 const messagePath = (id: string) => `/me/messages/${encodeURIComponent(id)}`;
+
+export type FlagStatus = 'flagged' | 'complete' | 'notFlagged';
+
+export interface FlagOptions {
+  /** ISO date or date-time; read in timeZone unless it ends in Z or an offset. */
+  dueDateTime?: string;
+  /** ISO date or date-time; needs dueDateTime. Defaults to now (or the due date, if that is already past). */
+  startDateTime?: string;
+  /** IANA name (converted to UTC here) or Windows name (passed to Graph as given). Default OUTLOOK_TIME_ZONE, else the machine's zone. */
+  timeZone?: string;
+  /** ISO date or date-time for the reminder; read in timeZone unless it ends in Z or an offset. */
+  reminderDateTime?: string;
+}
+
+export interface FlagResult {
+  messageId: string;
+  flag: FlagStatus;
+  startDateTime?: { dateTime: string; timeZone: string };
+  dueDateTime?: { dateTime: string; timeZone: string };
+  reminderUtc?: string;
+  reminderCleared?: boolean;
+}
+
+/*
+ * Reminder properties, set through MAPI named properties in PSETID_Common
+ * {00062008-0000-0000-C000-000000000046}, because Graph's message resource
+ * exposes no reminder of its own:
+ *   PidLidReminderSet        LID 0x8503 PT_BOOLEAN
+ *   PidLidReminderTime       LID 0x8502 PT_SYSTIME (UTC)
+ *   PidLidReminderSignalTime LID 0x8560 PT_SYSTIME (UTC; must be set when ReminderSet is true)
+ * Sources (Microsoft Learn, checked 2026-10-06):
+ *   Outlook MAPI reference, "PidLidReminderSet / PidLidReminderTime /
+ *   PidLidReminderSignalTime Canonical Property" (property set, LID, type, UTC rule).
+ *   MS-OXPROPS "Commonly Used Property Sets" (the PSETID_Common GUID):
+ *   https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxprops/cc9d955b-1492-47de-9dce-5bdea80a3323
+ *   Graph id format "{type} {guid} Id {id}":
+ *   https://learn.microsoft.com/en-us/graph/api/resources/extended-properties-overview
+ *   Graph "Create single-value extended property" (PATCH on an existing message).
+ */
+const PSETID_COMMON = '{00062008-0000-0000-C000-000000000046}';
+export const REMINDER_SET_ID = `Boolean ${PSETID_COMMON} Id 0x8503`;
+export const REMINDER_TIME_ID = `SystemTime ${PSETID_COMMON} Id 0x8502`;
+export const REMINDER_SIGNAL_TIME_ID = `SystemTime ${PSETID_COMMON} Id 0x8560`;
+
+const isIanaZone = (zone: string): boolean => {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const nowUtc = () => new Date().toISOString().slice(0, 19);
+
+/** Pure: the PATCH body for a flag change, validated before any request. */
+export function buildFlagPatch(
+  flag: FlagStatus,
+  options: FlagOptions
+): { patch: Record<string, unknown>; summary: Omit<FlagResult, 'messageId' | 'flag'> } {
+  const { dueDateTime, startDateTime, reminderDateTime } = options;
+  const given = (['dueDateTime', 'startDateTime', 'timeZone', 'reminderDateTime'] as const).filter(
+    (key) => options[key] !== undefined && options[key] !== ''
+  );
+  if (flag === 'notFlagged') {
+    if (given.length > 0) {
+      throw new Error(
+        `notFlagged clears the flag and its reminder, so it takes no dates or reminder (got ${given.join(', ')}). ` +
+          "Use flag 'flagged' to set a due date or a reminder."
+      );
+    }
+    return {
+      patch: { flag: { flagStatus: flag }, singleValueExtendedProperties: [{ id: REMINDER_SET_ID, value: 'false' }] },
+      summary: { reminderCleared: true },
+    };
+  }
+  if (flag === 'complete') {
+    if (given.length > 0) {
+      throw new Error(`Dates and reminders go only with flag 'flagged', not 'complete' (got ${given.join(', ')}).`);
+    }
+    return { patch: { flag: { flagStatus: flag } }, summary: {} };
+  }
+
+  if (startDateTime && !dueDateTime) {
+    throw new Error('startDateTime needs dueDateTime: Graph takes a start date only alongside a due date.');
+  }
+  const zone = options.timeZone?.trim() || userTimeZone();
+  const iana = isIanaZone(zone);
+  const followUp: Record<string, unknown> = { flagStatus: flag };
+  const summary: Omit<FlagResult, 'messageId' | 'flag'> = {};
+
+  if (dueDateTime) {
+    let due: { dateTime: string; timeZone: string };
+    let start: { dateTime: string; timeZone: string };
+    if (iana) {
+      due = graphTime(dueDateTime, 'dueDateTime', zone);
+      if (startDateTime) {
+        start = graphTime(startDateTime, 'startDateTime', zone);
+      } else {
+        const now = nowUtc();
+        start = { dateTime: now < due.dateTime ? now : due.dateTime, timeZone: 'UTC' };
+      }
+    } else {
+      // A Windows zone name cannot be converted here, so Graph converts it.
+      due = { dateTime: localDateTime(dueDateTime, 'dueDateTime', zone), timeZone: zone };
+      start = startDateTime
+        ? { dateTime: localDateTime(startDateTime, 'startDateTime', zone), timeZone: zone }
+        : { ...due };
+    }
+    if (start.dateTime > due.dateTime) {
+      throw new Error(`startDateTime (${startDateTime}) is after dueDateTime (${dueDateTime}).`);
+    }
+    followUp.startDateTime = start;
+    followUp.dueDateTime = due;
+    summary.startDateTime = start;
+    summary.dueDateTime = due;
+  }
+
+  const patch: Record<string, unknown> = { flag: followUp };
+  if (reminderDateTime) {
+    if (!iana && !HAS_ZONE.test(reminderDateTime.trim())) {
+      throw new Error(
+        `reminderDateTime must end in Z or an offset when timeZone is a Windows name ("${zone}"), ` +
+          'or give an IANA zone such as Europe/London.'
+      );
+    }
+    const reminderUtc = `${toUtc(reminderDateTime, 'reminderDateTime', iana ? zone : 'UTC')}Z`;
+    patch.singleValueExtendedProperties = [
+      { id: REMINDER_SET_ID, value: 'true' },
+      { id: REMINDER_TIME_ID, value: reminderUtc },
+      { id: REMINDER_SIGNAL_TIME_ID, value: reminderUtc },
+    ];
+    summary.reminderUtc = reminderUtc;
+  }
+  return { patch, summary };
+}
+
+const HAS_ZONE = /(Z|[+-]\d{2}:?\d{2})$/i;
+
+/** A zone-less local date-time, normalised to YYYY-MM-DDTHH:MM:SS, for a zone Graph converts. */
+function localDateTime(value: string, parameter: string, zone: string): string {
+  const match = /^(\d{4}-\d{2}-\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(value.trim());
+  if (!match) {
+    throw new Error(
+      `${parameter} must be an ISO date or date-time without Z or an offset, such as 2026-10-01T09:00, when timeZone is a Windows name ("${zone}"); got "${value}".`
+    );
+  }
+  const [, date, h = '00', m = '00', s = '00'] = match;
+  return `${date}T${h}:${m}:${s}`;
+}
 
 export class MailWriteService {
   constructor(
@@ -301,9 +452,22 @@ export class MailWriteService {
     return { newId: moved.id };
   }
 
-  async flagMessage(messageId: string, flag: 'flagged' | 'complete' | 'notFlagged'): Promise<void> {
+  /**
+   * Set, complete or clear a follow-up flag. With flag 'flagged' it can also
+   * carry a start and due date and a reminder: Graph has no snooze for mail,
+   * so "remind me about this later" is a flagged message that stays in the
+   * Inbox with a reminder at the chosen time. Clearing the flag (notFlagged)
+   * also switches the reminder off; 'complete' is sent exactly as before.
+   */
+  async flagMessage(
+    messageId: string,
+    flag: FlagStatus,
+    options: FlagOptions = {}
+  ): Promise<FlagResult> {
     this.requireWrite();
-    await this.call('write', () => this.graph.api(messagePath(messageId)).patch({ flag: { flagStatus: flag } }));
+    const body = buildFlagPatch(flag, options);
+    await this.call('write', () => this.graph.api(messagePath(messageId)).patch(body.patch));
+    return { messageId, flag, ...body.summary };
   }
 
   /**

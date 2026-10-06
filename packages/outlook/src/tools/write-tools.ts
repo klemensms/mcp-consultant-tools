@@ -163,16 +163,34 @@ export function registerWriteTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     'mail-flag-message',
-    'Flag a message for follow-up, mark the flag complete, or clear it.' + OFF,
+    'Flag a message for follow-up, mark the flag complete, or clear it. With flag "flagged" it can also set a due date and ' +
+      'a reminder. This is how to "snooze" an email or "remind me about this later": Outlook mail has no true snooze, so the ' +
+      'message stays in the Inbox, flagged, and a reminder pops up at the chosen time. Times without Z or an offset are read ' +
+      'in timeZone. notFlagged also switches the reminder off and takes no dates.' + OFF,
     {
       messageId: z.string(),
       flag: z.enum(['flagged', 'complete', 'notFlagged']),
+      dueDateTime: z
+        .string()
+        .optional()
+        .describe('Follow-up due date, ISO local date or date-time, e.g. "2026-10-10" or "2026-10-10T17:00". Only with flagged'),
+      startDateTime: z
+        .string()
+        .optional()
+        .describe('Follow-up start, ISO local date or date-time; needs dueDateTime. Default: now (or the due date if already past)'),
+      timeZone: z
+        .string()
+        .optional()
+        .describe('Zone for the dates, e.g. "Europe/London" (IANA) or "GMT Standard Time" (Windows). Default OUTLOOK_TIME_ZONE, else the machine zone'),
+      reminderDateTime: z
+        .string()
+        .optional()
+        .describe('When the reminder pops up, ISO date-time, e.g. "2026-10-10T09:00". Only with flagged'),
     },
     { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-    async ({ messageId, flag }: any) => {
+    async ({ messageId, flag, dueDateTime, startDateTime, timeZone, reminderDateTime }: any) => {
       try {
-        await ctx.write.flagMessage(messageId, flag);
-        return json({ messageId, flag });
+        return json(await ctx.write.flagMessage(messageId, flag, { dueDateTime, startDateTime, timeZone, reminderDateTime }));
       } catch (error: any) {
         return fail('flag message', error);
       }

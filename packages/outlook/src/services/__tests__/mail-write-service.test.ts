@@ -6,7 +6,7 @@
  * caller is sanitised before it reaches Graph; oversize and credential files
  * are refused before any request.
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -319,6 +319,167 @@ describe('organising', () => {
     const { svc, requests } = service();
     await svc.flagMessage('MSG1', 'complete');
     expect(requests[0].body).toEqual({ flag: { flagStatus: 'complete' } });
+  });
+});
+
+describe('flagMessage with dates and a reminder', () => {
+  const REMINDER_SET = 'Boolean {00062008-0000-0000-C000-000000000046} Id 0x8503';
+  const REMINDER_TIME = 'SystemTime {00062008-0000-0000-C000-000000000046} Id 0x8502';
+  const SIGNAL_TIME = 'SystemTime {00062008-0000-0000-C000-000000000046} Id 0x8560';
+
+  beforeEach(() => {
+    process.env.OUTLOOK_TIME_ZONE = 'Europe/London';
+  });
+  afterEach(() => {
+    delete process.env.OUTLOOK_TIME_ZONE;
+    vi.useRealTimers();
+  });
+
+  it('a plain flag sends the flag status alone, with no dates and no extended properties', async () => {
+    const { svc, requests } = service();
+    await svc.flagMessage('MSG1', 'flagged');
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({ method: 'PATCH', path: '/me/messages/MSG1' });
+    expect(requests[0].body).toEqual({ flag: { flagStatus: 'flagged' } });
+  });
+
+  it('a due date is sent in UTC, with start defaulting to now', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-06T08:30:00Z'));
+    const { svc, requests } = service();
+    const result = await svc.flagMessage('MSG1', 'flagged', { dueDateTime: '2026-10-10T17:00' });
+    expect(requests[0].body).toEqual({
+      flag: {
+        flagStatus: 'flagged',
+        startDateTime: { dateTime: '2026-10-06T08:30:00', timeZone: 'UTC' },
+        dueDateTime: { dateTime: '2026-10-10T16:00:00', timeZone: 'UTC' },
+      },
+    });
+    expect(result).toMatchObject({ messageId: 'MSG1', flag: 'flagged' });
+  });
+
+  it('an explicit start and zone are honoured', async () => {
+    const { svc, requests } = service();
+    await svc.flagMessage('MSG1', 'flagged', {
+      startDateTime: '2026-10-08T09:00',
+      dueDateTime: '2026-10-09T09:00',
+      timeZone: 'America/New_York',
+    });
+    expect(requests[0].body.flag).toEqual({
+      flagStatus: 'flagged',
+      startDateTime: { dateTime: '2026-10-08T13:00:00', timeZone: 'UTC' },
+      dueDateTime: { dateTime: '2026-10-09T13:00:00', timeZone: 'UTC' },
+    });
+  });
+
+  it('a due date already past moves the default start back to the due date', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-06T08:30:00Z'));
+    const { svc, requests } = service();
+    await svc.flagMessage('MSG1', 'flagged', { dueDateTime: '2026-10-01T09:00' });
+    expect(requests[0].body.flag.startDateTime).toEqual({ dateTime: '2026-10-01T08:00:00', timeZone: 'UTC' });
+  });
+
+  it('a Windows zone name goes to Graph as given, since it cannot be converted here', async () => {
+    const { svc, requests } = service();
+    await svc.flagMessage('MSG1', 'flagged', { dueDateTime: '2026-10-10T17:00', timeZone: 'GMT Standard Time' });
+    expect(requests[0].body.flag).toEqual({
+      flagStatus: 'flagged',
+      startDateTime: { dateTime: '2026-10-10T17:00:00', timeZone: 'GMT Standard Time' },
+      dueDateTime: { dateTime: '2026-10-10T17:00:00', timeZone: 'GMT Standard Time' },
+    });
+  });
+
+  it('a due date plus a reminder sets the three reminder properties in UTC', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-06T08:30:00Z'));
+    const { svc, requests } = service();
+    const result = await svc.flagMessage('MSG1', 'flagged', {
+      dueDateTime: '2026-10-10T17:00',
+      reminderDateTime: '2026-10-10T09:00',
+    });
+    expect(requests).toHaveLength(1);
+    expect(requests[0].body).toEqual({
+      flag: {
+        flagStatus: 'flagged',
+        startDateTime: { dateTime: '2026-10-06T08:30:00', timeZone: 'UTC' },
+        dueDateTime: { dateTime: '2026-10-10T16:00:00', timeZone: 'UTC' },
+      },
+      singleValueExtendedProperties: [
+        { id: REMINDER_SET, value: 'true' },
+        { id: REMINDER_TIME, value: '2026-10-10T08:00:00Z' },
+        { id: SIGNAL_TIME, value: '2026-10-10T08:00:00Z' },
+      ],
+    });
+    expect(result.reminderUtc).toBe('2026-10-10T08:00:00Z');
+  });
+
+  it('a reminder with an explicit offset is taken as it is', async () => {
+    const { svc, requests } = service();
+    await svc.flagMessage('MSG1', 'flagged', { reminderDateTime: '2026-10-10T09:00:00Z' });
+    expect(requests[0].body.flag).toEqual({ flagStatus: 'flagged' });
+    expect(requests[0].body.singleValueExtendedProperties[1]).toEqual({ id: REMINDER_TIME, value: '2026-10-10T09:00:00Z' });
+  });
+
+  it('notFlagged clears the reminder as well as the flag', async () => {
+    const { svc, requests } = service();
+    await svc.flagMessage('MSG1', 'notFlagged');
+    expect(requests[0].body).toEqual({
+      flag: { flagStatus: 'notFlagged' },
+      singleValueExtendedProperties: [{ id: REMINDER_SET, value: 'false' }],
+    });
+  });
+
+  it.each([
+    [{ dueDateTime: '2026-10-10' }],
+    [{ startDateTime: '2026-10-10' }],
+    [{ reminderDateTime: '2026-10-10T09:00' }],
+    [{ timeZone: 'Europe/London' }],
+  ])('rejects dates or a reminder with notFlagged before any request (%o)', async (options) => {
+    const { svc, requests } = service();
+    await expect(svc.flagMessage('MSG1', 'notFlagged', options)).rejects.toThrow(/notFlagged/);
+    expect(requests).toHaveLength(0);
+  });
+
+  it('rejects dates or a reminder with complete before any request', async () => {
+    const { svc, requests } = service();
+    await expect(svc.flagMessage('MSG1', 'complete', { dueDateTime: '2026-10-10' })).rejects.toThrow(/flagged/);
+    expect(requests).toHaveLength(0);
+  });
+
+  it('rejects a start without a due date', async () => {
+    const { svc, requests } = service();
+    await expect(svc.flagMessage('MSG1', 'flagged', { startDateTime: '2026-10-10' })).rejects.toThrow(/dueDateTime/);
+    expect(requests).toHaveLength(0);
+  });
+
+  it('rejects a start after the due date', async () => {
+    const { svc, requests } = service();
+    await expect(
+      svc.flagMessage('MSG1', 'flagged', { startDateTime: '2026-10-12', dueDateTime: '2026-10-10' })
+    ).rejects.toThrow(/after/);
+    expect(requests).toHaveLength(0);
+  });
+
+  it('rejects a reminder without a zone when the zone is a Windows name', async () => {
+    const { svc, requests } = service();
+    await expect(
+      svc.flagMessage('MSG1', 'flagged', { reminderDateTime: '2026-10-10T09:00', timeZone: 'GMT Standard Time' })
+    ).rejects.toThrow(/reminderDateTime/);
+    expect(requests).toHaveLength(0);
+  });
+
+  it('rejects an unreadable date', async () => {
+    const { svc, requests } = service();
+    await expect(svc.flagMessage('MSG1', 'flagged', { dueDateTime: 'next Friday' })).rejects.toThrow(/dueDateTime/);
+    expect(requests).toHaveLength(0);
+  });
+
+  it('is still held to OUTLOOK_ENABLE_WRITE', async () => {
+    delete process.env.OUTLOOK_ENABLE_WRITE;
+    const { svc, requests } = service();
+    await expect(svc.flagMessage('MSG1', 'flagged', { dueDateTime: '2026-10-10' })).rejects.toThrow(/OUTLOOK_ENABLE_WRITE/);
+    expect(requests).toHaveLength(0);
   });
 });
 

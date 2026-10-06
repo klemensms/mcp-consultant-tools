@@ -149,13 +149,30 @@ export function registerWriteCommands(program: Command, ctx: ServiceContext): vo
   // mail-flag-message
   program
     .command('flag')
-    .description('Set a follow-up flag: flagged, complete or notFlagged')
+    .description(
+      'Set a follow-up flag: flagged, complete or notFlagged. With flagged, optionally a due date and a reminder ' +
+        '(the way to "snooze" or "remind me later": the message stays in the Inbox, flagged, with a reminder)'
+    )
     .requiredOption('--message-id <id>', 'Message id')
     .requiredOption('--flag <flag>', 'flagged, complete or notFlagged')
+    .option('--due <datetime>', 'Due date, ISO local date or date-time, e.g. 2026-10-10T17:00 (flagged only)')
+    .option('--start <datetime>', 'Start date, ISO local; needs --due. Default now')
+    .option('--time-zone <zone>', 'IANA or Windows zone name. Default OUTLOOK_TIME_ZONE, else the machine zone')
+    .option('--reminder <datetime>', 'Reminder time, ISO date-time, e.g. 2026-10-10T09:00 (flagged only)')
     .action(async (opts: any) => {
       try {
-        await ctx.write.flagMessage(opts.messageId, opts.flag);
-        done(`Flag set to ${opts.flag}: ${opts.messageId}`, { messageId: opts.messageId, flag: opts.flag });
+        const result = await ctx.write.flagMessage(opts.messageId, opts.flag, {
+          dueDateTime: opts.due,
+          startDateTime: opts.start,
+          timeZone: opts.timeZone,
+          reminderDateTime: opts.reminder,
+        });
+        const extras = [
+          result.dueDateTime ? `due ${result.dueDateTime.dateTime} ${result.dueDateTime.timeZone}` : '',
+          result.reminderUtc ? `reminder ${result.reminderUtc}` : '',
+          result.reminderCleared ? 'reminder cleared' : '',
+        ].filter(Boolean);
+        done(`Flag set to ${opts.flag}: ${opts.messageId}${extras.length ? ` (${extras.join(', ')})` : ''}`, result);
       } catch (error) {
         handleCliError(error);
       }

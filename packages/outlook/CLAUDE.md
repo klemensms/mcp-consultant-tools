@@ -37,7 +37,7 @@ Full reference: `docs/technical/OUTLOOK_TECHNICAL.md`. User guide: `docs/documen
 
 **Live testing needs a registration with mail permissions.** On a registration without them, sign in with `mcp-outlook-cli auth login` and confirm that `auth status` reports every mail group as missing its permission and that `list` returns the permission hint. The token cache is salted with the server name, so a SharePoint sign-in on the same registration does not carry over.
 
-Not yet live-verified: every calendar tool (waits for the calendar permissions on the registration; delegate calendars and invitation responses will stay unit-tested only), `$expand=attachments($select=...)` on message and conversation reads, and the backslash escape of a double quote inside `$search`.
+Not yet live-verified: every calendar tool (waits for the calendar permissions on the registration; delegate calendars and invitation responses will stay unit-tested only), `$expand=attachments($select=...)` on message and conversation reads, the backslash escape of a double quote inside `$search`, and the follow-up dates and reminder extended properties on `mail-flag-message` (whether Outlook pops the reminder).
 
 ## CLI
 

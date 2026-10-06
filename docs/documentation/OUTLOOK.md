@@ -28,7 +28,7 @@ Read and act on your own Outlook mailbox and calendar through Microsoft Graph, s
 | `mail-add-draft-attachment` | `OUTLOOK_ENABLE_DRAFTS` | Attach a local file from your home folder, or a SharePoint or OneDrive file by link, to a draft |
 | `mail-mark-read` | `OUTLOOK_ENABLE_WRITE` | Mark a message read or unread |
 | `mail-move-message` | `OUTLOOK_ENABLE_WRITE` | Move a message to another folder |
-| `mail-flag-message` | `OUTLOOK_ENABLE_WRITE` | Flag, complete or clear a follow-up flag |
+| `mail-flag-message` | `OUTLOOK_ENABLE_WRITE` | Flag, complete or clear a follow-up flag; with a flag, optionally a due date and a reminder (the "remind me later" alternative to snooze, which Outlook mail does not have) |
 | `mail-set-categories` | `OUTLOOK_ENABLE_CATEGORIES` | Add and remove categories on a message; categories you do not name are kept |
 | `mail-send-draft` | `OUTLOOK_ENABLE_SEND` | Send an existing draft (real mail, cannot be undone) |
 | `mail-send` | `OUTLOOK_ENABLE_SEND` | Compose and send in one step (real mail, cannot be undone) |
