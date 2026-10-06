@@ -31,8 +31,8 @@ Not a send decision. Our release commands publish from this machine, and `npm pu
 ## Email tracking and snooze
 
 ### D-011 · Publish a beta so track-email and the flag reminder can be tested
-Not a send decision. You will test track-email yourself (D-009). It is built and committed but not published, so your MCP config cannot reach it yet. The flag due date and reminder (D-008) is being built now. Proposal: once that build and the dependency pinning (D-005) land, publish one beta of the affected packages (powerplatform-core, powerplatform-data, powerplatform, powerplatform-customization, outlook, sharepoint), move your config pins to it and tell you to reconnect.
-- **A.** Publish one beta when those builds land.
+Not a send decision. You will test track-email yourself (D-009). It is built and committed but not published, so your MCP config cannot reach it yet. The flag due date and reminder (D-008, `8620a4c`, `6c30019`) and the dependency pinning (D-005, `81bb730`, `45977cc`) are also built and committed. Proposal: publish one beta now of the affected packages (powerplatform-core, powerplatform-data, powerplatform, powerplatform-customization, outlook, sharepoint), move your config pins to it and tell you to reconnect.
+- **A.** Publish one beta now.
 - **B.** Point your config at the local build instead (no publish; only works on this machine).
 - **C.** Wait.
 - **Recommended: A.** One beta covers everything you will test, and it exercises the new shrinkwrap release step once before production.
@@ -41,6 +41,8 @@ What to check when you test track-email, in your own mailbox and the CRM:
 1. Track an email that is not yet in the CRM: an email activity appears, completed, with the right Regarding record and any attachments.
 2. Track the same email again with a different Regarding: the same activity is reused and Regarding changes (needs the update switch on).
 3. In Outlook, the email shows as tracked; the next server-side sync does not create a duplicate.
+
+And the flag reminder: ask the agent to remind you about an email at a set time; Outlook shows it flagged with that due date and the reminder pops at that time. Marking it complete stops the reminder.
 
 ## Messages
 
