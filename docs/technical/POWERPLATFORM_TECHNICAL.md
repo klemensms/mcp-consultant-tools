@@ -861,7 +861,7 @@ All write operations are controlled by individual environment variables (all def
 
 | Flag | Enables | Without the flag |
 |------|---------|-----------------|
-| `POWERPLATFORM_ENABLE_CREATE` | `create-record`, `associate-records` | `Error: Create operations are disabled. Set POWERPLATFORM_ENABLE_CREATE=true to enable.` |
+| `POWERPLATFORM_ENABLE_CREATE` | `create-record`, `associate-records`, `track-email` | `Error: Create operations are disabled. Set POWERPLATFORM_ENABLE_CREATE=true to enable.` |
 | `POWERPLATFORM_ENABLE_UPDATE` | `update-record` | `Error: Update operations are disabled. Set POWERPLATFORM_ENABLE_UPDATE=true to enable.` |
 | `POWERPLATFORM_ENABLE_DELETE` | `delete-record`, `disassociate-records` | `Error: Delete operations are disabled. Set POWERPLATFORM_ENABLE_DELETE=true to enable.` |
 | `POWERPLATFORM_ENABLE_ACTIONS` | `execute-action` | `Error: Action execution is disabled. Set POWERPLATFORM_ENABLE_ACTIONS=true to enable.` |
@@ -983,6 +983,38 @@ Body: `{ "@odata.id": "{orgUrl}/api/data/v9.2/{targetEntityNamePlural}({targetRe
 Use `get-entity-relationships` (read-only package) to find the correct `navigationProperty` name.
 
 If the relationship already exists: `Error: A record with matching key values already exists` - no action needed, records are already associated.
+
+</tool-reference>
+
+<tool-reference name="email-tracking-tools-data">
+
+## Email Tracking Tool (1 - `POWERPLATFORM_ENABLE_CREATE=true`)
+
+`track-email` records an email the agent has read with the Outlook server (`mail-get-message`) as a completed email activity in Dataverse, optionally regarding a record. Logic lives in `EmailTrackingService` (`powerplatform-core`). This server needs no Outlook permission: the agent passes the email's fields.
+
+| Parameter | Required | Notes |
+|---|---|---|
+| `internetMessageId` | yes | `internetMessageId` from `mail-get-message`, e.g. `<abc123@example.com>`. Stored in `messageid`. |
+| `from` | yes | Bare address or `Name <address>` |
+| `to`, `cc`, `bcc` | no | Arrays, same forms as `from` |
+| `subject`, `body` | no | `body` goes to `description`. Outlook's untrusted-content wrapper is stripped if present. |
+| `sentOn` | no | ISO 8601, stored in `senton` |
+| `direction` | no | `outgoing` / `incoming`. Default: outgoing when `from` is the signed-in user (`WhoAmI` then `systemusers.internalemailaddress`), otherwise incoming. |
+| `regarding` | no | `{ entityLogicalName, recordId }`. Any table with `HasActivities`. |
+| `attachments` | no | `[{ path, mimeType? }]`. Omit for text only. |
+
+Request sequence:
+1. Validate the regarding table name (`^[a-z_][a-z0-9_]*$`) and record GUID, and every attachment path (`assertSafeLocalFile`: inside the home folder, no hidden segment, no credential-shaped name; 25 MB cap each). Nothing is written if any check fails.
+2. With `regarding`: `GET EntityDefinitions(LogicalName='<name>')?$select=EntitySetName,HasActivities`; refuse when `HasActivities` is false. The bind name comes from the table's `OneToManyRelationships` where `ReferencingEntity eq 'email' and ReferencingAttribute eq 'regardingobjectid'`, falling back to `regardingobjectid_<name>_email`.
+3. `GET emails?$filter=messageid eq '<id>'`. If found, the email is reused: Regarding is set by `PATCH` when given, the previous Regarding is reported, and nothing else changes.
+4. Each address is resolved in order against `systemusers.internalemailaddress`, `contacts.emailaddress1`, `accounts.emailaddress1`, `leads.emailaddress1`; the first match is bound (`partyid_<table>@odata.bind`), otherwise the party keeps `addressused`. Participation masks: 1 From, 2 To, 3 Cc, 4 Bcc.
+5. `POST emails` with the parties in `email_activity_parties` and the regarding bind.
+6. One `POST activitymimeattachments` per attachment (`objectid_activitypointer@odata.bind`, `objecttypecode: 'email'`, base64 `body`), before closing.
+7. `PATCH emails(<id>)` to `statecode 1` with `statuscode 3` (Sent, outgoing) or `4` (Received, incoming).
+
+If step 6 or 7 fails, the error names the created activity id so it can be finished or removed by hand.
+
+Not verified live: whether the Dynamics App for Outlook and server-side sync recognise an API-created email as tracked through `messageid` alone.
 
 </tool-reference>
 

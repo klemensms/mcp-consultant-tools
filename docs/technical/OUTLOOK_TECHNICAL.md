@@ -135,7 +135,7 @@ Each read method checks the switch before any Graph call, so the CLI is held to 
 | `mail-list-categories` | none | `GET /me/outlook/masterCategories`: the mailbox's defined categories as `{ displayName, color }`. Microsoft documents `MailboxSettings.Read` for this call; verified live 2026-09-29 to succeed on a sign-in carrying `Mail.ReadWrite` and no `MailboxSettings` permission. A 403 gets the read-group hint. |
 | `mail-list-messages` | `folder?`, `top?`, `unreadOnly?`, `from?`, `since?`, `until?`, `hasAttachments?` | `GET /me/mailFolders/{folder}/messages`, folder default `inbox` (well-known name or id). `top` default 20, capped at 50. Filters combine into one `$filter`, ordered `receivedDateTime desc`. Returns summaries. |
 | `mail-search-messages` | `query`, `top?` | `$search="<query>"` across the mailbox, relevance order. Supports KQL (`from:`, `subject:`, `hasattachments:true`, `received>=2026-09-01`). |
-| `mail-get-message` | `id` | Sender, recipients, body as text, attachment list with ids. Body wrapped as untrusted content. |
+| `mail-get-message` | `id` | Sender, recipients, `sentDateTime`, `internetMessageId` (the key for the Dynamics `track-email` tool), body as text, attachment list with ids. Body wrapped as untrusted content. |
 | `mail-get-conversation` | `conversationId` | Every message in the thread, oldest first, each with body and attachments. |
 | `mail-download-attachment` | `messageId`, `attachmentId` | Saves a file attachment to `OUTLOOK_DOWNLOAD_DIR` and returns the absolute path, size and type. |
 

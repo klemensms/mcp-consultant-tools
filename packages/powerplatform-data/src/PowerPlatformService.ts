@@ -17,6 +17,9 @@ import {
   type FlowRunsResult,
   // Services for data operations
   DataService,
+  EmailTrackingService,
+  type TrackEmailInput,
+  type TrackEmailResult,
   MetadataService,
   FlowService,
   // Auth
@@ -34,6 +37,7 @@ export type { PowerPlatformConfig, ApiCollectionResponse };
 export class PowerPlatformService {
   private client: PowerPlatformClient;
   private data: DataService;
+  private emailTracking: EmailTrackingService;
   private metadata: MetadataService;
   private flow: FlowService;
   private pii?: PiiProtectionPipeline;
@@ -58,6 +62,7 @@ export class PowerPlatformService {
     // Initialize client and services
     this.client = new PowerPlatformClient(config, auth);
     this.data = new DataService(this.client, piiPipeline);
+    this.emailTracking = new EmailTrackingService(this.client);
     this.metadata = new MetadataService(this.client);
     this.flow = new FlowService(this.client);
   }
@@ -207,6 +212,10 @@ export class PowerPlatformService {
     }
   ): Promise<Record<string, unknown>> {
     return this.data.executeAction(actionName, parameters, boundTo);
+  }
+
+  async trackEmail(input: TrackEmailInput): Promise<TrackEmailResult> {
+    return this.emailTracking.trackEmail(input);
   }
 
   async countRecords(

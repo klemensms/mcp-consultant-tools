@@ -91,6 +91,12 @@ export type {
 
 // Data services
 export { DataService } from './services/DataService.js';
+export { EmailTrackingService } from './services/EmailTrackingService.js';
+export type {
+  TrackEmailInput,
+  TrackEmailResult,
+  EmailTrackingOptions,
+} from './services/EmailTrackingService.js';
 
 // Customization services
 export { AttributeService } from './services/AttributeService.js';

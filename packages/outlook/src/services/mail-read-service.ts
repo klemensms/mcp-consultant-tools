@@ -20,7 +20,7 @@ import type {
 const SUMMARY_FIELDS = [
   'id', 'conversationId', 'subject', 'from', 'receivedDateTime', 'isRead', 'hasAttachments', 'bodyPreview', 'webLink', 'categories',
 ];
-const DETAIL_FIELDS = [...SUMMARY_FIELDS, 'toRecipients', 'ccRecipients', 'body'];
+const DETAIL_FIELDS = [...SUMMARY_FIELDS, 'toRecipients', 'ccRecipients', 'body', 'internetMessageId', 'sentDateTime'];
 const ATTACHMENT_EXPAND = 'attachments($select=id,name,size,contentType,isInline)';
 
 const DEFAULT_TOP = 20;
@@ -114,6 +114,8 @@ function toDetail(message: any): MailDetail {
     ...summary,
     to: (message.toRecipients ?? []).map(formatAddress),
     cc: (message.ccRecipients ?? []).map(formatAddress),
+    internetMessageId: message.internetMessageId ?? '',
+    sentDateTime: message.sentDateTime ?? '',
     bodyText: wrapUntrusted(text, `email from ${summary.from || 'an unknown sender'}`),
     attachments,
   };

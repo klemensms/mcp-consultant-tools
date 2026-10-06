@@ -118,6 +118,7 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
           data: message,
           summary:
             `From: ${message.from}\nTo: ${message.to.join(', ')}\nSubject: ${message.subject}\nReceived: ${message.receivedDateTime}\n` +
+            `Message-ID: ${message.internetMessageId}\n` +
             `Attachments: ${message.attachments.map((a) => `${a.name} (id ${a.id})`).join(', ') || 'none'}\n\n${message.bodyText}`,
         });
       } catch (error) {

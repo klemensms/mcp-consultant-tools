@@ -97,7 +97,7 @@ All write operations are **disabled by default**. Enable only the operations you
 
 | Flag | Default | Enables |
 |------|---------|---------|
-| `POWERPLATFORM_ENABLE_CREATE` | `false` | `create-record`, `associate-records` |
+| `POWERPLATFORM_ENABLE_CREATE` | `false` | `create-record`, `associate-records`, `track-email` |
 | `POWERPLATFORM_ENABLE_UPDATE` | `false` | `update-record` |
 | `POWERPLATFORM_ENABLE_DELETE` | `false` | `delete-record`, `disassociate-records` |
 | `POWERPLATFORM_ENABLE_ACTIONS` | `false` | `execute-action` |
@@ -133,6 +133,7 @@ See [pii-protection.md](pii-protection.md) for config schema and [PII_PROTECTION
 
 - **`delete-record` requires double confirmation:** Both `POWERPLATFORM_ENABLE_DELETE=true` and the `confirm: true` parameter must be set. Deletion is permanent and cannot be undone.
 - **`associate-records` uses `ENABLE_CREATE`:** For N:N relationships, use `associate-records` instead of `create-record` - intersect entities do not support the Create message directly (error `0x80040800`).
+- **`track-email` tracks an Outlook email into Dynamics:** read the email with the Outlook server's `mail-get-message` and pass its fields, plus an optional Regarding record on any table enabled for activities. The internet message id is the key, so tracking the same email again reuses the existing activity and only changes Regarding. Attachments are added only when you pass local file paths (from `mail-download-attachment`).
 - **Lookup fields use `@odata.bind` syntax:** `"parentaccountid@odata.bind": "/accounts(<guid>)"`. Use `get-lookup-target` to discover the correct plural entity name and syntax for a given lookup field.
 - **`get-entity-metadata` returns `EntitySetName`:** Required to know the correct plural entity name for all data tools (e.g., `accounts`, `contacts`). Use this before performing CRUD operations on unfamiliar entities.
 - **All write operations are audit-logged:** Create, update, delete, and action executions are logged with timestamps, parameters, and execution time.

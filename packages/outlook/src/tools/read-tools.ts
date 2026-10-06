@@ -92,7 +92,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
 
   server.tool(
     'mail-get-message',
-    'Read one message: sender, recipients, body as readable text (links kept), and its attachment list with ids for mail-download-attachment.',
+    'Read one message: sender, recipients, sent time, internet message id (what Dynamics track-email keys on), body as readable text (links kept), and its attachment list with ids for mail-download-attachment.',
     {
       id: z.string().describe('Message id from mail-list-messages or mail-search-messages'),
     },

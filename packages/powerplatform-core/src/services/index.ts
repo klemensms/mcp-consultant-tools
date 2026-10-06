@@ -34,6 +34,7 @@ export { WorkflowService } from './WorkflowService.js';
 
 // Data services (for powerplatform-data package)
 export { DataService } from './DataService.js';
+export { EmailTrackingService } from './EmailTrackingService.js';
 
 // Customization services (for powerplatform-customization package)
 export { AttributeService } from './AttributeService.js';

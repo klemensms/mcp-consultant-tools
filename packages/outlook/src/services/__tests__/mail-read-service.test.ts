@@ -165,6 +165,8 @@ const DETAIL = {
   ...MESSAGE,
   toRecipients: [{ emailAddress: { name: 'John Smith', address: 'jsmith@example.com' } }],
   ccRecipients: [{ emailAddress: { address: 'team@example.com' } }],
+  internetMessageId: '<budget-1@example.com>',
+  sentDateTime: '2026-09-01T09:59:00Z',
   body: { contentType: 'html', content: '<p>Please see <a href="https://example.com/b">the budget</a>.</p>' },
   attachments: [
     {
@@ -188,6 +190,10 @@ describe('getMessage', () => {
     expect(requests[0].query.$select).toContain('toRecipients');
     expect(detail.to).toEqual(['John Smith <jsmith@example.com>']);
     expect(detail.cc).toEqual(['team@example.com']);
+    expect(requests[0].query.$select).toContain('internetMessageId');
+    expect(requests[0].query.$select).toContain('sentDateTime');
+    expect(detail.internetMessageId).toBe('<budget-1@example.com>');
+    expect(detail.sentDateTime).toBe('2026-09-01T09:59:00Z');
     expect(detail.bodyText).toMatch(/came from an email/i);
     expect(detail.bodyText).toContain('Please see [the budget](https://example.com/b).');
     expect(detail.attachments).toEqual([

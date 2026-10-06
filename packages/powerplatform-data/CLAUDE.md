@@ -7,7 +7,7 @@ This package shares guidance with the main PowerPlatform package.
 ## Package-Specific Notes
 
 - **Purpose:** Data CRUD operations on Dataverse records
-- **Tools:** 14 tools, 0 prompts
+- **Tools:** 13 tools, 0 prompts
 - **Production-Safe:** NO - Operational use only
 - **Granular flags required:** Enable specific operations via environment variables
 
@@ -31,6 +31,7 @@ POWERPLATFORM_ENABLE_DELETE=false   # Enable record deletion (most dangerous)
 - `execute-action` - Execute Custom APIs/Actions
 - `associate-records` - Associate two records via N:N/1:N navigation property (requires ENABLE_CREATE=true)
 - `disassociate-records` - Remove association between two records (requires ENABLE_DELETE=true)
+- `track-email` - Track an Outlook email as a completed email activity, optionally regarding a record (requires ENABLE_CREATE=true). Logic in `EmailTrackingService` in powerplatform-core, where its tests live.
 
 ## Data Format
 
@@ -55,6 +56,10 @@ mcp-pp-data-cli data query accounts --filter "name eq 'Acme'"
 
 # Get record by ID
 mcp-pp-data-cli data get accounts 00000000-0000-0000-0000-000000000001
+
+# Track an email regarding an opportunity
+mcp-pp-data-cli email track '<abc123@example.com>' --from jdoe@example.com --to me@example.com \
+  --subject 'Proposal' --regarding-entity opportunity --regarding-id aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
 ```
 
 ## Quick Start (audit, opt-in)

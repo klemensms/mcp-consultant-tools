@@ -33,6 +33,9 @@ export interface MailAttachmentInfo {
 export interface MailDetail extends MailSummary {
   to: string[];
   cc: string[];
+  /** RFC 5322 Message-ID, e.g. `<abc@example.com>`; what Dynamics keys a tracked email on. */
+  internetMessageId: string;
+  sentDateTime: string;
   /** Plain text, wrapped as untrusted email content. */
   bodyText: string;
   attachments: MailAttachmentInfo[];

@@ -27,7 +27,7 @@ MCP Consultant Tools is a **modular monorepo** with **22 independently published
 | **m365-core** | Shared sign-in-as-you (device code) auth and encrypted token cache for the SharePoint and Outlook servers (internal) | N/A | N/A | - |
 | **powerplatform** | PowerPlatform/Dataverse (Read-Only) | 53 | `mcp-pp-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM.md) |
 | **powerplatform-customization** | PowerPlatform Schema Changes | 85 | `mcp-pp-custom-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_CUSTOMIZATION.md) |
-| **powerplatform-data** | PowerPlatform Data CRUD | 12 | `mcp-pp-data-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_DATA.md) |
+| **powerplatform-data** | PowerPlatform Data CRUD | 13 | `mcp-pp-data-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_DATA.md) |
 | **azure-devops** | Azure DevOps Wikis, Work Items, PRs, Builds, Branches, Test Runs | 73 | `mcp-ado-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS.md) |
 | **azure-devops-admin** | Azure DevOps Pipelines, Deploys, Feeds, Service Conns, Pools, Sprint Capacity | 75 | `mcp-ado-admin-cli` | [Setup & Usage](docs/documentation/AZURE_DEVOPS_ADMIN.md) |
 | **azure-management** | Azure ARM API (VMs, Functions, App Services, Key Vault, SQL, Monitoring, Logic Apps, Resource Graph, log streaming) | 46 | `mcp-azure-mgmt-cli` | [Setup & Usage](docs/documentation/AZURE_MANAGEMENT.md) |
