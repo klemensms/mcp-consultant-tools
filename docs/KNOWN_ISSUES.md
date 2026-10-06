@@ -320,4 +320,6 @@ Each HTTP server builds one `McpServer`, connects it once to one `InMemoryTransp
 
 **Fix:** raise `engines.node` to `>=18.0.0` in the 24 manifests, and consider `>=20.0.0` if the CI matrix drops Node 18. Mention it in the release notes as a support change.
 
+**Decided 2026-10-06 (outstanding decision D-004):** the next major release moves `@azure/msal-node` from 3.x to 7.x in `powerplatform-core` and `m365-core`, which itself needs Node 20, so that release raises `engines.node` to `>=20.0.0` with a breaking-change note. Source: finding 9 in `docs/reviews/2026-10-06-dynamics-review-findings.md`.
+
 ---

@@ -18,16 +18,9 @@ Not a send decision. Today a table name, column name or record ID typed into a t
 ### D-003 · Finding #9: store sign-in tokens in the OS keychain
 Not a send decision. Tokens are saved in an encrypted file, but the key is built from the computer name and user name with a fixed value shipped in the public package, so anyone who gets a copy of the file can read the refresh token. Proposal: keep tokens in the macOS Keychain / Windows Credential Manager, falling back to memory only (sign in at every start) where the keychain cannot be used; delete the old file on start; same for the SharePoint/Outlook sign-in. Cost: the keychain library has native parts, so on an unusual machine the install may fall back to memory-only. Everyone signs in once after the upgrade.
 - **A.** Approve the keychain cache now, as its own beta.
-- **B.** Approve, but only after D-004.
+- **B.** Approve, but only together with the sign-in library upgrade in the next major release.
 - **C.** Hold.
 - **Recommended: A.** It is the one finding where a stolen file means a stolen login.
-
-### D-004 · Finding #9: move the sign-in library to its latest major version (3 to 7)
-Not a send decision. The latest version requires Node 20 or later; our packages say Node 16 or later. Anyone still on Node 16 or 18 would break after upgrading, so it needs a breaking-change note in the release notes. No code changes are expected beyond the version.
-- **A.** Do it in the next major release, with a breaking-change note.
-- **B.** Do it now in the 35.0 betas.
-- **C.** Stay on version 3.
-- **Recommended: A.** No known security hole forces it now, and a Node floor change belongs in a major release.
 
 ### D-005 · Finding #3: lock exact dependency versions in published packages
 Not a send decision. Our published packages accept any compatible newer version of their outside dependencies, so a compromised update to one of them reaches users on their next install without a release from us. Proposal: exact versions plus a lock file shipped inside each package, generated during release. Cost: one more release step; every dependency update becomes a deliberate change.
