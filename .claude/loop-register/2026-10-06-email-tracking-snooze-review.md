@@ -1,0 +1,27 @@
+# Loop register: email tracking, snooze, Dynamics review findings
+
+Chain started 2026-10-06 by the origin session (hop 0). Tasks: T1 track-email in powerplatform-data, T2 email snooze in outlook, T3 check nine review findings and put proposals to the maintainer.
+
+### ⚑1 · An API-created email may not show as tracked in Outlook
+- **Kind:** assumption
+- **Hop:** origin · d04db39
+- **State:** open
+- **Matters because:** track-email copies the internet message id into the email activity's messageid, on the belief that the Dynamics App for Outlook and server-side sync both key on it. If they do not, Outlook will not show the email as tracked and server-side sync may create a duplicate. The record in CRM is correct either way; only a live test in the real CRM settles it.
+
+### ⚑2 · A live test of track-email writes to the production CRM
+- **Kind:** decision
+- **Hop:** origin · d04db39
+- **State:** open
+- **Matters because:** the maintainer's standing rule makes live systems read-only by default and a proof of concept never writes to one. Unit tests and the safe test environment can prove the record shape, but not ⚑1. A production test needs the maintainer's explicit go-ahead for that one test, and agreement with the Dynamics owner before the tool is used for real.
+
+### ⚑3 · Nine review findings need the maintainer's walk-through before any change
+- **Kind:** decision
+- **Hop:** origin · d04db39
+- **State:** open
+- **Matters because:** the hosting monitor's request, approved by the maintainer, is explicit: check each finding against our code, put proposals to him, and change nothing until he has gone through them. A hop that implements first breaks that agreement.
+
+### ⚑4 · The hosting monitor is owed two replies
+- **Kind:** deferred
+- **Hop:** origin · d04db39
+- **State:** open
+- **Matters because:** the beta.26 publish confirmation (sign-in hardening plus flow tools move) never reached the hosting monitor, because the session that asked had closed. The current hosting monitor also asked for a reply listing which of the nine findings applied, with commits. Without them, the other copy's owner works from stale information.
