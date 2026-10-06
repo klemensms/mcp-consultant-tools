@@ -1,6 +1,6 @@
 # Outstanding decisions
 
-> Every decision still waiting on the maintainer sits here and nowhere else. An entry is removed the moment it is answered; the answer is recorded in the owning plan's or review's Status section and git history keeps what was asked. Numbers are never reused. Next number: **D-011**. Any session may add an entry; the session that acts on the answer removes it. This repo is public: where a decision involves internal text (a ticket, a message), the entry points to the private record that holds it, and the question put to the maintainer in chat carries the full text.
+> Every decision still waiting on the maintainer sits here and nowhere else. An entry is removed the moment it is answered; the answer is recorded in the owning plan's or review's Status section and git history keeps what was asked. Numbers are never reused. Next number: **D-012**. Any session may add an entry; the session that acts on the answer removes it. This repo is public: where a decision involves internal text (a ticket, a message), the entry points to the private record that holds it, and the question put to the maintainer in chat carries the full text.
 >
 > Each entry: what is being decided, why it matters, lettered options, a recommendation, and whether it is a send decision. Answer by number and letter, e.g. "D-002 A, D-003 B".
 
@@ -30,12 +30,17 @@ Not a send decision. Our release commands publish from this machine, and `npm pu
 
 ## Email tracking and snooze
 
-### D-009 · Live test of track-email
-Not a send decision. track-email (records an Outlook email in Dynamics) is proven only against a fake client. Three behaviours need a real environment, then one needs production: whether Outlook then shows the email as tracked. Production is read-only by default, so that test needs your explicit go for that one test.
-- **A.** Name the 1Password item for the safe test environment; test there first, then ask again about production.
-- **B.** Test in the safe environment, and also allow one production test on an email you choose.
-- **C.** No live test for now.
-- **Recommended: A.** Proves the record shape without touching production.
+### D-011 · Publish a beta so track-email and the flag reminder can be tested
+Not a send decision. You will test track-email yourself (D-009). It is built and committed but not published, so your MCP config cannot reach it yet. The flag due date and reminder (D-008) is being built now. Proposal: once that build and the dependency pinning (D-005) land, publish one beta of the affected packages (powerplatform-core, powerplatform-data, powerplatform, powerplatform-customization, outlook, sharepoint), move your config pins to it and tell you to reconnect.
+- **A.** Publish one beta when those builds land.
+- **B.** Point your config at the local build instead (no publish; only works on this machine).
+- **C.** Wait.
+- **Recommended: A.** One beta covers everything you will test, and it exercises the new shrinkwrap release step once before production.
+
+What to check when you test track-email, in your own mailbox and the CRM:
+1. Track an email that is not yet in the CRM: an email activity appears, completed, with the right Regarding record and any attachments.
+2. Track the same email again with a different Regarding: the same activity is reused and Regarding changes (needs the update switch on).
+3. In Outlook, the email shows as tracked; the next server-side sync does not create a duplicate.
 
 ## Messages
 

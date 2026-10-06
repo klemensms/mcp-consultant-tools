@@ -11,7 +11,7 @@ Chain started 2026-10-06 by the origin session (hop 0). Tasks: T1 track-email in
 ### ⚑2 · A live test of track-email writes to the production CRM
 - **Kind:** decision
 - **Hop:** origin · d04db39
-- **State:** moved to docs/outstanding-decisions.md D-009 by L2
+- **State:** closed-by-L2 · D-009 answered: the maintainer tests live himself once built; publish route is D-011
 - **Matters because:** the maintainer's standing rule makes live systems read-only by default and a proof of concept never writes to one. Unit tests and the safe test environment can prove the record shape, but not ⚑1. A production test needs the maintainer's explicit go-ahead for that one test, and agreement with the Dynamics owner before the tool is used for real.
 
 ### ⚑3 · Nine review findings need the maintainer's walk-through before any change
@@ -29,7 +29,7 @@ Chain started 2026-10-06 by the origin session (hop 0). Tasks: T1 track-email in
 ### ⚑5 · track-email has not run against any real Dataverse yet
 - **Kind:** deferred
 - **Hop:** 1 · f6670da
-- **State:** moved to D-009 by L2
+- **State:** closed-by-L2 · D-009 answered: maintainer tests himself; checklist in D-011
 - **Matters because:** the request shapes are proven only against a fake client. Three behaviours need a real environment: setting Regarding with PATCH on an email that is already Completed (the reuse path), adding attachments before closing, and PATCHing statuscode 3 Sent without Dynamics trying to send. The safe environment's credentials are not on disk (the test configs hold `<from 1Password>` placeholders and the item name is not recorded), so this needs either the maintainer to name the 1Password item or a run in the safe environment from a machine that has it. Do this before ⚑2's production test.
 
 ### ⚑6 · Email snooze has no faithful API, so nothing was built
