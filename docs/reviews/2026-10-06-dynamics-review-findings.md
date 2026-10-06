@@ -4,7 +4,7 @@ A review of a separate copy of our PowerPlatform (Dataverse) MCP server produced
 
 **Rule applied throughout:** our servers stay unlocked. Bugs and security holes are fixed; no table or column allow-lists, no row caps, no feature removed.
 
-**Status:** proposals only. Nothing below has been changed yet; each item waits for the maintainer's decision.
+**Status:** items 2, 4, 5, 6 and 7 are fixed (`ae3e692`, `3b08f4c`, `7405ea8`, `6fd5f90`, `ad0788b`); item 6 still needs one check against a live environment. The other items wait for the maintainer's decision.
 
 Paths are relative to `packages/powerplatform-core/src/` unless stated.
 
