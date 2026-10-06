@@ -12,6 +12,29 @@ import { type AuthProvider, createAuthProvider } from '../auth/index.js';
 import type { PowerPlatformConfig } from './types.js';
 import { getRequestCallerObjectId } from './request-context.js';
 
+/** Headers the client always sets itself; a caller's value for any of them is dropped. */
+const FIXED_HEADERS = ['authorization', 'accept', 'odata-maxversion', 'odata-version', 'content-type'];
+
+/**
+ * Caller headers first, then the fixed ones, so a caller can add headers such as
+ * `Prefer` or `MSCRM.*` but cannot replace Authorization, Accept or the OData
+ * versions. Matching is case-insensitive, so `authorization` cannot ride alongside.
+ * Content-Type is added by the caller method when there is a body.
+ */
+function buildHeaders(token: string, additionalHeaders?: Record<string, string>): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const [name, value] of Object.entries(additionalHeaders ?? {})) {
+    if (!FIXED_HEADERS.includes(name.toLowerCase())) {
+      headers[name] = value;
+    }
+  }
+  headers['Authorization'] = `Bearer ${token}`;
+  headers['Accept'] = 'application/json';
+  headers['OData-MaxVersion'] = '4.0';
+  headers['OData-Version'] = '4.0';
+  return headers;
+}
+
 export class PowerPlatformClient {
   private config: PowerPlatformConfig;
   private authProvider: AuthProvider;
@@ -148,13 +171,7 @@ export class PowerPlatformClient {
       const token = await this.getAccessToken();
       const callerOid = this.getEffectiveCallerObjectId();
 
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-        'OData-MaxVersion': '4.0',
-        'OData-Version': '4.0',
-        ...additionalHeaders,
-      };
+      const headers = buildHeaders(token, additionalHeaders);
 
       if (callerOid) {
         headers['CallerObjectId'] = callerOid;
@@ -171,6 +188,9 @@ export class PowerPlatformClient {
         url: `${this.config.organizationUrl}/${endpoint}`,
         headers,
         data,
+        // No redirects: a response must not move the request, token included,
+        // away from the configured organization URL.
+        maxRedirects: 0,
       });
 
       return response.data as T;
@@ -186,8 +206,9 @@ export class PowerPlatformClient {
       };
       const errorDetails =
         axiosError.response?.data?.error || axiosError.response?.data || axiosError.message;
+      // The path only: the query string can carry record values from a filter.
       console.error('PowerPlatform API request failed:', {
-        endpoint,
+        endpoint: endpoint.split('?')[0],
         method,
         status: axiosError.response?.status,
         statusText: axiosError.response?.statusText,
@@ -213,13 +234,7 @@ export class PowerPlatformClient {
       const token = await this.getAccessToken();
       const callerOid = this.getEffectiveCallerObjectId();
 
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-        'OData-MaxVersion': '4.0',
-        'OData-Version': '4.0',
-        ...additionalHeaders,
-      };
+      const headers = buildHeaders(token, additionalHeaders);
 
       if (callerOid) {
         headers['CallerObjectId'] = callerOid;
@@ -235,6 +250,9 @@ export class PowerPlatformClient {
         url: `${this.config.organizationUrl}/${endpoint}`,
         headers,
         data,
+        // No redirects: a response must not move the request, token included,
+        // away from the configured organization URL.
+        maxRedirects: 0,
       });
 
       return {
@@ -273,13 +291,7 @@ export class PowerPlatformClient {
       const token = await this.getAccessToken();
       const callerOid = this.getEffectiveCallerObjectId();
 
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-        'OData-MaxVersion': '4.0',
-        'OData-Version': '4.0',
-        ...additionalHeaders,
-      };
+      const headers = buildHeaders(token, additionalHeaders);
 
       if (callerOid) {
         headers['CallerObjectId'] = callerOid;
@@ -295,6 +307,9 @@ export class PowerPlatformClient {
         url: `${this.config.organizationUrl}/${endpoint}`,
         headers,
         data,
+        // No redirects: a response must not move the request, token included,
+        // away from the configured organization URL.
+        maxRedirects: 0,
       });
     } catch (error: unknown) {
       const axiosError = error as {
