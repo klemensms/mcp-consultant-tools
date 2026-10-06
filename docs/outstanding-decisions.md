@@ -15,16 +15,12 @@ Not a send decision. Today a table name, column name or record ID typed into a t
 - **C.** Hold.
 - **Recommended: A.** Closes the masking bypass where untrusted input arrives; no capability limit.
 
-### D-003 · Finding #9: store sign-in tokens in the OS keychain
-Not a send decision. Tokens are saved in an encrypted file, but the key is built from the computer name and user name with a fixed value shipped in the public package, so anyone who gets a copy of the file can read the refresh token. Proposal: keep tokens in the macOS Keychain / Windows Credential Manager, falling back to memory only (sign in at every start) where the keychain cannot be used; delete the old file on start; same for the SharePoint/Outlook sign-in. Cost: the keychain library has native parts, so on an unusual machine the install may fall back to memory-only. Everyone signs in once after the upgrade.
-- **A.** Approve the keychain cache now, as its own beta.
-- **B.** Approve, but only together with the sign-in library upgrade in the next major release.
-- **C.** Hold.
-- **Recommended: A.** It is the one finding where a stolen file means a stolen login.
-
-## Email tracking and snooze
-
-## Messages
+### D-003 · Finding #9: where sign-in tokens are stored (keychain or 1Password)
+Not a send decision. Tokens are saved in an encrypted file, but the key is built from the computer name and user name with a fixed value shipped in the public package, so anyone who gets a copy of the file can read the refresh token. Everyone signs in once after any of the changes below. You asked whether 1Password can hold them instead. The sign-in library reads and writes its token store at every server start and every hourly token refresh, in every running server, so where the store lives decides how often you are prompted.
+- **A.** OS keychain (macOS Keychain / Windows Credential Manager), falling back to memory only (sign in at every start) where the keychain cannot be used. No prompts. The keychain library has native parts, so an unusual machine may fall back to memory only.
+- **B.** 1Password through your own account. Every read or write is a Touch ID prompt, several an hour across servers, and an unanswered prompt fails after 60 seconds, so a server left running while you are away loses its sign-in. Works only for users with the 1Password CLI.
+- **C.** 1Password through a service account (a 1Password feature for unattended tools, scoped to one vault). No prompts once set up. Needs the service account created first, which is already on the list as the standing fix for 1Password prompts; until then servers fall back to A.
+- **Recommended: A now, C later if wanted.** A closes the hole today with no prompts; C can be added as an option once the service account exists, without undoing A.
 
 ### D-010 · Reply to the hosting monitor session
 Send decision. Recipient: the hosting monitor (another Claude session), sent from this repo's session. Best sent after D-002 to D-007, so the "waiting on the maintainer" line can say what was decided; the draft is updated then. Current draft, whole message:
