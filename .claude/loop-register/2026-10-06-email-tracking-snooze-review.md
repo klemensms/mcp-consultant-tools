@@ -46,5 +46,5 @@ Chain started 2026-10-06 by the origin session (hop 0). Tasks: T1 track-email in
 ### ⚑7 · A third background security note on the local-file guard has no detail
 - **Kind:** deferred
 - **Hop:** 1 · acd015d
-- **State:** moved to D-007 by L2 (reviewed: hard-link and extra key names proposed; timing gap left)
+- **State:** closed-by-L2 · D-007 fixed in 567628e (hard links and .ppk/.kdbx refused; timing gap left)
 - **Matters because:** after `acd015d`, the commit reviewer reported "path-validation-bypass" in `packages/powerplatform-core/src/utils/local-file-guard.ts` with no description. Plausible candidates, none confirmed: the check-then-read gap (a path component swapped for a symlink between `realpathSync` and `readFileSync`), a hard link inside the home folder to a credential file elsewhere, or a sensitive non-dot folder other than Library and AppData. All need a local attacker who can already write to the home folder. Review the guard against these, decide whether any is worth closing, and apply the same change to the outlook and sharepoint copies.
