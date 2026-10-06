@@ -115,6 +115,8 @@ The exact 1Password item / vault / account and the token-fetch snippet live in t
 
 ### 6c. Publish in dependency order: `core` → `powerplatform-core` → service packages → `meta`
 
+**PowerPlatform packages ship an `npm-shrinkwrap.json`.** `powerplatform-core`, `powerplatform`, `powerplatform-customization` and `powerplatform-data` publish with their whole dependency tree pinned. Immediately before publishing each of them, `./scripts/make-shrinkwrap.sh packages/PACKAGE_NAME` resolves the package outside the workspace against npm, writes `npm-shrinkwrap.json` into the package and FAILS unless the file is in the tarball. Because it resolves from npm, every internal dependency must already be published, so it runs inside the publish loop, never up front. If it fails, do not publish that package. The loop removes the file after publishing; it is gitignored and never committed.
+
 ```bash
 ORDER=(core powerplatform-core application-insights azure-b2c azure-data-factory \
   azure-devops azure-devops-admin azure-management azure-sql azure-storage fabric \
@@ -122,8 +124,12 @@ ORDER=(core powerplatform-core application-insights azure-b2c azure-data-factory
   powerplatform-customization powerplatform-data service-bus sharepoint teams todoist meta)
 
 for pkg in $ORDER; do
+  case "$pkg" in powerplatform-core|powerplatform|powerplatform-customization|powerplatform-data)
+    ./scripts/make-shrinkwrap.sh "packages/$pkg" || { echo "❌ $pkg (no shrinkwrap, NOT published)"; continue; } ;;
+  esac
   (cd "packages/$pkg" && npm publish --access public --userconfig="$TMPNPMRC") \
     && echo "✅ $pkg" || echo "❌ $pkg"
+  rm -f "packages/$pkg/npm-shrinkwrap.json"
 done
 
 rm -f "$TMPNPMRC"   # never leave the token on disk
@@ -228,8 +234,10 @@ find packages -name "package.json" -maxdepth 2 | xargs -I {} sh -c \
 # dist-tags for a single package
 npm dist-tag ls @mcp-consultant-tools/powerplatform
 
-# Single-package promotion to latest
-cd /absolute/path/packages/powerplatform && npm publish --access public
+# Single-package promotion to latest (PowerPlatform packages: shrinkwrap first, see 6c)
+./scripts/make-shrinkwrap.sh packages/powerplatform \
+  && (cd packages/powerplatform && npm publish --access public)
+./scripts/make-shrinkwrap.sh --remove packages/powerplatform
 
 # Tag and push
 git tag vX.Y.Z && git push origin vX.Y.Z

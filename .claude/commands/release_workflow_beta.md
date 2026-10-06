@@ -117,11 +117,16 @@ The exact 1Password item / vault / account and the token-fetch snippet live in t
 
 ### 6c. Publish in dependency order: `core` → service packages → `meta`
 
+**PowerPlatform packages ship an `npm-shrinkwrap.json`.** `powerplatform-core`, `powerplatform`, `powerplatform-customization` and `powerplatform-data` publish with their whole dependency tree pinned. Immediately before publishing each of them, run `./scripts/make-shrinkwrap.sh packages/PACKAGE_NAME`: it resolves the package outside the workspace against npm, writes `npm-shrinkwrap.json` into the package and FAILS unless the file is in the tarball. Because it resolves from npm, every internal dependency must already be published, so it runs inside the publish loop, never up front. If it fails, do not publish that package. Remove the file after publishing (`--remove`); it is gitignored and never committed.
+
 For a selective beta, publish only the changed packages (still in dependency order):
 
 ```bash
 # Per package - note the temp userconfig + --tag beta
-(cd packages/PACKAGE_NAME && npm publish --access public --tag beta --userconfig="$TMPNPMRC")
+# (PowerPlatform packages only: shrinkwrap first, remove after)
+./scripts/make-shrinkwrap.sh packages/PACKAGE_NAME \
+  && (cd packages/PACKAGE_NAME && npm publish --access public --tag beta --userconfig="$TMPNPMRC")
+./scripts/make-shrinkwrap.sh --remove packages/PACKAGE_NAME
 
 # Or the full lockstep set:
 ORDER=(core powerplatform-core application-insights azure-b2c azure-data-factory \
@@ -129,8 +134,12 @@ ORDER=(core powerplatform-core application-insights azure-b2c azure-data-factory
   figma github-enterprise log-analytics 1password rest-api powerplatform \
   powerplatform-customization powerplatform-data service-bus sharepoint teams todoist meta)
 for pkg in $ORDER; do
+  case "$pkg" in powerplatform-core|powerplatform|powerplatform-customization|powerplatform-data)
+    ./scripts/make-shrinkwrap.sh "packages/$pkg" || { echo "❌ $pkg (no shrinkwrap, NOT published)"; continue; } ;;
+  esac
   (cd "packages/$pkg" && npm publish --access public --tag beta --userconfig="$TMPNPMRC") \
     && echo "✅ $pkg" || echo "❌ $pkg"
+  rm -f "packages/$pkg/npm-shrinkwrap.json"
 done
 
 rm -f "$TMPNPMRC"   # never leave the token on disk
@@ -189,8 +198,10 @@ find packages -name "package.json" -maxdepth 2 | xargs -I {} sh -c \
 # dist-tags for a single package
 npm dist-tag ls @mcp-consultant-tools/powerplatform
 
-# Single-package beta publish
-cd /absolute/path/packages/powerplatform && npm publish --access public --tag beta
+# Single-package beta publish (PowerPlatform packages: shrinkwrap first, see 6c)
+./scripts/make-shrinkwrap.sh packages/powerplatform \
+  && (cd packages/powerplatform && npm publish --access public --tag beta)
+./scripts/make-shrinkwrap.sh --remove packages/powerplatform
 
 # Verify install
 npx --package=@mcp-consultant-tools/powerplatform@beta mcp-consultant-tools-powerplatform --version
@@ -201,9 +212,11 @@ npx --package=@mcp-consultant-tools/powerplatform@beta mcp-consultant-tools-powe
 When iterating on beta fixes, publish ONLY affected packages:
 
 ```bash
-cd packages/powerplatform
-# Edit package.json: bump version (e.g., beta.1 → beta.2)
-npm publish --access public --tag beta
+# Edit packages/powerplatform/package.json: bump version (e.g., beta.1 → beta.2)
+# PowerPlatform packages: shrinkwrap first, remove after (see 6c)
+./scripts/make-shrinkwrap.sh packages/powerplatform \
+  && (cd packages/powerplatform && npm publish --access public --tag beta)
+./scripts/make-shrinkwrap.sh --remove packages/powerplatform
 
 # Re-run /product-releasenotes beta to update master + per-iteration
 # Commit and push

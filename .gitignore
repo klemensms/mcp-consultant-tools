@@ -204,3 +204,6 @@ tsconfig.json.v14-backup
 
 # Session handoffs (local working notes, never published)
 .claude/handoffs/
+
+# Per-package shrinkwrap, generated at release time by scripts/make-shrinkwrap.sh
+/packages/*/npm-shrinkwrap.json
