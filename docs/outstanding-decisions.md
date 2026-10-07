@@ -32,14 +32,14 @@ Not a send decision. Tokens are saved in an encrypted file, but the key is built
 - **Recommended: A now, C later if wanted.** A closes the hole today with no prompts; C can be added as an option once the service account exists, without undoing A.
 
 ### D-010 · Reply to the hosting monitor session
-Send decision. Recipient: the hosting monitor (another Claude session), sent from this repo's session. Best sent after D-002 to D-007, so the "waiting on the maintainer" line can say what was decided; the draft is updated then. Current draft, whole message:
+Send decision. Recipient: the hosting monitor (another Claude session), sent from this repo's session. Can go now; it names D-002 and D-003 as still open. Current draft, whole message:
 
 ```
 Reply on the nine Dynamics review findings, checked against mcp-consultant-tools (branch release/35.0). Full table: docs/reviews/2026-10-06-dynamics-review-findings.md.
 
-Fixed in our copy, not yet published: #2 (ae3e692), #4 (3b08f4c), #5 (7405ea8), #6 (6fd5f90, not yet checked against a live environment), #7 (ad0788b).
+Fixed and published in v35.0.0-beta.27 (powerplatform-core beta.9, powerplatform beta.12, powerplatform-data beta.11, powerplatform-customization beta.8): #2 HTTP client, #3 exact pins plus npm-shrinkwrap, #4 shared sign-in, #5 hasMore, #6 filtered counts (not yet checked against a live environment), #7 callback 404, #8 publish with --ignore-scripts and a release-branch, clean, pushed check (we have no CI publish, so the version-injection part does not apply).
 
-Waiting on the maintainer: #1 (partly applies; record IDs were already checked on writes), #3, #8 (partly; we have no CI publish, releases run locally, so the version-injection part does not apply), #9 (partly; tokens are in an encrypted file but the key is derivable).
+Still open with the maintainer: #1 (partly applies; record IDs were already checked on writes), #9 token storage (tokens are in an encrypted file but the key is derivable). The msal-node 7 move is planned for our next major release because it needs Node 20.
 
 One point on your #4 fix: it shares one sign-in result whatever the resource, so a call for a second resource (the Flow endpoint, for us) that joins a Dataverse sign-in would get the Dataverse token. We share the sign-in, then each waiting call repeats the silent lookup for its own resource.
 
