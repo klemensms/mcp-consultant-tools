@@ -1,8 +1,17 @@
 # Outstanding decisions
 
-> Every decision still waiting on the maintainer sits here and nowhere else. An entry is removed the moment it is answered; the answer is recorded in the owning plan's or review's Status section and git history keeps what was asked. Numbers are never reused. Next number: **D-012**. Any session may add an entry; the session that acts on the answer removes it. This repo is public: where a decision involves internal text (a ticket, a message), the entry points to the private record that holds it, and the question put to the maintainer in chat carries the full text.
+> Every decision still waiting on the maintainer sits here and nowhere else. An entry is removed the moment it is answered; the answer is recorded in the owning plan's or review's Status section and git history keeps what was asked. Numbers are never reused. Next number: **D-013**. Any session may add an entry; the session that acts on the answer removes it. This repo is public: where a decision involves internal text (a ticket, a message), the entry points to the private record that holds it, and the question put to the maintainer in chat carries the full text.
 >
 > Each entry: what is being decided, why it matters, lettered options, a recommendation, and whether it is a send decision. Answer by number and letter, e.g. "D-002 A, D-003 B".
+
+## Teams file attachments
+
+### D-012 · Live test of sending a file with a Teams message
+Send decision. `27f4d16` adds `attachments` to the five Teams send tools; unit tests pass and the live token has the files permission, but no file has been sent yet. Proving it needs three real posts, each carrying a one-line test Word file (`~/Downloads/teams-mcp-attachment-test.docx`), to one colleague: a direct message, a post in the private dev channel shared with them, and a reply under that post. The recipient and the exact text are in the chat question (internal names stay out of this public repo). A recipient opening the file is the only check of the "no request access" requirement.
+- **A.** Send all three, then ask the colleague whether each file opened.
+- **B.** Send only the direct message (proves the chat path; the channel path stays unproven).
+- **C.** Hold; publish to beta with the live send marked unverified.
+- **Recommended: A.** Covers both upload routes and the sharing step in one round.
 
 ## Dynamics review findings
 
