@@ -62,6 +62,8 @@ Verified against the Graph v1.0 permission tables, these are reachable on the se
 | `POST /chats` (create group) | `Chat.Create` (`Chat.ReadWrite` is higher) |
 | `POST /chats/{c}/members` | `ChatMember.ReadWrite` (`Chat.ReadWrite` is higher) |
 | `GET /shares/{u!id}/driveItem` | `Files.ReadWrite` (no read-only form; not requested - see the files note below) |
+| `POST /me/drive/root:/{path}:/createUploadSession`, `POST /drives/{d}/items/{id}/invite` | `Files.ReadWrite` (not requested - see the files note below) |
+| `GET /teams/{t}/channels/{c}/filesFolder` | `Files.Read.All` (not requested - see the files note below) |
 
 Deliberately **not** implemented, and why:
 
@@ -70,7 +72,7 @@ Deliberately **not** implemented, and why:
 
 **Search permission note.** The Graph reference lists `Chat.Read` for `entityTypes: ["chatMessage"]`, which is *not* consented. Graph does not enforce that list literally - live testing on 2026-08-12 returned 200 with real hits on `Chat.ReadWrite` alone. `search-messages` is built on that observed behaviour rather than the documented table, so if Graph ever tightens enforcement this is the first tool to break, and the fix is a scope request, not a code change.
 
-**Files note.** `download-message-attachments` reaches a shared file through `/shares`, which Graph documents as needing `Files.ReadWrite`, `Files.ReadWrite.All` or `Sites.ReadWrite.All` - there is no read-only form. It is **not** in `DEVICE_CODE_SCOPES` and must not be added, for exactly the `ChannelMessage.ReadWrite` reason above. Where a registration has one consented it arrives in `scp` anyway and the file downloads work; where it has none, images still download and each file fails with a message naming the scope. Verified live 2026-09-29 on `Sites.ReadWrite.All`. The tool only makes GETs, but the grant itself is broad, so treat it as write access to every site the user can reach when deciding whether to consent it.
+**Files note.** `download-message-attachments` reaches a shared file through `/shares`, which Graph documents as needing `Files.ReadWrite`, `Files.ReadWrite.All` or `Sites.ReadWrite.All` - there is no read-only form. It is **not** in `DEVICE_CODE_SCOPES` and must not be added, for exactly the `ChannelMessage.ReadWrite` reason above. Where a registration has one consented it arrives in `scp` anyway and the file downloads work; where it has none, images still download and each file fails with a message naming the scope. Verified live 2026-09-29 on `Sites.ReadWrite.All`. The tool only makes GETs, but the grant itself is broad, so treat it as write access to every site the user can reach when deciding whether to consent it. **Sending a file uses the same grant for real writes**: the `attachments` parameter on the send tools uploads to OneDrive or the channel folder and invites chat members, and works on `Sites.ReadWrite.All` alone (token checked 2026-10-07).
 
 **Channel `delta` behaviour**, confirmed the same day: `/beta/` also works and adds `hasReplies`. Pages via `@odata.nextLink`. `$deltatoken=latest` is **not** honoured, so a cold start must page to the end of history before Graph issues a `deltaLink` - which is why `get-channel-messages-delta` bounds the walk with `maxPages` and returns **no** deltaLink when it stops early. The v1.0 response is undocumented but real, so it is read defensively.
 
@@ -198,7 +200,8 @@ Send text or markdown messages to a Teams channel. Supports `@[Name or email]` m
   channelId?: string,   // Optional if default set
   message: string,      // Required - the message content
   format?: "text" | "markdown",  // Default: "markdown"
-  importance?: "normal" | "high" | "urgent"  // Default: "normal"
+  importance?: "normal" | "high" | "urgent",  // Default: "normal"
+  attachments?: string[]  // Local file paths, at most 10 - see "Sending files" below
 }
 ```
 
@@ -276,7 +279,8 @@ Excludes thread replies by design. `since`/`until` are applied client-side over 
   message: string,
   teamId?: string,
   channelId?: string,
-  format?: "text" | "markdown"  // Default: "markdown"
+  format?: "text" | "markdown",  // Default: "markdown"
+  attachments?: string[]
 }
 ```
 
@@ -303,7 +307,7 @@ Range filters are applied server-side against `lastModifiedDateTime`.
 #### send-chat-message
 
 ```typescript
-{ chatId: string, message: string, format?: "text" | "markdown" }
+{ chatId: string, message: string, format?: "text" | "markdown", attachments?: string[] }
 ```
 
 Cannot create a chat - use `list-chats` to find an existing one.
@@ -384,7 +388,7 @@ Searches display name, `mail` and `userPrincipalName`. Returns each match's name
 #### send-direct-message
 
 ```typescript
-{ to: string, message: string, format?: "text" | "markdown" }
+{ to: string, message: string, format?: "text" | "markdown", attachments?: string[] }
 ```
 
 **The point of the package for day-to-day use: DM anyone by name, without knowing a chat ID.** Three steps behind one tool - resolve the person, find the existing one-on-one chat, post - deliberately not exposed separately, because splitting them puts the burden of not creating duplicate threads on the caller.
@@ -406,7 +410,7 @@ Searches display name, `mail` and `userPrincipalName`. Returns each match's name
 #### send-group-message
 
 ```typescript
-{ to: string[], message: string, topic?: string, format?: "text" | "markdown" }   // to: 2-20 people
+{ to: string[], message: string, topic?: string, format?: "text" | "markdown", attachments?: string[] }   // to: 2-20 people
 ```
 
 One message to several people, by name or email. You are added automatically; naming yourself or the same person twice is ignored, and fewer than two other people is refused with a pointer to `send-direct-message`.
@@ -510,6 +514,10 @@ Saves every pasted image and shared file of one message and returns each absolut
 **`responseType(ResponseType.RAW)` does not throw on an error status.** It returns the `Response` whatever happened, so a 404 image arrives as `ok: false`; the service checks `ok` itself. Confirmed live - an unchecked raw response would write a Graph error body to disk as `image-1.png`.
 
 **Per item: downloaded, skipped (not a file - quoted reply, forwarded message, card, link, folder) or failed**, and one failure never stops the rest. A 403 from `/shares` cannot say whether the user lacks access to the file or the registration lacks the scope, so the reason names both rather than the package's usual re-authenticate advice. Seen live: a colleague's personal-OneDrive file linked into a channel came back 403 `accessDenied` while files beside it downloaded.
+
+#### Sending files (`attachments` on the five send tools)
+
+`send-channel-message`, `reply-to-message`, `send-chat-message`, `send-direct-message` and `send-group-message` all take `attachments?: string[]` (CLI `-a, --attach <paths...>`). Logic lives once, in `src/services/outbound-attachments.ts`; every send path builds its POST body through `messagePayload()` so text, mentions and files cannot drift apart. Chats upload to the sender's OneDrive `Microsoft Teams Chat Files` folder and invite the other members read-only with no email; channels upload to the channel's `filesFolder` and invite nobody. The message carries `<attachment id="{eTag GUID}">` plus a `reference` entry. **Paths are checked by `checkAttachmentPaths()` as the first line of each send**, before any lookup, chat creation or upload, and `outbound-attachments.test.ts` asserts zero Graph calls on a refusal for all five paths - **if a sixth send path is added, add it to that table too.** Full detail: the outbound-attachments feature in `docs/technical/TEAMS_TECHNICAL.md`.
 
 **Files are treated as confidential.** The default folder is under the system temp directory, outside every repo and synced folder; it is created `0700` and each file `0600`. An existing file is never overwritten - a clash becomes `Report (2).pdf`, written with the `wx` flag - and sender-supplied names lose any directory component, so `../../x` saves as `x`. The folder is created only when the first item is saved.
 
@@ -655,6 +663,7 @@ mcp-teams-cli react-to-chat-message <chatId> <messageId> --action remove   # sam
 # Group chats
 mcp-teams-cli send-group-message "Agenda attached" --to "Jane Doe" jsmith@example.com
 mcp-teams-cli send-group-message "Kick-off" --to "Jane Doe" "John Smith" --topic "Project kick-off"
+mcp-teams-cli send-group-message "One pager attached" --to "Jane Doe" "John Smith" --attach ~/Documents/one-pager.docx
 mcp-teams-cli add-chat-member <chatId> "Jane Doe" --history 7     # none (default), all, or days
 
 # Attachments

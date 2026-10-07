@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import { describeUploaded } from "../services/outbound-attachments.js";
 import type { ServiceContext } from "../types.js";
 import {
   descWithExamples,
@@ -12,6 +13,8 @@ import {
   IMPORTANCE_EXAMPLES,
   MESSAGE_CONTENT_EXAMPLES,
   MENTION_SYNTAX_HINT,
+  ATTACHMENTS_DESCRIPTION,
+  ATTACHMENT_PATH_EXAMPLES,
 } from "../tool-examples.js";
 
 // Input schema for send-channel-message
@@ -35,6 +38,7 @@ export const sendMessageSchema = {
     .optional()
     .default("normal")
     .describe(descWithExamples("Message importance level", IMPORTANCE_EXAMPLES)),
+  attachments: z.array(z.string()).max(10).optional().describe(descWithExamples(ATTACHMENTS_DESCRIPTION, ATTACHMENT_PATH_EXAMPLES)),
 };
 
 /**
@@ -55,12 +59,14 @@ export function registerSendMessageTool(
       message,
       format,
       importance,
+      attachments,
     }: {
       teamId?: string;
       channelId?: string;
       message: string;
       format?: "text" | "markdown";
       importance?: "normal" | "high" | "urgent";
+      attachments?: string[];
     }) => {
       try {
         // Conversion, sanitisation and @-mention resolution all happen in the
@@ -70,13 +76,14 @@ export function registerSendMessageTool(
           channelId,
           format,
           importance,
+          attachments,
         });
 
         return {
           content: [
             {
               type: "text",
-              text: `✅ Message sent successfully!\n\nMessage ID: ${result.messageId}${result.webUrl ? `\nView: ${result.webUrl}` : ""}`,
+              text: `✅ Message sent successfully!\n\nMessage ID: ${result.messageId}${result.webUrl ? `\nView: ${result.webUrl}` : ""}${describeUploaded(result.attachments ?? [])}`,
             },
           ],
         };

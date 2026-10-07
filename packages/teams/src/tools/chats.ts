@@ -19,6 +19,7 @@
  */
 
 import { z } from "zod";
+import { describeUploaded } from "../services/outbound-attachments.js";
 import type { ServiceContext, ChatInfo, MessageInfo } from "../types.js";
 import {
   descWithExamples,
@@ -29,6 +30,8 @@ import {
   MESSAGE_CONTENT_EXAMPLES,
   MESSAGE_ID_EXAMPLES,
   MENTION_SYNTAX_HINT,
+  ATTACHMENTS_DESCRIPTION,
+  ATTACHMENT_PATH_EXAMPLES,
 } from "../tool-examples.js";
 import { formatChats, formatMessages } from "./format-messages.js";
 
@@ -77,6 +80,7 @@ export const sendChatMessageSchema = {
     .optional()
     .default("markdown")
     .describe(descWithExamples("Message format: 'text' for plain text, 'markdown' for rich formatting", MESSAGE_FORMAT_EXAMPLES)),
+  attachments: z.array(z.string()).max(10).optional().describe(descWithExamples(ATTACHMENTS_DESCRIPTION, ATTACHMENT_PATH_EXAMPLES)),
 };
 
 export const markChatReadSchema = {
@@ -179,10 +183,11 @@ export function registerSendChatMessageTool(server: any, ctx: ServiceContext): v
     "Send a message to an existing Microsoft Teams chat. Cannot create a new chat - use list-chats to find the ID of a chat that already exists.",
     sendChatMessageSchema,
     { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    async (args: { chatId: string; message: string; format?: "text" | "markdown" }) => {
+    async (args: { chatId: string; message: string; format?: "text" | "markdown"; attachments?: string[] }) => {
       try {
         const result = await ctx.messages.sendChatMessage(args.chatId, args.message, {
           format: args.format,
+          attachments: args.attachments,
         });
 
         return {
@@ -191,7 +196,8 @@ export function registerSendChatMessageTool(server: any, ctx: ServiceContext): v
               type: "text",
               text:
                 `✅ Message sent to chat\n\nMessage ID: ${result.messageId}` +
-                (result.webUrl ? `\nView: ${result.webUrl}` : ""),
+                (result.webUrl ? `\nView: ${result.webUrl}` : "") +
+                describeUploaded(result.attachments ?? []),
             },
           ],
         };

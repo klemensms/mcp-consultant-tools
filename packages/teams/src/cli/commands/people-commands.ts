@@ -8,6 +8,7 @@ import type { Command } from 'commander';
 import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../context-factory.js';
 import { outputResult } from '../output.js';
+import { describeUploaded } from '../../services/outbound-attachments.js';
 
 /** Commander gives option values as strings; the service wants a number. */
 function parseCount(value: string | undefined, flag: string): number | undefined {
@@ -48,9 +49,10 @@ export function registerPeopleCommands(program: Command, ctx: ServiceContext): v
     .argument('<to>', 'Name, email address or user principal name of the recipient')
     .argument('<message>', 'Message content (text or markdown). Use @[Name or email] inline to @-mention someone.')
     .option('-f, --format <format>', 'Message format: text or markdown', 'markdown')
+    .option('-a, --attach <paths...>', 'Local files to send with the message (inside your home folder; at most 10)')
     .action(async (to: string, message: string, opts: any) => {
       try {
-        const result = await ctx.people.sendDirectMessage(to, message, { format: opts.format });
+        const result = await ctx.people.sendDirectMessage(to, message, { format: opts.format, attachments: opts.attach });
         const chatNote = result.chatExisted
           ? 'posted into the existing chat'
           : 'opened a new chat';
@@ -58,7 +60,7 @@ export function registerPeopleCommands(program: Command, ctx: ServiceContext): v
           {
             fileName: 'send-direct-message',
             data: result,
-            summary: `Direct message sent to ${result.recipient.displayName} (${chatNote}). Chat ID: ${result.chatId}. Message ID: ${result.messageId}`,
+            summary: `Direct message sent to ${result.recipient.displayName} (${chatNote}). Chat ID: ${result.chatId}. Message ID: ${result.messageId}${describeUploaded(result.attachments ?? [])}`,
             persist: false,
           },
           getGlobalFlags(program)

@@ -9,6 +9,7 @@ import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../context-factory.js';
 import type { ShareHistory } from '../../services/group-chat-service.js';
 import { outputResult } from '../output.js';
+import { describeUploaded } from '../../services/outbound-attachments.js';
 
 /** --history takes the MCP tool's values: none, all, or a number of days. */
 function parseHistory(value: string | undefined): ShareHistory | undefined {
@@ -31,14 +32,16 @@ export function registerGroupChatCommands(program: Command, ctx: ServiceContext)
     .requiredOption('--to <people...>', 'Two or more names or email addresses')
     .option('--topic <name>', 'Chat name; reuses only a chat of that name, otherwise starts a new named chat')
     .option('-f, --format <format>', 'text or markdown', 'markdown')
+    .option('-a, --attach <paths...>', 'Local files to send with the message (inside your home folder; at most 10)')
     .action(async (message: string, opts: any) => {
       try {
         const result = await ctx.groupChats.sendGroupMessage(opts.to, message, {
           topic: opts.topic,
           format: opts.format,
+          attachments: opts.attach,
         });
         const names = result.recipients.map((r) => r.displayName).join(', ');
-        const summary = `Sent to ${names} in ${result.chatExisted ? 'the existing' : 'a new'} group chat ${result.chatId}.`;
+        const summary = `Sent to ${names} in ${result.chatExisted ? 'the existing' : 'a new'} group chat ${result.chatId}.${describeUploaded(result.attachments ?? [])}`;
         outputResult(
           { fileName: 'send-group-message', data: result, summary, persist: false },
           getGlobalFlags(program)

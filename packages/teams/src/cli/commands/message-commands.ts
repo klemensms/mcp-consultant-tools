@@ -9,6 +9,7 @@ import type { ServiceContext } from '../../context-factory.js';
 import type { AdaptiveCard, ReleaseTemplateData, CardTemplate } from '../../types.js';
 import { getCardFromTemplate, AVAILABLE_TEMPLATES } from '../../cards/templates.js';
 import { outputResult } from '../output.js';
+import { describeUploaded } from '../../services/outbound-attachments.js';
 
 export function registerMessageCommands(program: Command, ctx: ServiceContext): void {
   // ── list-teams ──────────────────────────────────────────────
@@ -55,6 +56,7 @@ export function registerMessageCommands(program: Command, ctx: ServiceContext): 
     .option('-c, --channel-id <id>', 'Channel ID (uses TEAMS_DEFAULT_CHANNEL_ID if not set)')
     .option('-f, --format <format>', 'Message format: text or markdown', 'markdown')
     .option('-i, --importance <level>', 'Importance: normal, high, or urgent', 'normal')
+    .option('-a, --attach <paths...>', 'Local files to send with the message (inside your home folder; at most 10)')
     .action(async (message: string, opts: any) => {
       try {
         // Conversion, sanitisation and @-mention resolution all happen in the
@@ -64,10 +66,11 @@ export function registerMessageCommands(program: Command, ctx: ServiceContext): 
           channelId: opts.channelId,
           format: opts.format,
           importance: opts.importance,
+          attachments: opts.attach,
         });
 
         outputResult(
-          { fileName: 'send-message', data: result, summary: `Message sent. ID: ${result.messageId}`, persist: false },
+          { fileName: 'send-message', data: result, summary: `Message sent. ID: ${result.messageId}${describeUploaded(result.attachments ?? [])}`, persist: false },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'send message'); }

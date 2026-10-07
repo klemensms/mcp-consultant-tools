@@ -18,6 +18,7 @@
  */
 
 import { z } from "zod";
+import { describeUploaded } from "../services/outbound-attachments.js";
 import type { ServiceContext, MessageInfo } from "../types.js";
 import {
   descWithExamples,
@@ -27,6 +28,8 @@ import {
   MESSAGE_FORMAT_EXAMPLES,
   MESSAGE_CONTENT_EXAMPLES,
   MENTION_SYNTAX_HINT,
+  ATTACHMENTS_DESCRIPTION,
+  ATTACHMENT_PATH_EXAMPLES,
 } from "../tool-examples.js";
 import { formatMessages } from "./format-messages.js";
 
@@ -73,6 +76,7 @@ export const replyToMessageSchema = {
     .optional()
     .default("markdown")
     .describe(descWithExamples("Reply format: 'text' for plain text, 'markdown' for rich formatting", MESSAGE_FORMAT_EXAMPLES)),
+  attachments: z.array(z.string()).max(10).optional().describe(descWithExamples(ATTACHMENTS_DESCRIPTION, ATTACHMENT_PATH_EXAMPLES)),
 };
 
 function errorResult(message: string) {
@@ -151,12 +155,14 @@ export function registerReplyToMessageTool(server: any, ctx: ServiceContext): vo
       teamId?: string;
       channelId?: string;
       format?: "text" | "markdown";
+      attachments?: string[];
     }) => {
       try {
         const result = await ctx.messages.replyToMessage(args.messageId, args.message, {
           teamId: args.teamId,
           channelId: args.channelId,
           format: args.format,
+          attachments: args.attachments,
         });
 
         return {
@@ -166,7 +172,8 @@ export function registerReplyToMessageTool(server: any, ctx: ServiceContext): vo
               text:
                 `✅ Reply posted to message ${args.messageId}\n\n` +
                 `Reply ID: ${result.messageId}` +
-                (result.webUrl ? `\nView: ${result.webUrl}` : ""),
+                (result.webUrl ? `\nView: ${result.webUrl}` : "") +
+                describeUploaded(result.attachments ?? []),
             },
           ],
         };

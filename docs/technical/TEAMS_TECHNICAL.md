@@ -896,6 +896,33 @@ Images are named `image-1.png`, `image-2.jpg` from the response's `content-type`
 
 </tool>
 
+<feature name="outbound-attachments">
+
+#### Sending files with a message (`attachments` on the five send tools)
+
+`send-channel-message`, `reply-to-message`, `send-chat-message`, `send-direct-message` and `send-group-message` take an optional `attachments: string[]` of local paths (at most 10); the CLI flag is `-a, --attach <paths...>`. The files arrive as file cards on the same message, not after it. Logic: `src/services/outbound-attachments.ts`, shared by all five paths through `messagePayload()`.
+
+**Graph has no "attach" field.** A Teams file is a file in OneDrive or SharePoint plus a `reference` attachment, so each send is three steps:
+
+| Step | Chat (1:1, group, `send-chat-message`) | Channel (post or reply) |
+|------|------|---------|
+| Upload | `POST /me/drive/root:/Microsoft Teams Chat Files/{name}:/createUploadSession`, the folder the Teams client uses | `GET /teams/{t}/channels/{c}/filesFolder`, then `POST /drives/{d}/items/{folder}:/{name}:/createUploadSession` |
+| Share | `POST /drives/{d}/items/{id}/invite` to every other chat member: `roles: ["read"]`, `requireSignIn: true`, `sendInvitation: false`, recipient by `email`, else `objectId` | none - channel members already have access to the channel folder |
+| Post | body ends with `<attachment id="{guid}"></attachment>`; `attachments[]` carries `{ id, contentType: "reference", contentUrl: webUrl, name }` | same |
+
+- **The id is the GUID inside the driveItem's `eTag`** (`"{GUID},1"`), and the tag and the array entry must carry the same one.
+- **Every upload uses an upload session**, whatever the size, so there is one code path. `conflictBehavior: rename` means a clash becomes `name 1.docx`, never an overwrite. Bytes go in 10 MiB chunks (a multiple of 320 KiB, as Graph requires) to the session's pre-authenticated `uploadUrl` with **no** `Authorization` header; the item is then read back for its `eTag` and `webUrl`.
+- **A text-format body is escaped and promoted to HTML**, because the `<attachment>` tag only works in an HTML body - the same rule mentions follow.
+- **Order: every path is checked before anything happens.** `checkAttachmentPaths()` runs first in each send, through the same `assertSafeLocalFile` guard the `outlook` and `sharepoint` packages use (copied to `src/local-file-guard.ts`): inside the home folder, no hidden segment, not `~/Library`/`~/AppData`, no credential-shaped name, no hard links, not empty. One refused path means no chat is created, nothing is uploaded and nothing is sent.
+- **A failed upload or share posts nothing.** The error names what failed, says "Nothing was sent", lists any files already uploaded (they stay in the folder), and on a 401/403 names the files permission.
+- The tool result lists each attached file with its size, its link and, for a chat, how many members it was shared with.
+
+**Permission.** Upload and invite need `Files.ReadWrite`, `Files.ReadWrite.All` or `Sites.ReadWrite.All`; `filesFolder` also accepts the read forms. None is in `DEVICE_CODE_SCOPES`, for the reason given under download above: a consented one arrives in `scp` anyway. Confirmed 2026-10-07 that a live token on a registration consented `Sites.ReadWrite.All` (no `Files.*`) carries it and can read the sender's `Microsoft Teams Chat Files` folder.
+
+**Not yet proven live:** that Graph and the Teams client accept the posted message shape, and that a recipient opens the file without a request-access step. The request shapes follow the Graph v1.0 references and are pinned by `src/services/__tests__/outbound-attachments.test.ts` across all five paths; one live send per surface is the remaining check.
+
+</feature>
+
 </tool-group>
 
 <unsupported-operations>
@@ -1259,6 +1286,7 @@ This is fixed in `teams` only. The wrapper is per-package, so **every other pack
 - For client-credentials, use least-privilege application permissions
 - Rotate client secrets regularly (Azure recommends 90-day rotation)
 - Device-code mode is preferable for individual developer use; client-credentials for CI/CD automation
+- Sending a file (`attachments` on the send tools) checks every local path with the shared local-file guard before anything is created, uploaded or sent, shares chat files read-only with the chat's members only, and sends file bytes to the pre-authenticated upload URL with no token
 - `download-message-attachments` sends the Graph token only to `graph.microsoft.com`, fetches file bytes from a pre-authenticated URL with no token, writes files `0600` in a `0700` folder, never overwrites, and strips directory components from sender-supplied names
 
 </security>

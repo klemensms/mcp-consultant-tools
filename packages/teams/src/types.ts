@@ -7,6 +7,7 @@ import type { MessageService } from './services/message-service.js';
 import type { PeopleService } from './services/people-service.js';
 import type { SearchService } from './services/search-service.js';
 import type { AttachmentService } from './services/attachment-service.js';
+import type { UploadedAttachment } from './services/outbound-attachments.js';
 import type { GroupChatService, ShareHistory } from './services/group-chat-service.js';
 
 /**
@@ -175,6 +176,8 @@ export interface ChannelInfo {
 export interface SendMessageResult {
   messageId: string;
   webUrl?: string;
+  /** Files sent with the message, with the link each one landed at. Empty when none. */
+  attachments?: UploadedAttachment[];
 }
 
 /**

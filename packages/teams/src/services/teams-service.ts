@@ -20,6 +20,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { TokenCache } from "../auth/token-cache.js";
 import { buildOutboundMessage } from "../mentions.js";
+import { checkAttachmentPaths, messagePayload, uploadAttachments } from "./outbound-attachments.js";
 import type {
   TeamsConfig,
   AdaptiveCard,
@@ -742,32 +743,36 @@ export class TeamsService {
       channelId?: string;
       format?: "text" | "markdown";
       importance?: MessageImportance;
+      attachments?: string[];
     } = {}
   ): Promise<SendMessageResult> {
+    const files = checkAttachmentPaths(options.attachments);
     const client = await this.getGraphClient();
     const effectiveTeamId = this.getTeamId(options.teamId);
     const effectiveChannelId = this.getChannelId(options.channelId);
 
     const outbound = await buildOutboundMessage(client, content, options.format);
+    const uploaded = await uploadAttachments(client, files, {
+      kind: "channel",
+      teamId: effectiveTeamId,
+      channelId: effectiveChannelId,
+    });
 
-    const messagePayload: any = { body: outbound.body };
-
-    if (outbound.mentions) {
-      messagePayload.mentions = outbound.mentions;
-    }
+    const payload: any = messagePayload(outbound, uploaded);
 
     if (options.importance && options.importance !== "normal") {
-      messagePayload.importance = options.importance;
+      payload.importance = options.importance;
     }
 
     try {
       const result = await client
         .api(`/teams/${effectiveTeamId}/channels/${effectiveChannelId}/messages`)
-        .post(messagePayload);
+        .post(payload);
 
       return {
         messageId: result.id,
         webUrl: result.webUrl,
+        attachments: uploaded,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

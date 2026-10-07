@@ -12,6 +12,7 @@
  */
 
 import { z } from "zod";
+import { describeUploaded } from "../services/outbound-attachments.js";
 import type { ServiceContext, UserInfo } from "../types.js";
 import {
   descWithExamples,
@@ -20,6 +21,8 @@ import {
   MESSAGE_FORMAT_EXAMPLES,
   MESSAGE_CONTENT_EXAMPLES,
   MENTION_SYNTAX_HINT,
+  ATTACHMENTS_DESCRIPTION,
+  ATTACHMENT_PATH_EXAMPLES,
 } from "../tool-examples.js";
 
 export const sendGroupMessageSchema = {
@@ -47,6 +50,7 @@ export const sendGroupMessageSchema = {
     .optional()
     .default("markdown")
     .describe(descWithExamples("Message format: 'text' for plain text, 'markdown' for rich formatting", MESSAGE_FORMAT_EXAMPLES)),
+  attachments: z.array(z.string()).max(10).optional().describe(descWithExamples(ATTACHMENTS_DESCRIPTION, ATTACHMENT_PATH_EXAMPLES)),
 };
 
 export const addChatMemberSchema = {
@@ -79,11 +83,12 @@ export function registerSendGroupMessageTool(server: any, ctx: ServiceContext): 
     "Send one Microsoft Teams message to several people at once, by name or email address, without needing a chat ID. Reuses the group chat that holds exactly those people and you, and only starts a new group chat when there is none. Every name must resolve to exactly one person, or nothing is created or sent and the unresolved names are listed. For one person, use send-direct-message.",
     sendGroupMessageSchema,
     { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    async (args: { to: string[]; message: string; topic?: string; format?: "text" | "markdown" }) => {
+    async (args: { to: string[]; message: string; topic?: string; format?: "text" | "markdown"; attachments?: string[] }) => {
       try {
         const result = await ctx.groupChats.sendGroupMessage(args.to, args.message, {
           topic: args.topic,
           format: args.format,
+          attachments: args.attachments,
         });
 
         const chatLine = result.chatExisted
@@ -98,7 +103,8 @@ export function registerSendGroupMessageTool(server: any, ctx: ServiceContext): 
                 `✅ Group message sent to ${result.recipients.length} people\n\n` +
                 result.recipients.map((r) => `- ${who(r)}`).join("\n") +
                 `\n\n${chatLine}\nChat ID: ${result.chatId}\nMessage ID: ${result.messageId}` +
-                (result.webUrl ? `\nView: ${result.webUrl}` : ""),
+                (result.webUrl ? `\nView: ${result.webUrl}` : "") +
+                describeUploaded(result.attachments ?? []),
             },
           ],
         };

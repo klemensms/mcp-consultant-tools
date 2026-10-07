@@ -32,6 +32,7 @@
  */
 
 import type { TeamsService } from "./teams-service.js";
+import { checkAttachmentPaths, messagePayload, uploadAttachments } from "./outbound-attachments.js";
 import { htmlToText } from "../message-content.js";
 import { buildOutboundMessage } from "../mentions.js";
 import type {
@@ -207,20 +208,23 @@ export class MessageService {
       teamId?: string;
       channelId?: string;
       format?: "text" | "markdown";
+      attachments?: string[];
     } = {}
   ): Promise<SendMessageResult> {
+    const files = checkAttachmentPaths(options.attachments);
     const client = await this.teams.getGraphClient();
     const teamId = this.teams.getTeamId(options.teamId);
     const channelId = this.teams.getChannelId(options.channelId);
 
-    try {
-      const outbound = await buildOutboundMessage(client, content, options.format);
+    const outbound = await buildOutboundMessage(client, content, options.format);
+    const uploaded = await uploadAttachments(client, files, { kind: "channel", teamId, channelId });
 
+    try {
       const result = await client
         .api(`/teams/${teamId}/channels/${channelId}/messages/${messageId}/replies`)
-        .post({ body: outbound.body, ...(outbound.mentions ? { mentions: outbound.mentions } : {}) });
+        .post(messagePayload(outbound, uploaded));
 
-      return { messageId: result.id, webUrl: result.webUrl };
+      return { messageId: result.id, webUrl: result.webUrl, attachments: uploaded };
     } catch (error) {
       throw wrapGraphError(error, `reply to message ${messageId}`);
     }
@@ -309,18 +313,20 @@ export class MessageService {
   async sendChatMessage(
     chatId: string,
     content: string,
-    options: { format?: "text" | "markdown" } = {}
+    options: { format?: "text" | "markdown"; attachments?: string[] } = {}
   ): Promise<SendMessageResult> {
+    const files = checkAttachmentPaths(options.attachments);
     const client = await this.teams.getGraphClient();
 
-    try {
-      const outbound = await buildOutboundMessage(client, content, options.format);
+    const outbound = await buildOutboundMessage(client, content, options.format);
+    const uploaded = await uploadAttachments(client, files, { kind: "chat", chatId });
 
+    try {
       const result = await client
         .api(`/chats/${chatId}/messages`)
-        .post({ body: outbound.body, ...(outbound.mentions ? { mentions: outbound.mentions } : {}) });
+        .post(messagePayload(outbound, uploaded));
 
-      return { messageId: result.id, webUrl: result.webUrl };
+      return { messageId: result.id, webUrl: result.webUrl, attachments: uploaded };
     } catch (error) {
       throw wrapGraphError(error, `send message to chat ${chatId}`);
     }

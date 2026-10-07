@@ -10,6 +10,7 @@
  */
 
 import { z } from "zod";
+import { describeUploaded } from "../services/outbound-attachments.js";
 import type { ServiceContext, DirectMessageResult, UserInfo } from "../types.js";
 import {
   descWithExamples,
@@ -17,6 +18,8 @@ import {
   MESSAGE_FORMAT_EXAMPLES,
   MESSAGE_CONTENT_EXAMPLES,
   MENTION_SYNTAX_HINT,
+  ATTACHMENTS_DESCRIPTION,
+  ATTACHMENT_PATH_EXAMPLES,
 } from "../tool-examples.js";
 import { formatUsers } from "./format-messages.js";
 
@@ -60,6 +63,7 @@ export const sendDirectMessageSchema = {
         MESSAGE_FORMAT_EXAMPLES
       )
     ),
+  attachments: z.array(z.string()).max(10).optional().describe(descWithExamples(ATTACHMENTS_DESCRIPTION, ATTACHMENT_PATH_EXAMPLES)),
 };
 
 function errorResult(message: string) {
@@ -92,12 +96,12 @@ export function registerSendDirectMessageTool(server: any, ctx: ServiceContext):
     "Send a direct message to a person in Microsoft Teams by name or email address, without needing a chat ID. Resolves the person in the directory, reuses the existing one-on-one chat with them when there is one, and only opens a new chat if there is not. If the name matches more than one person, it reports the candidates instead of guessing.",
     sendDirectMessageSchema,
     { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    async (args: { to: string; message: string; format?: "text" | "markdown" }) => {
+    async (args: { to: string; message: string; format?: "text" | "markdown"; attachments?: string[] }) => {
       try {
         const result: DirectMessageResult = await ctx.people.sendDirectMessage(
           args.to,
           args.message,
-          { format: args.format }
+          { format: args.format, attachments: args.attachments }
         );
 
         const who =
@@ -117,7 +121,8 @@ export function registerSendDirectMessageTool(server: any, ctx: ServiceContext):
                 `${chatLine}\n` +
                 `Chat ID: ${result.chatId}\n` +
                 `Message ID: ${result.messageId}` +
-                (result.webUrl ? `\nView: ${result.webUrl}` : ""),
+                (result.webUrl ? `\nView: ${result.webUrl}` : "") +
+                describeUploaded(result.attachments ?? []),
             },
           ],
         };

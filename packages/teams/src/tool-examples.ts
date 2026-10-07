@@ -127,3 +127,16 @@ export const OUTPUT_DIR_EXAMPLES = [
   { label: "A folder the user will open", value: "/Users/jdoe/Downloads/teams" },
   { label: "Project scratch folder", value: "/Users/jdoe/repo/my-project/.context/attachments" },
 ];
+
+export const ATTACHMENT_PATH_EXAMPLES = [
+  { label: "One document", value: '["/Users/jdoe/Documents/one-pager.docx"]' },
+  { label: "Two files", value: '["~/Downloads/report.pdf", "~/Desktop/figures.xlsx"]' },
+];
+
+/** Description shared by every send tool's `attachments` parameter. */
+export const ATTACHMENTS_DESCRIPTION =
+  "Local files to send with the message, as absolute or ~/ paths, at most 10. Each is uploaded (to your OneDrive " +
+  "\"Microsoft Teams Chat Files\" folder for a chat, the channel's files folder for a channel), shared read-only with " +
+  "the chat's other members, and attached to this message as a file card. Files must be inside your home folder; " +
+  "hidden files and folders, ~/Library and credential-shaped names (.env, .pem, .key, id_*) are refused, and one " +
+  "refused path means nothing is uploaded or sent.";

@@ -24,6 +24,7 @@ import type { TeamsService } from "./teams-service.js";
 import { wrapGraphError } from "./message-service.js";
 import { isExternalUser, resolveDirectoryUser } from "./people-service.js";
 import { buildOutboundMessage } from "../mentions.js";
+import { checkAttachmentPaths, messagePayload, uploadAttachments } from "./outbound-attachments.js";
 import type { AddChatMemberResult, GroupMessageResult, UserInfo } from "../types.js";
 
 /** Chats per page while looking for an existing group chat. */
@@ -62,8 +63,9 @@ export class GroupChatService {
   async sendGroupMessage(
     people: string[],
     content: string,
-    options: { topic?: string; format?: "text" | "markdown" } = {}
+    options: { topic?: string; format?: "text" | "markdown"; attachments?: string[] } = {}
   ): Promise<GroupMessageResult> {
+    const files = checkAttachmentPaths(options.attachments);
     const client = await this.teams.getGraphClient();
     const me = await this.teams.getMe();
     const topic = options.topic?.trim() || undefined;
@@ -99,15 +101,17 @@ export class GroupChatService {
 
     const existingChatId = await this.findGroupChat(client, me.id, recipients, topic);
     const chatId = existingChatId ?? (await this.createGroupChat(client, me.id, recipients, topic));
+    const uploaded = await uploadAttachments(client, files, { kind: "chat", chatId });
 
     try {
       const result = await client
         .api(`/chats/${chatId}/messages`)
-        .post({ body: outbound.body, ...(outbound.mentions ? { mentions: outbound.mentions } : {}) });
+        .post(messagePayload(outbound, uploaded));
 
       return {
         messageId: result.id,
         webUrl: result.webUrl,
+        attachments: uploaded,
         chatId,
         chatExisted: existingChatId !== null,
         recipients,

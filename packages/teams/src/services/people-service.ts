@@ -14,6 +14,7 @@
 import type { TeamsService } from "./teams-service.js";
 import { wrapGraphError } from "./message-service.js";
 import { buildOutboundMessage } from "../mentions.js";
+import { checkAttachmentPaths, messagePayload, uploadAttachments } from "./outbound-attachments.js";
 import type { DirectMessageResult, UserInfo } from "../types.js";
 
 /** Directory results to return by default. Enough to disambiguate, not to flood. */
@@ -191,8 +192,9 @@ export class PeopleService {
   async sendDirectMessage(
     nameOrEmail: string,
     content: string,
-    options: { format?: "text" | "markdown" } = {}
+    options: { format?: "text" | "markdown"; attachments?: string[] } = {}
   ): Promise<DirectMessageResult> {
+    const files = checkAttachmentPaths(options.attachments);
     const recipient = await this.resolveUser(nameOrEmail);
 
     // Addressing yourself is refused rather than served. A one-on-one chat needs
@@ -213,16 +215,18 @@ export class PeopleService {
 
     const client = await this.teams.getGraphClient();
 
-    try {
-      const outbound = await buildOutboundMessage(client, content, options.format);
+    const outbound = await buildOutboundMessage(client, content, options.format);
+    const uploaded = await uploadAttachments(client, files, { kind: "chat", chatId });
 
+    try {
       const result = await client
         .api(`/chats/${chatId}/messages`)
-        .post({ body: outbound.body, ...(outbound.mentions ? { mentions: outbound.mentions } : {}) });
+        .post(messagePayload(outbound, uploaded));
 
       return {
         messageId: result.id,
         webUrl: result.webUrl,
+        attachments: uploaded,
         chatId,
         chatExisted: existingChatId !== null,
         recipient,

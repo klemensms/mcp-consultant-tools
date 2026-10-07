@@ -159,7 +159,7 @@ export async function buildOutboundMessage(
  * the id is an integer we generated, and the display name comes from Graph but is
  * still attacker-influenceable (a display name can contain anything).
  */
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

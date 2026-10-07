@@ -198,24 +198,6 @@ transport errors it also caught. Read around any site the sweep names, and follo
 
 ---
 
-## teams: files can be fetched but not sent
-
-**Status:** confirmed in source (2026-09-29). **Affects:** the whole `teams` package.
-
-`download-message-attachments` saves a message's inline images (Graph `hostedContents`) and its
-file attachments (resolved through `GET /shares/{u!base64url}/driveItem`, then the item's
-pre-authenticated download URL). **Nothing in the package sends a file.** A message can carry a
-link to one, but not the file itself.
-
-**Fix:** a Teams file share is an upload to the chat's own OneDrive or SharePoint folder followed by a
-message carrying a `reference` attachment, not a message parameter. `packages/sharepoint` already
-uploads over `/drives/{driveId}/items/{itemId}/content`, and nothing wires the two together. The
-upload needs a files write scope; read the Scope Boundary rule in `packages/teams/CLAUDE.md` first,
-because an unconsented scope added to `DEVICE_CODE_SCOPES` fails at sign-in and takes every tool
-down, not one.
-
----
-
 ## `npm test` at the root runs nothing in 13 of 31 packages, and reports success
 
 **Status:** measured 2026-09-23 across every package manifest. **Affects:** the whole repo's test

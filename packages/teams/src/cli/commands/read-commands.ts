@@ -13,6 +13,7 @@ import type { Command } from 'commander';
 import { getGlobalFlags, handleCliError } from '@mcp-consultant-tools/core';
 import type { ServiceContext } from '../../context-factory.js';
 import { outputResult } from '../output.js';
+import { describeUploaded } from '../../services/outbound-attachments.js';
 
 /** Commander gives option values as strings; Graph wants a number. */
 function parseTop(value?: string): number | undefined {
@@ -131,15 +132,17 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
     .option('-t, --team-id <id>', 'Team ID (uses TEAMS_DEFAULT_TEAM_ID if not set)')
     .option('-c, --channel-id <id>', 'Channel ID (uses TEAMS_DEFAULT_CHANNEL_ID if not set)')
     .option('-f, --format <format>', 'Reply format: text or markdown', 'markdown')
+    .option('-a, --attach <paths...>', 'Local files to send with the message (inside your home folder; at most 10)')
     .action(async (messageId: string, message: string, opts: any) => {
       try {
         const result = await ctx.messages.replyToMessage(messageId, message, {
           teamId: opts.teamId,
           channelId: opts.channelId,
           format: opts.format,
+          attachments: opts.attach,
         });
         outputResult(
-          { fileName: 'reply-to-message', data: result, summary: `Reply posted to ${messageId}. Reply ID: ${result.messageId}`, persist: false },
+          { fileName: 'reply-to-message', data: result, summary: `Reply posted to ${messageId}. Reply ID: ${result.messageId}${describeUploaded(result.attachments ?? [])}`, persist: false },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'post reply'); }
@@ -199,11 +202,12 @@ export function registerReadCommands(program: Command, ctx: ServiceContext): voi
     .argument('<chatId>', 'Chat ID (use list-chats to find it)')
     .argument('<message>', 'Message content (text or markdown). Use @[Name or email] inline to @-mention someone.')
     .option('-f, --format <format>', 'Message format: text or markdown', 'markdown')
+    .option('-a, --attach <paths...>', 'Local files to send with the message (inside your home folder; at most 10)')
     .action(async (chatId: string, message: string, opts: any) => {
       try {
-        const result = await ctx.messages.sendChatMessage(chatId, message, { format: opts.format });
+        const result = await ctx.messages.sendChatMessage(chatId, message, { format: opts.format, attachments: opts.attach });
         outputResult(
-          { fileName: 'send-chat-message', data: result, summary: `Message sent to chat. ID: ${result.messageId}`, persist: false },
+          { fileName: 'send-chat-message', data: result, summary: `Message sent to chat. ID: ${result.messageId}${describeUploaded(result.attachments ?? [])}`, persist: false },
           getGlobalFlags(program)
         );
       } catch (error) { handleCliError(error, 'send chat message'); }
