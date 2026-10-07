@@ -54,6 +54,9 @@ export interface CheckedAttachment {
   realPath: string;
   name: string;
   size: number;
+  /** Identity of the file that was checked, so the upload can refuse a file swapped in since. */
+  dev: number;
+  ino: number;
 }
 
 export interface UploadedAttachment {
@@ -86,11 +89,11 @@ export function checkAttachmentPaths(paths: string[] | undefined): CheckedAttach
     } catch (error) {
       throw new Error(`Nothing was sent. ${error instanceof Error ? error.message : String(error)}`);
     }
-    const size = fs.statSync(realPath).size;
+    const { size, dev, ino } = fs.statSync(realPath);
     if (size === 0) {
       throw new Error(`Nothing was sent. ${filePath} is empty, and Graph will not upload an empty file this way.`);
     }
-    return { realPath, name: path.basename(filePath), size };
+    return { realPath, name: path.basename(filePath), size, dev, ino };
   });
 }
 
@@ -229,16 +232,23 @@ async function chatRecipients(client: any, chatId: string): Promise<Array<{ emai
 }
 
 async function uploadOne(client: any, folderPath: string, file: CheckedAttachment): Promise<any> {
-  const session = await client
-    .api(`${folderPath}/${encodeURIComponent(file.name)}:/createUploadSession`)
-    .post({ item: { "@microsoft.graph.conflictBehavior": "rename" } });
-  const uploadUrl: string | undefined = session?.uploadUrl;
-  if (!uploadUrl) {
-    throw new Error("Graph did not return an upload URL");
-  }
-
-  const handle = await fs.promises.open(file.realPath, "r");
+  // The check ran before the chat lookups, so the path is read again here. The
+  // open handle must be the very file that was checked, unchanged in size,
+  // or a file swapped in since (a symlink or rename) would be uploaded instead.
+  const handle = await fs.promises.open(file.realPath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
   try {
+    const opened = await handle.stat();
+    if (opened.dev !== file.dev || opened.ino !== file.ino || opened.size !== file.size || !opened.isFile()) {
+      throw new Error(`${file.realPath} changed after it was checked, so it was not uploaded`);
+    }
+
+    const session = await client
+      .api(`${folderPath}/${encodeURIComponent(file.name)}:/createUploadSession`)
+      .post({ item: { "@microsoft.graph.conflictBehavior": "rename" } });
+    const uploadUrl: string | undefined = session?.uploadUrl;
+    if (!uploadUrl) {
+      throw new Error("Graph did not return an upload URL");
+    }
     let offset = 0;
     let last: any;
     while (offset < file.size) {

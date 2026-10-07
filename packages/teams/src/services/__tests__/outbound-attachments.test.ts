@@ -205,6 +205,25 @@ describe.each(PATHS)('$name with attachments', ({ surface, send }) => {
     expect(stub.fetchMock).not.toHaveBeenCalled();
   });
 
+  it('uploads nothing when the file is swapped after the check', async () => {
+    const stub = createStub();
+    const swapped = path.join(HOME, 'Documents', 'swap-me.docx');
+    fs.writeFileSync(swapped, 'checked bytes');
+    const original = stub.client.api;
+    // The first Graph call happens after the check and before the upload: swap the file then.
+    stub.client.api = (p: string) => {
+      if (fs.existsSync(swapped) && fs.readFileSync(swapped, 'utf8') === 'checked bytes') {
+        fs.rmSync(swapped);
+        fs.writeFileSync(swapped, 'other bytes!!');
+      }
+      return original(p);
+    };
+    await expect(send(teamsFor(stub.client), 'x', [swapped])).rejects.toThrow(/changed after it was checked/);
+    expect(stub.calls.filter((c) => c.path.endsWith(':/createUploadSession'))).toEqual([]);
+    expect(stub.calls.filter((c) => c.method === 'POST' && c.body?.body)).toEqual([]);
+    expect(stub.fetchMock).not.toHaveBeenCalled();
+  });
+
   it('refuses more than ten files before doing anything', async () => {
     const stub = createStub();
     await expect(send(teamsFor(stub.client), 'x', Array(11).fill(docPath))).rejects.toThrow(/at most 10/);
