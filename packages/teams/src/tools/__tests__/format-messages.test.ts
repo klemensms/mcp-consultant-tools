@@ -99,3 +99,37 @@ describe('formatMessages body budget', () => {
     expect(output).toContain('_(no text content)_');
   });
 });
+
+describe('formatMessages reactions', () => {
+  it('adds one Reactions line under the message header', () => {
+    const output = formatMessages(
+      [
+        {
+          ...BASE,
+          reactions: [
+            { emoji: '👍', name: 'Like', userName: 'Jane Doe', createdDateTime: '2026-08-12T09:35:00Z' },
+            { emoji: '❤️', name: 'Heart', createdDateTime: '2026-08-12T09:36:00Z' },
+          ],
+        },
+      ],
+      OPTIONS
+    );
+
+    const line = output.split('\n').find((l) => l.startsWith('Reactions:'));
+    expect(line).toMatch(/^Reactions: 👍 Like by Jane Doe \S+; ❤️ Heart by unknown user \S+$/);
+    expect(output.indexOf('Reactions:')).toBeLessThan(output.indexOf('Hello world'));
+  });
+
+  it('adds nothing when a message has no reactions', () => {
+    expect(formatMessages([BASE], OPTIONS)).not.toContain('Reactions:');
+  });
+
+  it('adds the date when the reaction came on a later day', () => {
+    const output = formatMessages(
+      [{ ...BASE, reactions: [{ emoji: '👍', name: 'Like', userName: 'Jane Doe', createdDateTime: '2026-08-14T09:35:00Z' }] }],
+      OPTIONS
+    );
+
+    expect(output).toContain(new Date('2026-08-14T09:35:00Z').toLocaleDateString());
+  });
+});

@@ -11,6 +11,7 @@
  *   reply to channel message    -> ChannelMessage.Send
  *   list chats / chat members   -> Chat.ReadBasic (Chat.ReadWrite is higher)
  *   chat messages               -> Chat.Read      (Chat.ReadWrite is higher)
+ *   reactor names on reads      -> User.ReadBasic.All
  *   send chat message           -> ChatMessage.Send (Chat.ReadWrite is higher)
  *   markChatReadForUser         -> Chat.ReadWrite (only listed permission)
  *   channel message reactions   -> ChannelMessage.Send
@@ -39,6 +40,7 @@ import type {
   ChannelDeltaResult,
   ChatInfo,
   MessageInfo,
+  MessageReaction,
   MessageReadOptions,
   ReactionType,
   SendMessageResult,
@@ -100,7 +102,7 @@ export class MessageService {
         .get();
 
       const messages = (response.value ?? []).map(toMessageInfo);
-      return applyDateRange(messages, options);
+      return await resolveReactionNames(client, applyDateRange(messages, options));
     } catch (error) {
       throw wrapGraphError(error, "read channel messages");
     }
@@ -162,6 +164,7 @@ export class MessageService {
     }
 
     const truncated = !deltaLink && Boolean(nextUrl);
+    await resolveReactionNames(client, messages);
 
     return {
       messages,
@@ -192,7 +195,7 @@ export class MessageService {
         .get();
 
       const messages = (response.value ?? []).map(toMessageInfo);
-      return applyDateRange(messages, options);
+      return await resolveReactionNames(client, applyDateRange(messages, options));
     } catch (error) {
       throw wrapGraphError(error, `read replies to message ${messageId}`);
     }
@@ -300,7 +303,7 @@ export class MessageService {
       }
 
       const response = await request.get();
-      return (response.value ?? []).map(toMessageInfo);
+      return await resolveReactionNames(client, (response.value ?? []).map(toMessageInfo));
     } catch (error) {
       throw wrapGraphError(error, `read messages in chat ${chatId}`);
     }
@@ -606,7 +609,69 @@ function toMessageInfo(message: any): MessageInfo {
     webUrl: message.webUrl ?? undefined,
     isDeleted: message.deletedDateTime ? true : undefined,
     hasEventDetail: message.eventDetail ? true : undefined,
+    reactions: toReactions(message.reactions),
   };
+}
+
+function toReactions(raw: any): MessageReaction[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return undefined;
+  }
+  return raw.map((reaction: any) => ({
+    emoji: reaction.reactionType ?? "?",
+    name: reaction.displayName ?? undefined,
+    userId: reaction.user?.user?.id ?? undefined,
+    userName: reaction.user?.user?.displayName ?? undefined,
+    createdDateTime: reaction.createdDateTime ?? undefined,
+  }));
+}
+
+/**
+ * Fill in who reacted. Graph sends only the reacting user's id, so names come from
+ * the authors already in this read first, which covers most chats for free, and a
+ * directory lookup (User.ReadBasic.All) for the rest. A failed lookup leaves the
+ * name unset rather than failing the read.
+ */
+async function resolveReactionNames(client: any, messages: MessageInfo[]): Promise<MessageInfo[]> {
+  const reactions = messages.flatMap((message) => message.reactions ?? []);
+  if (reactions.length === 0) {
+    return messages;
+  }
+
+  const names = new Map<string, string>();
+  for (const message of messages) {
+    if (message.authorId) {
+      names.set(message.authorId, message.authorName);
+    }
+  }
+
+  const unknown = [
+    ...new Set(
+      reactions
+        .filter((reaction) => !reaction.userName && reaction.userId && !names.has(reaction.userId))
+        .map((reaction) => reaction.userId as string)
+    ),
+  ];
+
+  await Promise.all(
+    unknown.map(async (id) => {
+      try {
+        const user = await client.api(`/users/${id}`).select("displayName").get();
+        if (user?.displayName) {
+          names.set(id, user.displayName);
+        }
+      } catch {
+        // Guests and deleted users can fail to resolve; the reaction still shows.
+      }
+    })
+  );
+
+  for (const reaction of reactions) {
+    if (!reaction.userName && reaction.userId) {
+      reaction.userName = names.get(reaction.userId);
+    }
+  }
+  return messages;
 }
 
 /**

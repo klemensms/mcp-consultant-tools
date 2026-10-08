@@ -207,6 +207,25 @@ export interface MessageInfo {
    * Used to suppress the placeholder messageType Graph pairs with those.
    */
   hasEventDetail?: boolean;
+  /** Emoji reactions on the message, oldest first. Absent when there are none. */
+  reactions?: MessageReaction[];
+}
+
+/**
+ * One emoji reaction on a message, as Graph reports it on a read.
+ *
+ * Graph v1.0 sends the emoji itself in reactionType ("👍", not "like") and the
+ * friendly name separately ("Like"). It sends the reacting user's id but leaves
+ * their displayName null, so the name is resolved afterwards and can be missing.
+ */
+export interface MessageReaction {
+  /** The emoji character, e.g. "👍". For a custom emoji, whatever Graph sent. */
+  emoji: string;
+  /** Graph's friendly name, e.g. "Like". */
+  name?: string;
+  userId?: string;
+  userName?: string;
+  createdDateTime?: string;
 }
 
 /**

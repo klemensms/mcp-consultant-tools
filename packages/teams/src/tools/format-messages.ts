@@ -17,6 +17,7 @@ import type {
   ChannelDeltaResult,
   ChatInfo,
   MessageInfo,
+  MessageReaction,
   MessageSearchHit,
   MessageSearchResult,
   UserInfo,
@@ -73,6 +74,9 @@ export function formatMessages(messages: MessageInfo[], options: FormatOptions):
     const flagSuffix = flags.length > 0 ? `  _(${flags.join(", ")})_` : "";
 
     lines.push(`**${message.authorName}** · ${timestamp} · \`${message.id}\`${flagSuffix}`);
+    if (message.reactions?.length) {
+      lines.push(formatReactions(message.reactions, message.createdDateTime));
+    }
 
     const body = message.text
       ? truncateText(message.text, budgets[index] ?? 0, hint)
@@ -84,6 +88,33 @@ export function formatMessages(messages: MessageInfo[], options: FormatOptions):
   lines.push(`**Total:** ${messages.length} message(s)`);
 
   return lines.join("\n");
+}
+
+/**
+ * One line listing who reacted with what, e.g. "Reactions: 👍 Like by Jane Doe 13:17".
+ *
+ * A reaction is often the whole reply - a thumbs-up meaning "done" - so a reader
+ * that cannot see it treats a closed item as open. The time is shown alone when
+ * the reaction landed on the message's own day, with the date otherwise.
+ */
+export function formatReactions(reactions: MessageReaction[], messageCreated?: string): string {
+  const parts = reactions.map((reaction) => {
+    const label = reaction.name ? `${reaction.emoji} ${reaction.name}` : reaction.emoji;
+    const who = reaction.userName ?? "unknown user";
+    const when = reaction.createdDateTime ? ` ${formatReactionTime(reaction.createdDateTime, messageCreated)}` : "";
+    return `${label} by ${who}${when}`;
+  });
+  return `Reactions: ${parts.join("; ")}`;
+}
+
+function formatReactionTime(iso: string, messageCreated?: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return iso;
+  }
+  const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const sameDay = messageCreated && new Date(messageCreated).toDateString() === date.toDateString();
+  return sameDay ? time : `${date.toLocaleDateString()} ${time}`;
 }
 
 /**

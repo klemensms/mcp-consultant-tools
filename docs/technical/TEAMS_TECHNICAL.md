@@ -480,8 +480,17 @@ Every rendered message carries its ID, because that ID is the required input to 
   messageType?: string;           // "message", "systemEventMessage", ...
   webUrl?: string;
   isDeleted?: boolean;
+  reactions?: {                   // Absent when the message has none
+    emoji: string;                // Graph's reactionType: the emoji itself, e.g. "👍"
+    name?: string;                // Graph's displayName, e.g. "Like"
+    userId?: string;
+    userName?: string;            // Resolved - Graph sends displayName: null
+    createdDateTime?: string;
+  }[];
 }
 ```
+
+**Reactions on reads.** `chatMessage.reactions` comes back on the ordinary v1.0 list and get calls for chats, channel messages, replies and channel delta, so no extra permission or `$expand` is needed. Confirmed live 2026-10-08 on a chat message: `reactionType` is the emoji character (`"👍"`), not the friendly name the setReaction docs suggest, `displayName` carries the name (`"Like"`), and the reacting user arrives as `user.user.id` with `displayName: null`. Names are therefore resolved after mapping: first from the authors already in the same read, then by `GET /users/{id}?$select=displayName` (`User.ReadBasic.All`), once per unknown id per read. A failed lookup leaves the name unset and the reaction still renders as `by unknown user`. The rendered line is `Reactions: 👍 Like by Jane Doe 13:17`, with the date added when the reaction came on a later day than the message. Channel reads and custom (non-standard) emoji are covered by unit tests only; a custom emoji is expected to carry `reactionContentUrl` and is rendered with whatever `reactionType` and `displayName` Graph sends.
 
 <tool name="get-channel-messages">
 

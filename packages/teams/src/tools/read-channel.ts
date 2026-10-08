@@ -89,7 +89,7 @@ function errorResult(message: string) {
 export function registerGetChannelMessagesTool(server: any, ctx: ServiceContext): void {
   server.tool(
     "get-channel-messages",
-    "Read recent messages from a Microsoft Teams channel, newest first. Returns author, timestamp, message text and message ID for each. Does NOT include thread replies - use get-message-replies with a returned message ID for those. Defaults to the 20 most recent messages.",
+    "Read recent messages from a Microsoft Teams channel, newest first. Returns author, timestamp, message text and message ID for each. Does NOT include thread replies - use get-message-replies with a returned message ID for those. Defaults to the 20 most recent messages. A message with emoji reactions gets a Reactions line saying who reacted with what and when (a thumbs-up often means the item is done).",
     getChannelMessagesSchema,
     { readOnlyHint: true, openWorldHint: true },
     async (args: { teamId?: string; channelId?: string; top?: number; since?: string; until?: string }) => {
@@ -118,7 +118,7 @@ export function registerGetChannelMessagesTool(server: any, ctx: ServiceContext)
 export function registerGetMessageRepliesTool(server: any, ctx: ServiceContext): void {
   server.tool(
     "get-message-replies",
-    "Read the replies to a specific Microsoft Teams channel message. Use the message ID returned by get-channel-messages.",
+    "Read the replies to a specific Microsoft Teams channel message. Use the message ID returned by get-channel-messages. A message with emoji reactions gets a Reactions line saying who reacted with what and when (a thumbs-up often means the item is done).",
     getMessageRepliesSchema,
     { readOnlyHint: true, openWorldHint: true },
     async (args: { messageId: string; teamId?: string; channelId?: string; top?: number }) => {

@@ -100,7 +100,7 @@ export function registerSearchMessagesTool(server: any, ctx: ServiceContext): vo
 export function registerGetChannelMessagesDeltaTool(server: any, ctx: ServiceContext): void {
   server.tool(
     "get-channel-messages-delta",
-    "Read only the messages created or changed in a Teams channel since a previous call, using a deltaLink. Use this to catch up on a channel without re-reading it. The first call has no deltaLink and must walk the channel's history to establish one, which is expensive on a busy channel - get-channel-messages is cheaper for a one-off skim.",
+    "Read only the messages created or changed in a Teams channel since a previous call, using a deltaLink. Use this to catch up on a channel without re-reading it. The first call has no deltaLink and must walk the channel's history to establish one, which is expensive on a busy channel - get-channel-messages is cheaper for a one-off skim. A message with emoji reactions gets a Reactions line saying who reacted with what and when (a thumbs-up often means the item is done).",
     getChannelMessagesDeltaSchema,
     { readOnlyHint: true, openWorldHint: true },
     async (args: {

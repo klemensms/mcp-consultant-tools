@@ -152,7 +152,7 @@ export function registerListChatsTool(server: any, ctx: ServiceContext): void {
 export function registerGetChatMessagesTool(server: any, ctx: ServiceContext): void {
   server.tool(
     "get-chat-messages",
-    "Read recent messages from a Microsoft Teams chat, newest first. Returns author, timestamp, message text and message ID for each. Defaults to the 20 most recent messages.",
+    "Read recent messages from a Microsoft Teams chat, newest first. Returns author, timestamp, message text and message ID for each. Defaults to the 20 most recent messages. A message with emoji reactions gets a Reactions line saying who reacted with what and when (a thumbs-up often means the item is done).",
     getChatMessagesSchema,
     { readOnlyHint: true, openWorldHint: true },
     async (args: { chatId: string; top?: number; since?: string; until?: string }) => {
