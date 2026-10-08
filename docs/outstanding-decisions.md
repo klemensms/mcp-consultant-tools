@@ -1,8 +1,21 @@
 # Outstanding decisions
 
-> Every decision still waiting on the maintainer sits here and nowhere else. An entry is removed the moment it is answered; the answer is recorded in the owning plan's or review's Status section and git history keeps what was asked. Numbers are never reused. Next number: **D-016**. Any session may add an entry; the session that acts on the answer removes it. This repo is public: where a decision involves internal text (a ticket, a message), the entry points to the private record that holds it, and the question put to the maintainer in chat carries the full text.
+> Every decision still waiting on the maintainer sits here and nowhere else. An entry is removed the moment it is answered; the answer is recorded in the owning plan's or review's Status section and git history keeps what was asked. Numbers are never reused. Next number: **D-017**. Any session may add an entry; the session that acts on the answer removes it. This repo is public: where a decision involves internal text (a ticket, a message), the entry points to the private record that holds it, and the question put to the maintainer in chat carries the full text.
 >
 > Each entry: what is being decided, why it matters, lettered options, a recommendation, and whether it is a send decision. Answer by number and letter, e.g. "D-002 A, D-003 B".
+
+## Repo process
+
+### D-016 · Should sessions merge their own PRs in this repo?
+Not a send decision. On 2026-10-08 you said you do not review code PRs here and the session should merge them itself. Recording that in this repo's `CLAUDE.md` makes it apply to every future session, not just this one. Proposed text, under Publishing:
+
+```
+**Merging PRs:** the maintainer does not review code PRs in this repo. Once tests pass and the local MCP test is green, the session merges its own PR into the release branch. Publishing still follows the beta and production workflows below.
+```
+- **A.** Add it as written.
+- **B.** Add it, but keep your approval for production releases and for anything touching auth or secrets.
+- **C.** Do not add it; ask each time.
+- **Recommended: A.** It matches what you asked for today, and the release workflows already hold their own gates.
 
 ## Teams file attachments
 
@@ -12,6 +25,8 @@ Send decision. `27f4d16` adds `attachments` to the five Teams send tools; unit t
 - **B.** Send only the direct message (proves the chat path; the channel path stays unproven).
 - **C.** Hold; publish to beta with the live send marked unverified.
 - **Recommended: A.** Covers both upload routes and the sharing step in one round.
+
+The feature shipped in `teams` 35.0.0-beta.15 (v35.0.0-beta.28, 2026-10-08) with the live send marked unverified, so C has happened by default; A or B still proves it.
 
 ## Dynamics review findings
 
