@@ -1,6 +1,6 @@
 # Outstanding decisions
 
-> Every decision still waiting on the maintainer sits here and nowhere else. An entry is removed the moment it is answered; the answer is recorded in the owning plan's or review's Status section and git history keeps what was asked. Numbers are never reused. Next number: **D-017**. Any session may add an entry; the session that acts on the answer removes it. This repo is public: where a decision involves internal text (a ticket, a message), the entry points to the private record that holds it, and the question put to the maintainer in chat carries the full text.
+> Every decision still waiting on the maintainer sits here and nowhere else. An entry is removed the moment it is answered; the answer is recorded in the owning plan's or review's Status section and git history keeps what was asked. Numbers are never reused. Next number: **D-018**. Any session may add an entry; the session that acts on the answer removes it. This repo is public: where a decision involves internal text (a ticket, a message), the entry points to the private record that holds it, and the question put to the maintainer in chat carries the full text.
 >
 > Each entry: what is being decided, why it matters, lettered options, a recommendation, and whether it is a send decision. Answer by number and letter, e.g. "D-002 A, D-003 B".
 
@@ -71,6 +71,13 @@ Not a send decision. A helper in `core` works out the version by walking up from
 - **A.** Fix in `core` now and publish with the next beta of `core`; the pinned packages follow when their pins are bumped.
 - **B.** Wait for the planned major release that bumps every `core` pin.
 - **Recommended: A.** Cosmetic but misleading when debugging, and the fix is small.
+
+### D-017 · Unfiltered counts: live and trimmed to what you can open, or the whole-table snapshot
+Not a send decision. A count with no filter uses Dataverse's stored snapshot (`packages/powerplatform-core/src/services/DataService.ts:446`, `:506`): a whole-table figure up to 24 hours old that ignores your security, so it can include records you cannot open. A count with a filter is live and trimmed to your access. So the same table gives two different kinds of number depending on whether a filter is present. The separate copy now counts everything live (checked live there: accounts 14,663 unfiltered, 4,491 active) and has removed the snapshot, so over 50,000 it answers "more than 50,000" instead of a number.
+- **A.** Count live by default, as there; when the live count hits the 50,000 limit, fall back to the snapshot and label it "whole table, not limited to your access, up to 24 hours old". Nothing is lost on large tables.
+- **B.** Match the other copy exactly: live only, "more than 50,000" above the limit, snapshot removed.
+- **C.** Keep as is (snapshot for unfiltered, labelled per D-013 item 6).
+- **Recommended: A.** Every count then means "records you can open, now", which is what people assume, and large tables still get a figure rather than a refusal, so no capability is removed. If chosen, it replaces the label change in D-013 item 6.
 
 ### D-010 · Reply to the hosting monitor session
 Send decision. Recipient: the hosting monitor (another Claude session), sent from this repo's session. Can go now; it names D-002 and D-003 as still open. Current draft, whole message:
