@@ -1,6 +1,6 @@
 # Outstanding decisions
 
-> Every decision still waiting on the maintainer sits here and nowhere else. An entry is removed the moment it is answered; the answer is recorded in the owning plan's or review's Status section and git history keeps what was asked. Numbers are never reused. Next number: **D-018**. Any session may add an entry; the session that acts on the answer removes it. This repo is public: where a decision involves internal text (a ticket, a message), the entry points to the private record that holds it, and the question put to the maintainer in chat carries the full text.
+> Every decision still waiting on the maintainer sits here and nowhere else. An entry is removed the moment it is answered; the answer is recorded in the owning plan's or review's Status section and git history keeps what was asked. Numbers are never reused. Next number: **D-019**. Any session may add an entry; the session that acts on the answer removes it. This repo is public: where a decision involves internal text (a ticket, a message), the entry points to the private record that holds it, and the question put to the maintainer in chat carries the full text.
 >
 > Each entry: what is being decided, why it matters, lettered options, a recommendation, and whether it is a send decision. Answer by number and letter, e.g. "D-002 A, D-003 B".
 
@@ -78,6 +78,13 @@ Not a send decision. A count with no filter uses Dataverse's stored snapshot (`p
 - **B.** Match the other copy exactly: live only, "more than 50,000" above the limit, snapshot removed.
 - **C.** Keep as is (snapshot for unfiltered, labelled per D-013 item 6).
 - **Recommended: A.** Every count then means "records you can open, now", which is what people assume, and large tables still get a figure rather than a refusal, so no capability is removed. If chosen, it replaces the label change in D-013 item 6.
+
+### D-018 · Local tester agent: no dialog, and a test mode that needs no live org
+Not a send decision. Our `mcp-local-tester` agent (`.claude/agents/mcp-local-tester.md`) ends on a question dialog when tests pass (lines 12 and 271), which freezes a monitored or unattended tab until you find it. It also tests against the live test org (line 329). A separate copy of this agent returns PASS or FAIL as text, runs the built server against a fake copy of the service on this machine, and fails a run on a wrong tool list, any unexpected write request, any planted personal value appearing in output, or any tool error.
+- **A.** Drop the dialog (report PASS or FAIL as text; the calling session handles reconnecting), and add a fake-service mode as the default, keeping the live test org as an option chosen per run. Built for the Dataverse servers first, following that copy's worked example.
+- **B.** Drop the dialog only.
+- **C.** Keep as is.
+- **Recommended: A.** The dialog breaks your no-blocking rule, and a fake service lets every change be tested without touching any live system. Note: the agent file is mirrored in the `mcp-computer-use` repo, which is not checked out here, so that copy would diverge until it is.
 
 ### D-010 · Reply to the hosting monitor session
 Send decision. Recipient: the hosting monitor (another Claude session), sent from this repo's session. Can go now; it names D-002 and D-003 as still open. Current draft, whole message:
