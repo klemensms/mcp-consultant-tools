@@ -27,8 +27,11 @@ Invoke it automatically:
 
 ## Phase 0: Identify What to Test
 
+Use the package and tools the calling session names. If it names none, look at what is not yet committed, then at the branch's own commits since it left the release branch:
+
 ```bash
-git diff --name-only "origin/$(git rev-parse --abbrev-ref HEAD@{upstream} 2>/dev/null | sed 's#^origin/##' || echo main)"...HEAD | grep "^packages/" | cut -d/ -f2 | sort -u
+git status --porcelain -- packages/ | awk '{print $2}' | cut -d/ -f2 | sort -u
+git log --name-only --format= "$(git merge-base HEAD "$(git branch -r --list 'origin/release/*' | sort -V | tail -1 | tr -d ' ')")"..HEAD -- packages/ | cut -d/ -f2 | sort -u
 ```
 
 Read the changed `tools/*.ts` and `services/*.ts` files and list the tool names to call, including at least one call that should fail (a refusal or a bad argument) when the change adds a check.
@@ -59,7 +62,7 @@ The runner is `.claude/templates/mcp-test-runner.mjs`. Use it as is; do not writ
 
 Set `MCP_TEST_MODE=live` to override. Fake mode exists for the Dataverse servers only so far.
 
-**The fake knows:** `accounts` and `contacts` (entity definitions, attributes, records, counts, `$apply` aggregates, records by GUID). Anything else gets a 404 from the fake, which fails the run. Contacts carry planted personal values. It ignores `$filter`, `$top` and paging (no `@odata.nextLink`), so a test of filter or paging logic proves nothing in fake mode; use unit tests for those. Extend the fake when a change needs more, in the same pull request.
+**The fake knows:** `accounts` and `contacts` (entity definitions, attributes, records, counts, `$apply` aggregates, records by GUID). Anything else gets a 404 from the fake, which fails the run. Contacts carry planted personal values; never put one in a tool argument, because tools echo their arguments and the run would fail. It ignores `$filter`, `$top` and paging (no `@odata.nextLink`), so a test of filter or paging logic proves nothing in fake mode; use unit tests for those. Extend the fake when a change needs more, in the same pull request.
 
 ---
 
