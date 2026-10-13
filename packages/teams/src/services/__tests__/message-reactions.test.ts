@@ -7,7 +7,12 @@
  * null is why names are resolved afterwards.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+});
 import { MessageService } from '../message-service.js';
 import type { TeamsService } from '../teams-service.js';
 
@@ -183,7 +188,61 @@ describe('reaction name resolution edge cases', () => {
     expect(lookups).toHaveLength(50);
     expect(first.reactions?.filter((r) => r.userName)).toHaveLength(50);
     expect(stderr).toHaveBeenCalledWith(expect.stringContaining('50 of 60'));
-    stderr.mockRestore();
+  });
+
+  it('runs at most 5 lookups at once', async () => {
+    const ids = Array.from({ length: 12 }, (_, i) => `00000000-0000-0000-0000-${String(i).padStart(12, '0')}`);
+    let inFlight = 0;
+    let peak = 0;
+    const client = {
+      api: (path: string) => {
+        const request: any = {
+          top: () => request,
+          select: () => request,
+          get: async () => {
+            if (!path.startsWith('/users/')) {
+              return { value: [message('1', AUTHOR_ID, 'Robin Kline', ids.map((id) => reaction(id)))] };
+            }
+            inFlight++;
+            peak = Math.max(peak, inFlight);
+            await new Promise((resolve) => setTimeout(resolve, 5));
+            inFlight--;
+            return { displayName: 'Someone' };
+          },
+        };
+        return request;
+      },
+    };
+    const teams = { getGraphClient: vi.fn().mockResolvedValue(client) } as unknown as TeamsService;
+
+    await new MessageService(teams).getChatMessages(CHAT_ID);
+
+    expect(peak).toBe(5);
+  });
+
+  it('gives up on a lookup that never answers and still returns the read', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const client = {
+      api: (path: string) => {
+        const request: any = {
+          top: () => request,
+          select: () => request,
+          get: () =>
+            path.startsWith('/users/')
+              ? new Promise(() => {})
+              : Promise.resolve({ value: [message('1', AUTHOR_ID, 'Robin Kline', [reaction(OTHER_ID)])] }),
+        };
+        return request;
+      },
+    };
+    const teams = { getGraphClient: vi.fn().mockResolvedValue(client) } as unknown as TeamsService;
+
+    const read = new MessageService(teams).getChatMessages(CHAT_ID);
+    await vi.advanceTimersByTimeAsync(10_000);
+    const [first] = await read;
+
+    expect(first.reactions?.[0]).toMatchObject({ userId: OTHER_ID, userName: undefined });
   });
 });
 

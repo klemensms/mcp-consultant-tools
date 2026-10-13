@@ -633,6 +633,8 @@ const PLACEHOLDER_AUTHORS = new Set(["Unknown", "System"]);
 const MAX_NAME_LOOKUPS = 50;
 const NAME_LOOKUP_CONCURRENCY = 5;
 const NAME_LOOKUP_TIMEOUT_MS = 10_000;
+/** Overall budget for one read's lookups; batches stop starting once it is spent. */
+const NAME_LOOKUP_BUDGET_MS = 15_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
@@ -673,10 +675,17 @@ async function resolveReactionNames(client: any, messages: MessageInfo[]): Promi
 
   // A first channel delta can cover hundreds of reactors. Firing a lookup for each
   // at once invites Graph throttling, so lookups are capped per read and run a few
-  // at a time, each with a timeout so one slow call cannot hold the read up.
+  // at a time, each with a timeout so one slow call cannot hold the read up. The
+  // timeout abandons the wait but cannot cancel the Graph call, so the concurrency
+  // cap is best-effort; the overall budget bounds how long a read can spend here.
   const toLookUp = unknown.slice(0, MAX_NAME_LOOKUPS);
   const failures: string[] = [];
+  const started = Date.now();
   for (let i = 0; i < toLookUp.length; i += NAME_LOOKUP_CONCURRENCY) {
+    if (Date.now() - started > NAME_LOOKUP_BUDGET_MS) {
+      failures.push(`stopped after ${i} lookups: ${NAME_LOOKUP_BUDGET_MS} ms budget spent`);
+      break;
+    }
     await Promise.all(
       toLookUp.slice(i, i + NAME_LOOKUP_CONCURRENCY).map(async (id) => {
         try {
