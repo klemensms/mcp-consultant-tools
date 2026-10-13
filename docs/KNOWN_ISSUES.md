@@ -277,7 +277,7 @@ Each HTTP server builds one `McpServer`, connects it once to one `InMemoryTransp
 
 ## Moderate and low `npm audit` findings left after the 2026-09-24 dependency update
 
-**Status:** confirmed 2026-09-24 by `npm audit --json` at the root. **Affects:** nothing in CI: the audit job fails only on high or critical, and `npm audit --audit-level=high` exits 0. Re-run `npm audit` rather than trusting this list; it drifts with every lockfile change.
+**Status:** confirmed 2026-09-24 by `npm audit --json` at the root. **Affects:** nothing in CI on its own: the audit job fails only on high or critical. Since then high and critical findings have appeared and the job fails on every PR; see the next section. Re-run `npm audit` rather than trusting this list; it drifts with every lockfile change.
 
 **Fixable within the current major** (a range raise or a lockfile update, no API change expected):
 
@@ -290,7 +290,43 @@ Each HTTP server builds one `McpServer`, connects it once to one `InMemoryTransp
 **Needs a major version bump:**
 
 - `@azure/msal-node` <= 5.1.4 and its `uuid` < 11.1.1 (moderate): the fix is `@azure/msal-node` 7, a two-major jump in eight packages (`application-insights`, `azure-data-factory`, `log-analytics`, `m365-core`, `powerplatform-core`, `service-bus`, `sharepoint`, `teams`). It touches delegated and app-only sign-in, so it needs its own change with sign-in tested live.
-- `vitest` and `@vitest/mocker` (moderate, GHSA-82fw-gwwq-j7x9, dev only): the fix is vitest 4.1.11 or later. npm suggests vitest 5, which needs Node 22.12+, while the CI build matrix still runs Node 18 and tests on Node 20. vitest 4.1.11 supports Node 20, so the order is: drop Node 18 from the matrix, then move to vitest 4.
+- `vitest` (critical as of 2026-10-13, see the next section) and `@vitest/mocker` (moderate, GHSA-82fw-gwwq-j7x9, dev only): the fix is vitest 4.1.11 or later. npm suggests vitest 5, which needs Node 22.12+, while the CI build matrix still runs Node 18 and tests on Node 20. vitest 4.1.11 supports Node 20, so the order is: drop Node 18 from the matrix, then move to vitest 4.
+
+---
+
+## High and critical `npm audit` findings fail CI on every PR
+
+**Status:** confirmed 2026-10-13 by `npm audit --audit-level=high` at the root; it already failed on `105a68f`, before the delegated-decisions chain. **Affects:** every PR into the release branch shows a failing "Dependency Vulnerability Audit" check, so a new failure there is hidden among the old ones, and the SDK advisory ships to users until it is bumped.
+
+- `@modelcontextprotocol/sdk` 1.12.0 - 1.30.1 (high): every package depends on it, so the fix is a deliberate SDK bump across the packages with each server tested, not a change inside an unrelated task.
+- `vitest` up to 4.1.10 and `tinypool` (critical, dev only): see the vitest ordering in the section above.
+- `proxy-addr` (critical, via `express`), `braces`, `micromatch`, `source-map-js`, `vite-plugin-singlefile` (high, transitive).
+
+Re-run the audit rather than trusting this list.
+
+---
+
+## The teams server still keeps its sign-in in a file with a machine-derived key
+
+**Status:** confirmed 2026-10-13 in source (`packages/teams/src/auth/token-cache.ts`). **Affects:** the teams server only; PowerPlatform, SharePoint and Outlook moved to the OS keychain in v35.0.0-beta.29.
+
+The key is derived from the host name and user name with a fixed salt that is public in this repo, so a copied cache file can be decrypted by anyone who knows both names. The keychain library the other servers use (`@azure/msal-node-extensions` 1.5.x) does not support the msal-node 2.x that teams runs, so the move needs a teams msal-node upgrade first, or a switch to the `m365-core` sign-in helper.
+
+---
+
+## A restarted PowerPlatform server forgets which account was used last
+
+**Status:** confirmed 2026-10-13 in source. **Affects:** anyone with two accounts in the PowerPlatform token cache.
+
+Silent sign-in remembers the last account only for the life of the server process; after a restart it starts from the first cached account. The fix is to store the last account's `homeAccountId` beside the keychain cache.
+
+---
+
+## Unverified: name and ID checks against a live environment with real names
+
+**Status:** unit-tested and checked in fake-service mode only (v35.0.0-beta.29), because no Dataverse credentials were available. **Affects:** the PowerPlatform data and metadata tools.
+
+If a real table, column or option set name in some environment does not match the plain-name pattern, the tool refuses it. A run of the data and metadata tools against the safe test environment would close this.
 
 ---
 
