@@ -51,6 +51,8 @@ const ATTRIBUTES = {
     { LogicalName: 'emailaddress1', AttributeType: 'String' },
     { LogicalName: 'telephone1', AttributeType: 'String' },
     { LogicalName: 'parentcustomerid', SchemaName: 'ParentCustomerId', AttributeType: 'Customer', Targets: ['account'] },
+    // Its relationship metadata is refused (403), so get-lookup-target's binding warning runs.
+    { LogicalName: 'new_restrictedaccountid', SchemaName: 'new_RestrictedAccountId', AttributeType: 'Lookup', Targets: ['account'] },
   ],
 };
 
@@ -81,6 +83,9 @@ function answer(method, path, query) {
     return { status: 200, body: { value: set && TABLES[set] ? [entityDefinition(set)] : [] } };
   }
   if ((m = path.match(/^EntityDefinitions\(LogicalName='([^']*)'\)\/ManyToOneRelationships$/))) {
+    if ((query.get('$filter') ?? '').includes("'new_restrictedaccountid'")) {
+      return { status: 403, body: { error: { code: '0x80040220', message: 'Fake Dataverse refuses relationship metadata for new_restrictedaccountid' } } };
+    }
     const value = m[1] === 'contact'
       ? [{ ReferencingEntityNavigationPropertyName: 'parentcustomerid_account', ReferencedEntity: 'account' }]
       : [];

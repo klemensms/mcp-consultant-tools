@@ -50,3 +50,21 @@ Origin: session mcp-consultant-tools-b8, 2026-10-13. Append-only; change State, 
 - **State:** open
 - **Matters because:** `powerplatform`, `powerplatform-customization`, `powerplatform-data` pin `powerplatform-core` 35.0.0-beta.9 and `outlook`, `sharepoint` pin `m365-core` 35.0.0-beta.2 exactly; without new versions and repins the old file cache keeps shipping. Recorded as a release step in docs/release-notes/v35.0.0-beta.29.md.
 
+### ⚑9 · Silent sign-in remembers the last account only within a server session
+- **Kind:** deferred
+- **Hop:** L2 · 8cc197f
+- **State:** open
+- **Matters because:** with two accounts in the PowerPlatform token cache, a restarted server starts from the first cached account, not the one used last. Fixing it means storing the last account's homeAccountId beside the keychain cache; not in task 3's scope.
+
+### ⚑10 · get-lookup-target's binding-lookup warning has no automated test
+- **Kind:** gotcha
+- **Hop:** L2 · 8cc197f
+- **State:** closed-by-L3 - fake Dataverse answers 403 for contact lookup `new_restrictedaccountid`, so fake-mode get-lookup-target runs the warning branch (0cea2e3); the assertion is by reading the output, the runner has no expected-text check
+- **Matters because:** the fake always answers ManyToOneRelationships and powerplatform-data has no unit tests, so the new warning branch (binding lookup failed, metadata read) never runs in a test. Add a fake 503 for one named entity, or a stubbed-service unit test.
+
+
+### ⚑11 · An unfiltered live count that times out on a very large table has no fallback
+- **Kind:** decision
+- **Hop:** L3 · 0cea2e3
+- **State:** open
+- **Matters because:** before PR #13 an unfiltered count came from the stored snapshot at once; now a table large enough for Dataverse to time out (SQL timeout or the 2-minute client timeout) before its 50,000 refusal returns an error. Chosen deliberately, so a generic error never silently becomes a stale number; listed under "Not verified" in beta.29. Revisit if it is seen live.

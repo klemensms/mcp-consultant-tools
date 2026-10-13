@@ -229,7 +229,7 @@ export class PowerPlatformService {
     return this.data.countRecords(entityNamePlural, filter);
   }
 
-  /** As countRecords, plus whether the count is the snapshot (up to 24 hours old). */
+  /** As countRecords, plus whether the count is the stored snapshot (over the live limit: whole table, up to 24 hours old). */
   async countRecordsWithSource(
     entityNamePlural: string,
     filter?: string

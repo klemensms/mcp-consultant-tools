@@ -53,6 +53,9 @@ interface IntersectEntityInfo {
 /** A table name that Dataverse answered for and does not know, as opposed to a failed lookup. */
 class EntityNotFoundError extends Error {}
 
+/** Dataverse refused a live count because more than 50,000 rows match. */
+class AggregateLimitError extends Error {}
+
 export class DataService {
   /** Cache: entity set name (plural) → logical name (singular) */
   private entityNameCache = new Map<string, string>();
@@ -416,15 +419,16 @@ export class DataService {
   }
 
   /**
-   * Count records matching an optional OData filter.
+   * Count records matching an optional OData filter, live, with an OData
+   * `$apply` aggregate. This bypasses the /$count and $count=true endpoints,
+   * which silently cap results at 5,000, and counts only rows the caller can
+   * read.
    *
-   * - Without filter: uses RetrieveTotalRecordCount, Dataverse's stored snapshot,
-   *   which can be up to 24 hours old.
-   * - With filter: uses a live OData aggregate, which Dataverse limits to 50,000 rows.
-   *
-   * Both approaches bypass the Dataverse /$count and $count=true endpoints
-   * which silently cap results at 5,000. Use countRecordsWithSource to know
-   * which of the two answered.
+   * Dataverse refuses a live count over 50,000 rows. A filtered count then
+   * fails with a plain explanation; an unfiltered one falls back to
+   * RetrieveTotalRecordCount, the stored count for the whole table, not limited
+   * to the caller's access and up to 24 hours old. Use countRecordsWithSource
+   * to know which of the two answered.
    */
   async countRecords(
     entityNamePlural: string,
@@ -435,7 +439,8 @@ export class DataService {
 
   /**
    * Count records as countRecords does, and say whether the number is the
-   * snapshot (`snapshot: true`, up to 24 hours old) or a live count.
+   * stored snapshot (`snapshot: true`: whole table, not limited to access, up
+   * to 24 hours old) or a live count.
    */
   async countRecordsWithSource(
     entityNamePlural: string,
@@ -465,14 +470,39 @@ export class DataService {
       );
     }
 
-    if (filter) {
+    try {
       return {
         count: await this.countWithAggregate(entityNamePlural, logicalName, filter),
         snapshot: false,
       };
+    } catch (error) {
+      if (filter || !(error instanceof AggregateLimitError)) throw error;
+      return { count: await this.storedCountOverLimit(entityNamePlural, logicalName), snapshot: true };
     }
+  }
 
-    return { count: await this.retrieveTotalRecordCount(logicalName), snapshot: true };
+  /**
+   * The stored count for a table whose live count Dataverse has just refused
+   * as over 50,000 readable rows. A failed read says why it was needed, and a
+   * stored count of 50,000 or less contradicts the refusal (the snapshot is up
+   * to 24 hours old), so it is reported as out of date rather than returned.
+   */
+  private async storedCountOverLimit(entityNamePlural: string, logicalName: string): Promise<number> {
+    const overLimit = `More than 50,000 '${entityNamePlural}' records are readable, too many for a live count`;
+    let stored: number;
+    try {
+      stored = await this.retrieveTotalRecordCount(logicalName);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`${overLimit}, and the stored count could not be read: ${message}`);
+    }
+    if (stored <= 50000) {
+      throw new Error(
+        `${overLimit}, and the stored count (${stored.toLocaleString('en-GB')}, up to 24 hours old) is out of date. ` +
+        `Count with a filter, for example by a date range, and add the parts together.`
+      );
+    }
+    return stored;
   }
 
   /**
@@ -498,19 +528,21 @@ export class DataService {
   }
 
   /**
-   * Count filtered records with an OData `$apply` aggregate, so Dataverse applies
-   * the filter itself and there is no 5,000-row paging cap. (A `$filter` placed
+   * Count records with an OData `$apply` aggregate, so Dataverse applies any
+   * filter itself and there is no 5,000-row paging cap. (A `$filter` placed
    * beside an aggregate query is not combined with it.) The key column comes from
    * metadata, because activity tables such as emails key on `activityid`.
-   * Dataverse refuses aggregates over 50,000 rows; that is reported plainly.
+   * Dataverse refuses aggregates over 50,000 rows; that throws
+   * AggregateLimitError with a plain explanation.
    */
   private async countWithAggregate(
     entityNamePlural: string,
     logicalName: string,
-    filter: string
+    filter?: string
   ): Promise<number> {
     const primaryId = this.primaryIdCache.get(entityNamePlural) ?? `${logicalName}id`;
-    const apply = `filter(${filter})/aggregate(${primaryId} with countdistinct as count)`;
+    const aggregate = `aggregate(${primaryId} with countdistinct as count)`;
+    const apply = filter ? `filter(${filter})/${aggregate}` : aggregate;
     const url = `api/data/v9.2/${entityNamePlural}?$apply=${encodeURIComponent(apply)}`;
 
     let result: ApiCollectionResponse<{ count: number }>;
@@ -519,7 +551,7 @@ export class DataService {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       if (AGGREGATE_LIMIT_ERROR.test(message)) {
-        throw new Error(
+        throw new AggregateLimitError(
           `More than 50,000 '${entityNamePlural}' records match this filter, and Dataverse does not count beyond 50,000 in one aggregate. Narrow the filter, for example by a date range, and add the parts together.`
         );
       }
@@ -533,141 +565,32 @@ export class DataService {
   }
 
   /**
-   * Count records for multiple entities in parallel.
-   * Optimises unfiltered counts by batching them into a single
-   * RetrieveTotalRecordCount call (a snapshot, up to 24 hours old, flagged
-   * `snapshot: true`). Filtered counts use individual live aggregate queries
-   * in parallel chunks.
+   * Count records for multiple entities, each as countRecordsWithSource does,
+   * in parallel chunks of 10. An entry that fails, including one with a name
+   * that is not a plain identifier, carries its own error and the rest are
+   * still counted.
    */
   async countRecordsBatch(
     entities: Array<{ entityNamePlural: string; filter?: string }>
   ): Promise<CountBatchResult[]> {
-    // A name that is not a plain identifier is reported against its own entry
-    // and never reaches a request.
-    const invalidNames = new Map<string, string>();
-    for (const { entityNamePlural } of entities) {
-      try {
-        assertIdentifier(entityNamePlural, 'table name');
-      } catch (error: any) {
-        invalidNames.set(entityNamePlural, error.message);
-      }
-    }
-
-    // Split into unfiltered and filtered
-    const unfiltered = entities.filter(e => !e.filter && !invalidNames.has(e.entityNamePlural));
-    const filtered = entities.filter(e => e.filter);
-
-    // --- Unfiltered: batch via RetrieveTotalRecordCount (1-2 API calls) ---
-    const unfilteredResults = new Map<string, { count: number; snapshot?: boolean; error?: string }>();
-    for (const [name, message] of invalidNames) {
-      unfilteredResults.set(name, { count: -1, error: message });
-    }
-    if (unfiltered.length > 0) {
-      try {
-        // Resolve all entity set names → logical names
-        const nameMap = new Map<string, string>(); // logicalName → entitySetName
-        for (const { entityNamePlural } of unfiltered) {
-          try {
-            const logicalName = await this.resolveLogicalName(entityNamePlural);
-            nameMap.set(logicalName, entityNamePlural);
-          } catch (error: any) {
-            if (!(error instanceof EntityNotFoundError)) {
-              unfilteredResults.set(entityNamePlural, { count: -1, error: error.message });
-              continue;
-            }
-            // Not a standard entity - check if it's an N:N intersect entity
-            let intersectInfo: IntersectEntityInfo | null;
-            try {
-              intersectInfo = await this.resolveIntersectEntity(entityNamePlural);
-            } catch (lookupError: any) {
-              unfilteredResults.set(entityNamePlural, { count: -1, error: lookupError.message });
-              continue;
-            }
-            if (intersectInfo) {
-              try {
-                const count = await this.countIntersectRecords(intersectInfo);
-                unfilteredResults.set(entityNamePlural, { count, snapshot: false });
-              } catch (intError: any) {
-                unfilteredResults.set(entityNamePlural, { count: -1, error: intError.message });
-              }
-            } else {
-              unfilteredResults.set(entityNamePlural, {
-                count: -1,
-                error: `Cannot resolve entity '${entityNamePlural}' - not found in EntityDefinitions or ManyToManyRelationshipMetadata`,
-              });
-            }
-          }
-        }
-
-        // Call RetrieveTotalRecordCount with all logical names at once
-        if (nameMap.size > 0) {
-          const logicalNames = Array.from(nameMap.keys());
-          const namesParam = logicalNames.map(n => `'${n}'`).join(',');
-          const url = `api/data/v9.2/RetrieveTotalRecordCount(EntityNames=@e)?@e=[${namesParam}]`;
-          const result = await this.client.makeRequest<{
-            EntityRecordCountCollection: {
-              Keys: string[];
-              Values: number[];
-            };
-          }>(url);
-
-          const keys = result?.EntityRecordCountCollection?.Keys ?? [];
-          const values = result?.EntityRecordCountCollection?.Values ?? [];
-
-          for (let i = 0; i < keys.length; i++) {
-            const entitySetName = nameMap.get(keys[i]);
-            if (entitySetName) {
-              unfilteredResults.set(entitySetName, { count: values[i], snapshot: true });
-            }
-          }
-
-          // Any entities not returned by the function
-          for (const [logicalName, entitySetName] of nameMap) {
-            if (!unfilteredResults.has(entitySetName)) {
-              unfilteredResults.set(entitySetName, {
-                count: -1,
-                error: `RetrieveTotalRecordCount did not return a count for '${logicalName}'`,
-              });
-            }
-          }
-        }
-      } catch (error: any) {
-        // If batch call fails entirely, mark all unfiltered as failed
-        for (const { entityNamePlural } of unfiltered) {
-          if (!unfilteredResults.has(entityNamePlural)) {
-            unfilteredResults.set(entityNamePlural, { count: -1, error: error.message });
-          }
-        }
-      }
-    }
-
-    // --- Filtered: parallel live aggregate queries in chunks ---
     const CHUNK_SIZE = 10;
-    const filteredResults: CountBatchResult[] = [];
-    for (let i = 0; i < filtered.length; i += CHUNK_SIZE) {
-      const chunk = filtered.slice(i, i + CHUNK_SIZE);
-      const chunkResults = await Promise.all(
-        chunk.map(async ({ entityNamePlural, filter }) => {
-          try {
-            const { count, snapshot } = await this.countRecordsWithSource(entityNamePlural, filter);
-            return { entityNamePlural, filter, count, snapshot };
-          } catch (error: any) {
-            return { entityNamePlural, filter, count: -1, error: error.message };
-          }
-        })
+    const results: CountBatchResult[] = [];
+    for (let i = 0; i < entities.length; i += CHUNK_SIZE) {
+      const chunk = entities.slice(i, i + CHUNK_SIZE);
+      results.push(
+        ...(await Promise.all(
+          chunk.map(async ({ entityNamePlural, filter }) => {
+            try {
+              const { count, snapshot } = await this.countRecordsWithSource(entityNamePlural, filter);
+              return { entityNamePlural, filter, count, snapshot };
+            } catch (error: any) {
+              return { entityNamePlural, filter, count: -1, error: error.message };
+            }
+          })
+        ))
       );
-      filteredResults.push(...chunkResults);
     }
-
-    // --- Merge results in original order ---
-    return entities.map(({ entityNamePlural, filter }) => {
-      if (!filter) {
-        const result = unfilteredResults.get(entityNamePlural) ?? { count: -1, error: 'Unknown error' };
-        return { entityNamePlural, filter, ...result };
-      }
-      const found = filteredResults.find(r => r.entityNamePlural === entityNamePlural && r.filter === filter);
-      return found ?? { entityNamePlural, filter, count: -1, error: 'Unknown error' };
-    });
+    return results;
   }
 
   /**
