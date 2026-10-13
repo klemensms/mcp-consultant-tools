@@ -207,7 +207,7 @@ export interface MessageInfo {
    * Used to suppress the placeholder messageType Graph pairs with those.
    */
   hasEventDetail?: boolean;
-  /** Emoji reactions on the message, oldest first. Absent when there are none. */
+  /** Emoji reactions on the message, in the order Graph returns them. Absent when there are none. */
   reactions?: MessageReaction[];
 }
 

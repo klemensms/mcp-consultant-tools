@@ -115,8 +115,12 @@ describe('formatMessages reactions', () => {
       OPTIONS
     );
 
+    // Built with the formatter's own call so the test holds in any locale.
+    const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const line = output.split('\n').find((l) => l.startsWith('Reactions:'));
-    expect(line).toMatch(/^Reactions: 👍 Like by Jane Doe \S+; ❤️ Heart by unknown user \S+$/);
+    expect(line).toBe(
+      `Reactions: 👍 Like by Jane Doe ${time('2026-08-12T09:35:00Z')}; ❤️ Heart by unknown user ${time('2026-08-12T09:36:00Z')}`
+    );
     expect(output.indexOf('Reactions:')).toBeLessThan(output.indexOf('Hello world'));
   });
 

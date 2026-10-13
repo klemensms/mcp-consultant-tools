@@ -142,3 +142,63 @@ describe('reactions on channel reads', () => {
     expect(reply.reactions?.[0]).toMatchObject({ emoji: '😆', name: 'Laugh', userName: 'Robin Kline' });
   });
 });
+
+describe('reaction name resolution edge cases', () => {
+  it('looks up a reactor whose own message came with no author name', async () => {
+    const nameless = { ...message('2', OTHER_ID, 'x'), from: { user: { id: OTHER_ID, displayName: null } } };
+    const { service, lookups } = createService({
+      [`/chats/${CHAT_ID}/messages`]: { value: [message('1', AUTHOR_ID, 'Robin Kline', [reaction(OTHER_ID)]), nameless] },
+      [`/users/${OTHER_ID}`]: { displayName: 'Jane Doe' },
+    });
+
+    const [first] = await service.getChatMessages(CHAT_ID);
+
+    expect(first.reactions?.[0].userName).toBe('Jane Doe');
+    expect(lookups).toEqual([`/users/${OTHER_ID}`]);
+  });
+
+  it('keeps a reaction from an app, which has no user id, without a lookup', async () => {
+    const appReaction = { ...reaction(AUTHOR_ID), user: { application: { id: 'app' }, device: null, user: null } };
+    const { service, lookups } = createService({
+      [`/chats/${CHAT_ID}/messages`]: { value: [message('1', AUTHOR_ID, 'Robin Kline', [appReaction])] },
+    });
+
+    const [first] = await service.getChatMessages(CHAT_ID);
+
+    expect(first.reactions?.[0]).toMatchObject({ emoji: '👍', userId: undefined, userName: undefined });
+    expect(lookups).toEqual([]);
+  });
+
+  it('caps name lookups at 50 per read', async () => {
+    const ids = Array.from({ length: 60 }, (_, i) => `00000000-0000-0000-0000-${String(i).padStart(12, '0')}`);
+    const routes: Record<string, any> = {
+      [`/chats/${CHAT_ID}/messages`]: { value: [message('1', AUTHOR_ID, 'Robin Kline', ids.map((id) => reaction(id)))] },
+    };
+    for (const id of ids) routes[`/users/${id}`] = { displayName: `User ${id.slice(-2)}` };
+    const { service, lookups } = createService(routes);
+    const stderr = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const [first] = await service.getChatMessages(CHAT_ID);
+
+    expect(lookups).toHaveLength(50);
+    expect(first.reactions?.filter((r) => r.userName)).toHaveLength(50);
+    expect(stderr).toHaveBeenCalledWith(expect.stringContaining('50 of 60'));
+    stderr.mockRestore();
+  });
+});
+
+describe('reactions on channel delta reads', () => {
+  it('maps and names reactions across the delta walk', async () => {
+    const { service } = createService({
+      '/teams/team/channels/channel/messages/delta': {
+        value: [message('1', AUTHOR_ID, 'Robin Kline', [reaction(OTHER_ID)])],
+        '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/delta-link',
+      },
+      [`/users/${OTHER_ID}`]: { displayName: 'Jane Doe' },
+    });
+
+    const result = await service.getChannelMessagesDelta();
+
+    expect(result.messages[0].reactions?.[0]).toMatchObject({ emoji: '👍', userName: 'Jane Doe' });
+  });
+});

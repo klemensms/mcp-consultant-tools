@@ -626,6 +626,22 @@ function toReactions(raw: any): MessageReaction[] | undefined {
   }));
 }
 
+/** Author names toMessageInfo uses when Graph sent no name. */
+const PLACEHOLDER_AUTHORS = new Set(["Unknown", "System"]);
+
+/** Reactor name lookups per read, how many run at once, and how long each may take. */
+const MAX_NAME_LOOKUPS = 50;
+const NAME_LOOKUP_CONCURRENCY = 5;
+const NAME_LOOKUP_TIMEOUT_MS = 10_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 /**
  * Fill in who reacted. Graph sends only the reacting user's id, so names come from
  * the authors already in this read first, which covers most chats for free, and a
@@ -640,7 +656,9 @@ async function resolveReactionNames(client: any, messages: MessageInfo[]): Promi
 
   const names = new Map<string, string>();
   for (const message of messages) {
-    if (message.authorId) {
+    // "Unknown" and "System" are placeholders for an author Graph sent without a
+    // name, so they must not stop a lookup that could find the real one.
+    if (message.authorId && !PLACEHOLDER_AUTHORS.has(message.authorName)) {
       names.set(message.authorId, message.authorName);
     }
   }
@@ -653,18 +671,37 @@ async function resolveReactionNames(client: any, messages: MessageInfo[]): Promi
     ),
   ];
 
-  await Promise.all(
-    unknown.map(async (id) => {
-      try {
-        const user = await client.api(`/users/${id}`).select("displayName").get();
-        if (user?.displayName) {
-          names.set(id, user.displayName);
+  // A first channel delta can cover hundreds of reactors. Firing a lookup for each
+  // at once invites Graph throttling, so lookups are capped per read and run a few
+  // at a time, each with a timeout so one slow call cannot hold the read up.
+  const toLookUp = unknown.slice(0, MAX_NAME_LOOKUPS);
+  const failures: string[] = [];
+  for (let i = 0; i < toLookUp.length; i += NAME_LOOKUP_CONCURRENCY) {
+    await Promise.all(
+      toLookUp.slice(i, i + NAME_LOOKUP_CONCURRENCY).map(async (id) => {
+        try {
+          const user: any = await withTimeout(
+            client.api(`/users/${id}`).select("displayName").get(),
+            NAME_LOOKUP_TIMEOUT_MS
+          );
+          if (user?.displayName) {
+            names.set(id, user.displayName);
+          }
+        } catch (error) {
+          // Guests and deleted users can fail to resolve; the reaction still shows.
+          failures.push(`${id}: ${error instanceof Error ? error.message : String(error)}`);
         }
-      } catch {
-        // Guests and deleted users can fail to resolve; the reaction still shows.
-      }
-    })
-  );
+      })
+    );
+  }
+  if (unknown.length > toLookUp.length) {
+    console.error(
+      `Reactions: looked up ${toLookUp.length} of ${unknown.length} reactor names; the rest show as unknown user.`
+    );
+  }
+  if (failures.length > 0) {
+    console.error(`Reactions: ${failures.length} reactor name lookup(s) failed. First: ${failures[0]}`);
+  }
 
   for (const reaction of reactions) {
     if (!reaction.userName && reaction.userId) {
