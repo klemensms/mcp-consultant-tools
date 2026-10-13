@@ -290,7 +290,7 @@ Each HTTP server builds one `McpServer`, connects it once to one `InMemoryTransp
 **Needs a major version bump:**
 
 - `@azure/msal-node` <= 5.1.4 and its `uuid` < 11.1.1 (moderate): the fix is `@azure/msal-node` 7, a two-major jump in eight packages (`application-insights`, `azure-data-factory`, `log-analytics`, `m365-core`, `powerplatform-core`, `service-bus`, `sharepoint`, `teams`). It touches delegated and app-only sign-in, so it needs its own change with sign-in tested live.
-- `vitest` and `@vitest/mocker` (moderate, GHSA-82fw-gwwq-j7x9, dev only): the fix is vitest 4.1.11 or later. npm suggests vitest 5, which needs Node 22.12+, while the CI build matrix still runs Node 18 and tests on Node 20. vitest 4.1.11 supports Node 20, so the order is: drop Node 18 from the matrix, then move to vitest 4.
+- `vitest` (critical as of 2026-10-13, see the next section) and `@vitest/mocker` (moderate, GHSA-82fw-gwwq-j7x9, dev only): the fix is vitest 4.1.11 or later. npm suggests vitest 5, which needs Node 22.12+, while the CI build matrix still runs Node 18 and tests on Node 20. vitest 4.1.11 supports Node 20, so the order is: drop Node 18 from the matrix, then move to vitest 4.
 
 ---
 
@@ -310,7 +310,7 @@ Re-run the audit rather than trusting this list.
 
 **Status:** confirmed 2026-10-13 in source (`packages/teams/src/auth/token-cache.ts`). **Affects:** the teams server only; PowerPlatform, SharePoint and Outlook moved to the OS keychain in v35.0.0-beta.29.
 
-The key is derived from the host name and user name, so a copied cache file can be decrypted by anyone who knows both. The keychain library the other servers use (`@azure/msal-node-extensions` 1.5.x) does not support the msal-node 2.x that teams runs, so the move needs a teams msal-node upgrade first, or a switch to the `m365-core` sign-in helper.
+The key is derived from the host name and user name with a fixed salt that is public in this repo, so a copied cache file can be decrypted by anyone who knows both names. The keychain library the other servers use (`@azure/msal-node-extensions` 1.5.x) does not support the msal-node 2.x that teams runs, so the move needs a teams msal-node upgrade first, or a switch to the `m365-core` sign-in helper.
 
 ---
 

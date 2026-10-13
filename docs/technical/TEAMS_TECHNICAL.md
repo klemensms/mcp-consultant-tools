@@ -163,7 +163,7 @@ When any other tool (e.g., `get-channel-messages`) calls `getAccessToken()`, it 
 - `beforeCacheAccess` → decrypt file → `context.tokenCache.deserialize()`
 - `afterCacheAccess` → if `context.cacheHasChanged` → `serialize()` → encrypt → write
 
-Encryption is AES-256-GCM (`IV[16] + authTag[16] + ciphertext`) under `scryptSync(hostname + username, 'mcp-teams-auth', 32)`, written at mode 0600 in a 0700 directory. The machine-derived key means a copied cache file is useless elsewhere; a decrypt failure is logged and treated as an empty cache so MSAL falls back to device code.
+Encryption is AES-256-GCM (`IV[16] + authTag[16] + ciphertext`) under `scryptSync(hostname + username, 'mcp-teams-auth', 32)`, written at mode 0600 in a 0700 directory. The machine-derived key protects a copied cache file only from someone who does not know the host name and user name (the salt is public; see `docs/KNOWN_ISSUES.md`, "The teams server still keeps its sign-in in a file with a machine-derived key"); a decrypt failure is logged and treated as an empty cache so MSAL falls back to device code.
 
 A 5-minute expiry buffer is applied via `applyToken()`: `tokenExpirationTime = expiresOn - 5 * 60 * 1000`. Per-clientId filenames replace the old in-file `clientId` check.
 

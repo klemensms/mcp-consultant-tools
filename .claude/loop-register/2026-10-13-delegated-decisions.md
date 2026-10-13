@@ -41,7 +41,7 @@ Origin: session mcp-consultant-tools-b8, 2026-10-13. Append-only; change State, 
 ### ⚑7 · core's 1Password secret cache uses the same derivable key
 - **Kind:** finding
 - **Hop:** L2 · task 2
-- **State:** promoted-to-D-021 (docs/outstanding-decisions.md)
+- **State:** promoted-to-D-021 (docs/outstanding-decisions.md). Correction: the key is not derived; it is a random key in `secrets.key` beside the cache, so copying the folder is enough
 - **Matters because:** `packages/core/src/helpers/secret-resolver.ts` caches resolved secrets in `secrets.enc` with a per-machine key, the design item 9 replaced for tokens. Not in the delegated scope; needs its own decision before anyone treats that cache as protected.
 
 ### ⚑8 · Task 2 reaches users only with new powerplatform-core and m365-core versions and five repins

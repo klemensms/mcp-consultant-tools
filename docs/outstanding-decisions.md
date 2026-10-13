@@ -60,8 +60,8 @@ Thanks
 ## Secret cache
 
 ### D-021 · Move the cached 1Password secrets into the OS keychain
-Not a send decision. The tools keep secrets fetched from 1Password in an encrypted file for as long as `MCT_CACHE_TTL_MINUTES` says (7 days on the maintainer's machine). Its key is worked out from the machine name and user name, so anyone with a copy of the file and those two facts can read the secrets. Tokens had the same weakness and moved to the keychain in beta.29.
-- **A.** Move the secret cache to the OS keychain, same as tokens; memory only where no keychain exists. Secrets stay cached across restarts; on macOS expect one "Always Allow" prompt for `node` after the upgrade.
+Not a send decision. The tools keep secrets fetched from 1Password in an encrypted file for as long as `MCT_CACHE_TTL_MINUTES` says (60 minutes by default, often set to days). Its key is a random key kept in `secrets.key` in the same folder, so anyone who can copy that folder can read the secrets. Tokens were moved out of a file on disk into the keychain in beta.29.
+- **A.** Move the secret cache to the OS keychain, same as tokens; memory only where no keychain exists. Reaches users only with a `core` version bump and repins, and not at all in the 18 packages pinned to an older `core` until their pin moves. Secrets stay cached across restarts; on macOS expect one "Always Allow" prompt for `node` after the upgrade.
 - **B.** Keep secrets in memory only. Nothing on disk, but a 1Password prompt at every server start.
 - **C.** Keep the file as it is, and say plainly in the docs that it is not protected against a copied file.
 - **Recommended: A.** Closes the gap without adding 1Password prompts. Reverse if the keychain prompt turns out to recur rather than appear once.
