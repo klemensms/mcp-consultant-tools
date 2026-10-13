@@ -7,7 +7,7 @@ Shared delegated (sign in as the user) Microsoft Graph plumbing for the `sharepo
 | File | Purpose |
 |---|---|
 | `src/delegated-auth.ts` | `DelegatedGraphAuth`: device-code start with background completion, silent refresh, status, logout, access-token getter, Graph client factory. |
-| `src/token-cache.ts` | `TokenCache`: AES-256-GCM encrypted MSAL cache plugin, mode 0600, at `~/.mcp-consultant-tools/{server}-token-cache-{clientId}.enc`. |
+| `src/token-cache.ts` | `TokenCache`: MSAL cache plugin backed by the OS keychain (optional `@azure/msal-node-extensions`, account `{server}-{clientId}`), memory only when unavailable; deletes the old `.enc` file. Mirrored in `powerplatform-core/src/auth/token-cache.ts`. |
 | `src/token-scopes.ts` | `decodeTokenScopes`: reads the `scp` claim for display. Never verifies the token, never used for an access decision. |
 | `src/switches.ts` | `isEnabled` / `requireEnabled`: off-by-default switches; only the exact string `true` enables. |
 | `src/downloads.ts` | `saveToDownloadDir`, `resolveDownloadDir`: one download folder per server (mode 0700), sanitised file names that cannot escape it, and `name (1).ext` instead of overwriting. |

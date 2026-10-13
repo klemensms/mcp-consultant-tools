@@ -103,7 +103,7 @@ Ask your administrator for a single-tenant app registration with **Allow public 
 
 ## Signing in
 
-Call `mail-authenticate` (or run `mcp-outlook-cli auth login`), open the URL, enter the code and sign in. The sign-in is cached encrypted on your machine and renews silently for about 90 days; the CLI and the MCP server share it.
+Call `mail-authenticate` (or run `mcp-outlook-cli auth login`), open the URL, enter the code and sign in. The sign-in is cached in the OS keychain and renews silently for about 90 days; the CLI and the MCP server share it.
 
 ## Notable behaviour
 

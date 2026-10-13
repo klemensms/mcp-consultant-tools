@@ -5,7 +5,25 @@ import path from 'node:path';
 
 const GRAPH_DEFAULT = 'https://graph.microsoft.com/.default';
 
-const fake = vi.hoisted(() => ({ instances: [] as any[] }));
+const fake = vi.hoisted(() => ({ instances: [] as any[], stored: false }));
+
+// The real cache opens the OS keychain; tests keep a stored sign-in as a flag.
+vi.mock('../token-cache.js', () => ({
+  TokenCache: class {
+    createPlugin() {
+      return { beforeCacheAccess: async () => undefined, afterCacheAccess: async () => undefined };
+    }
+    async exists() {
+      return fake.stored;
+    }
+    async clear() {
+      fake.stored = false;
+    }
+    getCachePath() {
+      return 'test cache';
+    }
+  },
+}));
 
 vi.mock('@azure/msal-node', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@azure/msal-node')>();
@@ -48,6 +66,7 @@ describe('DelegatedGraphAuth', () => {
 
   beforeEach(() => {
     fake.instances.length = 0;
+    fake.stored = false;
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'm365-core-auth-'));
   });
 
@@ -205,9 +224,9 @@ describe('DelegatedGraphAuth', () => {
     await expect(auth.getAccessToken()).rejects.toThrow(/mail-authenticate/);
   });
 
-  it('an InteractionRequiredAuthError on refresh reports expired when a cache file exists', async () => {
+  it('an InteractionRequiredAuthError on refresh reports expired when a stored sign-in exists', async () => {
     const { auth, pca } = makeAuth();
-    fs.writeFileSync(path.join(dir, 'outlook-token-cache-client-1.enc'), 'x');
+    fake.stored = true;
     pca.accounts = [ACCOUNT];
     pca.acquireTokenSilent.mockRejectedValue(new InteractionRequiredAuthError('invalid_grant'));
     expect((await auth.getStatus()).state).toBe('expired');
@@ -219,15 +238,14 @@ describe('DelegatedGraphAuth', () => {
     expect((await auth.getStatus()).state).toBe('not_authenticated');
   });
 
-  it('logout removes every account and the cache file', async () => {
+  it('logout removes every account and the stored sign-in', async () => {
     const { auth, pca } = makeAuth();
-    const file = path.join(dir, 'outlook-token-cache-client-1.enc');
-    fs.writeFileSync(file, 'x');
+    fake.stored = true;
     pca.accounts = [ACCOUNT];
     await auth.logout();
     expect(pca.tokenCache.removeAccount).toHaveBeenCalledWith(ACCOUNT);
     expect(pca.accounts).toEqual([]);
-    expect(fs.existsSync(file)).toBe(false);
+    expect(fake.stored).toBe(false);
     expect((await auth.getStatus()).state).toBe('not_authenticated');
   });
 

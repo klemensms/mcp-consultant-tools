@@ -99,10 +99,10 @@ if (import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
     }
 
     const cache = new TokenCache(clientId);
-    if (cache.exists()) {
-      cache.clear();
+    if (await cache.exists()) {
+      await cache.clear();
       console.log('✓ Cached tokens cleared successfully');
-      console.log(`  Cache file: ${cache.getCachePath()}`);
+      console.log(`  Stored in: ${cache.getCachePath()}`);
     } else {
       console.log('No cached tokens found');
     }

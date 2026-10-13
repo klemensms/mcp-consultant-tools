@@ -75,7 +75,7 @@ All services use lazy initialization in `createServiceContext()`. `SharePointSer
 ### Sign-in mode (device code)
 
 - MSAL `PublicClientApplication` through `@mcp-consultant-tools/m365-core`, scope `https://graph.microsoft.com/.default`.
-- Token cache: AES-256-GCM encrypted at `~/.mcp-consultant-tools/sharepoint-token-cache-{clientId}.enc`, mode 0600, shared by the CLI and the MCP server. The server name salts the key, so it is never shared with the Outlook server on the same registration.
+- Token cache: the OS keychain through the optional `@azure/msal-node-extensions` (service `mcp-consultant-tools`, account `sharepoint-{clientId}`), shared by the CLI and the MCP server and never with the Outlook server on the same registration. Memory only when the keychain or the native library is unavailable. The old `~/.mcp-consultant-tools/sharepoint-token-cache-{clientId}.enc` file is deleted on first use.
 - **Delegated permission, measured live:** `Sites.ReadWrite.All` alone covers every read, write and delete tool, Microsoft Search for files (hits include OneDrive files), and `/me/drive`. No `Files.*` permission is needed.
 - `SHAREPOINT_SITES` and `SHAREPOINT_SITE_URL` are optional: every tool that takes a `siteId` also accepts a full site URL (`/sites/{name}`, `/teams/{name}`, or a OneDrive `/personal/{name}`), resolved through `GET /sites/{host}:/{path}` and cached.
 - The three sign-in tools and the CLI's `auth login` start and complete the sign-in; see the sign-in mode tool group below.

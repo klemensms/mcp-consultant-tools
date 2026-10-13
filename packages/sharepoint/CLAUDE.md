@@ -93,7 +93,7 @@ Every content tool takes `url` or `driveId` plus `itemId`. Word, PowerPoint and 
 
 - Every tool that takes a `siteId` also accepts a full site URL: `/sites/{name}`, `/teams/{name}`, or a OneDrive `/personal/{name}` URL (the `siteUrl` that `spo-get-my-drive` returns). Item tools address `/drives/{driveId}/...`, so they work on OneDrive given its drive id.
 - **Permission measured live:** delegated `Sites.ReadWrite.All` alone covers file search (including OneDrive hits), OneDrive and every read, write and delete tool. No `Files.*` permission is needed.
-- Token cache: `~/.mcp-consultant-tools/sharepoint-token-cache-{clientId}.enc`, shared by the CLI and the MCP server, salted with the server name (so it is never shared with the Outlook server).
+- Token cache: the OS keychain (account `sharepoint-{clientId}`), shared by the CLI and the MCP server, never with the Outlook server. Memory only when no keychain is available.
 - `spo-download-file` takes `saveToDisk` (writes to `SHAREPOINT_DOWNLOAD_DIR`, returns the path, sanitised name) and `convertToPdf` (`/content?format=pdf`, Word, PowerPoint and Excel only).
 - App-only behaviour is unchanged; a regression test pins that a secret builds the confidential client and never constructs the delegated one.
 
