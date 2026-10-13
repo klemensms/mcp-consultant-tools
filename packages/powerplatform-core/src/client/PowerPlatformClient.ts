@@ -12,6 +12,20 @@ import { type AuthProvider, createAuthProvider } from '../auth/index.js';
 import type { PowerPlatformConfig } from './types.js';
 import { getRequestCallerObjectId } from './request-context.js';
 
+/** A read that has not answered in two minutes fails instead of hanging the tool call. */
+const READ_TIMEOUT_MS = 2 * 60 * 1000;
+
+/**
+ * Writes get thirty: solution import and export, publish, table and plugin
+ * writes can run for minutes, and Dataverse carries on after the client gives
+ * up, so an early timeout would report a failure for a change that happened.
+ */
+const WRITE_TIMEOUT_MS = 30 * 60 * 1000;
+
+function timeoutFor(method: string): number {
+  return method === 'GET' ? READ_TIMEOUT_MS : WRITE_TIMEOUT_MS;
+}
+
 /** Headers the client always sets itself; a caller's value for any of them is dropped. */
 const FIXED_HEADERS = ['authorization', 'accept', 'odata-maxversion', 'odata-version', 'content-type'];
 
@@ -191,6 +205,7 @@ export class PowerPlatformClient {
         // No redirects: a response must not move the request, token included,
         // away from the configured organization URL.
         maxRedirects: 0,
+        timeout: timeoutFor(method),
       });
 
       return response.data as T;
@@ -253,6 +268,7 @@ export class PowerPlatformClient {
         // No redirects: a response must not move the request, token included,
         // away from the configured organization URL.
         maxRedirects: 0,
+        timeout: timeoutFor(method),
       });
 
       return {
@@ -310,6 +326,7 @@ export class PowerPlatformClient {
         // No redirects: a response must not move the request, token included,
         // away from the configured organization URL.
         maxRedirects: 0,
+        timeout: timeoutFor(method),
       });
     } catch (error: unknown) {
       const axiosError = error as {

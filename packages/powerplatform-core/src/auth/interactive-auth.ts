@@ -105,13 +105,17 @@ export class InteractiveAuth implements AuthProvider {
     if (accounts.length === 0) {
       return null;
     }
+    // The account signed in last, when the cache still holds it; the cache's
+    // own order says nothing about which account the user meant.
+    const account =
+      accounts.find((a) => a.homeAccountId === this.cachedAccount?.homeAccountId) ?? accounts[0];
     try {
       const result = await this.pca.acquireTokenSilent({
-        account: accounts[0],
+        account,
         scopes: [`${resource}/.default`],
         authenticationScheme: 'Bearer',
       });
-      this.cachedAccount = accounts[0];
+      this.cachedAccount = account;
       return result.accessToken;
     } catch (error) {
       if (!(error instanceof InteractionRequiredAuthError)) {
@@ -149,9 +153,6 @@ export class InteractiveAuth implements AuthProvider {
    * Acquire token via browser-based interactive flow
    */
   private async acquireTokenInteractive(resource: string): Promise<string> {
-    const port = await this.findFreePort();
-    const redirectUri = `http://localhost:${port}`;
-
     // PKCE binds the authorization code to this sign-in, and `state` lets the
     // callback reject any response this sign-in did not start, such as a code
     // for another account sent to the local port.
@@ -161,12 +162,16 @@ export class InteractiveAuth implements AuthProvider {
 
     return new Promise((resolve, reject) => {
       let serverClosed = false;
+      // Set once the server is listening, before the sign-in address exists.
+      let redirectUri = '';
+      // A sign-in code is redeemed once; a repeated callback is refused.
+      let codeRedeemed = false;
 
       const server = http.createServer(async (req, res) => {
         if (serverClosed) return;
 
         try {
-          const url = new URL(req.url!, `http://localhost:${port}`);
+          const url = new URL(req.url!, 'http://localhost');
 
           if (url.pathname === '/') {
             if (
@@ -192,6 +197,12 @@ export class InteractiveAuth implements AuthProvider {
             }
 
             if (code) {
+              if (codeRedeemed) {
+                res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+                res.end(this.getErrorHtml('code_already_used', 'This sign-in code has already been used.'));
+                return;
+              }
+              codeRedeemed = true;
               try {
                 const result = await this.pca.acquireTokenByCode({
                   code,
@@ -242,27 +253,44 @@ export class InteractiveAuth implements AuthProvider {
         reject(new Error(`Failed to start callback server: ${err.message}`));
       });
 
-      server.listen(port, CALLBACK_HOST, async () => {
+      // Port 0: the system picks a free port and this server keeps it, so no
+      // other process can take it between choosing and listening.
+      server.listen(0, CALLBACK_HOST, async () => {
+        let authUrl: string;
         try {
-          const authUrl = await this.pca.getAuthCodeUrl({
+          const address = server.address();
+          if (!address || typeof address !== 'object') throw new Error('Failed to get port');
+          redirectUri = `http://localhost:${address.port}`;
+          authUrl = await this.pca.getAuthCodeUrl({
             scopes: [`${resource}/.default`, 'offline_access', 'openid'],
             redirectUri,
             codeChallenge: challenge,
             codeChallengeMethod: 'S256',
             state,
           });
-
-          console.error('');
-          console.error('Authentication required');
-          console.error('   Opening browser for sign-in...');
-          console.error(`   If browser doesn't open, visit: ${authUrl.substring(0, 80)}...`);
-          console.error('');
-
-          await open(authUrl);
         } catch (err) {
           serverClosed = true;
           server.close();
           reject(err);
+          return;
+        }
+
+        console.error('');
+        console.error('Authentication required');
+        console.error('   Opening browser for sign-in...');
+        console.error(`   If browser doesn't open, visit: ${authUrl}`);
+        console.error('');
+
+        // The address above still works, so a browser that cannot be opened
+        // only gets a note. `open` reports a missing launcher as an 'error'
+        // event on the process it returns, which would otherwise end the server.
+        const browserFailed = (err: Error) =>
+          console.error(`   The browser could not be opened (${err.message}). Open the address above to sign in.`);
+        try {
+          const launcher = await open(authUrl);
+          launcher?.on?.('error', browserFailed);
+        } catch (err) {
+          browserFailed(err as Error);
         }
       });
 
@@ -277,25 +305,6 @@ export class InteractiveAuth implements AuthProvider {
 
       server.on('close', () => {
         clearTimeout(timeout);
-      });
-    });
-  }
-
-  /**
-   * Find an available port for the callback server
-   */
-  private async findFreePort(): Promise<number> {
-    return new Promise((resolve, reject) => {
-      const server = http.createServer();
-      server.on('error', reject);
-      server.listen(0, CALLBACK_HOST, () => {
-        const address = server.address();
-        if (address && typeof address === 'object') {
-          const port = address.port;
-          server.close(() => resolve(port));
-        } else {
-          reject(new Error('Failed to get port'));
-        }
       });
     });
   }

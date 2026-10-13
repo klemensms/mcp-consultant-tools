@@ -204,7 +204,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
           const failed = results.filter(r => r.error);
           const totalCount = successful.reduce((sum, r) => sum + r.count, 0);
 
-          let message = `📊 Batch count: ${successful.length}/${results.length} entities counted successfully (total: ${totalCount.toLocaleString()} records)`;
+          let message = `📊 Batch count: ${successful.length}/${results.length} entities counted successfully (total: ${totalCount.toLocaleString('en-GB')} records)`;
           if (failed.length > 0) {
             message += `\n⚠️ ${failed.length} entities failed`;
           }
@@ -245,7 +245,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
         if (filter) {
           message += ` where ${filter}`;
         }
-        message += `: **${count.toLocaleString()}** records${snapshotCountLabel(snapshot)}`;
+        message += `: **${count.toLocaleString('en-GB')}** records${snapshotCountLabel(snapshot)}`;
 
         return {
           content: [{
@@ -474,39 +474,49 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
               lookupAttributeName.toLowerCase(),
               isPolymorphic ? targetEntity : undefined
             );
-            try {
-              const [targetMetadata, navProperty] = await Promise.all([
-                service.getEntityMetadata(targetEntity) as any,
-                navPromise,
-              ]);
+            const [metadataResult, navResult] = await Promise.allSettled([
+              service.getEntityMetadata(targetEntity) as Promise<any>,
+              navPromise,
+            ]);
+            const navProperty = navResult.status === 'fulfilled' ? navResult.value : null;
+            // A failed navigation lookup is reported as itself; the fallback
+            // binding name below is then a guess.
+            const navError =
+              navResult.status === 'rejected'
+                ? navResult.reason instanceof Error ? navResult.reason.message : String(navResult.reason)
+                : undefined;
+            if (metadataResult.status === 'fulfilled') {
+              const targetMetadata = metadataResult.value;
               return {
                 LogicalName: targetEntity,
                 EntitySetName: targetMetadata.EntitySetName,
                 PrimaryIdAttribute: targetMetadata.PrimaryIdAttribute,
                 DisplayName: targetMetadata.DisplayName?.UserLocalizedLabel?.Label,
                 BindingPropertyName: navProperty ?? lookupAttributeName.toLowerCase(),
-              };
-            } catch (err) {
-              const navProperty = await navPromise.catch(() => null);
-              // The metadata read failed, so EntitySetName below is naive pluralisation
-              // rather than a value from Dataverse. Dataverse pluralisation is irregular
-              // - `activityparty` is `activityparties`, `opportunity` is `opportunities`
-              // - and this value is pasted straight into an @odata.bind URL, so it is
-              // flagged rather than rendered as if it had been read.
-              return {
-                LogicalName: targetEntity,
-                EntitySetName: `${targetEntity}s`,
-                PrimaryIdAttribute: undefined,
-                BindingPropertyName: navProperty ?? lookupAttributeName.toLowerCase(),
-                error: err instanceof Error ? err.message : String(err),
-                entitySetNameIsGuess: true,
+                navError,
               };
             }
+            const err = metadataResult.reason;
+            // The metadata read failed, so EntitySetName below is naive pluralisation
+            // rather than a value from Dataverse. Dataverse pluralisation is irregular
+            // - `activityparty` is `activityparties`, `opportunity` is `opportunities`
+            // - and this value is pasted straight into an @odata.bind URL, so it is
+            // flagged rather than rendered as if it had been read.
+            return {
+              LogicalName: targetEntity,
+              EntitySetName: `${targetEntity}s`,
+              PrimaryIdAttribute: undefined,
+              BindingPropertyName: navProperty ?? lookupAttributeName.toLowerCase(),
+              error: err instanceof Error ? err.message : String(err),
+              entitySetNameIsGuess: true,
+              navError,
+            };
           })
         );
 
         const primaryTarget = targetResults[0];
         const unread = targetResults.filter((t) => t.entitySetNameIsGuess);
+        const navUnread = targetResults.filter((t) => t.navError);
 
         let responseText = `📋 Lookup Target for '${lookupAttributeName}' on '${entityLogicalName}':\n\n`;
 
@@ -517,6 +527,14 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
           responseText += `Their **EntitySetName** below is naive pluralisation, not a value from Dataverse, and Dataverse pluralisation is irregular. Verify before using it in an \`@odata.bind\` URL.\n\n`;
           for (const t of unread) {
             responseText += `- \`${t.LogicalName}\`: ${t.error}\n`;
+          }
+          responseText += `\n`;
+        }
+        if (navUnread.length > 0) {
+          responseText += `⚠️ **The binding property name could not be read for ${navUnread.length} of ${targetResults.length} target ${targetResults.length === 1 ? 'entity' : 'entities'}.** `;
+          responseText += `Their **BindingPropertyName** below is the attribute name, which is not always what Dataverse expects on the left of \`@odata.bind\`.\n\n`;
+          for (const t of navUnread) {
+            responseText += `- \`${t.LogicalName}\`: ${t.navError}\n`;
           }
           responseText += `\n`;
         }

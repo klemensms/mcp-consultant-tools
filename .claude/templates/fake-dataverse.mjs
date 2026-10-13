@@ -50,6 +50,7 @@ const ATTRIBUTES = {
     { LogicalName: 'fullname', AttributeType: 'String' },
     { LogicalName: 'emailaddress1', AttributeType: 'String' },
     { LogicalName: 'telephone1', AttributeType: 'String' },
+    { LogicalName: 'parentcustomerid', SchemaName: 'ParentCustomerId', AttributeType: 'Customer', Targets: ['account'] },
   ],
 };
 
@@ -79,6 +80,12 @@ function answer(method, path, query) {
     const set = (filter.match(/EntitySetName eq '([^']*)'/) ?? [])[1];
     return { status: 200, body: { value: set && TABLES[set] ? [entityDefinition(set)] : [] } };
   }
+  if ((m = path.match(/^EntityDefinitions\(LogicalName='([^']*)'\)\/ManyToOneRelationships$/))) {
+    const value = m[1] === 'contact'
+      ? [{ ReferencingEntityNavigationPropertyName: 'parentcustomerid_account', ReferencedEntity: 'account' }]
+      : [];
+    return { status: 200, body: { value } };
+  }
   if ((m = path.match(/^EntityDefinitions\(LogicalName='([^']*)'\)(\/Attributes)?(\(LogicalName='([^']*)'\))?/))) {
     const set = setFromLogical(m[1]);
     if (!set) return null;
@@ -87,6 +94,19 @@ function answer(method, path, query) {
     if (!m[3]) return { status: 200, body: { value: attrs } };
     const attr = attrs.find((a) => a.LogicalName === m[4]);
     return attr ? { status: 200, body: attr } : null;
+  }
+  if (path === 'RelationshipDefinitions/Microsoft.Dynamics.CRM.ManyToManyRelationshipMetadata') {
+    // One many-to-many relationship, account to contact, whose intersect
+    // columns are not the tables' own primary keys.
+    const filter = query.get('$filter') ?? '';
+    const known = /(IntersectEntityName|SchemaName) eq 'new_account_contact'/.test(filter);
+    const rel = {
+      IntersectEntityName: 'new_account_contact',
+      Entity1LogicalName: 'account',
+      Entity1IntersectAttribute: 'accountidone',
+      Entity2IntersectAttribute: 'contactidtwo',
+    };
+    return { status: 200, body: { value: known ? [rel] : [] } };
   }
   if (path.startsWith('RetrieveTotalRecordCount')) {
     const names = [...(query.get('@e') ?? '').matchAll(/'([^']*)'/g)].map((x) => x[1]);
@@ -102,6 +122,7 @@ function answer(method, path, query) {
   }
   if ((m = path.match(/^(\w+)$/)) && RECORDS[m[1]]) {
     if (query.has('$apply')) return { status: 200, body: { value: [{ count: RECORDS[m[1]].length }] } };
+    if (query.has('fetchXml')) return { status: 200, body: { value: [{ count: 3 }] } };
     const select = query.get('$select')?.split(',');
     const rows = RECORDS[m[1]].map((r) =>
       select ? Object.fromEntries(Object.entries(r).filter(([k]) => select.includes(k))) : r
