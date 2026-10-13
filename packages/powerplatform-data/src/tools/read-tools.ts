@@ -204,7 +204,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
           const failed = results.filter(r => r.error);
           const totalCount = successful.reduce((sum, r) => sum + r.count, 0);
 
-          let message = `📊 Batch count: ${successful.length}/${results.length} entities counted successfully (total: ${totalCount.toLocaleString()} records)`;
+          let message = `📊 Batch count: ${successful.length}/${results.length} entities counted successfully (total: ${totalCount.toLocaleString('en-GB')} records)`;
           if (failed.length > 0) {
             message += `\n⚠️ ${failed.length} entities failed`;
           }
@@ -245,7 +245,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
         if (filter) {
           message += ` where ${filter}`;
         }
-        message += `: **${count.toLocaleString()}** records${snapshotCountLabel(snapshot)}`;
+        message += `: **${count.toLocaleString('en-GB')}** records${snapshotCountLabel(snapshot)}`;
 
         return {
           content: [{

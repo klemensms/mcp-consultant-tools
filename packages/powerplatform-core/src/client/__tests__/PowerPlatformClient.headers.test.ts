@@ -30,7 +30,7 @@ const hostile = {
   'MSCRM.SuppressDuplicateDetection': 'false',
 };
 
-type Config = { headers: Record<string, string>; maxRedirects?: number; url: string };
+type Config = { headers: Record<string, string>; maxRedirects?: number; timeout?: number; url: string };
 
 describe('PowerPlatformClient request hardening', () => {
   beforeEach(() => {
@@ -55,6 +55,12 @@ describe('PowerPlatformClient request hardening', () => {
       await call(client());
       const config = axiosMock.mock.calls[0][0] as Config;
       expect(config.maxRedirects).toBe(0);
+    });
+
+    it(`${name} gives up after two minutes`, async () => {
+      await call(client());
+      const config = axiosMock.mock.calls[0][0] as Config;
+      expect(config.timeout).toBe(120_000);
     });
 
     it(`${name} keeps the fixed headers whatever the caller passes`, async () => {
@@ -94,5 +100,14 @@ describe('PowerPlatformClient request hardening', () => {
     spy.mockRestore();
     expect(logged).toContain('api/data/v9.2/contacts');
     expect(logged).not.toContain('jdoe@example.com');
+  });
+
+  it('gives solution import, export and publish thirty minutes', async () => {
+    const c = client();
+    for (const message of ['ImportSolution', 'ExportSolution', 'PublishAllXml', 'PublishXml']) {
+      axiosMock.mockClear();
+      await c.makeRequest(`api/data/v9.2/${message}`, 'POST', {});
+      expect((axiosMock.mock.calls[0][0] as Config).timeout).toBe(30 * 60 * 1000);
+    }
   });
 });

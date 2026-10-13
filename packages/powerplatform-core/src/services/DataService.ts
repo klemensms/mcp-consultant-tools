@@ -45,9 +45,13 @@ interface IntersectEntityInfo {
   intersectEntityName: string;
   entity1LogicalName: string;
   entity1EntitySetName: string;
+  entity1PrimaryIdAttribute: string;
   entity1IntersectAttribute: string;
   entity2IntersectAttribute: string;
 }
+
+/** A table name that Dataverse answered for and does not know, as opposed to a failed lookup. */
+class EntityNotFoundError extends Error {}
 
 export class DataService {
   /** Cache: entity set name (plural) → logical name (singular) */
@@ -402,7 +406,7 @@ export class DataService {
     >(url);
 
     if (!result.value || result.value.length === 0) {
-      throw new Error(`Cannot resolve entity set name '${entitySetName}' - no matching EntityDefinition found`);
+      throw new EntityNotFoundError(`Cannot resolve entity set name '${entitySetName}' - no matching EntityDefinition found`);
     }
 
     const { LogicalName: logicalName, PrimaryIdAttribute: primaryId } = result.value[0];
@@ -442,7 +446,9 @@ export class DataService {
     let logicalName: string;
     try {
       logicalName = await this.resolveLogicalName(entityNamePlural);
-    } catch {
+    } catch (error) {
+      // A failed lookup is reported as itself, never as "not found".
+      if (!(error instanceof EntityNotFoundError)) throw error;
       // Not a standard entity - check if it's an N:N intersect entity
       const intersectInfo = await this.resolveIntersectEntity(entityNamePlural);
       if (intersectInfo) {
@@ -564,9 +570,19 @@ export class DataService {
           try {
             const logicalName = await this.resolveLogicalName(entityNamePlural);
             nameMap.set(logicalName, entityNamePlural);
-          } catch {
+          } catch (error: any) {
+            if (!(error instanceof EntityNotFoundError)) {
+              unfilteredResults.set(entityNamePlural, { count: -1, error: error.message });
+              continue;
+            }
             // Not a standard entity - check if it's an N:N intersect entity
-            const intersectInfo = await this.resolveIntersectEntity(entityNamePlural);
+            let intersectInfo: IntersectEntityInfo | null;
+            try {
+              intersectInfo = await this.resolveIntersectEntity(entityNamePlural);
+            } catch (lookupError: any) {
+              unfilteredResults.set(entityNamePlural, { count: -1, error: lookupError.message });
+              continue;
+            }
             if (intersectInfo) {
               try {
                 const count = await this.countIntersectRecords(intersectInfo);
@@ -721,48 +737,42 @@ export class DataService {
     const selectFields =
       `IntersectEntityName,Entity1LogicalName,Entity1IntersectAttribute,Entity2IntersectAttribute`;
 
+    // A failed request throws and is not cached; only an answer is remembered.
     const tryLookup = async (filterExpr: string): Promise<RelRow | null> => {
-      try {
-        const result = await this.client.makeRequest<ApiCollectionResponse<RelRow>>(
-          `${baseUrl}?$filter=${filterExpr}&$select=${selectFields}`
-        );
-        if (result.value && result.value.length > 0) return result.value[0];
-      } catch {
-        // Fall through
-      }
-      return null;
+      const result = await this.client.makeRequest<ApiCollectionResponse<RelRow>>(
+        `${baseUrl}?$filter=${filterExpr}&$select=${selectFields}`
+      );
+      return result.value?.[0] ?? null;
     };
 
-    try {
-      // Attempt 1: match by IntersectEntityName (the actual intersect table name)
-      let rel = await tryLookup(`IntersectEntityName eq '${entityName}'`);
+    // Attempt 1: match by IntersectEntityName (the actual intersect table name)
+    let rel = await tryLookup(`IntersectEntityName eq '${entityName}'`);
 
-      // Attempt 2: match by SchemaName (what users typically see in the maker portal).
-      // Dataverse truncates IntersectEntityName to 40 chars, so the SchemaName and
-      // IntersectEntityName can differ (e.g. SchemaName ends in "...eventdel" but
-      // IntersectEntityName is "...eventd").
-      if (!rel) {
-        rel = await tryLookup(`SchemaName eq '${entityName}'`);
-      }
+    // Attempt 2: match by SchemaName (what users typically see in the maker portal).
+    // Dataverse truncates IntersectEntityName to 40 chars, so the SchemaName and
+    // IntersectEntityName can differ (e.g. SchemaName ends in "...eventdel" but
+    // IntersectEntityName is "...eventd").
+    if (!rel) {
+      rel = await tryLookup(`SchemaName eq '${entityName}'`);
+    }
 
-      if (rel) {
-        // Resolve Entity1's EntitySetName so we can execute FetchXML via its endpoint
-        const entity1Meta = await this.client.makeRequest<{ EntitySetName: string }>(
-          `api/data/v9.2/EntityDefinitions(LogicalName='${rel.Entity1LogicalName}')?$select=EntitySetName`
-        );
+    if (rel) {
+      // Resolve Entity1's EntitySetName so we can execute FetchXML via its
+      // endpoint, and its primary key for the join.
+      const entity1Meta = await this.client.makeRequest<{ EntitySetName: string; PrimaryIdAttribute: string }>(
+        `api/data/v9.2/EntityDefinitions(LogicalName='${rel.Entity1LogicalName}')?$select=EntitySetName,PrimaryIdAttribute`
+      );
 
-        const info: IntersectEntityInfo = {
-          intersectEntityName: rel.IntersectEntityName,
-          entity1LogicalName: rel.Entity1LogicalName,
-          entity1EntitySetName: entity1Meta.EntitySetName,
-          entity1IntersectAttribute: rel.Entity1IntersectAttribute,
-          entity2IntersectAttribute: rel.Entity2IntersectAttribute,
-        };
-        this.intersectEntityCache.set(entityName, info);
-        return info;
-      }
-    } catch {
-      // Fall through to return null
+      const info: IntersectEntityInfo = {
+        intersectEntityName: rel.IntersectEntityName,
+        entity1LogicalName: rel.Entity1LogicalName,
+        entity1EntitySetName: entity1Meta.EntitySetName,
+        entity1PrimaryIdAttribute: entity1Meta.PrimaryIdAttribute,
+        entity1IntersectAttribute: rel.Entity1IntersectAttribute,
+        entity2IntersectAttribute: rel.Entity2IntersectAttribute,
+      };
+      this.intersectEntityCache.set(entityName, info);
+      return info;
     }
 
     this.intersectEntityCache.set(entityName, null);
@@ -779,7 +789,7 @@ export class DataService {
     const fetchXml = [
       '<fetch aggregate="true">',
       `  <entity name="${info.entity1LogicalName}">`,
-      `    <link-entity name="${info.intersectEntityName}" from="${info.entity1IntersectAttribute}" to="${info.entity1IntersectAttribute}" link-type="inner">`,
+      `    <link-entity name="${info.intersectEntityName}" from="${info.entity1IntersectAttribute}" to="${info.entity1PrimaryIdAttribute}" link-type="inner">`,
       `      <attribute name="${info.entity2IntersectAttribute}" alias="count" aggregate="count"/>`,
       '    </link-entity>',
       '  </entity>',
@@ -875,26 +885,22 @@ export class DataService {
       filter += ` and ReferencedEntity eq '${referencedEntity}'`;
     }
 
-    try {
-      const result = await this.client.makeRequest<
-        ApiCollectionResponse<{
-          ReferencingEntityNavigationPropertyName: string;
-          ReferencedEntity: string;
-        }>
-      >(
-        `api/data/v9.2/EntityDefinitions(LogicalName='${entityLogicalName}')/ManyToOneRelationships?$filter=${encodeURIComponent(
-          filter
-        )}&$select=ReferencingEntityNavigationPropertyName,ReferencedEntity`
-      );
+    // A failed request throws and is not cached; only an answer is remembered.
+    const result = await this.client.makeRequest<
+      ApiCollectionResponse<{
+        ReferencingEntityNavigationPropertyName: string;
+        ReferencedEntity: string;
+      }>
+    >(
+      `api/data/v9.2/EntityDefinitions(LogicalName='${entityLogicalName}')/ManyToOneRelationships?$filter=${encodeURIComponent(
+        filter
+      )}&$select=ReferencingEntityNavigationPropertyName,ReferencedEntity`
+    );
 
-      const navProperty =
-        result.value?.[0]?.ReferencingEntityNavigationPropertyName ?? null;
-      this.navPropertyCache.set(cacheKey, navProperty);
-      return navProperty;
-    } catch {
-      this.navPropertyCache.set(cacheKey, null);
-      return null;
-    }
+    const navProperty =
+      result.value?.[0]?.ReferencingEntityNavigationPropertyName ?? null;
+    this.navPropertyCache.set(cacheKey, navProperty);
+    return navProperty;
   }
 
 }

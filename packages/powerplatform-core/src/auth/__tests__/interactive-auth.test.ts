@@ -11,21 +11,25 @@ import http from 'node:http';
 const msal = vi.hoisted(() => ({
   getAuthCodeUrl: vi.fn(),
   acquireTokenByCode: vi.fn(),
+  acquireTokenSilent: vi.fn(),
+  accounts: [] as any[],
+  open: vi.fn(async () => undefined),
 }));
 
 vi.mock('@azure/msal-node', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@azure/msal-node')>();
   class FakePublicClientApplication {
     getTokenCache() {
-      return { getAllAccounts: async () => [] };
+      return { getAllAccounts: async () => msal.accounts };
     }
     getAuthCodeUrl = msal.getAuthCodeUrl;
     acquireTokenByCode = msal.acquireTokenByCode;
+    acquireTokenSilent = msal.acquireTokenSilent;
   }
   return { ...actual, PublicClientApplication: FakePublicClientApplication };
 });
 
-vi.mock('open', () => ({ default: vi.fn(async () => undefined) }));
+vi.mock('open', () => ({ default: msal.open }));
 
 vi.mock('../token-cache.js', () => ({
   TokenCache: class {
@@ -38,7 +42,12 @@ vi.mock('../token-cache.js', () => ({
 
 const { InteractiveAuth, CALLBACK_HOST } = await import('../interactive-auth.js');
 
+function newAuth() {
+  return new InteractiveAuth({ organizationUrl: 'https://yourorg.crm.dynamics.com', clientId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', tenantId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' });
+}
+
 interface Started {
+  servers: http.Server[];
   request: any;
   port: number;
   server: http.Server;
@@ -46,7 +55,7 @@ interface Started {
 }
 
 /** Start a sign-in and wait until the authorization URL has been requested. */
-async function startSignIn(): Promise<Started> {
+async function startSignIn(auth = newAuth()): Promise<Started> {
   const servers: http.Server[] = [];
   const realCreate = http.createServer;
   const spy = vi.spyOn(http, 'createServer').mockImplementation(((...args: any[]) => {
@@ -62,14 +71,13 @@ async function startSignIn(): Promise<Started> {
     return 'https://login.microsoftonline.com/authorize';
   });
 
-  const auth = new InteractiveAuth({ organizationUrl: 'https://yourorg.crm.dynamics.com', clientId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', tenantId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' });
   const signIn = auth.getAccessToken('https://yourorg.crm.dynamics.com');
   signIn.catch(() => {});
   const request = await requestSeen;
   spy.mockRestore();
   const port = Number(new URL(request.redirectUri).port);
   const server = servers[servers.length - 1];
-  return { request, port, server, signIn };
+  return { request, port, server, signIn, servers };
 }
 
 function callback(port: number, query: string): Promise<{ status: number; body: string }> {
@@ -88,6 +96,10 @@ beforeEach(() => {
   msal.getAuthCodeUrl.mockReset();
   msal.acquireTokenByCode.mockReset();
   msal.acquireTokenByCode.mockResolvedValue({ accessToken: 'TOKEN', account: { name: 'Jane Doe' } });
+  msal.acquireTokenSilent.mockReset();
+  msal.accounts = [];
+  msal.open.mockReset();
+  msal.open.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -194,5 +206,95 @@ describe('other paths', () => {
     started = await startSignIn();
     expect(new URL(started.request.redirectUri).hostname).toBe('localhost');
     expect(new URL(started.request.redirectUri).protocol).toBe('http:');
+  });
+});
+
+describe('sign-in robustness', () => {
+  it('prints the whole sign-in address, however long', async () => {
+    const stderr = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const long = 'https://login.microsoftonline.com/authorize?' + 'x'.repeat(300) + '&end=1';
+    try {
+      const servers: http.Server[] = [];
+      msal.getAuthCodeUrl.mockResolvedValue(long);
+      const realCreate = http.createServer;
+      const spy = vi.spyOn(http, 'createServer').mockImplementation(((...args: any[]) => {
+        const server = (realCreate as any)(...args);
+        servers.push(server);
+        return server;
+      }) as any);
+      const signIn = newAuth().getAccessToken('https://yourorg.crm.dynamics.com');
+      signIn.catch(() => {});
+      await vi.waitFor(() => expect(msal.open).toHaveBeenCalled());
+      spy.mockRestore();
+      expect(stderr.mock.calls.some((c) => String(c[0]).includes(long))).toBe(true);
+      servers.forEach((server) => server.close());
+    } finally {
+      stderr.mockRestore();
+    }
+  });
+
+  it('keeps waiting when the browser cannot be opened', async () => {
+    const stderr = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    msal.open.mockRejectedValue(new Error('no browser'));
+    try {
+      started = await startSignIn();
+      await vi.waitFor(() => expect(msal.open).toHaveBeenCalled());
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      const { request, port, signIn } = started;
+      await callback(port, `code=CODE&state=${encodeURIComponent(request.state)}`);
+      await expect(signIn).resolves.toBe('TOKEN');
+    } finally {
+      stderr.mockRestore();
+    }
+  });
+
+  it('opens one callback server, on the port the redirect address names', async () => {
+    started = await startSignIn();
+    expect(started.servers).toHaveLength(1);
+    const address = started.server.address();
+    expect(address && typeof address === 'object' ? address.port : 0).toBe(started.port);
+  });
+
+  it('redeems a sign-in code once, even if the callback arrives twice', async () => {
+    let finish!: (value: unknown) => void;
+    msal.acquireTokenByCode.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    started = await startSignIn();
+    const { request, port, signIn } = started;
+    const query = `code=CODE&state=${encodeURIComponent(request.state)}`;
+    const first = callback(port, query);
+    await vi.waitFor(() => expect(msal.acquireTokenByCode).toHaveBeenCalledTimes(1));
+    const second = await callback(port, query);
+    expect(second.status).toBe(400);
+    finish({ accessToken: 'TOKEN', account: { name: 'Jane Doe' } });
+    await first;
+    await expect(signIn).resolves.toBe('TOKEN');
+    expect(msal.acquireTokenByCode).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('silent sign-in', () => {
+  const first = { homeAccountId: 'first', username: 'jdoe@example.com' };
+  const second = { homeAccountId: 'second', username: 'jsmith@example.com' };
+
+  it('uses the account signed in last, not the first one in the cache', async () => {
+    msal.accounts = [];
+    msal.acquireTokenByCode.mockResolvedValue({ accessToken: 'TOKEN', account: second });
+    const auth = newAuth();
+    started = await startSignIn(auth);
+    await callback(started.port, `code=CODE&state=${encodeURIComponent(started.request.state)}`);
+    await started.signIn;
+
+    msal.accounts = [first, second];
+    msal.acquireTokenSilent.mockResolvedValue({ accessToken: 'SILENT' });
+    expect(await auth.getAccessToken('https://yourorg.crm.dynamics.com')).toBe('SILENT');
+    expect(msal.acquireTokenSilent.mock.calls[0][0].account).toBe(second);
+    expect((await auth.getUserInfo())?.email).toBe('jsmith@example.com');
+  });
+
+  it('falls back to the first cached account when none was signed in here', async () => {
+    msal.accounts = [first, second];
+    msal.acquireTokenSilent.mockResolvedValue({ accessToken: 'SILENT' });
+    expect(await newAuth().getAccessToken('https://yourorg.crm.dynamics.com')).toBe('SILENT');
+    expect(msal.acquireTokenSilent.mock.calls[0][0].account).toBe(first);
   });
 });

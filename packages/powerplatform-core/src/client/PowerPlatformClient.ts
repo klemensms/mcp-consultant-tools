@@ -13,6 +13,17 @@ import type { PowerPlatformConfig } from './types.js';
 import { getRequestCallerObjectId } from './request-context.js';
 
 /** Headers the client always sets itself; a caller's value for any of them is dropped. */
+/** A request that has not answered in two minutes fails instead of hanging the tool call. */
+const REQUEST_TIMEOUT_MS = 2 * 60 * 1000;
+
+/** Solution and publish messages routinely run for many minutes, so they get longer. */
+const LONG_RUNNING_MESSAGES = /^api\/data\/v[\d.]+\/(ImportSolution|ExportSolution|PublishAllXml|PublishXml)\b/;
+const LONG_RUNNING_TIMEOUT_MS = 30 * 60 * 1000;
+
+function timeoutFor(endpoint: string): number {
+  return LONG_RUNNING_MESSAGES.test(endpoint) ? LONG_RUNNING_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+}
+
 const FIXED_HEADERS = ['authorization', 'accept', 'odata-maxversion', 'odata-version', 'content-type'];
 
 /**
@@ -191,6 +202,7 @@ export class PowerPlatformClient {
         // No redirects: a response must not move the request, token included,
         // away from the configured organization URL.
         maxRedirects: 0,
+        timeout: timeoutFor(endpoint),
       });
 
       return response.data as T;
@@ -253,6 +265,7 @@ export class PowerPlatformClient {
         // No redirects: a response must not move the request, token included,
         // away from the configured organization URL.
         maxRedirects: 0,
+        timeout: timeoutFor(endpoint),
       });
 
       return {
@@ -310,6 +323,7 @@ export class PowerPlatformClient {
         // No redirects: a response must not move the request, token included,
         // away from the configured organization URL.
         maxRedirects: 0,
+        timeout: timeoutFor(endpoint),
       });
     } catch (error: unknown) {
       const axiosError = error as {
