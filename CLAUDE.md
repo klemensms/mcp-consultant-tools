@@ -97,6 +97,8 @@ Before writing code: (1) State verification method, (2) Write test first, (3) Im
 
 **CRITICAL:** When modifying any file in `packages/*/src/`, test the change locally before asking the user to reconnect, restart Claude Code, or publish to beta.
 
+**Live tests that send a Teams message or an email** follow the maintainer's private live-test rule (one designated colleague, every message visibly marked as an agent test). Anything outside that rule waits for the maintainer to name the test.
+
 **Test runner:**
 ```bash
 npm run build --workspace=packages/{PACKAGE}
@@ -223,6 +225,10 @@ Quickstart: `npx --package=@mcp-consultant-tools/azure-devops mcp-ado-cli wiki l
 Full architecture, MCP↔CLI parity rules, parameter-mapping conventions, core helpers, and the cross-package verification script: [`.claude/refs/cli-architecture.md`](.claude/refs/cli-architecture.md).
 
 ## Publishing
+
+### Pull requests: an independent critical review, then merge
+
+**Every change reaches the release branch through a pull request that a separate agent has critically reviewed.** The maintainer does not review code. The session that built the change tests it (unit tests plus the local MCP test), opens the PR, then has a different agent review it adversarially - correctness, regressions, permissions, public-repo hygiene, test gaps. If the review passes, the session merges. If it finds problems, fix them and review again. A monitor session tracks the work but is not the reviewer. Publishing still follows the beta and production workflows below.
 
 ### Safe Release Workflow
 
