@@ -43,8 +43,8 @@ Earlier item: beta.26 published the sign-in hardening (PKCE, state check, loopba
 
 ## Sign-in hardening
 
-### D-020 · Ask the app registration owner to add a `127.0.0.1` redirect
-Send decision. Plan task 7 (switching the PowerPlatform sign-in redirect from `localhost` to `127.0.0.1`) is blocked until the app registration the tools sign in with lists it; switching first would break every Dataverse sign-in. Recipient: the owner of that app registration (named in the chat question; internal names stay out of this public repo). Whole message:
+### D-020 · Ask the directory admins to add a `127.0.0.1` redirect
+Send decision. Plan task 7 (switching the PowerPlatform sign-in redirect from `localhost` to `127.0.0.1`) is blocked until the app registration the tools sign in with lists it; switching first would break every Dataverse sign-in. Recipient: the registration lists no owners in Entra (checked read-only 2026-10-13), so only a directory admin can add the redirect; the request goes to them as an IT ticket (team named in the chat question; internal names stay out of this public repo). Whole message:
 
 ```
 Could you add http://127.0.0.1 as a redirect URI on the app registration our Dataverse MCP tools sign in with (Mobile and desktop platform)?
@@ -52,9 +52,9 @@ Please keep the existing http://localhost one for now.
 Our sign-in only listens on 127.0.0.1, and localhost can go to IPv6 on some machines I think, so the browser misses it.
 Thanks
 ```
-- **A.** Send it.
+- **A.** Raise it as a ticket with this text.
 - **B.** Change the text or recipient (say how).
 - **C.** Drop task 7; the sign-in keeps working on `localhost` as it does today.
-- **Recommended: A.** Removes the one case where the browser sign-in can fail to come back, at the cost of one small change by the owner; once confirmed, task 7 is a short code change.
+- **Recommended: A.** Removes the one case where the browser sign-in can fail to come back, at the cost of one small change by a directory admin; once confirmed, task 7 is a short code change.
 
 ## Secret cache
