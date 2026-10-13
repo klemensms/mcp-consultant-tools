@@ -170,7 +170,7 @@ for a helper:
 failing on one candidate *is* the loop (`1password/op-cli-adapter.ts:30` probing four paths for the
 `op` binary; `powerplatform-core/src/services/MetadataService.ts:165` and `:180`, whose caller sets an
 explicit `optionSetWarning` when every fallback fails; `azure-devops/src/sync/template-loader.ts:71`),
-a declared default (`core/src/helpers/resolve-version.ts:33`, `audit-cli/src/quarantine.ts:70`), a
+a declared default (`audit-cli/src/quarantine.ts:70`), a
 side-effect rather than a collected item (`azure-devops/src/services/sync-service.ts:304` cleanup,
 `core/src/helpers/cli-helpers.ts:119` cache write, `teams/src/services/teams-service.ts:579`
 token-cache clear, `azure-devops/src/ui/src/views/genui-view.ts:181` clipboard fallback), a declared

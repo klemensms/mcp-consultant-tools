@@ -6,7 +6,6 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { resolvePackageVersion } from "./resolve-version.js";
 
 export interface MCPServerOptions {
   name: string;
@@ -25,7 +24,7 @@ export function createMcpServer(options: MCPServerOptions): McpServer {
   return new McpServer(
     {
       name: options.name,
-      version: resolvePackageVersion(options.version)
+      version: options.version
     },
     {
       capabilities: options.capabilities || {
