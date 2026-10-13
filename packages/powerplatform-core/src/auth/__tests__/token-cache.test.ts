@@ -220,6 +220,19 @@ describe('TokenCache', () => {
       expect(fs.existsSync(lockFile())).toBe(false);
     });
 
+    it('keeps a lock that is still being written, removes one left empty', async () => {
+      const cache = new TokenCache('client-1', dir, async () => fakeKeychain().library);
+      const plugin = cache.createPlugin();
+      fs.writeFileSync(lockFile(), '');
+      await plugin.beforeCacheAccess(fakeContext('', false).context);
+      expect(fs.existsSync(lockFile())).toBe(true);
+
+      const old = new Date(Date.now() - 10 * 1000);
+      fs.utimesSync(lockFile(), old, old);
+      await plugin.beforeCacheAccess(fakeContext('', false).context);
+      expect(fs.existsSync(lockFile())).toBe(false);
+    });
+
     it('clear() removes the lock file too', async () => {
       const cache = new TokenCache('client-1', dir, async () => fakeKeychain().library);
       fs.writeFileSync(lockFile(), String(process.pid));
@@ -248,6 +261,19 @@ describe('TokenCache', () => {
       expect(keychain.configs).toHaveLength(2);
       expect(keychain.stored()).toBe('{"a":1}');
       expect(cache.getCachePath()).toContain('OS keychain');
+    });
+
+    it('reopens once when several calls arrive together after the wait', async () => {
+      const keychain = fakeKeychain({ createFails: new Error('locked'), createFailures: 1 });
+      const cache = new TokenCache('client-1', dir, async () => keychain.library);
+      const plugin = cache.createPlugin();
+      const now = Date.now();
+      const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+      await plugin.beforeCacheAccess(fakeContext('', false).context);
+      clock.mockReturnValue(now + 31_000);
+      await Promise.all([1, 2, 3].map(() => plugin.beforeCacheAccess(fakeContext('', false).context)));
+      expect(keychain.configs).toHaveLength(2);
+      expect(keychain.lockOptions).toHaveLength(1);
     });
 
     it('does not retry when the keychain library is missing', async () => {

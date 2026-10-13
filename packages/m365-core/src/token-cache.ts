@@ -16,7 +16,7 @@
  *
  * The library guards each write with a lock file holding the writer's process
  * ID. A lock left by a server that was killed mid-write is removed here before
- * each read, and waits are kept short, so it can never stall sign-in.
+ * each read, and waits are kept short, so a dead lock never stalls sign-in.
  *
  * The old encrypted file ({tokenDir}/{prefix}-token-cache-{clientId}.enc) is
  * deleted on first use; its key could be derived by anyone with a copy.
@@ -37,8 +37,15 @@ const KEYCHAIN_SERVICE = 'mcp-consultant-tools';
 /** Wait up to 3 seconds for another server's write, then carry on from memory. */
 const LOCK_OPTIONS = { retryNumber: 30, retryDelay: 100 };
 
-/** A lock older than this is stale even if its process ID now belongs to something else. */
+/**
+ * A lock older than this is stale even if its process ID now belongs to
+ * something else. (A write held open by a macOS keychain prompt for longer can
+ * lose its lock; other writers only wait 3 seconds in any case.)
+ */
 const STALE_LOCK_MS = 60 * 1000;
+
+/** The library creates the lock file empty and writes its process ID just after. */
+const UNWRITTEN_LOCK_MS = 5 * 1000;
 
 /** After a keychain that failed to open, try again no sooner than this. */
 const REOPEN_DELAY_MS = 30 * 1000;
@@ -103,6 +110,8 @@ export class TokenCache {
    */
   private open(): Promise<Keychain | null> {
     if (this.memoryOnly && !this.libraryMissing && Date.now() >= this.reopenAfter) {
+      // Move the window first, so calls arriving together share one reopen.
+      this.reopenAfter = Date.now() + REOPEN_DELAY_MS;
       this.keychain = null;
     }
     this.keychain ??= this.openKeychain();
@@ -158,7 +167,8 @@ export class TokenCache {
     try {
       const age = Date.now() - fs.statSync(lockFile).mtimeMs;
       const pid = Number.parseInt(fs.readFileSync(lockFile, 'utf8'), 10);
-      if (age > STALE_LOCK_MS || !Number.isInteger(pid) || !isRunning(pid)) {
+      const stale = Number.isInteger(pid) ? !isRunning(pid) : age > UNWRITTEN_LOCK_MS;
+      if (age > STALE_LOCK_MS || stale) {
         fs.rmSync(lockFile, { force: true });
       }
     } catch {

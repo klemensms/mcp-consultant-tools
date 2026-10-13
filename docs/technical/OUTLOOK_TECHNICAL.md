@@ -76,7 +76,7 @@ Only the exact string `true` enables a switch (`TRUE`, `1` and unset are all off
 - MSAL `PublicClientApplication`, device-code flow, authority `https://login.microsoftonline.com/{tenantId}`.
 - **Scope requested:** `https://graph.microsoft.com/.default`, never a hand-written list. Entra issues whatever the registration has admin consent for, so an ungranted permission breaks only the tools that need it instead of failing sign-in.
 - **Token cache:** the OS keychain through the optional `@azure/msal-node-extensions` (service `mcp-consultant-tools`, account `outlook-{clientId}`). The server name is part of the account, so the SharePoint server's cache cannot be reused here even on the same registration: Outlook needs its own sign-in. Memory only when the keychain or the native library is unavailable. The old `~/.mcp-consultant-tools/outlook-token-cache-{clientId}.enc` file is deleted on first use.
-- **The CLI and the MCP server share the cache file.** `mcp-outlook-cli auth login` signs in the MCP server too.
+- **The CLI and the MCP server share the stored sign-in.** `mcp-outlook-cli auth login` signs in the MCP server too.
 - **Order on every call:** in-memory token, then silent refresh from the cached refresh token, then a pending device-code flow, then an error telling the agent to call `mail-authenticate`.
 
 <auth-status-states>
@@ -87,7 +87,7 @@ Only the exact string `true` enables a switch (`TRUE`, `1` and unset are all off
 |---|---|
 | `authenticated` | A valid token, or one renewed silently. |
 | `pending` | A device code has been issued and the user has not finished signing in. |
-| `expired` | A cache file exists but the refresh token is no longer accepted; sign in again. |
+| `expired` | A stored sign-in exists but the refresh token is no longer accepted; sign in again. |
 | `not_authenticated` | No sign-in yet. |
 
 `mail-auth-status` also decodes the token's `scp` claim (for display only, never for an access decision) and reports, per group, which permission it needs, whether the sign-in carries it, and whether its switch is on:
