@@ -176,7 +176,7 @@ Read and change what is inside a file, without downloading it. Each takes a Shar
 - **`spo-search-items` is filename/metadata only.** For full-text search across Word, PowerPoint, Excel, PDF and text files, use `spo-search-files` in sign-in mode. A newly uploaded file can take several minutes to appear in its results.
 - **`spo-download-file` can save to disk and convert to PDF.** `saveToDisk` writes to `SHAREPOINT_DOWNLOAD_DIR` and returns the path instead of the content; `convertToPdf` returns a PDF rendering of a Word, PowerPoint or Excel file, so an agent can read it without an Office parser.
 - **A non-empty folder may refuse to delete.** Where a retention policy applies, deleting a folder that still holds files fails with "Request was cancelled by event received ... it's possible that it's on hold". Delete the files first, then the empty folder.
-- **Sign-in is cached encrypted on your machine** at `~/.mcp-consultant-tools/sharepoint-token-cache-{clientId}.enc` and renews silently; the CLI and the MCP server share it.
+- **Sign-in is cached in the OS keychain** (macOS Keychain, Windows data protection, Linux Secret Service) and renews silently; the CLI and the MCP server share it. Where no keychain is available the sign-in is kept in memory only and is asked for again at each start.
 - **PowerPlatform integration requires the meta package.** `spo-get-crm-doc-locs`, `spo-validate-doc-loc`, and `spo-verify-doc-mig` require PowerPlatform credentials and only work when running inside `mcp-consultant-tools` (meta package), not the standalone `mcp-spo` server.
 
 ## Coming later (not yet active)

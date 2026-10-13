@@ -24,7 +24,7 @@ MCP Consultant Tools is a **modular monorepo** with **22 independently published
 | Package | Integration | Tools | CLI Binary | Documentation |
 |---------|-------------|-------|-----------|---------------|
 | **powerplatform-core** | Shared PowerPlatform services (internal) | N/A | N/A | - |
-| **m365-core** | Shared sign-in-as-you (device code) auth and encrypted token cache for the SharePoint and Outlook servers (internal) | N/A | N/A | - |
+| **m365-core** | Shared sign-in-as-you (device code) auth and OS keychain token cache for the SharePoint and Outlook servers (internal) | N/A | N/A | - |
 | **powerplatform** | PowerPlatform/Dataverse (Read-Only) | 53 | `mcp-pp-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM.md) |
 | **powerplatform-customization** | PowerPlatform Schema Changes | 85 | `mcp-pp-custom-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_CUSTOMIZATION.md) |
 | **powerplatform-data** | PowerPlatform Data CRUD | 13 | `mcp-pp-data-cli` | [Setup & Usage](docs/documentation/POWERPLATFORM_DATA.md) |

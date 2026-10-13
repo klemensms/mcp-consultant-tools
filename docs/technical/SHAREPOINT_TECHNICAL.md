@@ -75,7 +75,7 @@ All services use lazy initialization in `createServiceContext()`. `SharePointSer
 ### Sign-in mode (device code)
 
 - MSAL `PublicClientApplication` through `@mcp-consultant-tools/m365-core`, scope `https://graph.microsoft.com/.default`.
-- Token cache: AES-256-GCM encrypted at `~/.mcp-consultant-tools/sharepoint-token-cache-{clientId}.enc`, mode 0600, shared by the CLI and the MCP server. The server name salts the key, so it is never shared with the Outlook server on the same registration.
+- Token cache: the OS keychain through the optional `@azure/msal-node-extensions` (service `mcp-consultant-tools`, account `sharepoint-{clientId}`), shared by the CLI and the MCP server and never with the Outlook server on the same registration. Memory only when the keychain or the native library is unavailable. The old `~/.mcp-consultant-tools/sharepoint-token-cache-{clientId}.enc` file is deleted on first use.
 - **Delegated permission, measured live:** `Sites.ReadWrite.All` alone covers every read, write and delete tool, Microsoft Search for files (hits include OneDrive files), and `/me/drive`. No `Files.*` permission is needed.
 - `SHAREPOINT_SITES` and `SHAREPOINT_SITE_URL` are optional: every tool that takes a `siteId` also accepts a full site URL (`/sites/{name}`, `/teams/{name}`, or a OneDrive `/personal/{name}`), resolved through `GET /sites/{host}:/{path}` and cached.
 - The three sign-in tools and the CLI's `auth login` start and complete the sign-in; see the sign-in mode tool group below.
@@ -356,7 +356,7 @@ All eight work only in sign-in mode. In app-only mode the discovery and OneDrive
 |---|---|---|
 | `spo-authenticate` | none | Starts a device-code sign-in; returns the URL and code at once and completes in the background. |
 | `spo-auth-status` | none | Mode, state, account, `accessTokenExpiresAt` with `renewsAutomatically: true`, granted scopes and what each capability needs. The access-token time is not when the sign-in ends. |
-| `spo-logout` | `confirm` | Refuses unless `confirm: true` (CLI: `--confirm`). Removes the account and the cache file, refresh token included. Never call it to renew or extend a sign-in: it deletes the refresh token, so the next use needs a new device code. |
+| `spo-logout` | `confirm` | Refuses unless `confirm: true` (CLI: `--confirm`). Removes the account and the stored sign-in, refresh token included. Never call it to renew or extend a sign-in: it deletes the refresh token, so the next use needs a new device code. |
 | `spo-search-files` | `query`, `top?` (default 25, max 100), `from?` | `POST /search/query` with `entityTypes: ["driveItem"]`. Full-text across every site, OneDrive and Teams file the user can open; KQL supported. Returns `{ total, moreResultsAvailable, hits }`, each hit with `name`, `webUrl`, `location`, `siteId`, `driveId`, `itemId`, `lastModifiedDateTime`, `lastModifiedBy`, `size` and a plain `summary`. Page with `from`. New files can take several minutes to be indexed. |
 | `spo-resolve-link` | `url` | `GET /shares/u!{base64url}/driveItem`: any SharePoint or OneDrive URL, including a sharing link, to `{ name, itemId, driveId, siteId, webUrl, isFolder, mimeType, size, lastModifiedDateTime, parentPath }`. |
 | `spo-find-sites` | `query` | A site URL resolves through `/sites/{host}:/{path}`; a keyword searches `/sites?search=`. |

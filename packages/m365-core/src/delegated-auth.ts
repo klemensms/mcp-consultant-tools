@@ -118,7 +118,7 @@ export class DelegatedGraphAuth {
     });
   }
 
-  /** Path of the encrypted cache file, for diagnostics. */
+  /** Where the token cache lives, for diagnostics. */
   getCachePath(): string {
     return this.tokenCache.getCachePath();
   }
@@ -237,7 +237,7 @@ export class DelegatedGraphAuth {
     if (await this.acquireTokenSilentIfPossible()) {
       return this.authenticatedStatus('Signed in (renewed silently from the cached refresh token).');
     }
-    if (this.tokenCache.exists()) {
+    if (await this.tokenCache.exists()) {
       return {
         state: 'expired',
         message: `Cached sign-in is no longer usable (refresh token expired or revoked). Call '${this.authToolName}' to sign in again.`,
@@ -352,7 +352,7 @@ export class DelegatedGraphAuth {
 
   /**
    * Sign out: remove every account from MSAL's in-memory cache and delete the
-   * encrypted file, so a later status check in the same process does not
+   * stored sign-in, so a later status check in the same process does not
    * resurrect the account.
    */
   async logout(): Promise<void> {
@@ -365,7 +365,7 @@ export class DelegatedGraphAuth {
     for (const account of await msalCache.getAllAccounts()) {
       await msalCache.removeAccount(account);
     }
-    this.tokenCache.clear();
+    await this.tokenCache.clear();
   }
 
   /**

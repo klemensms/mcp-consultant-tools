@@ -141,7 +141,7 @@ export class InteractiveAuth implements AuthProvider {
   }
 
   async clearCache(): Promise<void> {
-    this.tokenCache.clear();
+    await this.tokenCache.clear();
     this.cachedAccount = null;
   }
 
