@@ -108,14 +108,37 @@ describe('DataService refuses names and IDs that would change the request addres
     expect(calls).toEqual([]);
   });
 
-  it('countRecordsBatch reports a bad name against that entry only', async () => {
+  it('queryRecords splits a comma-separated select entry and checks each column', async () => {
     const { client, calls } = recordingClient();
     const svc = new DataService(client);
-    const results = await svc.countRecordsBatch([{ entityNamePlural: BAD_TABLE }]);
-    expect(results).toHaveLength(1);
-    expect(results[0].count).toBe(-1);
-    expect(results[0].error).toMatch(/Invalid table name/);
-    expect(calls).toEqual([]);
+    await svc.queryRecords('contacts', 'true', 10, ['fullname, emailaddress1']);
+    expect(calls[0]).toContain('$select=fullname,emailaddress1');
+    await expect(svc.queryRecords('contacts', 'true', 10, ['fullname,x&y'])).rejects.toThrow(
+      /Invalid column name: "x&y"/
+    );
+  });
+
+  it('countRecordsBatch reports a bad name against that entry only, in order', async () => {
+    const { client, calls } = recordingClient();
+    const svc = new DataService(client);
+    const results = await svc.countRecordsBatch([
+      { entityNamePlural: 'accounts' },
+      { entityNamePlural: BAD_TABLE },
+      { entityNamePlural: 'contacts/x', filter: 'true' },
+      { entityNamePlural: 'contacts' },
+    ]);
+    expect(results.map((r) => r.entityNamePlural)).toEqual([
+      'accounts',
+      BAD_TABLE,
+      'contacts/x',
+      'contacts',
+    ]);
+    expect(results[1]).toMatchObject({ count: -1, error: expect.stringMatching(/Invalid table name/) });
+    expect(results[2]).toMatchObject({ count: -1, error: expect.stringMatching(/Invalid table name/) });
+    // The valid names were looked up; the bad ones never reached a request.
+    expect(calls.some((c) => c.includes("EntitySetName eq 'accounts'"))).toBe(true);
+    expect(calls.some((c) => c.includes("EntitySetName eq 'contacts'"))).toBe(true);
+    expect(calls.some((c) => c.includes('select=fullname') || c.includes('contacts/x'))).toBe(false);
   });
 });
 

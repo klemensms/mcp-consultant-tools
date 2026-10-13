@@ -114,6 +114,8 @@ export class DataService {
     piiReport?: PipelineReport;
   }> {
     assertIdentifier(entityNamePlural, 'table name');
+    // Accept `["a,b"]` as well as `["a","b"]`, and split it so PII exclusions see each column.
+    select = select?.flatMap((entry) => entry.split(',').map((column) => column.trim()));
     select?.forEach((column) => assertIdentifier(column, 'column name'));
     assertPositiveWholeNumber(maxRecords, 'maxRecords');
 
