@@ -11,11 +11,13 @@ The `@mcp-consultant-tools/core` package provides shared utilities used by all s
 Factory function for creating MCP server instances with standardized configuration.
 
 ```typescript
+import { createRequire } from 'node:module';
 import { createMcpServer } from '@mcp-consultant-tools/core';
 
+const pkg = createRequire(import.meta.url)('../package.json');
 const server = createMcpServer({
   name: 'my-mcp-server',
-  version: '1.0.0'
+  version: pkg.version // reported as given; never a literal
 });
 ```
 

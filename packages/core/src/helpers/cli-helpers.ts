@@ -14,7 +14,6 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { config } from 'dotenv';
 import { resolveSecrets } from './secret-resolver.js';
-import { resolvePackageVersion } from './resolve-version.js';
 import { fanOutSuffix, type FanOutInfo } from './fan-out.js';
 
 export interface OutputOptions {
@@ -148,7 +147,7 @@ export interface CliProgramOptions {
 export function createCliProgram(opts: CliProgramOptions): any {
   const program = new Command(opts.name)
     .description(opts.description)
-    .version(resolvePackageVersion(opts.version))
+    .version(opts.version)
     .option('--json', 'Output raw JSON instead of summary', false)
     .option('--no-cache', 'Skip writing cache files')
     .option('--env-file <path>', 'Load environment variables from a .env file')

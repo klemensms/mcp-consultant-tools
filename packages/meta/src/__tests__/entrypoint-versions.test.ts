@@ -11,11 +11,9 @@
  * eight major releases, because a wrong version breaks nothing; it just
  * misinforms.
  *
- * `core`'s `resolvePackageVersion()` fallback does not save you here: it walks
- * up from `process.argv[1]`, which resolves correctly when a build is run
- * directly but NOT under `npx`, where the bin shim lives in a different tree.
- * Under npx the hardcoded fallback is exactly what the user sees - the way
- * these packages are actually consumed.
+ * `core` reports exactly the version an entrypoint passes in, so the
+ * entrypoint is the only place the version comes from. (It does not walk up
+ * from `process.argv[1]`: under npx that is a bin shim in the consumer's tree.)
  *
  * Lives in `meta` because meta is the package that aggregates the whole suite.
  */
