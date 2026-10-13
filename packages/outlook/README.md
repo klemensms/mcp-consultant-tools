@@ -10,7 +10,7 @@ MCP server and CLI for your own Outlook mailbox and calendar, signed in as you t
 - Send a draft or send in one step, behind its own switch
 - Delete to Deleted Items only, behind its own switch and a `confirm` flag
 - Calendar: your events, colleagues' shared calendars, free/busy for anyone, suggested meeting times; create, change and cancel appointments and meetings, answer invitations, each behind a switch that depends on whether anyone is notified
-- Encrypted token cache shared by the MCP server and the CLI; silent renewal
+- Token cache in the OS keychain, shared by the MCP server and the CLI; silent renewal
 
 ## Installation
 

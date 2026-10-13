@@ -2,7 +2,7 @@
  * Outlook sign-in CLI commands.
  *
  * Maps mail-authenticate, mail-auth-status and mail-logout. The CLI and the MCP
- * server share one encrypted token cache, so `auth login` here signs in the
+ * server share one token cache in the OS keychain, so `auth login` here signs in the
  * MCP server too.
  */
 
