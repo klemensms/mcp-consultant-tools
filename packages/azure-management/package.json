@@ -1,6 +1,6 @@
 {
   "name": "@mcp-consultant-tools/azure-management",
-  "version": "35.0.0-beta.6",
+  "version": "35.0.0-beta.7",
   "description": "MCP server for Azure Resource Manager - read-only discovery and inspection of Azure infrastructure including Function Apps, App Services, Key Vaults, Storage, SQL, Monitoring, and more",
   "type": "module",
   "main": "./build/index.js",
@@ -40,7 +40,7 @@
   "license": "ISC",
   "dependencies": {
     "@azure/identity": "^4.5.0",
-    "@mcp-consultant-tools/core": "35.0.0-beta.2",
+    "@mcp-consultant-tools/core": "35.0.0-beta.3",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "axios": "^1.16.0",
     "commander": "^14.0.3",
