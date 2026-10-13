@@ -66,6 +66,8 @@ POWERPLATFORM_ENABLE_DELETE=false
 
 ## Test Environment
 
+**Local tests run against a fake Dataverse by default.** `.claude/templates/mcp-test-runner.mjs` starts `.claude/templates/fake-dataverse.mjs` on 127.0.0.1 and sets `MCP_POWERPLATFORM_FAKE_SERVICE=1`, which makes `createAuthProvider` hand out a fixed fake token instead of signing in. That provider refuses to start unless `POWERPLATFORM_URL` is on this machine, and refuses any resource other than the Dataverse URL (so Flow API tools fail in fake mode). Never set it outside a test.
+
 **Safe test env:** `https://mcptests.crm4.dynamics.com`
 - Dedicated for CRM customization development
 - Safe for all CRUD and schema operations

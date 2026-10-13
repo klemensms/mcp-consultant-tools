@@ -32,9 +32,11 @@ MCP_TEST_ARGS='{"param": "value"}' \
 node .claude/templates/mcp-test-runner.mjs
 ```
 
+The Dataverse servers run against a local fake Dataverse by default (no live system, PII protection on); set `MCP_TEST_MODE=live` for the safe test environment. Refusal tests set `MCP_TEST_EXPECT_ERROR='<regex>'`. All options are in the runner's header and the agent file.
+
 ### 3. Interpret Results
-- Exit code 0 = PASS - ready for user to reconnect
-- Exit code 1 = FAIL - fix the issue before asking user to reconnect
+- Last line `[RESULT] PASS`, exit code 0: ready for the user to reconnect
+- Last line `[RESULT] FAIL`, exit code 1: fix the issue before asking the user to reconnect
 
 ## Common Test Configurations
 
@@ -58,7 +60,7 @@ node .claude/templates/mcp-test-runner.mjs
 ```bash
 MCP_TEST_PACKAGE="./packages/powerplatform/build/index.js" \
 MCP_TEST_TOOL="get-entity-metadata" \
-MCP_TEST_ARGS='{"entityLogicalName":"account"}' \
+MCP_TEST_ARGS='{"entityName":"account"}' \
 node .claude/templates/mcp-test-runner.mjs
 ```
 

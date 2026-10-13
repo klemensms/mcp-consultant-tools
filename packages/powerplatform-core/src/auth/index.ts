@@ -69,6 +69,10 @@ export interface PowerPlatformAuthConfig {
  * @returns Auth provider instance
  */
 export function createAuthProvider(config: PowerPlatformAuthConfig): AuthProvider {
+  if (process.env.MCP_POWERPLATFORM_FAKE_SERVICE === '1') {
+    return new FakeServiceAuth(config.organizationUrl);
+  }
+
   if (config.clientSecret) {
     // Service Principal mode (existing behavior)
     return new ServicePrincipalAuth({
@@ -85,6 +89,43 @@ export function createAuthProvider(config: PowerPlatformAuthConfig): AuthProvide
     clientId: config.clientId,
     tenantId: config.tenantId,
   });
+}
+
+/** The token a fake Dataverse sees; it is never valid anywhere else. */
+export const FAKE_SERVICE_TOKEN = 'fake-service-token';
+
+/**
+ * Test-only provider for the local tester's fake-service mode
+ * (`MCP_POWERPLATFORM_FAKE_SERVICE=1`). It signs nobody in and hands out a fixed
+ * token, and refuses to start unless the organisation URL is on this machine, so
+ * the token can only ever reach a local fake. Any other resource (for example the
+ * Flow API) is refused, because no fake answers for it.
+ */
+export class FakeServiceAuth implements AuthProvider {
+  constructor(private organizationUrl: string) {
+    let host = '';
+    try {
+      host = new URL(organizationUrl).hostname;
+    } catch {
+      // reported below
+    }
+    if (!['127.0.0.1', 'localhost', '[::1]'].includes(host)) {
+      throw new Error(
+        `MCP_POWERPLATFORM_FAKE_SERVICE is set but POWERPLATFORM_URL (${organizationUrl}) is not on this machine. Fake-service mode only talks to a local fake.`
+      );
+    }
+  }
+
+  async getAccessToken(resource: string): Promise<string> {
+    if (resource.replace(/\/+$/, '') !== this.organizationUrl.replace(/\/+$/, '')) {
+      throw new Error(`Fake-service mode covers the Dataverse Web API only, not ${resource}.`);
+    }
+    return FAKE_SERVICE_TOKEN;
+  }
+
+  getAuthMode(): 'service-principal' {
+    return 'service-principal';
+  }
 }
 
 export { ServicePrincipalAuth } from './service-principal-auth.js';

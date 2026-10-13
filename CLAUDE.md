@@ -58,7 +58,7 @@ Conventions that MUST stay synchronized across this repo and every sibling. When
 
 These files are mirrored between this repo and `mcp-computer-use`. Edit both, or record a deliberate divergence below:
 
-- `.claude/agents/mcp-local-tester.md`, `.claude/templates/mcp-test-runner.mjs` - both copies carry a `SOURCE OF TRUTH` header pointing here
+- `.claude/agents/mcp-local-tester.md`, `.claude/templates/mcp-test-runner.mjs`, `.claude/templates/fake-dataverse.mjs` - both copies carry a `SOURCE OF TRUTH` header pointing here
 - `scripts/install-hooks.sh`, `scripts/hooks/pre-commit`, `scripts/hooks/commit-msg`, `scripts/internal-scan-lib.sh`, `scripts/scan-tarball.sh`, `scripts/test-hooks.sh`
 - `.secret-scan-allowlist`, `.secret-scan-longstr-allowlist`, `.internal-scan-placeholders` - file/header aligned; per-repo pattern entries can differ
 - `.internal-strings.local` (UNTRACKED in both repos - synced via private claude-config, never committed)
@@ -68,6 +68,8 @@ These files are mirrored between this repo and `mcp-computer-use`. Edit both, or
 **⚠️ Unmirrored divergence, 2026-08-31 - eight of the files above.** The repo-wide U+2014 / U+2013 sweep (`7f9c2c8`) changed all five `scripts/` files plus `.secret-scan-allowlist`, `.secret-scan-longstr-allowlist` and `.internal-scan-placeholders`, and `mcp-computer-use` is not checked out on this machine, so "edit both" could not be honoured. Every change is inside a `#` comment, so no hook behaviour moved on either side; the cost is that a diff of the two copies now shows comment noise. **Apply the same substitution to those eight files next time that repo is checked out**, before reading any diff between them as meaningful.
 
 **⚠️ Unmirrored divergence, 2026-09-23 - the fail-closed hook fix.** `scripts/hooks/pre-commit`, `scripts/hooks/commit-msg`, `scripts/internal-scan-lib.sh` and `scripts/scan-tarball.sh` now check every pattern list before scanning and stop on an invalid regex with its file and line, treat a grep exit of 2 as a failure instead of a pass, and scan renamed files (commit `fix(hooks): fail closed on invalid pattern lists and scan renamed files`). Unlike the dash sweep this changes behaviour, and the sibling's copies still fail open: on macOS one invalid line in a list silently switches that whole list off. **Copy those four files, plus the new `scripts/test-hooks.sh` (`ad0bffd`), into `mcp-computer-use` next time it is checked out, then run `./scripts/test-hooks.sh` and a commit there**; the new check names any invalid line in that repo's own lists, and each must be fixed before it will commit.
+
+**⚠️ Unmirrored divergence, 2026-10-13 - the local tester.** `.claude/agents/mcp-local-tester.md` and `.claude/templates/mcp-test-runner.mjs` now end with a PASS or FAIL line and no dialog, default the Dataverse servers to a fake Dataverse, and add `MCP_TEST_EXPECT_ERROR`, `MCP_TEST_EXPECT_TOOLS`, `MCP_TEST_ALLOW_WRITES` and `MCP_TEST_PII`; `.claude/templates/fake-dataverse.mjs` is new. `mcp-computer-use` is not checked out on this machine, so its copies still end on a dialog. **Copy all three files there next time it is checked out**; the fake mode only engages for `powerplatform*` package paths, so it changes nothing for that repo's own server.
 
 ## Release Notes - Master-Doc Model
 
