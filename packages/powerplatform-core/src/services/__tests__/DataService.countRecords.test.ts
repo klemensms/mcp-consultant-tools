@@ -11,6 +11,9 @@ const METADATA: Record<string, { LogicalName: string; PrimaryIdAttribute: string
 
 interface Options {
   aggregateError?: string;
+  /** The stored count RetrieveTotalRecordCount returns. Default 61,234. */
+  storedCount?: number;
+  storedError?: string;
 }
 
 function stubClient(options: Options = {}): { client: PowerPlatformClient; urls: string[] } {
@@ -25,9 +28,10 @@ function stubClient(options: Options = {}): { client: PowerPlatformClient; urls:
         return { value: meta ? [meta] : [] } as T;
       }
       if (endpoint.startsWith('api/data/v9.2/RetrieveTotalRecordCount')) {
+        if (options.storedError) throw new Error(options.storedError);
         const names = [...endpoint.matchAll(/'([^']+)'/g)].map((m) => m[1]);
         return {
-          EntityRecordCountCollection: { Keys: names, Values: names.map(() => 1234) },
+          EntityRecordCountCollection: { Keys: names, Values: names.map(() => options.storedCount ?? 61234) },
         } as T;
       }
       if (endpoint.includes('$apply=')) {
@@ -104,11 +108,33 @@ describe('DataService.countRecords', () => {
   });
 
   it('falls back to the stored snapshot when an unfiltered table is over the live limit', async () => {
-    const { client } = stubClient({ aggregateError: LIMIT });
+    const { client, urls } = stubClient({ aggregateError: LIMIT });
     await expect(new DataService(client).countRecordsWithSource('accounts')).resolves.toEqual({
-      count: 1234,
+      count: 61234,
       snapshot: true,
     });
+    // The snapshot function takes the logical name, not the entity set name.
+    expect(urls.find((u) => u.includes('RetrieveTotalRecordCount'))).toContain("@e=['account']");
+  });
+
+  it('reports a stored count of 50,000 or less as out of date, never as the count', async () => {
+    const { client } = stubClient({ aggregateError: LIMIT, storedCount: 30000 });
+    await expect(new DataService(client).countRecordsWithSource('accounts')).rejects.toThrow(
+      /more than 50,000 'accounts'.*stored count \(30,000, up to 24 hours old\) is out of date/i
+    );
+  });
+
+  it('says why the stored count was needed when it cannot be read', async () => {
+    const { client } = stubClient({ aggregateError: LIMIT, storedError: 'RetrieveTotalRecordCount returned no data' });
+    await expect(new DataService(client).countRecordsWithSource('accounts')).rejects.toThrow(
+      /more than 50,000 'accounts'.*could not be read: RetrieveTotalRecordCount returned no data/i
+    );
+  });
+
+  it('passes a timeout on an unfiltered count through, without the snapshot', async () => {
+    const { client, urls } = stubClient({ aggregateError: 'timeout of 120000ms exceeded' });
+    await expect(new DataService(client).countRecordsWithSource('accounts')).rejects.toThrow('timeout');
+    expect(urls.some((u) => u.includes('RetrieveTotalRecordCount'))).toBe(false);
   });
 
   it('never falls back to the snapshot for a filtered count', async () => {
@@ -148,7 +174,7 @@ describe('DataService.countRecordsBatch', () => {
       { entityNamePlural: 'accounts' },
       { entityNamePlural: 'emails', filter: FILTER },
     ]);
-    expect(results[0]).toEqual({ entityNamePlural: 'accounts', filter: undefined, count: 1234, snapshot: true });
+    expect(results[0]).toEqual({ entityNamePlural: 'accounts', filter: undefined, count: 61234, snapshot: true });
     expect(results[1].count).toBe(-1);
     expect(results[1].error).toMatch(/narrow the filter/i);
   });

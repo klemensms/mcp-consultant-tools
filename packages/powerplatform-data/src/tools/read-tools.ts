@@ -130,9 +130,9 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
     "count-records",
     "Count Dataverse records matching an optional OData filter. Returns a single integer count instead of record data. " +
     "Much faster and lighter than query-records when you only need the count. " +
-    "Counts are live and include only records you can read. Dataverse refuses a live count above 50,000 records: " +
+    "Counts are live and include only records you can read. Dataverse refuses a live count when more than 50,000 records you can read match: " +
     "with a filter that is reported as an error (narrow the filter); without one the tool falls back to the stored count " +
-    "for the whole table, not limited to your access and up to 24 hours old, and labels it as such. " +
+    "for the whole table, not limited to your access and up to 24 hours old, and labels it as such (or reports it as out of date if it is 50,000 or less). " +
     "Supports batch mode: pass an array of entities to count multiple tables in one call (executed in parallel chunks of 10).",
     {
       entityNamePlural: z

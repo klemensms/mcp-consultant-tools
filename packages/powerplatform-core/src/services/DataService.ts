@@ -477,8 +477,32 @@ export class DataService {
       };
     } catch (error) {
       if (filter || !(error instanceof AggregateLimitError)) throw error;
-      return { count: await this.retrieveTotalRecordCount(logicalName), snapshot: true };
+      return { count: await this.storedCountOverLimit(entityNamePlural, logicalName), snapshot: true };
     }
+  }
+
+  /**
+   * The stored count for a table whose live count Dataverse has just refused
+   * as over 50,000 readable rows. A failed read says why it was needed, and a
+   * stored count of 50,000 or less contradicts the refusal (the snapshot is up
+   * to 24 hours old), so it is reported as out of date rather than returned.
+   */
+  private async storedCountOverLimit(entityNamePlural: string, logicalName: string): Promise<number> {
+    const overLimit = `More than 50,000 '${entityNamePlural}' records are readable, too many for a live count`;
+    let stored: number;
+    try {
+      stored = await this.retrieveTotalRecordCount(logicalName);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`${overLimit}, and the stored count could not be read: ${message}`);
+    }
+    if (stored <= 50000) {
+      throw new Error(
+        `${overLimit}, and the stored count (${stored.toLocaleString('en-GB')}, up to 24 hours old) is out of date. ` +
+        `Count with a filter, for example by a date range, and add the parts together.`
+      );
+    }
+    return stored;
   }
 
   /**
