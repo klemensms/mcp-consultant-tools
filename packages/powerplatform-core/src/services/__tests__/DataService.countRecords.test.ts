@@ -41,6 +41,8 @@ function stubClient(options: Options = {}): { client: PowerPlatformClient; urls:
 }
 
 const FILTER = "statecode eq 0 and name eq 'Contoso'";
+const LIMIT =
+  'PowerPlatform API request failed: Request failed with status code 400 - {"code":"0x8004e023","message":"AggregateQueryRecordLimit exceeded. Cannot perform this operation."}';
 
 function applyOf(url: string): string {
   return decodeURIComponent(url.split('$apply=')[1] ?? '');
@@ -89,21 +91,41 @@ describe('DataService.countRecords', () => {
     );
   });
 
-  it('marks an unfiltered count as a snapshot and a filtered one as live', async () => {
-    const svc = new DataService(stubClient().client);
-    await expect(svc.countRecordsWithSource('accounts')).resolves.toEqual({
-      count: 1234,
-      snapshot: true,
-    });
-    await expect(svc.countRecordsWithSource('accounts', FILTER)).resolves.toEqual({
+  it('counts an unfiltered table live, with an aggregate and no filter', async () => {
+    const { client, urls } = stubClient();
+    await expect(new DataService(client).countRecordsWithSource('accounts')).resolves.toEqual({
       count: 42,
       snapshot: false,
     });
+    expect(applyOf(urls.find((u) => u.includes('$apply='))!)).toBe(
+      'aggregate(accountid with countdistinct as count)'
+    );
+    expect(urls.some((u) => u.includes('RetrieveTotalRecordCount'))).toBe(false);
+  });
+
+  it('falls back to the stored snapshot when an unfiltered table is over the live limit', async () => {
+    const { client } = stubClient({ aggregateError: LIMIT });
+    await expect(new DataService(client).countRecordsWithSource('accounts')).resolves.toEqual({
+      count: 1234,
+      snapshot: true,
+    });
+  });
+
+  it('never falls back to the snapshot for a filtered count', async () => {
+    const { client, urls } = stubClient({ aggregateError: LIMIT });
+    await expect(new DataService(client).countRecordsWithSource('accounts', FILTER)).rejects.toThrow(/narrow the filter/i);
+    expect(urls.some((u) => u.includes('RetrieveTotalRecordCount'))).toBe(false);
+  });
+
+  it('passes other unfiltered aggregate errors through, without the snapshot', async () => {
+    const { client, urls } = stubClient({ aggregateError: 'Request failed with status code 403' });
+    await expect(new DataService(client).countRecordsWithSource('accounts')).rejects.toThrow('403');
+    expect(urls.some((u) => u.includes('RetrieveTotalRecordCount'))).toBe(false);
   });
 });
 
 describe('DataService.countRecordsBatch', () => {
-  it('uses $apply with the metadata key for filtered entries and labels snapshot entries', async () => {
+  it('counts every entry live with $apply and the metadata key', async () => {
     const { client, urls } = stubClient();
     const results = await new DataService(client).countRecordsBatch([
       { entityNamePlural: 'accounts' },
@@ -111,13 +133,33 @@ describe('DataService.countRecordsBatch', () => {
     ]);
 
     expect(results).toEqual([
-      { entityNamePlural: 'accounts', filter: undefined, count: 1234, snapshot: true },
+      { entityNamePlural: 'accounts', filter: undefined, count: 42, snapshot: false },
       { entityNamePlural: 'emails', filter: FILTER, count: 42, snapshot: false },
     ]);
-    const applyUrl = urls.find((u) => u.includes('$apply='))!;
-    expect(applyUrl.startsWith('api/data/v9.2/emails?')).toBe(true);
+    const applyUrl = urls.find((u) => u.startsWith('api/data/v9.2/emails?'))!;
     expect(applyOf(applyUrl)).toBe(
       `filter(${FILTER})/aggregate(activityid with countdistinct as count)`
     );
+  });
+
+  it('labels an unfiltered entry over the live limit as a snapshot, and reports a filtered one as an error', async () => {
+    const { client } = stubClient({ aggregateError: LIMIT });
+    const results = await new DataService(client).countRecordsBatch([
+      { entityNamePlural: 'accounts' },
+      { entityNamePlural: 'emails', filter: FILTER },
+    ]);
+    expect(results[0]).toEqual({ entityNamePlural: 'accounts', filter: undefined, count: 1234, snapshot: true });
+    expect(results[1].count).toBe(-1);
+    expect(results[1].error).toMatch(/narrow the filter/i);
+  });
+
+  it('reports a bad name against its own entry and still counts the rest', async () => {
+    const { client } = stubClient();
+    const results = await new DataService(client).countRecordsBatch([
+      { entityNamePlural: 'accounts?$top=1' },
+      { entityNamePlural: 'accounts' },
+    ]);
+    expect(results[0].error).toMatch(/table name/i);
+    expect(results[1]).toMatchObject({ count: 42, snapshot: false });
   });
 });
