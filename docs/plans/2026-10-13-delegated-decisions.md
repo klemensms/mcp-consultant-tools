@@ -6,7 +6,7 @@ Source of each decision: [`../reviews/2026-10-06-dynamics-review-findings.md`](.
 
 | # | Task | Packages | Status |
 |---|------|----------|--------|
-| 0 | Teams reactions review fixes: cap and pace the `/users` name lookups (about 5 at a time, about 50 per read, skipped ones logged to stderr), seed names only from authors with a real name, locale-proof the formatter test, tests for delta, app reactors and a null author name, drop or enforce the "oldest first" claim | `teams` | in progress |
+| 0 | Teams reactions review fixes: cap and pace the `/users` name lookups (about 5 at a time, about 50 per read, skipped ones logged to stderr), seed names only from authors with a real name, locale-proof the formatter test, tests for delta, app reactors and a null author name, drop or enforce the "oldest first" claim | `teams` | done (PR #6, 105a68f) |
 | 1 | Names and IDs checked before they reach a request address (item 1, option A): data and metadata tools only; plain names, GUID record IDs, row limit a whole number of 1 or more, 0 keeps meaning "everything" where it does today | `powerplatform-core`, `powerplatform`, `powerplatform-data` | to do |
 | 2 | Token cache in the OS keychain, memory-only fallback (item 9, option A); everyone signs in once after upgrading, say so in the release notes | `powerplatform-core` (and any other package using the same cache helper) | to do |
 | 3 | Second review items 1 to 5: full sign-in address printed, wait on when the browser fails to open, one-step free port, sign-in code redeemed once; silent sign-in uses the last account; many-to-many count join key; lookup failures reported as themselves and not cached; UK number formatting and a 2-minute request timeout | `powerplatform-core` | to do |
