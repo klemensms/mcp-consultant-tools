@@ -59,6 +59,8 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
         )),
       maxRecords: z
         .number()
+        .int()
+        .min(1)
         .optional()
         .describe("Maximum number of records to retrieve (default: 50). Values above 5,000 are served by following Dataverse paging - one extra API call per 5,000 rows"),
     },
@@ -68,7 +70,7 @@ export function registerReadTools(server: any, ctx: ServiceContext): void {
         const service = ctx.pp;
         const audit = ctx.audit;
 
-        const operation = async () => service.queryRecords(entityNamePlural, filter, maxRecords || 50, select);
+        const operation = async () => service.queryRecords(entityNamePlural, filter, maxRecords ?? 50, select);
 
         const inputObj = { entityNamePlural, filter, select, maxRecords };
         const redacted = audit
