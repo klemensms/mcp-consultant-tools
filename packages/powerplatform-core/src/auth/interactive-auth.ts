@@ -281,11 +281,16 @@ export class InteractiveAuth implements AuthProvider {
         console.error(`   If browser doesn't open, visit: ${authUrl}`);
         console.error('');
 
+        // The address above still works, so a browser that cannot be opened
+        // only gets a note. `open` reports a missing launcher as an 'error'
+        // event on the process it returns, which would otherwise end the server.
+        const browserFailed = (err: Error) =>
+          console.error(`   The browser could not be opened (${err.message}). Open the address above to sign in.`);
         try {
-          await open(authUrl);
+          const launcher = await open(authUrl);
+          launcher?.on?.('error', browserFailed);
         } catch (err) {
-          // The address above still works, so keep waiting for the sign-in.
-          console.error(`   The browser could not be opened (${(err as Error).message}). Open the address above to sign in.`);
+          browserFailed(err as Error);
         }
       });
 

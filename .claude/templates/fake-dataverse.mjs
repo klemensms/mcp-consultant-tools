@@ -50,6 +50,7 @@ const ATTRIBUTES = {
     { LogicalName: 'fullname', AttributeType: 'String' },
     { LogicalName: 'emailaddress1', AttributeType: 'String' },
     { LogicalName: 'telephone1', AttributeType: 'String' },
+    { LogicalName: 'parentcustomerid', SchemaName: 'ParentCustomerId', AttributeType: 'Customer', Targets: ['account'] },
   ],
 };
 
@@ -78,6 +79,12 @@ function answer(method, path, query) {
     const filter = query.get('$filter') ?? '';
     const set = (filter.match(/EntitySetName eq '([^']*)'/) ?? [])[1];
     return { status: 200, body: { value: set && TABLES[set] ? [entityDefinition(set)] : [] } };
+  }
+  if ((m = path.match(/^EntityDefinitions\(LogicalName='([^']*)'\)\/ManyToOneRelationships$/))) {
+    const value = m[1] === 'contact'
+      ? [{ ReferencingEntityNavigationPropertyName: 'parentcustomerid_account', ReferencedEntity: 'account' }]
+      : [];
+    return { status: 200, body: { value } };
   }
   if ((m = path.match(/^EntityDefinitions\(LogicalName='([^']*)'\)(\/Attributes)?(\(LogicalName='([^']*)'\))?/))) {
     const set = setFromLogical(m[1]);

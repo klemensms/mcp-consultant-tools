@@ -57,10 +57,10 @@ describe('PowerPlatformClient request hardening', () => {
       expect(config.maxRedirects).toBe(0);
     });
 
-    it(`${name} gives up after two minutes`, async () => {
+    it(`${name} gives a write thirty minutes`, async () => {
       await call(client());
       const config = axiosMock.mock.calls[0][0] as Config;
-      expect(config.timeout).toBe(120_000);
+      expect(config.timeout).toBe(30 * 60 * 1000);
     });
 
     it(`${name} keeps the fixed headers whatever the caller passes`, async () => {
@@ -102,12 +102,12 @@ describe('PowerPlatformClient request hardening', () => {
     expect(logged).not.toContain('jdoe@example.com');
   });
 
-  it('gives solution import, export and publish thirty minutes', async () => {
+  it('gives a read two minutes', async () => {
     const c = client();
-    for (const message of ['ImportSolution', 'ExportSolution', 'PublishAllXml', 'PublishXml']) {
-      axiosMock.mockClear();
-      await c.makeRequest(`api/data/v9.2/${message}`, 'POST', {});
-      expect((axiosMock.mock.calls[0][0] as Config).timeout).toBe(30 * 60 * 1000);
+    await c.makeRequest('api/data/v9.2/accounts');
+    await c.makeRequestWithResponse('api/data/v9.2/accounts');
+    for (const [config] of axiosMock.mock.calls as Array<[Config]>) {
+      expect(config.timeout).toBe(120_000);
     }
   });
 });

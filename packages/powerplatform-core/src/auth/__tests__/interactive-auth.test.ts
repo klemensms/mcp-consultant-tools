@@ -248,6 +248,26 @@ describe('sign-in robustness', () => {
     }
   });
 
+  it('keeps waiting, and keeps the server up, when the browser launcher is missing', async () => {
+    const stderr = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { EventEmitter } = await import('node:events');
+    const launcher = new EventEmitter();
+    msal.open.mockResolvedValue(launcher as any);
+    try {
+      started = await startSignIn();
+      await vi.waitFor(() => expect(msal.open).toHaveBeenCalled());
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      // An unhandled 'error' event would throw here and end the process.
+      launcher.emit('error', Object.assign(new Error('spawn xdg-open ENOENT'), { code: 'ENOENT' }));
+      expect(stderr.mock.calls.some((c) => String(c[0]).includes('xdg-open ENOENT'))).toBe(true);
+      const { request, port, signIn } = started;
+      await callback(port, `code=CODE&state=${encodeURIComponent(request.state)}`);
+      await expect(signIn).resolves.toBe('TOKEN');
+    } finally {
+      stderr.mockRestore();
+    }
+  });
+
   it('opens one callback server, on the port the redirect address names', async () => {
     started = await startSignIn();
     expect(started.servers).toHaveLength(1);
