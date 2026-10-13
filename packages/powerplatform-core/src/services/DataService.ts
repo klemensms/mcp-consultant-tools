@@ -14,6 +14,12 @@ import {
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
 import type { ApiCollectionResponse } from '../client/types.js';
 import { nextRelativeUrl } from './flow-health.js';
+import {
+  assertActionName,
+  assertGuid,
+  assertIdentifier,
+  assertPositiveWholeNumber,
+} from '../utils/validate.js';
 
 /** Dataverse never returns more than 5,000 rows in a single response, whatever `$top` asks for. */
 const DATAVERSE_MAX_PAGE_SIZE = 5000;
@@ -69,6 +75,9 @@ export class DataService {
     entityNamePlural: string,
     recordId: string
   ): Promise<Record<string, unknown>> {
+    assertIdentifier(entityNamePlural, 'table name');
+    assertGuid(recordId);
+
     const response = await this.client.makeRequest<Record<string, unknown>>(
       `api/data/v9.2/${entityNamePlural}(${recordId})`,
       'GET',
@@ -104,6 +113,10 @@ export class DataService {
     requestedMax: number;
     piiReport?: PipelineReport;
   }> {
+    assertIdentifier(entityNamePlural, 'table name');
+    select?.forEach((column) => assertIdentifier(column, 'column name'));
+    assertPositiveWholeNumber(maxRecords, 'maxRecords');
+
     const entityLogicalName = this.toEntityLogicalName(entityNamePlural);
 
     let effectiveSelect = select;
@@ -187,6 +200,8 @@ export class DataService {
     entityNamePlural: string,
     data: Record<string, unknown>
   ): Promise<Record<string, unknown>> {
+    assertIdentifier(entityNamePlural, 'table name');
+
     // Validate data is not empty
     if (!data || Object.keys(data).length === 0) {
       throw new Error('Record data cannot be empty');
@@ -226,14 +241,8 @@ export class DataService {
       throw new Error('Update data cannot be empty');
     }
 
-    // Validate recordId is a valid GUID
-    const guidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!guidRegex.test(recordId)) {
-      throw new Error(
-        `Invalid record ID format: ${recordId}. Must be a valid GUID.`
-      );
-    }
+    assertIdentifier(entityNamePlural, 'table name');
+    assertGuid(recordId);
 
     const transformedData = await this.convertLookupNamesToNavProperties(
       entityNamePlural,
@@ -260,14 +269,8 @@ export class DataService {
    * Delete a record from Dataverse
    */
   async deleteRecord(entityNamePlural: string, recordId: string): Promise<void> {
-    // Validate recordId is a valid GUID
-    const guidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!guidRegex.test(recordId)) {
-      throw new Error(
-        `Invalid record ID format: ${recordId}. Must be a valid GUID.`
-      );
-    }
+    assertIdentifier(entityNamePlural, 'table name');
+    assertGuid(recordId);
 
     // Make DELETE request
     await this.client.makeRequest(
@@ -287,27 +290,11 @@ export class DataService {
     targetEntityNamePlural: string,
     targetRecordId: string
   ): Promise<void> {
-    const guidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!guidRegex.test(recordId)) {
-      throw new Error(
-        `Invalid record ID format: ${recordId}. Must be a valid GUID.`
-      );
-    }
-    if (!guidRegex.test(targetRecordId)) {
-      throw new Error(
-        `Invalid target record ID format: ${targetRecordId}. Must be a valid GUID.`
-      );
-    }
-    if (!entityNamePlural || !entityNamePlural.trim()) {
-      throw new Error('entityNamePlural cannot be empty');
-    }
-    if (!navigationProperty || !navigationProperty.trim()) {
-      throw new Error('navigationProperty cannot be empty');
-    }
-    if (!targetEntityNamePlural || !targetEntityNamePlural.trim()) {
-      throw new Error('targetEntityNamePlural cannot be empty');
-    }
+    assertGuid(recordId);
+    assertGuid(targetRecordId, 'target record ID');
+    assertIdentifier(entityNamePlural, 'table name');
+    assertIdentifier(navigationProperty, 'navigation property');
+    assertIdentifier(targetEntityNamePlural, 'target table name');
 
     const orgUrl = this.client.getOrganizationUrl();
     const body = {
@@ -331,24 +318,10 @@ export class DataService {
     navigationProperty: string,
     targetRecordId: string
   ): Promise<void> {
-    const guidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!guidRegex.test(recordId)) {
-      throw new Error(
-        `Invalid record ID format: ${recordId}. Must be a valid GUID.`
-      );
-    }
-    if (!guidRegex.test(targetRecordId)) {
-      throw new Error(
-        `Invalid target record ID format: ${targetRecordId}. Must be a valid GUID.`
-      );
-    }
-    if (!entityNamePlural || !entityNamePlural.trim()) {
-      throw new Error('entityNamePlural cannot be empty');
-    }
-    if (!navigationProperty || !navigationProperty.trim()) {
-      throw new Error('navigationProperty cannot be empty');
-    }
+    assertGuid(recordId);
+    assertGuid(targetRecordId, 'target record ID');
+    assertIdentifier(entityNamePlural, 'table name');
+    assertIdentifier(navigationProperty, 'navigation property');
 
     await this.client.makeRequestNoContent(
       `api/data/v9.2/${entityNamePlural}(${recordId})/${navigationProperty}(${targetRecordId})/$ref`,
@@ -368,6 +341,7 @@ export class DataService {
     if (!actionName || actionName.trim().length === 0) {
       throw new Error('Action name cannot be empty');
     }
+    assertActionName(actionName);
 
     // If bound action, validate the bound parameters
     if (boundTo) {
@@ -378,14 +352,8 @@ export class DataService {
         throw new Error('Bound action requires recordId');
       }
 
-      // Validate recordId is a valid GUID
-      const guidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (!guidRegex.test(boundTo.recordId)) {
-        throw new Error(
-          `Invalid record ID format: ${boundTo.recordId}. Must be a valid GUID.`
-        );
-      }
+      assertIdentifier(boundTo.entityNamePlural, 'table name');
+      assertGuid(boundTo.recordId);
     }
 
     // Build endpoint URL
@@ -422,6 +390,7 @@ export class DataService {
    * Results are cached for the lifetime of the service instance.
    */
   async resolveLogicalName(entitySetName: string): Promise<string> {
+    assertIdentifier(entitySetName, 'table name');
     const cached = this.entityNameCache.get(entitySetName);
     if (cached) return cached;
 
@@ -466,6 +435,8 @@ export class DataService {
     entityNamePlural: string,
     filter?: string
   ): Promise<{ count: number; snapshot: boolean }> {
+    assertIdentifier(entityNamePlural, 'table name');
+
     let logicalName: string;
     try {
       logicalName = await this.resolveLogicalName(entityNamePlural);
@@ -563,12 +534,26 @@ export class DataService {
   async countRecordsBatch(
     entities: Array<{ entityNamePlural: string; filter?: string }>
   ): Promise<CountBatchResult[]> {
+    // A name that is not a plain identifier is reported against its own entry
+    // and never reaches a request.
+    const invalidNames = new Map<string, string>();
+    for (const { entityNamePlural } of entities) {
+      try {
+        assertIdentifier(entityNamePlural, 'table name');
+      } catch (error: any) {
+        invalidNames.set(entityNamePlural, error.message);
+      }
+    }
+
     // Split into unfiltered and filtered
-    const unfiltered = entities.filter(e => !e.filter);
+    const unfiltered = entities.filter(e => !e.filter && !invalidNames.has(e.entityNamePlural));
     const filtered = entities.filter(e => e.filter);
 
     // --- Unfiltered: batch via RetrieveTotalRecordCount (1-2 API calls) ---
     const unfilteredResults = new Map<string, { count: number; snapshot?: boolean; error?: string }>();
+    for (const [name, message] of invalidNames) {
+      unfilteredResults.set(name, { count: -1, error: message });
+    }
     if (unfiltered.length > 0) {
       try {
         // Resolve all entity set names → logical names
@@ -675,6 +660,10 @@ export class DataService {
     lookupAttributeName: string,
     targetEntityLogicalName: string
   ): Promise<string | null> {
+    assertIdentifier(entityLogicalName, 'table name');
+    assertIdentifier(lookupAttributeName, 'column name');
+    assertIdentifier(targetEntityLogicalName, 'target table name');
+
     try {
       // Query the target entity's OneToManyRelationships to find the relationship
       const selectProperties = [
@@ -871,6 +860,10 @@ export class DataService {
     referencingAttribute: string,
     referencedEntity?: string
   ): Promise<string | null> {
+    assertIdentifier(entityLogicalName, 'table name');
+    assertIdentifier(referencingAttribute, 'column name');
+    if (referencedEntity !== undefined) assertIdentifier(referencedEntity, 'target table name');
+
     const cacheKey = `${entityLogicalName}|${referencingAttribute}|${referencedEntity ?? ''}`;
     const cached = this.navPropertyCache.get(cacheKey);
     if (cached !== undefined) return cached;

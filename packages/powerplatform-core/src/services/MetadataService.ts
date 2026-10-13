@@ -8,6 +8,7 @@ import { buildTruncation, type TruncationInfo } from '@mcp-consultant-tools/core
 import type { PowerPlatformClient } from '../client/PowerPlatformClient.js';
 import type { ApiCollectionResponse } from '../client/types.js';
 import { paginateDataverse } from './paginate.js';
+import { assertIdentifier } from '../utils/validate.js';
 
 export class MetadataService {
   constructor(private client: PowerPlatformClient) {}
@@ -16,6 +17,7 @@ export class MetadataService {
    * Get metadata about an entity
    */
   async getEntityMetadata(entityName: string): Promise<unknown> {
+    assertIdentifier(entityName, 'table name');
     const response = await this.client.makeRequest<Record<string, unknown>>(
       `api/data/v9.2/EntityDefinitions(LogicalName='${entityName}')`
     );
@@ -44,6 +46,9 @@ export class MetadataService {
     returnedCount: number;
     totalBeforeFilter?: number;
   }> {
+    assertIdentifier(entityName, 'table name');
+    if (options?.attributeType) assertIdentifier(options.attributeType, 'attribute type');
+
     const selectProperties = [
       'LogicalName',
       'AttributeType',
@@ -139,6 +144,9 @@ export class MetadataService {
     entityName: string,
     attributeName: string
   ): Promise<unknown> {
+    assertIdentifier(entityName, 'table name');
+    assertIdentifier(attributeName, 'column name');
+
     // First, fetch the basic attribute metadata
     const attribute = await this.client.makeRequest(
       `api/data/v9.2/EntityDefinitions(LogicalName='${entityName}')/Attributes(LogicalName='${attributeName}')`
@@ -208,6 +216,7 @@ export class MetadataService {
   async getEntityOneToManyRelationships(
     entityName: string
   ): Promise<ApiCollectionResponse<unknown>> {
+    assertIdentifier(entityName, 'table name');
     const selectProperties = [
       'SchemaName',
       'RelationshipType',
@@ -244,6 +253,7 @@ export class MetadataService {
   async getEntityManyToManyRelationships(
     entityName: string
   ): Promise<ApiCollectionResponse<unknown>> {
+    assertIdentifier(entityName, 'table name');
     const selectProperties = [
       'SchemaName',
       'RelationshipType',
@@ -279,6 +289,7 @@ export class MetadataService {
    * Get a global option set definition by name
    */
   async getGlobalOptionSet(optionSetName: string): Promise<unknown> {
+    assertIdentifier(optionSetName, 'option set name');
     return this.client.makeRequest(
       `api/data/v9.2/GlobalOptionSetDefinitions(Name='${optionSetName}')`
     );
@@ -314,6 +325,7 @@ export class MetadataService {
 
     let filter = '';
     if (options?.prefix) {
+      assertIdentifier(options.prefix, 'option set prefix');
       filter = `&$filter=startswith(Name,'${options.prefix}')`;
     }
 

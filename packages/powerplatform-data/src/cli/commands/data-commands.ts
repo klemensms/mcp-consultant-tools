@@ -21,7 +21,7 @@ export function registerDataCommands(program: Command, ctx: ServiceContext): voi
     .action(async (entityNamePlural: string, filter: string, opts: any) => {
       try {
         const select = opts.select || undefined;
-        const maxRecords = parseInt(opts.maxRecords, 10);
+        const maxRecords = Number(opts.maxRecords);
         const result = await ctx.pp.queryRecords(entityNamePlural, filter, maxRecords, select);
         outputResult(
           {
