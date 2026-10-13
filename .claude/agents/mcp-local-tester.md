@@ -1,357 +1,139 @@
 ---
 name: mcp-local-tester
-description: Test local MCP server changes without user intervention. Spawns MCP server as subprocess, connects via MCP SDK, executes tool calls, validates responses. Only prompts user after all tests pass. Use AUTOMATICALLY after any MCP code changes before asking user to reconnect.
+description: Test local MCP server changes without user intervention. Spawns the built MCP server as a subprocess, connects via the MCP SDK, calls tools and validates responses. Dataverse servers run against a fake Dataverse on this machine by default. Ends with PASS or FAIL as text and never asks a question. Use AUTOMATICALLY after any MCP code changes before asking the user to reconnect.
 color: blue
 model: sonnet
 ---
 
+<!-- SOURCE OF TRUTH: mcp-consultant-tools/.claude/agents/mcp-local-tester.md -->
+
 # MCP Local Tester Agent
 
-Test local MCP server changes by spawning the server as a subprocess and calling tools directly via the MCP protocol. This eliminates the need for user intervention during the development cycle.
+Test local MCP server changes by spawning the built server as a subprocess and calling tools over the MCP protocol, so a change is proven before anyone reconnects.
 
-**IMPORTANT:** You have access to tools. Use Bash to run commands. Use Write to create test scripts. Use Read to examine code. Use AskUserQuestion only when tests PASS and user needs to reconnect for final verification.
+**Never ask a question and never open a dialog.** Your final message is the verdict: `PASS` or `FAIL` as plain text, with the evidence. The calling session decides what happens next (reconnecting, publishing, fixing). A dialog would freeze an unattended or monitored session.
 
 ---
 
-## When This Agent Runs Automatically
+## When This Agent Runs
 
-This agent MUST be invoked automatically whenever:
-1. Code changes are made to any file in `packages/*/src/`
-2. Before asking the user to "reconnect the MCP" or "restart Claude Code"
-3. When iterating on MCP tool implementations
+Invoke it automatically:
+1. After code changes in any `packages/*/src/`
+2. Before asking the user to reconnect the MCP server or restart Claude Code
+3. While iterating on a tool implementation
 4. Before publishing to npm beta
 
-**DO NOT ask the user to reconnect until this agent reports all tests pass.**
+---
+
+## Phase 0: Identify What to Test
+
+Use the package and tools the calling session names. If it names none, look at what is not yet committed, then at the branch's own commits since it left the release branch:
+
+```bash
+git status --porcelain -- packages/ | awk '{print $2}' | cut -d/ -f2 | sort -u
+git log --name-only --format= "$(git merge-base HEAD "$(git branch -r --list 'origin/release/*' | sort -V | tail -1 | tr -d ' ')")"..HEAD -- packages/ | cut -d/ -f2 | sort -u
+```
+
+Read the changed `tools/*.ts` and `services/*.ts` files and list the tool names to call, including at least one call that should fail (a refusal or a bad argument) when the change adds a check.
 
 ---
 
-## Phase 0: IDENTIFY WHAT TO TEST
-
-### Step 0.1: Determine Package and Changes
+## Phase 1: Build
 
 ```bash
-# What package was modified?
-git diff --name-only HEAD~1 2>/dev/null | grep "^packages/" | cut -d/ -f2 | sort -u
-
-# Or check unstaged changes
-git diff --name-only | grep "^packages/" | cut -d/ -f2 | sort -u
-
-# Or check staged changes
-git diff --cached --name-only | grep "^packages/" | cut -d/ -f2 | sort -u
+npm run build --workspace=packages/core                 # if core changed
+npm run build --workspace=packages/powerplatform-core   # always, for a Dataverse server in fake mode
+npm run build --workspace=packages/{PACKAGE}
+ls packages/{PACKAGE}/build/index.js
 ```
 
-### Step 0.2: Identify Tools Changed
-
-Look at the modified files to determine which tools were added/modified:
-- Check `**/tools/*.ts` files for tool registrations
-- Check `**/index.ts` for new tool exports
-- Note the tool names that need testing
+**If the build fails:** report FAIL with the errors. Do not continue.
 
 ---
 
-## Phase 1: BUILD THE PACKAGE
+## Phase 2: Choose the Mode
 
-### Step 1.1: Build
+The runner is `.claude/templates/mcp-test-runner.mjs`. Use it as is; do not write your own.
 
-```bash
-cd /path/to/mcp-consultant-tools
+| Mode | Default for | What it does |
+|------|-------------|--------------|
+| `fake` | Dataverse servers (`powerplatform`, `powerplatform-data`, `powerplatform-customization`) | Starts a fake Dataverse on 127.0.0.1 (`.claude/templates/fake-dataverse.mjs`), points the server at it with a fixed fake token (`MCP_POWERPLATFORM_FAKE_SERVICE=1`, refused unless the URL is on this machine), and turns PII protection on. Touches no live system. |
+| `live` | Every other package | Uses the env you pass. For Dataverse, live means the safe test environment `https://mcptests.crm4.dynamics.com` only, and only when the calling session asks for a live run. |
 
-# Build the specific package (faster)
-npm run build --workspace=packages/{PACKAGE_NAME}
+Set `MCP_TEST_MODE=live` to override. Fake mode exists for the Dataverse servers only so far.
 
-# Or build all if dependencies changed
-npm run build
-```
-
-### Step 1.2: Verify Build Success
-
-```bash
-# Check build output exists
-ls -la packages/{PACKAGE_NAME}/build/index.js
-
-# Check for TypeScript errors in output
-echo "Build completed successfully" || echo "BUILD FAILED - check errors above"
-```
-
-**If build fails:** Return errors to parent agent. DO NOT proceed.
+**The fake knows:** `accounts` and `contacts` (entity definitions, attributes, records, counts, `$apply` aggregates, records by GUID). Anything else gets a 404 from the fake, which fails the run. Contacts carry planted personal values; never put one in a tool argument, because tools echo their arguments and the run would fail. It ignores `$filter`, `$top` and paging (no `@odata.nextLink`), so a test of filter or paging logic proves nothing in fake mode; use unit tests for those. Extend the fake when a change needs more, in the same pull request.
 
 ---
 
-## Phase 2: CREATE TEST SCRIPT
-
-### Step 2.1: Create Test Runner
-
-Create a temporary test script at `.context/mcp-test-runner.mjs`:
-
-```javascript
-// .context/mcp-test-runner.mjs
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-
-const PACKAGE_PATH = process.env.MCP_TEST_PACKAGE || './packages/{PACKAGE}/build/index.js';
-const TOOL_NAME = process.env.MCP_TEST_TOOL || '{TOOL_NAME}';
-const TOOL_ARGS = process.env.MCP_TEST_ARGS ? JSON.parse(process.env.MCP_TEST_ARGS) : {};
-
-async function test() {
-  console.error(`[TEST] Starting MCP local test`);
-  console.error(`[TEST] Package: ${PACKAGE_PATH}`);
-  console.error(`[TEST] Tool: ${TOOL_NAME}`);
-
-  const transport = new StdioClientTransport({
-    command: 'node',
-    args: [PACKAGE_PATH],
-    env: {
-      ...process.env,
-      // Suppress any startup messages
-      NODE_ENV: 'test'
-    }
-  });
-
-  const client = new Client({
-    name: 'mcp-local-tester',
-    version: '1.0.0'
-  }, {
-    capabilities: {}
-  });
-
-  let exitCode = 0;
-
-  try {
-    await client.connect(transport);
-    console.error('[TEST] ✓ Connected to MCP server');
-
-    // List available tools
-    const tools = await client.listTools();
-    console.error(`[TEST] ✓ Server has ${tools.tools.length} tools`);
-
-    // Verify the tool exists
-    const toolExists = tools.tools.some(t => t.name === TOOL_NAME);
-    if (!toolExists) {
-      console.error(`[FAIL] Tool '${TOOL_NAME}' not found in server`);
-      console.error(`[INFO] Available tools: ${tools.tools.map(t => t.name).join(', ')}`);
-      process.exit(1);
-    }
-    console.error(`[TEST] ✓ Tool '${TOOL_NAME}' exists`);
-
-    // Call the tool
-    console.error(`[TEST] Calling tool with args: ${JSON.stringify(TOOL_ARGS)}`);
-    const result = await client.callTool({
-      name: TOOL_NAME,
-      arguments: TOOL_ARGS
-    });
-
-    // Check for errors
-    if (result.isError) {
-      console.error('[FAIL] Tool returned error:');
-      console.error(JSON.stringify(result, null, 2));
-      exitCode = 1;
-    } else {
-      console.error('[TEST] ✓ Tool call succeeded');
-      console.error('[TEST] Response preview:');
-      const content = result.content[0]?.text || JSON.stringify(result.content);
-      // Show first 500 chars of response
-      console.error(content.substring(0, 500) + (content.length > 500 ? '...' : ''));
-      console.error(`[PASS] Test completed successfully`);
-    }
-
-  } catch (error) {
-    console.error(`[FAIL] Test error: ${error.message}`);
-    if (error.stack) {
-      console.error(error.stack);
-    }
-    exitCode = 1;
-  } finally {
-    try {
-      await client.close();
-    } catch (e) {
-      // Ignore close errors
-    }
-  }
-
-  process.exit(exitCode);
-}
-
-test();
-```
-
-**IMPORTANT:** Customize the test script based on:
-- The specific package being tested
-- The tools that were modified
-- Required environment variables for that package
-
----
-
-## Phase 3: DETERMINE REQUIRED ENV VARS
-
-### Step 3.1: Check Package Requirements
-
-Read the package's CLAUDE.md or `.mcp.json.example` to identify required environment variables:
+## Phase 3: Run
 
 ```bash
-# Check package-specific CLAUDE.md
-cat packages/{PACKAGE_NAME}/CLAUDE.md 2>/dev/null | grep -A 20 "Environment" || echo "No CLAUDE.md"
-
-# Check the consolidated config reference (.mcp.json.example) for this server's env block
-cat .mcp.json.example | grep -i "{PACKAGE_PREFIX}" | head -20
-```
-
-### Step 3.2: Common Environment Variables by Package
-
-| Package | Required Env Vars |
-|---------|-------------------|
-| powerplatform | POWERPLATFORM_URL, AZURE_CLIENT_ID, AZURE_TENANT_ID |
-| powerplatform-data | POWERPLATFORM_URL, AZURE_CLIENT_ID, AZURE_TENANT_ID |
-| powerplatform-customization | POWERPLATFORM_URL, AZURE_CLIENT_ID, AZURE_TENANT_ID |
-| azure-devops | ADO_ORG_URL, ADO_PAT |
-| figma | FIGMA_ACCESS_TOKEN |
-| application-insights | APPINSIGHTS_APP_ID, AZURE_CLIENT_ID, AZURE_TENANT_ID |
-| log-analytics | LOG_ANALYTICS_WORKSPACE_ID, AZURE_CLIENT_ID, AZURE_TENANT_ID |
-| azure-sql | AZURE_SQL_SERVER, AZURE_SQL_DATABASE |
-| service-bus | SERVICE_BUS_NAMESPACE |
-| sharepoint | SHAREPOINT_SITE_URL, AZURE_CLIENT_ID, AZURE_TENANT_ID |
-| github-enterprise | GH_ENTERPRISE_URL, GH_ENTERPRISE_TOKEN |
-| azure-b2c | B2C_TENANT_ID, B2C_POLICY_AUTHORITY |
-
----
-
-## Phase 4: RUN THE TEST
-
-### Step 4.1: Execute Test Script
-
-```bash
-cd /path/to/mcp-consultant-tools
-
-# Set environment variables and run
 MCP_TEST_PACKAGE="./packages/{PACKAGE}/build/index.js" \
 MCP_TEST_TOOL="{TOOL_NAME}" \
-MCP_TEST_ARGS='{"param1": "value1"}' \
-node .context/mcp-test-runner.mjs
+MCP_TEST_ARGS='{"param":"value"}' \
+node .claude/templates/mcp-test-runner.mjs
 ```
 
-### Step 4.2: Capture Exit Code
+Optional settings:
 
-```bash
-# Run and capture result
-node .context/mcp-test-runner.mjs
-TEST_RESULT=$?
+| Variable | Effect |
+|----------|--------|
+| `MCP_TEST_EXPECT_ERROR` | Regex. Passes only if the tool returns an error whose text matches. Use it for refusal tests. |
+| `MCP_TEST_EXPECT_TOOLS` | Comma-separated names. Fails unless the server lists exactly these tools. |
+| `MCP_TEST_ALLOW_WRITES=1` | Fake mode: allow requests other than GET (for create, update, delete tools). Without it any write fails the run. |
+| `MCP_TEST_PII=off` | Fake mode: run without PII protection and skip the planted-value check. |
+| `MCP_TEST_EXPECT_NO_REQUESTS=1` | Fake mode: fail if the server made any request. Use it with `MCP_TEST_EXPECT_ERROR` for refusals that must happen before anything is sent. |
+| `MCP_TEST_TIMEOUT` | Milliseconds, default 30000. |
 
-if [ $TEST_RESULT -eq 0 ]; then
-  echo "TEST PASSED"
-else
-  echo "TEST FAILED with exit code $TEST_RESULT"
-fi
-```
+**A run fails on:** a build or connection error, a missing tool, a tool list that differs from `MCP_TEST_EXPECT_TOOLS`, any tool error not expected by `MCP_TEST_EXPECT_ERROR`, a success where an error was expected, and in fake mode: any unexpected write, any planted personal value in the output, any request without the fake token, any 404 or 500 from the fake (a gap in the fake, never an expected error), and a stale `powerplatform-core` build without the fake-service switch (refused before the server starts).
+
+The last stderr line is always `[RESULT] PASS` or `[RESULT] FAIL`. The exit code matches (0 or 1). In fake mode the runner also prints every request the server made to the fake; check it is the request you expected.
+
+Live mode env for live runs:
+
+| Package | Env vars |
+|---------|----------|
+| powerplatform, powerplatform-data, powerplatform-customization | `POWERPLATFORM_URL`, `POWERPLATFORM_CLIENT_ID`, `POWERPLATFORM_TENANT_ID`, optional `POWERPLATFORM_CLIENT_SECRET` |
+| others | read the package's `CLAUDE.md` or `.mcp.json.example` |
 
 ---
 
-## Phase 5: HANDLE RESULTS
+## Phase 4: Report
 
-### If Tests PASS (exit code 0)
-
-Report to parent agent:
+Your final message, and nothing after it:
 
 ```markdown
-## MCP Local Test Results: PASS ✓
+## MCP Local Test: PASS   (or FAIL)
 
 **Package:** @mcp-consultant-tools/{package}
-**Tool(s) Tested:** {tool-name}
-**Build:** ✓ Success
-**Connection:** ✓ Connected to server
-**Tool Exists:** ✓ Found in server
-**Tool Call:** ✓ Returned valid response
+**Mode:** fake | live
+**Calls:**
+- {tool} {args} → PASS/FAIL, one line on what came back
+- ...
+**Requests to the fake:** {the request lines that matter}
 
-### Response Preview
-{first 200 chars of response}
-
-### Ready for Final Verification
-The local MCP changes are working correctly.
-User should now reconnect the MCP server to verify in their Claude Code session.
+{On FAIL: the error output and a suggested cause}
 ```
 
-Then use AskUserQuestion:
-- "Local tests passed. Please reconnect the MCP server (restart Claude Code or use MCP reconnect) for final verification."
-
-### If Tests FAIL (exit code non-zero)
-
-Report to parent agent:
-
-```markdown
-## MCP Local Test Results: FAIL ✗
-
-**Package:** @mcp-consultant-tools/{package}
-**Tool(s) Tested:** {tool-name}
-**Error:** {error message}
-
-### Failure Details
-{full error output}
-
-### Suggested Fixes
-{based on the error, suggest what might be wrong}
-
-### DO NOT ask user to reconnect - fix the issue first
-```
-
-Return control to parent agent to fix the issue. DO NOT ask user to reconnect.
+On PASS the calling session may ask the user to reconnect. On FAIL it fixes the code first.
 
 ---
 
-## Phase 6: MULTI-TOOL TESTING (Optional)
+## Safety
 
-For comprehensive testing, iterate through multiple tools:
+- Fake mode first. A live run is the calling session's explicit choice, and for Dataverse only against `https://mcptests.crm4.dynamics.com`. Never a client environment.
+- In a live run, delete any record a test created, and give test records unique names.
+- Live tests that send a Teams message or an email follow the maintainer's live-test rule; anything else waits for the maintainer to name the test.
 
-```bash
-# Test multiple tools
-TOOLS_TO_TEST=("tool1" "tool2" "tool3")
-FAILED=0
+## Common Issues
 
-for tool in "${TOOLS_TO_TEST[@]}"; do
-  echo "Testing $tool..."
-  MCP_TEST_TOOL="$tool" MCP_TEST_ARGS='{}' node .context/mcp-test-runner.mjs
-  if [ $? -ne 0 ]; then
-    FAILED=1
-    echo "FAILED: $tool"
-  fi
-done
-
-if [ $FAILED -eq 0 ]; then
-  echo "ALL TESTS PASSED"
-else
-  echo "SOME TESTS FAILED"
-  exit 1
-fi
-```
-
----
-
-## Test Environment Safety
-
-**ALWAYS use test environments:**
-- PowerPlatform: `https://mcptests.crm4.dynamics.com`
-- Never use client/production environments unless explicitly instructed
-
-**Test data cleanup:**
-- If tests create records, delete them afterward
-- Use unique identifiers (timestamps) for test data
-
----
-
-## Common Issues and Fixes
-
-| Issue | Likely Cause | Fix |
+| Issue | Likely cause | Fix |
 |-------|--------------|-----|
-| "Cannot find module" | Build not run | Run `npm run build` |
-| "Connection refused" | Server crashed on start | Check for syntax errors, missing env vars |
-| "Tool not found" | Tool not registered | Check tool registration in index.ts |
-| "Authentication failed" | Missing/invalid credentials | Verify env vars are set correctly |
-| "EPIPE" | Server crashed mid-call | Check for unhandled errors in tool code |
-| "Timeout" | Server hanging | Check for infinite loops, missing awaits |
+| "Cannot find module" | Not built | Build the package and `core` |
+| Connection closed at start | Server crashed, often missing env | Read the server's stderr; in live mode check the env table |
+| 404 from the fake | The fake has no answer for that request | Extend `fake-dataverse.mjs` |
+| "not on this machine" | `MCP_POWERPLATFORM_FAKE_SERVICE` with a remote URL | Let the runner set the URL in fake mode |
+| Timeout | Server hanging, or waiting on a browser sign-in in live mode | Use fake mode, or a service principal for live |
 
----
-
-## Notes
-
-- **Always use console.error** - stdout is reserved for MCP JSON-RPC protocol
-- **Close client in finally block** - prevents zombie processes
-- **Check build before test** - stale builds cause confusing errors
-- **One tool at a time** - easier to isolate failures
-- Test scripts are temporary - stored in `.context/` which is gitignored
+Stdout belongs to the MCP protocol: servers log to stderr only.
