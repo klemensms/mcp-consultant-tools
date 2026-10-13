@@ -683,7 +683,9 @@ async function resolveReactionNames(client: any, messages: MessageInfo[]): Promi
   const started = Date.now();
   for (let i = 0; i < toLookUp.length; i += NAME_LOOKUP_CONCURRENCY) {
     if (Date.now() - started > NAME_LOOKUP_BUDGET_MS) {
-      failures.push(`stopped after ${i} lookups: ${NAME_LOOKUP_BUDGET_MS} ms budget spent`);
+      console.error(
+        `Reactions: stopped name lookups after ${i} of ${toLookUp.length}; the ${NAME_LOOKUP_BUDGET_MS} ms budget was spent.`
+      );
       break;
     }
     await Promise.all(

@@ -243,6 +243,39 @@ describe('reaction name resolution edge cases', () => {
     const [first] = await read;
 
     expect(first.reactions?.[0]).toMatchObject({ userId: OTHER_ID, userName: undefined });
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('timed out'));
+  });
+
+  it('stops starting lookups once the overall budget is spent', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const ids = Array.from({ length: 15 }, (_, i) => `00000000-0000-0000-0000-${String(i).padStart(12, '0')}`);
+    let calls = 0;
+    const client = {
+      api: (path: string) => {
+        const request: any = {
+          top: () => request,
+          select: () => request,
+          get: () => {
+            if (!path.startsWith('/users/')) {
+              return Promise.resolve({ value: [message('1', AUTHOR_ID, 'Robin Kline', ids.map((id) => reaction(id)))] });
+            }
+            calls++;
+            return new Promise(() => {});
+          },
+        };
+        return request;
+      },
+    };
+    const teams = { getGraphClient: vi.fn().mockResolvedValue(client) } as unknown as TeamsService;
+
+    const read = new MessageService(teams).getChatMessages(CHAT_ID);
+    await vi.advanceTimersByTimeAsync(30_000);
+    await read;
+
+    // Batches start at 0 s and 10 s; the third would start at 20 s, past the 15 s budget.
+    expect(calls).toBe(10);
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('stopped name lookups after 10 of 15'));
   });
 });
 
