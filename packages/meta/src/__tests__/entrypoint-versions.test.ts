@@ -13,8 +13,7 @@
  *
  * `core` reports exactly the version an entrypoint passes in, so the
  * entrypoint is the only place the version comes from. (It does not walk up
- * from `process.argv[1]`: under npx that is a bin shim in the consumer's tree,
- * and inside `meta` every server shares meta's entry script.)
+ * from `process.argv[1]`: under npx that is a bin shim in the consumer's tree.)
  *
  * Lives in `meta` because meta is the package that aggregates the whole suite.
  */

@@ -1,9 +1,8 @@
 /**
  * The server and CLI report the version the package passes in, never one read
  * from whatever package.json sits above `process.argv[1]`. Under npx the entry
- * script is a bin shim in the consumer's tree, and inside `meta` every bundled
- * server shares meta's entry script, so a walk from there reports another
- * package's version.
+ * script is a bin shim in the consumer's tree, so a walk from there can report
+ * the consumer project's version.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
