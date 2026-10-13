@@ -28,7 +28,7 @@ Invoke it automatically:
 ## Phase 0: Identify What to Test
 
 ```bash
-git diff --name-only origin/release/35.0...HEAD | grep "^packages/" | cut -d/ -f2 | sort -u
+git diff --name-only "origin/$(git rev-parse --abbrev-ref HEAD@{upstream} 2>/dev/null | sed 's#^origin/##' || echo main)"...HEAD | grep "^packages/" | cut -d/ -f2 | sort -u
 ```
 
 Read the changed `tools/*.ts` and `services/*.ts` files and list the tool names to call, including at least one call that should fail (a refusal or a bad argument) when the change adds a check.
@@ -38,7 +38,8 @@ Read the changed `tools/*.ts` and `services/*.ts` files and list the tool names 
 ## Phase 1: Build
 
 ```bash
-npm run build --workspace=packages/core          # if core changed
+npm run build --workspace=packages/core                 # if core changed
+npm run build --workspace=packages/powerplatform-core   # always, for a Dataverse server in fake mode
 npm run build --workspace=packages/{PACKAGE}
 ls packages/{PACKAGE}/build/index.js
 ```
@@ -58,7 +59,7 @@ The runner is `.claude/templates/mcp-test-runner.mjs`. Use it as is; do not writ
 
 Set `MCP_TEST_MODE=live` to override. Fake mode exists for the Dataverse servers only so far.
 
-**The fake knows:** `accounts` and `contacts` (entity definitions, attributes, records, counts, `$apply` aggregates, records by GUID). Anything else gets a 404 from the fake, which shows up as a tool error. Contacts carry planted personal values. Extend the fake when a change needs more, in the same pull request.
+**The fake knows:** `accounts` and `contacts` (entity definitions, attributes, records, counts, `$apply` aggregates, records by GUID). Anything else gets a 404 from the fake, which fails the run. Contacts carry planted personal values. It ignores `$filter`, `$top` and paging (no `@odata.nextLink`), so a test of filter or paging logic proves nothing in fake mode; use unit tests for those. Extend the fake when a change needs more, in the same pull request.
 
 ---
 
@@ -79,9 +80,10 @@ Optional settings:
 | `MCP_TEST_EXPECT_TOOLS` | Comma-separated names. Fails unless the server lists exactly these tools. |
 | `MCP_TEST_ALLOW_WRITES=1` | Fake mode: allow requests other than GET (for create, update, delete tools). Without it any write fails the run. |
 | `MCP_TEST_PII=off` | Fake mode: run without PII protection and skip the planted-value check. |
+| `MCP_TEST_EXPECT_NO_REQUESTS=1` | Fake mode: fail if the server made any request. Use it with `MCP_TEST_EXPECT_ERROR` for refusals that must happen before anything is sent. |
 | `MCP_TEST_TIMEOUT` | Milliseconds, default 30000. |
 
-**A run fails on:** a build or connection error, a missing tool, a tool list that differs from `MCP_TEST_EXPECT_TOOLS`, any tool error not expected by `MCP_TEST_EXPECT_ERROR`, a success where an error was expected, and in fake mode any unexpected write request or any planted personal value in the output.
+**A run fails on:** a build or connection error, a missing tool, a tool list that differs from `MCP_TEST_EXPECT_TOOLS`, any tool error not expected by `MCP_TEST_EXPECT_ERROR`, a success where an error was expected, and in fake mode: any unexpected write, any planted personal value in the output, any request without the fake token, any 404 or 500 from the fake (a gap in the fake, never an expected error), and a stale `powerplatform-core` build without the fake-service switch (refused before the server starts).
 
 The last stderr line is always `[RESULT] PASS` or `[RESULT] FAIL`. The exit code matches (0 or 1). In fake mode the runner also prints every request the server made to the fake; check it is the request you expected.
 

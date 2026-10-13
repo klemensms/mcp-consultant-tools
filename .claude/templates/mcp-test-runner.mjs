@@ -25,6 +25,12 @@
  *                      other than GET to the fake fails the run.
  *   MCP_TEST_PII     - `off` to run fake mode without PII protection and without the
  *                      planted-value check.
+ *   MCP_TEST_EXPECT_NO_REQUESTS - `1`: fake mode fails if the server made any request
+ *                      (for refusals that must happen before anything is sent).
+ *
+ * Fake mode always fails on a request without the fake token, and on any 404 or 500
+ * from the fake, even when an error was expected: those are gaps in the fake, not
+ * the behaviour under test.
  *
  * Usage:
  *   MCP_TEST_PACKAGE="./packages/powerplatform-data/build/index.js" \
@@ -42,36 +48,70 @@
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { startFakeDataverse, PLANTED_VALUES } from './fake-dataverse.mjs';
+
+/** Stop with the standard last line, whatever went wrong. */
+function failEarly(message) {
+  console.error(`[ERROR] ${message}`);
+  console.error('[RESULT] FAIL');
+  process.exit(1);
+}
 
 // Configuration from environment
 const PACKAGE_PATH = process.env.MCP_TEST_PACKAGE;
 const TOOL_NAME = process.env.MCP_TEST_TOOL;
-const TOOL_ARGS = process.env.MCP_TEST_ARGS ? JSON.parse(process.env.MCP_TEST_ARGS) : {};
+let TOOL_ARGS = {};
+try {
+  TOOL_ARGS = process.env.MCP_TEST_ARGS ? JSON.parse(process.env.MCP_TEST_ARGS) : {};
+} catch (error) {
+  failEarly(`MCP_TEST_ARGS is not valid JSON: ${error.message}`);
+}
 const TIMEOUT_MS = parseInt(process.env.MCP_TEST_TIMEOUT || '30000', 10);
-const IS_DATAVERSE = /powerplatform/.test(PACKAGE_PATH ?? '');
+const IS_DATAVERSE = /(^|\/)packages\/powerplatform(-data|-customization)?\/build\//.test(PACKAGE_PATH ?? '');
 const MODE = process.env.MCP_TEST_MODE || (IS_DATAVERSE ? 'fake' : 'live');
-const EXPECT_ERROR = process.env.MCP_TEST_EXPECT_ERROR ? new RegExp(process.env.MCP_TEST_EXPECT_ERROR) : null;
+let EXPECT_ERROR = null;
+try {
+  EXPECT_ERROR = process.env.MCP_TEST_EXPECT_ERROR ? new RegExp(process.env.MCP_TEST_EXPECT_ERROR) : null;
+} catch (error) {
+  failEarly(`MCP_TEST_EXPECT_ERROR is not a valid regex: ${error.message}`);
+}
+const EXPECT_NO_REQUESTS = process.env.MCP_TEST_EXPECT_NO_REQUESTS === '1';
 const EXPECT_TOOLS = process.env.MCP_TEST_EXPECT_TOOLS?.split(',').map(t => t.trim()).filter(Boolean);
 const ALLOW_WRITES = process.env.MCP_TEST_ALLOW_WRITES === '1';
 const PII_ON = process.env.MCP_TEST_PII !== 'off';
 
 // Validation
 if (!PACKAGE_PATH) {
-  console.error('[ERROR] MCP_TEST_PACKAGE environment variable is required');
-  console.error('[USAGE] MCP_TEST_PACKAGE="./packages/pkg/build/index.js" MCP_TEST_TOOL="tool-name" node mcp-test-runner.mjs');
-  process.exit(1);
+  failEarly('MCP_TEST_PACKAGE is required, e.g. MCP_TEST_PACKAGE="./packages/pkg/build/index.js" MCP_TEST_TOOL="tool-name"');
 }
-
 if (!TOOL_NAME) {
-  console.error('[ERROR] MCP_TEST_TOOL environment variable is required');
-  process.exit(1);
+  failEarly('MCP_TEST_TOOL is required');
+}
+if (MODE === 'fake' && !IS_DATAVERSE) {
+  failEarly('Fake mode exists for the Dataverse servers only so far. Use MCP_TEST_MODE=live.');
 }
 
-if (MODE === 'fake' && !IS_DATAVERSE) {
-  console.error('[ERROR] Fake mode exists for the Dataverse servers only so far. Use MCP_TEST_MODE=live.');
-  console.error('[RESULT] FAIL');
-  process.exit(1);
+/**
+ * Fake mode relies on the server's powerplatform-core honouring
+ * MCP_POWERPLATFORM_FAKE_SERVICE. A stale build or a registry copy without it
+ * would fall back to a real browser sign-in, so refuse to start instead.
+ */
+if (MODE === 'fake') {
+  // Same lookup order as Node: the nearest node_modules above the server wins.
+  let authSource = '';
+  for (let dir = dirname(resolve(PACKAGE_PATH)); ; dir = dirname(dir)) {
+    const candidate = join(dir, 'node_modules', '@mcp-consultant-tools', 'powerplatform-core', 'build', 'auth', 'index.js');
+    if (existsSync(candidate)) {
+      authSource = readFileSync(candidate, 'utf8');
+      break;
+    }
+    if (dirname(dir) === dir) failEarly("Cannot find the server's powerplatform-core build in any node_modules above it.");
+  }
+  if (!authSource.includes('MCP_POWERPLATFORM_FAKE_SERVICE')) {
+    failEarly('The powerplatform-core build this server loads has no fake-service switch. Rebuild packages/powerplatform-core (or the server would try a real sign-in).');
+  }
 }
 
 // Collect additional env vars to pass to server (MCP_TEST_ENV_*)
@@ -201,14 +241,30 @@ async function runTest() {
     if (fake) {
       console.error('─'.repeat(60));
       console.error(`[FAKE] ${fake.requests.length} request(s) to the fake Dataverse:`);
-      fake.requests.forEach(r => console.error(`  ${r.method} ${r.path}${r.authorized ? '' : '  (no fake token)'}`));
+      fake.requests.forEach(r => console.error(`  ${r.method} ${r.path} -> ${r.status}${r.authorized ? '' : '  (no fake token)'}`));
+      const unauthorized = fake.requests.filter(r => !r.authorized);
+      if (unauthorized.length) {
+        console.error(`[FAKE] ✗ ${unauthorized.length} request(s) without the fake token`);
+        exitCode = 1;
+      }
+      const gaps = fake.requests.filter(r => r.status === 404 || r.status >= 500);
+      if (gaps.length) {
+        console.error(`[FAKE] ✗ ${gaps.length} request(s) the fake could not answer; extend fake-dataverse.mjs rather than expecting this error`);
+        exitCode = 1;
+      }
+      if (EXPECT_NO_REQUESTS && fake.requests.length) {
+        console.error('[FAKE] ✗ MCP_TEST_EXPECT_NO_REQUESTS is set but the server made requests');
+        exitCode = 1;
+      }
       const writes = fake.requests.filter(r => r.method !== 'GET');
       if (writes.length && !ALLOW_WRITES) {
         console.error(`[FAKE] ✗ ${writes.length} write request(s); set MCP_TEST_ALLOW_WRITES=1 if the tool is meant to write`);
         exitCode = 1;
       }
       if (PII_ON) {
-        const leaked = PLANTED_VALUES.filter(v => text.includes(v));
+        const squash = v => v.toLowerCase().replace(/\s+/g, '');
+        const haystack = squash(text);
+        const leaked = PLANTED_VALUES.filter(v => haystack.includes(squash(v)) || haystack.includes(squash(v.split('@')[0])));
         if (leaked.length) {
           console.error(`[FAKE] ✗ Planted personal value(s) reached the output: ${leaked.join(', ')}`);
           exitCode = 1;

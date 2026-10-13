@@ -16,7 +16,7 @@ import { createServer } from 'node:http';
 export const FAKE_TOKEN = 'fake-service-token';
 
 /** Values that must never appear in tool output while PII protection is on. */
-export const PLANTED_VALUES = ['planted.pii.7f3a@example.com', '+44 7700 900123', 'Plantedsurname'];
+export const PLANTED_VALUES = ['planted.pii.7f3a@example.com', '+44 7700 900123', 'Plantedsurname', 'Plantedfirstname'];
 
 const TABLES = {
   accounts: { logical: 'account', key: 'accountid', display: 'Account' },
@@ -31,9 +31,9 @@ const RECORDS = {
   contacts: [
     {
       contactid: 'aaaaaaaa-bbbb-cccc-dddd-000000000011',
-      firstname: 'Jane',
+      firstname: 'Plantedfirstname',
       lastname: 'Plantedsurname',
-      fullname: 'Jane Plantedsurname',
+      fullname: 'Plantedfirstname Plantedsurname',
       emailaddress1: 'planted.pii.7f3a@example.com',
       telephone1: '+44 7700 900123',
     },
@@ -113,19 +113,29 @@ function answer(method, path, query) {
 
 /**
  * Start the fake. Resolves to { url, requests, close }. `requests` fills as the
- * server under test calls it: { method, path, authorized }.
+ * server under test calls it: { method, path, authorized, status }.
  */
 export async function startFakeDataverse() {
   const requests = [];
   const server = createServer((req, res) => {
-    const url = new URL(req.url, 'http://127.0.0.1');
-    const path = decodeURIComponent(url.pathname).replace(/^\/api\/data\/v9\.2\//, '');
-    const authorized = req.headers.authorization === `Bearer ${FAKE_TOKEN}`;
-    requests.push({ method: req.method, path: `${path}${url.search}`, authorized });
+    const entry = { method: req.method, path: req.url, authorized: false, status: 500 };
+    requests.push(entry);
     req.resume();
-
-    const result = authorized ? answer(req.method, path, url.searchParams) : { status: 401, body: { error: { message: 'Missing fake token' } } };
-    const { status, body } = result ?? { status: 404, body: { error: { code: '0x80060888', message: `Fake Dataverse has no answer for ${path}` } } };
+    let status;
+    let body;
+    try {
+      const url = new URL(req.url, 'http://127.0.0.1');
+      const path = decodeURIComponent(url.pathname).replace(/^\/api\/data\/v9\.2\//, '');
+      entry.path = `${path}${url.search}`;
+      entry.authorized = req.headers.authorization === `Bearer ${FAKE_TOKEN}`;
+      const result = entry.authorized
+        ? answer(req.method, path, url.searchParams)
+        : { status: 401, body: { error: { message: 'Missing fake token' } } };
+      ({ status, body } = result ?? { status: 404, body: { error: { code: '0x80060888', message: `Fake Dataverse has no answer for ${path}` } } });
+    } catch (error) {
+      ({ status, body } = { status: 500, body: { error: { message: `Fake Dataverse failed: ${error.message}` } } });
+    }
+    entry.status = status;
     res.writeHead(status, body ? { 'Content-Type': 'application/json; odata.metadata=minimal' } : {});
     res.end(body ? JSON.stringify(body) : undefined);
   });

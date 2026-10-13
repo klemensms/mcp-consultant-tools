@@ -67,6 +67,6 @@ node .claude/templates/mcp-test-runner.mjs
 ## Important
 
 - **NEVER ask user to reconnect until tests pass**
-- Tests use the same environment variables as your current session
+- Live mode uses the environment variables of your current session; fake mode (the default for the Dataverse servers) sets its own and touches no live system
 - All output goes to stderr (stdout is reserved for MCP protocol)
 - Test scripts are stored in `.claude/templates/` (not gitignored)
