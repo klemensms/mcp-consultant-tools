@@ -59,6 +59,12 @@ Origin: session mcp-consultant-tools-b8, 2026-10-13. Append-only; change State, 
 ### ⚑10 · get-lookup-target's binding-lookup warning has no automated test
 - **Kind:** gotcha
 - **Hop:** L2 · 8cc197f
-- **State:** open
+- **State:** closed-by-L3 - fake Dataverse answers 403 for contact lookup `new_restrictedaccountid`, so fake-mode get-lookup-target runs the warning branch (0cea2e3); the assertion is by reading the output, the runner has no expected-text check
 - **Matters because:** the fake always answers ManyToOneRelationships and powerplatform-data has no unit tests, so the new warning branch (binding lookup failed, metadata read) never runs in a test. Add a fake 503 for one named entity, or a stubbed-service unit test.
 
+
+### ⚑11 · An unfiltered live count that times out on a very large table has no fallback
+- **Kind:** decision
+- **Hop:** L3 · 0cea2e3
+- **State:** open
+- **Matters because:** before PR #13 an unfiltered count came from the stored snapshot at once; now a table large enough for Dataverse to time out (SQL timeout or the 2-minute client timeout) before its 50,000 refusal returns an error. Chosen deliberately, so a generic error never silently becomes a stale number; listed under "Not verified" in beta.29. Revisit if it is seen live.
