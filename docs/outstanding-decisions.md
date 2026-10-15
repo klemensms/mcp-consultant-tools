@@ -49,5 +49,5 @@ Thanks
 - **A.** Raise it as a ticket with this text.
 - **B.** Change the text or recipient (say how).
 - **C.** Drop task 7; the sign-in keeps working on `localhost` as it does today.
-- **Recommended: C.** Nobody has hit the failure and browsers usually try both addresses, so the gain is mostly theoretical, while A costs a ticket plus a code change. Sign-in keeps working as it does today. Re-raise (option A) only if someone reports a browser sign-in that hangs after the browser says it is done; on C, that condition is recorded in the plan's task 7 row.
+- **Recommended: C.** Nobody has hit the failure and browsers usually try both addresses, so the gain is mostly theoretical, while A costs a ticket plus a code change. Sign-in keeps working as it does today. Re-raise (option A) only if someone reports a browser sign-in that hangs after the browser says it is done; on C, that condition goes into the plan's task 7 row.
 
