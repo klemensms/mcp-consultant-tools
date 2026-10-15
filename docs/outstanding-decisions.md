@@ -1,6 +1,6 @@
 # Outstanding decisions
 
-> Every decision still waiting on the maintainer sits here and nowhere else. An entry is removed the moment it is answered; the answer is recorded in the owning plan's or review's Status section and git history keeps what was asked. Numbers are never reused. Next number: **D-022**. Any session may add an entry; the session that acts on the answer removes it. This repo is public: where a decision involves internal text (a ticket, a message), the entry points to the private record that holds it, and the question put to the maintainer in chat carries the full text.
+> Every decision still waiting on the maintainer sits here and nowhere else. An entry is removed the moment it is answered; the answer is recorded in the owning plan's or review's Status section and git history keeps what was asked. Numbers are never reused. Next number: **D-023**. Any session may add an entry; the session that acts on the answer removes it. This repo is public: where a decision involves internal text (a ticket, a message), the entry points to the private record that holds it, and the question put to the maintainer in chat carries the full text.
 >
 > Each entry: what is being decided, why it matters, lettered options, a recommendation, and whether it is a send decision. Answer by number and letter, e.g. "D-002 A, D-003 B".
 
@@ -64,3 +64,19 @@ Thanks
 - **C.** Drop task 7; the sign-in keeps working on `localhost` as it does today.
 - **Recommended: A.** Removes the one case where the browser sign-in can fail to come back, at the cost of one small change by a directory admin; once confirmed, task 7 is a short code change.
 
+## D-022 · Post the beta.29 announcement to the team channel? (release v35.0.0-beta.29)
+Send decision. Beta.29 is published on the npm beta tag (commits 8f96a3d, 5b26268). The announcement goes to the internal team channel through the release webhook in `.env.local`. Nothing has been posted. Whole message:
+
+```
+ℹ️ New beta of @mcp-consultant-tools: v35.0.0-beta.29.
+
+No config changes. Sign in once after upgrading: PowerPlatform, SharePoint and Outlook now keep their sign-in in the OS keychain (macOS may ask once whether node can use the keychain - choose Always Allow). Also: Dataverse names and IDs are checked before a request is sent, unfiltered record counts are live, Dataverse sign-in is more robust, and Teams reaction lookups are bounded.
+
+Release notes: https://github.com/klemensms/mcp-consultant-tools/blob/release/35.0/docs/release-notes/v35.0.0.md
+```
+- **A.** Post it as written.
+- **B.** Change the text (say how).
+- **C.** Do not announce this beta.
+- **Recommended: A.** Users need to know about the one-time sign-in, or unattended sessions stall on it.
+
+*Raised 2026-10-15 by monitor mcp-consultant-tools-32 from the beta29-cut session.*
