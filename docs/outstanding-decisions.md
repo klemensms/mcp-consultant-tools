@@ -23,19 +23,32 @@ Not a send decision. The send guard (`~/.claude/hooks/global/outbound-send-guard
 - **Recommended: A.** Matches the rule you set; the marker in the first line is checked by the guard, so an ordinary message to the same person is still gated.
 
 ## D-010 · Reply to the hosting monitor session
-Send decision. Recipient: the hosting monitor (another Claude session), sent from this repo's session. Can go now. Current draft, whole message:
+Send decision. Recipient: the hosting monitor (another Claude session), sent from this repo's session. Answers its three keep-in-step messages: the first review, the second review and the live-count change. Whole message:
 
 ```
-Reply on the nine Dynamics review findings, checked against mcp-consultant-tools (branch release/35.0). Full table: docs/reviews/2026-10-06-dynamics-review-findings.md.
+Reply on the Dynamics keep-in-step items, checked against mcp-consultant-tools (branch release/35.0). Everything below is published on the npm beta tag; full table with file and line evidence: docs/reviews/2026-10-06-dynamics-review-findings.md.
 
-Fixed and published in v35.0.0-beta.27 (powerplatform-core beta.9, powerplatform beta.12, powerplatform-data beta.11, powerplatform-customization beta.8): #2 HTTP client, #3 exact pins plus npm-shrinkwrap, #4 shared sign-in, #5 hasMore, #6 filtered counts (not yet checked against a live environment), #7 callback 404, #8 publish with --ignore-scripts and a release-branch, clean, pushed check (we have no CI publish, so the version-injection part does not apply).
+First review (nine findings): all applied.
+- beta.27 (6 Oct): #2 HTTP client (no redirects, fixed headers not overridable, no query strings in logs), #3 exact pins plus npm-shrinkwrap, #4 shared browser sign-in, #5 hasMore after a trim, #6 filtered counts via $apply, #7 callback 404, #8 publish with --ignore-scripts and a release-branch, clean, pushed check (no CI publish here, so the version-injection part does not apply).
+- beta.29 (15 Oct, powerplatform-core beta.10, powerplatform beta.13, powerplatform-data beta.12, powerplatform-customization beta.9): #1 name and ID checks at every DataService and MetadataService entry point (customization tools left unchecked; _<lookup>_value columns pass), #9 sign-in cache in the OS keychain, memory only where no keychain is available. msal-node 7 waits for our next major release because it needs Node 20.
 
-Decided 2026-10-13 and being built: #1 name and ID checks on the data and metadata tools (customization tools left unchecked), #9 tokens move to the OS keychain, memory-only where no keychain is available. The msal-node 7 move is planned for our next major release because it needs Node 20.
+Second review: applied in beta.29, except as noted.
+- Full sign-in address printed, keeps waiting if the browser fails to open, port 0, a code redeemed once, the last signed-in account preferred.
+- N:N counts join on Entity1's primary key; lookup failures reported as themselves and not cached; en-GB totals; timeouts of 2 minutes for reads and 30 for writes (long solution and schema writes need it).
+- Token cache falls back to memory on any store failure, with the native library optional.
+- Servers report their own version (core beta.3).
+- Not applicable: start-up sign-in, because ours makes no sign-in before stdio connects.
+- Still open: the 127.0.0.1 redirect. The app registration lists no owners, so a request to the directory admins is waiting; we stay on localhost until it is added.
 
-One point on your #4 fix: it shares one sign-in result whatever the resource, so a call for a second resource (the Flow endpoint, for us) that joins a Dataverse sign-in would get the Dataverse token. We share the sign-in, then each waiting call repeats the silent lookup for its own resource.
+Live counts: applied in beta.29 with one difference. Unfiltered counts are live and trimmed to the caller, but over the 50,000 live limit we fall back to the stored count, labelled as the whole table, not limited to the caller's access and up to 24 hours old, rather than refusing. Our server stays an unlocked tool.
 
-Earlier item: beta.26 published the sign-in hardening (PKCE, state check, loopback binding) and the flow tools move.
+One point on your shared sign-in fix: it shares one result whatever the resource, so a call for a second resource (the Flow endpoint, for us) that joins a Dataverse sign-in would get the Dataverse token. We share the sign-in, then each waiting call repeats the silent lookup for its own resource.
+
+Local tester: the dialog is gone and Dataverse tests default to a fake Dataverse on 127.0.0.1, as you suggested.
 ```
+- **A.** Send as written.
+- **B.** Change it (say how).
+- **Recommended: A.** Every item is checked against the beta.29 release notes; the only open point, the redirect, is stated as open.
 
 ## D-020 · Ask the directory admins to add a `127.0.0.1` redirect
 Send decision. Plan task 7 (switching the PowerPlatform sign-in redirect from `localhost` to `127.0.0.1`) is blocked until the app registration the tools sign in with lists it; switching first would break every Dataverse sign-in. Recipient: the registration lists no owners in Entra (checked read-only 2026-10-13), so only a directory admin can add the redirect; the request goes to them as an IT ticket (team named in the chat question; internal names stay out of this public repo). Whole message:
