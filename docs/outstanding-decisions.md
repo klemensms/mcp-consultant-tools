@@ -49,5 +49,5 @@ Thanks
 - **A.** Raise it as a ticket with this text.
 - **B.** Change the text or recipient (say how).
 - **C.** Drop task 7; the sign-in keeps working on `localhost` as it does today.
-- **Recommended: A.** Removes the one case where the browser sign-in can fail to come back, at the cost of one small change by a directory admin; once confirmed, task 7 is a short code change.
+- **Recommended: C.** Nobody has hit the failure and browsers usually try both addresses, so the gain is mostly theoretical, while A costs a ticket plus a code change. Sign-in keeps working as it does today. Re-raise (option A) only if someone reports a browser sign-in that hangs after the browser says it is done; on C, that condition is recorded in the plan's task 7 row.
 
