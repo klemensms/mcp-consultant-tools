@@ -4,9 +4,7 @@
 >
 > Each entry: what is being decided, why it matters, lettered options, a recommendation, and whether it is a send decision. Answer by number and letter, e.g. "D-002 A, D-003 B".
 
-## Teams file attachments
-
-### D-012 · Live test of sending a file with a Teams message
+## D-012 · Live test of sending a file with a Teams message
 Send decision. The maintainer's live-test rule (2026-10-13) allows test messages to one designated colleague, but the send guard still asks for a yes on the exact text. Recipient: that colleague, by direct message (named in the chat question; internal names stay out of this public repo). Attachment: `~/Downloads/teams-mcp-attachment-test.docx` (one line: "Teams MCP attachment test, 2026-10-07. If you can read this, the file opened."). Whole message:
 
 ```
@@ -18,15 +16,13 @@ This checks that files sent through the Teams MCP open for the recipient without
 - **B.** Change the text (say how).
 - **Recommended: A.** Proves the chat upload and sharing path; the channel path stays unproven under the rule, which covers direct messages only.
 
-### D-019 · Let marked test messages to the test colleague through the send guard
+## D-019 · Let marked test messages to the test colleague through the send guard
 Not a send decision. The send guard (`~/.claude/hooks/global/outbound-send-guard.py`, machine-local) already lets a deploy note to the private dev channel through without a yes. The same exception for live tests: a Teams direct message to the designated test colleague whose first line starts "Live test from an agent", or an email to them whose subject starts "Test only" or "Test -", goes through without a yes. Anything else still needs one.
 - **A.** Add the exception.
 - **B.** Keep a yes on every test message.
 - **Recommended: A.** Matches the rule you set; the marker in the first line is checked by the guard, so an ordinary message to the same person is still gated.
 
-## Monitor replies
-
-### D-010 · Reply to the hosting monitor session
+## D-010 · Reply to the hosting monitor session
 Send decision. Recipient: the hosting monitor (another Claude session), sent from this repo's session. Can go now. Current draft, whole message:
 
 ```
@@ -41,9 +37,7 @@ One point on your #4 fix: it shares one sign-in result whatever the resource, so
 Earlier item: beta.26 published the sign-in hardening (PKCE, state check, loopback binding) and the flow tools move.
 ```
 
-## Sign-in hardening
-
-### D-020 · Ask the directory admins to add a `127.0.0.1` redirect
+## D-020 · Ask the directory admins to add a `127.0.0.1` redirect
 Send decision. Plan task 7 (switching the PowerPlatform sign-in redirect from `localhost` to `127.0.0.1`) is blocked until the app registration the tools sign in with lists it; switching first would break every Dataverse sign-in. Recipient: the registration lists no owners in Entra (checked read-only 2026-10-13), so only a directory admin can add the redirect; the request goes to them as an IT ticket (team named in the chat question; internal names stay out of this public repo). Whole message:
 
 ```
@@ -57,4 +51,3 @@ Thanks
 - **C.** Drop task 7; the sign-in keeps working on `localhost` as it does today.
 - **Recommended: A.** Removes the one case where the browser sign-in can fail to come back, at the cost of one small change by a directory admin; once confirmed, task 7 is a short code change.
 
-## Secret cache
